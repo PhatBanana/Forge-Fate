@@ -1,3 +1,4 @@
+import { read, remove, write } from './persist';
 /**
  * Which palette the app is wearing.
  *
@@ -27,7 +28,7 @@ export function systemTheme(): Theme {
 
 export function loadThemeChoice(): ThemeChoice {
   try {
-    const saved = localStorage.getItem(KEY);
+    const saved = read(KEY);
     return saved === 'light' || saved === 'dark' ? saved : 'system';
   } catch {
     // Private browsing, or storage disabled. Following the system is a fine
@@ -38,8 +39,8 @@ export function loadThemeChoice(): ThemeChoice {
 
 export function saveThemeChoice(choice: ThemeChoice): void {
   try {
-    if (choice === 'system') localStorage.removeItem(KEY);
-    else localStorage.setItem(KEY, choice);
+    if (choice === 'system') remove(KEY);
+    else write(KEY, choice);
   } catch {
     // Not being able to remember it is not a reason to refuse to apply it.
   }

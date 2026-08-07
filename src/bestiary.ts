@@ -1,5 +1,6 @@
 import type { Monster, MonsterAbility } from './data/monsters';
 import { newId } from './storage';
+import { read, write } from './persist';
 
 /**
  * Monsters you made, kept separately from the ones the SRD gave you.
@@ -197,7 +198,7 @@ export function hydrateMonster(parsed: unknown): Monster | null {
 /** Never throws and never returns null: an empty bestiary is a valid one. */
 export function loadBestiary(): Monster[] {
   try {
-    const raw = localStorage.getItem(BESTIARY_KEY);
+    const raw = read(BESTIARY_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as { monsters?: unknown[] };
     return (parsed?.monsters ?? [])
@@ -212,7 +213,7 @@ export function loadBestiary(): Monster[] {
 
 export function saveBestiary(monsters: Monster[]): void {
   try {
-    localStorage.setItem(BESTIARY_KEY, JSON.stringify({ monsters }));
+    write(BESTIARY_KEY, JSON.stringify({ monsters }));
   } catch {
     // Private browsing or a full quota - the app still works, it just forgets.
   }

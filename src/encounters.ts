@@ -3,6 +3,7 @@ import { emptyEncounter } from './encounter';
 import { hydrateElevation, hydrateTerrain } from './terrain';
 import { hydrateZones } from './zones';
 import { newId } from './storage';
+import { read, write } from './persist';
 
 /**
  * Prepared fights, in their own store.
@@ -30,7 +31,7 @@ export interface SavedEncounter {
 /** Never throws; an empty drawer is a valid one. */
 export function loadEncounters(): SavedEncounter[] {
   try {
-    const raw = localStorage.getItem(ENCOUNTERS_KEY);
+    const raw = read(ENCOUNTERS_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as { encounters?: unknown[] };
     return (parsed?.encounters ?? [])
@@ -43,7 +44,7 @@ export function loadEncounters(): SavedEncounter[] {
 
 export function saveEncounters(encounters: SavedEncounter[]): void {
   try {
-    localStorage.setItem(ENCOUNTERS_KEY, JSON.stringify({ encounters }));
+    write(ENCOUNTERS_KEY, JSON.stringify({ encounters }));
   } catch {
     // Private browsing or a full quota - the app still works, it just forgets.
   }

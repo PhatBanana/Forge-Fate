@@ -10,6 +10,7 @@ import { emptyBuild, weaponsForProfile } from './engine/character';
 import { defaultDefenses } from './engine/defense';
 import { CLASSES } from './data/classes';
 import { emptyCoins } from './engine/inventory';
+import { read, write } from './persist';
 
 /**
  * Saved characters.
@@ -211,7 +212,7 @@ function emptyRoster(): Roster {
  */
 export function loadRoster(): Roster {
   try {
-    const raw = localStorage.getItem(ROSTER_KEY);
+    const raw = read(ROSTER_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Roster;
       const entries = (parsed?.entries ?? [])
@@ -245,7 +246,7 @@ export function loadRoster(): Roster {
 
     // No roster yet: adopt the single build the app used to keep, so upgrading
     // does not look like losing your character.
-    const legacy = hydrateBuild(JSON.parse(localStorage.getItem(LEGACY_BUILD_KEY) ?? 'null'));
+    const legacy = hydrateBuild(JSON.parse(read(LEGACY_BUILD_KEY) ?? 'null'));
     if (legacy) {
       const entry = entryFor(legacy);
       return { entries: [entry], activeId: entry.id };
@@ -259,7 +260,7 @@ export function loadRoster(): Roster {
 
 export function saveRoster(roster: Roster): void {
   try {
-    localStorage.setItem(ROSTER_KEY, JSON.stringify(roster));
+    write(ROSTER_KEY, JSON.stringify(roster));
   } catch {
     // Private browsing or a full quota - the app still works, it just forgets.
   }

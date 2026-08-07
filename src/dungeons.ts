@@ -2,6 +2,7 @@ import type { EncounterState } from './encounter';
 import type { ElevationMap, TerrainMap } from './terrain';
 import { hydrateElevation, hydrateTerrain } from './terrain';
 import { newId } from './storage';
+import { read, write } from './persist';
 
 /**
  * Prepared places, in their own drawer.
@@ -37,7 +38,7 @@ export interface SavedDungeon {
 /** Never throws; an empty drawer is a valid one. */
 export function loadDungeons(): SavedDungeon[] {
   try {
-    const raw = localStorage.getItem(DUNGEONS_KEY);
+    const raw = read(DUNGEONS_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as { dungeons?: unknown[] };
     return (parsed?.dungeons ?? [])
@@ -50,7 +51,7 @@ export function loadDungeons(): SavedDungeon[] {
 
 export function saveDungeons(dungeons: SavedDungeon[]): void {
   try {
-    localStorage.setItem(DUNGEONS_KEY, JSON.stringify({ dungeons }));
+    write(DUNGEONS_KEY, JSON.stringify({ dungeons }));
   } catch {
     // Private browsing or a full quota - the app still works, it just forgets.
   }

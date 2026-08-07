@@ -1,3 +1,4 @@
+import { read, write } from './persist';
 /**
  * How wide the rails are, and whether they are showing.
  *
@@ -88,7 +89,7 @@ const validRail = (value: unknown): RailState | null => {
  */
 export function loadLayout(id: string): WorkspaceLayout {
   try {
-    const raw = localStorage.getItem(KEY(id));
+    const raw = read(KEY(id));
     if (!raw) return DEFAULT_LAYOUT;
     const parsed = JSON.parse(raw) as Partial<WorkspaceLayout>;
     return {
@@ -103,7 +104,7 @@ export function loadLayout(id: string): WorkspaceLayout {
 
 export function saveLayout(id: string, layout: WorkspaceLayout): void {
   try {
-    localStorage.setItem(KEY(id), JSON.stringify(layout));
+    write(KEY(id), JSON.stringify(layout));
   } catch {
     // Not being able to remember the layout is not a reason to refuse to
     // change it.
