@@ -372,6 +372,37 @@ export function TableTab({
     // to attack it" safe - the click cannot be mistaken for a walk.
     if (!moveArmed || selected.id !== active?.id) return;
 
+    const next = walkInto(roster, selected, to);
+    if (next) onChange(next);
+  };
+
+  /**
+   * The charged walk, composed onto the given roster and RETURNED - null when
+   * the destination is refused.
+   *
+   * Returning rather than writing is what lets a monster's whole turn reach
+   * the store at once: the walk and the routine that follows it are one
+   * gesture, and two writes would each build from this render's roster with
+   * the second discarding the first - the attack would land from the square
+   * the monster had already left.
+   *
+   * The guards are repeated here rather than trusted to the caller, because
+   * this is now reachable from the turn planner as well as from a click, and
+   * a plan is only a proposal until this agrees to it.
+   */
+  const walkInto = (updated: Roster, mover: Combatant, to: Square): Roster | null => {
+    const encNow = activeEncounter(updated);
+    const self = encNow.combatants.find((c) => c.id === mover.id);
+    if (!self?.at) return null;
+    if (
+      encNow.combatants.some(
+        (c) => c.id !== self.id && c.at && c.at.x === to.x && c.at.y === to.y,
+      )
+    ) {
+      return null;
+    }
+    if (!walkable(sightContext, to)) return null;
+
     /*
       Charged what the walk costs, not what the crow flies - and the walk
       taken is the one that stays out of the fire when the budget allows,
@@ -381,56 +412,56 @@ export function TableTab({
       log says so. Beyond even that, nothing happens.
     */
     const choice = routeChoice(keyOf(to));
-    if (!choice || choice.cost > walkBudget.dash) return;
+    if (!choice || choice.cost > walkBudget.dash) return null;
     const cost = choice.cost;
     const needsDash = cost > walkBudget.base;
-    const route = routeTo(choice.via, selected.at, to) ?? [selected.at, to];
+    const route = routeTo(choice.via, self.at, to) ?? [self.at, to];
 
-    let enc = placeCombatant(encounter, selected.id, to);
-    if (needsDash) enc = appendLog(enc, `${nameOf(selected)} Dashes.`);
+    let enc = placeCombatant(encNow, self.id, to);
+    if (needsDash) enc = appendLog(enc, `${nameOf(self)} Dashes.`);
 
     /*
       The opportunity-attack ruling, in the noted-never-applied register the
       cover and flanking notes use: leaving a living enemy's reach provokes,
       and whether they take the swing is the table's business.
     */
-    const provoked = encounter.combatants.filter(
+    const provoked = encNow.combatants.filter(
       (c) =>
-        c.kind !== selected.kind &&
+        c.kind !== self.kind &&
         c.at &&
         (hpOf(c)?.now ?? 0) > 0 &&
-        Math.max(Math.abs(c.at.x - selected.at!.x), Math.abs(c.at.y - selected.at!.y)) === 1 &&
+        Math.max(Math.abs(c.at.x - self.at!.x), Math.abs(c.at.y - self.at!.y)) === 1 &&
         Math.max(Math.abs(c.at.x - to.x), Math.abs(c.at.y - to.y)) > 1,
     );
     if (provoked.length) {
       enc = appendLog(
         enc,
-        `${nameOf(selected)} leaves the reach of ${provoked.map(nameOf).join(', ')} — opportunity attack, unless they Disengaged.`,
+        `${nameOf(self)} leaves the reach of ${provoked.map(nameOf).join(', ')} — opportunity attack, unless they Disengaged.`,
       );
     }
 
-    let updated: Roster;
-    if (selected.kind === 'character') {
-      const entry = roster.entries.find((e) => e.id === selected.rosterId);
-      if (!entry) return;
-      updated = updateEncounter(roster, enc);
+    let next: Roster;
+    if (self.kind === 'character') {
+      const entry = updated.entries.find((e) => e.id === self.rosterId);
+      if (!entry) return null;
+      next = updateEncounter(updated, enc);
       let play = entry.play;
       if (needsDash) play = setTurnSlot(dash(play), 'action', true);
-      play = moveBy(play, cost, speedOf(selected));
-      updated = updatePlay(updated, entry.id, play);
+      play = moveBy(play, cost, speedOf(self));
+      next = updatePlay(next, entry.id, play);
     } else {
       /*
         The monster pays the same bill: movement is a per-turn resource on
         the combatant itself, reset when its turn comes round again.
       */
-      updated = updateEncounter(roster, spendMonsterMovement(enc, selected.id, cost));
+      next = updateEncounter(updated, spendMonsterMovement(enc, self.id, cost));
     }
 
     // The ground settles up: every biting zone the route entered, once each.
-    for (const zone of hazardsCrossed(encounter.zones, route)) {
-      updated = biteZone(updated, selected.id, zone, 'walks into');
+    for (const zone of hazardsCrossed(encNow.zones, route)) {
+      next = biteZone(next, self.id, zone, 'walks into');
     }
-    onChange(updated);
+    return next;
   };
 
   const byId = useMemo(() => new Map(monsters.map((m) => [m.id, m])), [monsters]);
@@ -818,33 +849,44 @@ export function TableTab({
   }, [walk, walkSafe, walkBudget, encounter, moveArmed, selected, active]);
 
   /**
-   * An aimed attack lands on whoever was clicked.
+   * An exchange of blows, composed onto the given roster and RETURNED.
    *
    * The whole exchange is one roster write - the d20s, the damage dice, the
    * hit points and the log lines all composed before a single `onChange` -
    * because two writes here would each build from this render's roster and
    * the second would silently discard the first, which for a Multiattack
    * would mean a dragon's claws erasing its own bite.
+   *
+   * Returning rather than writing is what extends that rule past a single
+   * gesture: a monster's whole turn is a walk *and* a routine, and those have
+   * to reach the store together or the attack lands from the square the
+   * monster already left. Everything here reads from the roster it was handed
+   * rather than from this render's, so a move composed a moment ago is
+   * already true by the time the swing is priced - the cover is computed from
+   * where it ended up, not from where it started.
    */
-  const resolveStrikes = (
+  const strikesInto = (
+    updated: Roster,
     who: { name: string; id?: string },
     strikes: Strike[],
-    target: Combatant,
+    targetRef: Combatant,
     opts?: { spendAction?: boolean },
-  ) => {
+  ): Roster => {
+    let enc = activeEncounter(updated);
+    // Re-read both ends off the roster we were handed: a walk composed just
+    // before this one is already in it, and the old objects are stale.
+    const target = enc.combatants.find((c) => c.id === targetRef.id) ?? targetRef;
     const targetName = nameOf(target);
     const targetAc =
       target.kind === 'monster'
         ? byId.get(target.monsterId)?.ac
         : derived.get(target.rosterId)?.ctx.ac.total;
-    if (targetAc === undefined) return;
+    if (targetAc === undefined) return updated;
 
     // Cover the way 12.4 computes it, when both ends stand on the map: half
     // cover is +2 AC, said in the log so the ruling is visible. Flanking and
     // high ground ride the same parenthesis - noted, never applied.
-    const attacker = who.id
-      ? encounter.combatants.find((c) => c.id === who.id)
-      : undefined;
+    const attacker = who.id ? enc.combatants.find((c) => c.id === who.id) : undefined;
     const attackerAt = attacker?.at;
     const cover =
       attackerAt && target.at
@@ -857,7 +899,7 @@ export function TableTab({
       flanked(
         attackerAt,
         target.at,
-        encounter.combatants
+        enc.combatants
           .filter(
             (ally) =>
               ally.kind === attacker.kind &&
@@ -870,14 +912,13 @@ export function TableTab({
         ? 'flanked'
         : '',
       attackerAt && target.at &&
-      heightAdvantage(encounter.elevation ?? {}, attackerAt, target.at) > 0
+      heightAdvantage(enc.elevation ?? {}, attackerAt, target.at) > 0
         ? 'high ground'
         : '',
       attacker?.hidden !== undefined ? 'unseen attacker — advantage' : '',
     ].filter(Boolean);
     const ruling = rulings.length ? ` (${rulings.join(', ')})` : '';
 
-    let enc = encounter;
     let totalDamage = 0;
     const lines: string[] = [];
 
@@ -938,7 +979,7 @@ export function TableTab({
     // The concentration reminder rides with the damage, because that is the
     // moment the rule fires: CON save, DC 10 or half the damage.
     if (target.kind === 'character' && totalDamage > 0) {
-      const entry = roster.entries.find((e) => e.id === target.rosterId);
+      const entry = updated.entries.find((e) => e.id === target.rosterId);
       if (entry?.play.concentratingOn) {
         enc = appendLog(
           enc,
@@ -946,20 +987,28 @@ export function TableTab({
         );
       }
     }
-    let updated = updateEncounter(roster, enc);
+    let next = updateEncounter(updated, enc);
     if (target.kind === 'character' && totalDamage > 0) {
-      const entry = updated.entries.find((e) => e.id === target.rosterId);
+      const entry = next.entries.find((e) => e.id === target.rosterId);
       const max = derived.get(target.rosterId)?.ctx.hp.total ?? 0;
-      if (entry) updated = updatePlay(updated, entry.id, damage(entry.play, totalDamage, max));
+      if (entry) next = updatePlay(next, entry.id, damage(entry.play, totalDamage, max));
     }
     // A token-click attack is taking the Attack action: the pip rides the
     // same write as the dice - two onChange calls would erase each other.
     if (opts?.spendAction && attacker?.kind === 'character') {
-      const entry = updated.entries.find((e) => e.id === attacker.rosterId);
-      if (entry) updated = updatePlay(updated, entry.id, setTurnSlot(entry.play, 'action', true));
+      const entry = next.entries.find((e) => e.id === attacker.rosterId);
+      if (entry) next = updatePlay(next, entry.id, setTurnSlot(entry.play, 'action', true));
     }
-    onChange(updated);
+    return next;
   };
+
+  /** The same exchange, written. Every hand-driven attack comes through here. */
+  const resolveStrikes = (
+    who: { name: string; id?: string },
+    strikes: Strike[],
+    target: Combatant,
+    opts?: { spendAction?: boolean },
+  ) => onChange(strikesInto(roster, who, strikes, target, opts));
 
   const resolveAim = (target: Combatant) => {
     if (!aim) return;
