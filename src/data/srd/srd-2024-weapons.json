@@ -1,0 +1,529 @@
+{
+ "source": "open5e SRD 5.2",
+ "refreshed": "2026-07-31",
+ "records": {
+  "battleaxe": {
+   "name": "Battleaxe",
+   "cost": 1000,
+   "weight": 4,
+   "damage": "1d8",
+   "damageType": "slashing",
+   "versatile": "1d10",
+   "properties": [
+    "versatile"
+   ],
+   "mastery": "topple",
+   "weaponCategory": "martial"
+  },
+  "blowgun": {
+   "name": "Blowgun",
+   "cost": 1000,
+   "weight": 1,
+   "damage": "1",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "ammunition",
+    "loading"
+   ],
+   "mastery": "vex",
+   "weaponCategory": "martial"
+  },
+  "club": {
+   "name": "Club",
+   "cost": 10,
+   "weight": 2,
+   "damage": "1d4",
+   "damageType": "bludgeoning",
+   "versatile": null,
+   "properties": [
+    "light"
+   ],
+   "mastery": "slow",
+   "weaponCategory": "simple"
+  },
+  "dagger": {
+   "name": "Dagger",
+   "cost": 200,
+   "weight": 1,
+   "damage": "1d4",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "finesse",
+    "light",
+    "thrown"
+   ],
+   "mastery": "nick",
+   "weaponCategory": "simple"
+  },
+  "dart": {
+   "name": "Dart",
+   "cost": 5,
+   "weight": 1,
+   "damage": "1d4",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "finesse",
+    "thrown"
+   ],
+   "mastery": "vex",
+   "weaponCategory": "simple"
+  },
+  "flail": {
+   "name": "Flail",
+   "cost": 1000,
+   "weight": 2,
+   "damage": "1d8",
+   "damageType": "bludgeoning",
+   "versatile": null,
+   "properties": [],
+   "mastery": "sap",
+   "weaponCategory": "martial"
+  },
+  "glaive": {
+   "name": "Glaive",
+   "cost": 2000,
+   "weight": 6,
+   "damage": "1d10",
+   "damageType": "slashing",
+   "versatile": null,
+   "properties": [
+    "heavy",
+    "reach",
+    "two-handed"
+   ],
+   "mastery": "graze",
+   "weaponCategory": "martial"
+  },
+  "greataxe": {
+   "name": "Greataxe",
+   "cost": 3000,
+   "weight": 7,
+   "damage": "1d12",
+   "damageType": "slashing",
+   "versatile": null,
+   "properties": [
+    "heavy",
+    "two-handed"
+   ],
+   "mastery": "cleave",
+   "weaponCategory": "martial"
+  },
+  "greatclub": {
+   "name": "Greatclub",
+   "cost": 20,
+   "weight": 10,
+   "damage": "1d8",
+   "damageType": "bludgeoning",
+   "versatile": null,
+   "properties": [
+    "two-handed"
+   ],
+   "mastery": "push",
+   "weaponCategory": "simple"
+  },
+  "greatsword": {
+   "name": "Greatsword",
+   "cost": 5000,
+   "weight": 6,
+   "damage": "2d6",
+   "damageType": "slashing",
+   "versatile": null,
+   "properties": [
+    "heavy",
+    "two-handed"
+   ],
+   "mastery": "graze",
+   "weaponCategory": "martial"
+  },
+  "halberd": {
+   "name": "Halberd",
+   "cost": 2000,
+   "weight": 6,
+   "damage": "1d10",
+   "damageType": "slashing",
+   "versatile": null,
+   "properties": [
+    "heavy",
+    "reach",
+    "two-handed"
+   ],
+   "mastery": "cleave",
+   "weaponCategory": "martial"
+  },
+  "hand crossbow": {
+   "name": "Hand Crossbow",
+   "cost": 7500,
+   "weight": 3,
+   "damage": "1d6",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "ammunition",
+    "light",
+    "loading"
+   ],
+   "mastery": "vex",
+   "weaponCategory": "martial"
+  },
+  "handaxe": {
+   "name": "Handaxe",
+   "cost": 500,
+   "weight": 2,
+   "damage": "1d6",
+   "damageType": "slashing",
+   "versatile": null,
+   "properties": [
+    "light",
+    "thrown"
+   ],
+   "mastery": "vex",
+   "weaponCategory": "simple"
+  },
+  "heavy crossbow": {
+   "name": "Heavy Crossbow",
+   "cost": 5000,
+   "weight": 18,
+   "damage": "1d10",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "ammunition",
+    "heavy",
+    "loading",
+    "two-handed"
+   ],
+   "mastery": "push",
+   "weaponCategory": "martial"
+  },
+  "javelin": {
+   "name": "Javelin",
+   "cost": 50,
+   "weight": 2,
+   "damage": "1d6",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "thrown"
+   ],
+   "mastery": "slow",
+   "weaponCategory": "simple"
+  },
+  "lance": {
+   "name": "Lance",
+   "cost": 1000,
+   "weight": 6,
+   "damage": "1d10",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "heavy",
+    "reach",
+    "two-handed"
+   ],
+   "mastery": "topple",
+   "weaponCategory": "martial"
+  },
+  "light crossbow": {
+   "name": "Light Crossbow",
+   "cost": 2500,
+   "weight": 5,
+   "damage": "1d8",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "ammunition",
+    "loading",
+    "two-handed"
+   ],
+   "mastery": "slow",
+   "weaponCategory": "simple"
+  },
+  "light hammer": {
+   "name": "Light Hammer",
+   "cost": 200,
+   "weight": 2,
+   "damage": "1d4",
+   "damageType": "bludgeoning",
+   "versatile": null,
+   "properties": [
+    "light",
+    "thrown"
+   ],
+   "mastery": "nick",
+   "weaponCategory": "simple"
+  },
+  "longbow": {
+   "name": "Longbow",
+   "cost": 5000,
+   "weight": 2,
+   "damage": "1d8",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "ammunition",
+    "heavy",
+    "two-handed"
+   ],
+   "mastery": "slow",
+   "weaponCategory": "martial"
+  },
+  "longsword": {
+   "name": "Longsword",
+   "cost": 1500,
+   "weight": 3,
+   "damage": "1d8",
+   "damageType": "slashing",
+   "versatile": "1d10",
+   "properties": [
+    "versatile"
+   ],
+   "mastery": "sap",
+   "weaponCategory": "martial"
+  },
+  "mace": {
+   "name": "Mace",
+   "cost": 500,
+   "weight": 4,
+   "damage": "1d6",
+   "damageType": "bludgeoning",
+   "versatile": null,
+   "properties": [],
+   "mastery": "sap",
+   "weaponCategory": "simple"
+  },
+  "maul": {
+   "name": "Maul",
+   "cost": 1000,
+   "weight": 10,
+   "damage": "2d6",
+   "damageType": "bludgeoning",
+   "versatile": null,
+   "properties": [
+    "heavy",
+    "two-handed"
+   ],
+   "mastery": "topple",
+   "weaponCategory": "martial"
+  },
+  "morningstar": {
+   "name": "Morningstar",
+   "cost": 1500,
+   "weight": 4,
+   "damage": "1d8",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [],
+   "mastery": "sap",
+   "weaponCategory": "martial"
+  },
+  "musket": {
+   "name": "Musket",
+   "cost": 50000,
+   "weight": 10,
+   "damage": "1d12",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "ammunition",
+    "loading",
+    "two-handed"
+   ],
+   "mastery": "slow",
+   "weaponCategory": "martial"
+  },
+  "pike": {
+   "name": "Pike",
+   "cost": 500,
+   "weight": 18,
+   "damage": "1d10",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "heavy",
+    "reach",
+    "two-handed"
+   ],
+   "mastery": "push",
+   "weaponCategory": "martial"
+  },
+  "pistol": {
+   "name": "Pistol",
+   "cost": 25000,
+   "weight": 3,
+   "damage": "1d10",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "ammunition",
+    "loading"
+   ],
+   "mastery": "vex",
+   "weaponCategory": "martial"
+  },
+  "quarterstaff": {
+   "name": "Quarterstaff",
+   "cost": 20,
+   "weight": 4,
+   "damage": "1d6",
+   "damageType": "bludgeoning",
+   "versatile": "1d8",
+   "properties": [
+    "versatile"
+   ],
+   "mastery": "topple",
+   "weaponCategory": "simple"
+  },
+  "rapier": {
+   "name": "Rapier",
+   "cost": 2500,
+   "weight": 2,
+   "damage": "1d8",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "finesse"
+   ],
+   "mastery": "vex",
+   "weaponCategory": "martial"
+  },
+  "scimitar": {
+   "name": "Scimitar",
+   "cost": 2500,
+   "weight": 3,
+   "damage": "1d6",
+   "damageType": "slashing",
+   "versatile": null,
+   "properties": [
+    "finesse",
+    "light"
+   ],
+   "mastery": "nick",
+   "weaponCategory": "martial"
+  },
+  "shortbow": {
+   "name": "Shortbow",
+   "cost": 2500,
+   "weight": 2,
+   "damage": "1d6",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "ammunition",
+    "two-handed"
+   ],
+   "mastery": "vex",
+   "weaponCategory": "simple"
+  },
+  "shortsword": {
+   "name": "Shortsword",
+   "cost": 1000,
+   "weight": 2,
+   "damage": "1d6",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "finesse",
+    "light"
+   ],
+   "mastery": "vex",
+   "weaponCategory": "martial"
+  },
+  "sickle": {
+   "name": "Sickle",
+   "cost": 100,
+   "weight": 2,
+   "damage": "1d4",
+   "damageType": "slashing",
+   "versatile": null,
+   "properties": [
+    "light"
+   ],
+   "mastery": "nick",
+   "weaponCategory": "simple"
+  },
+  "sling": {
+   "name": "Sling",
+   "cost": 10,
+   "weight": 0,
+   "damage": "1d4",
+   "damageType": "bludgeoning",
+   "versatile": null,
+   "properties": [
+    "ammunition"
+   ],
+   "mastery": "slow",
+   "weaponCategory": "simple"
+  },
+  "spear": {
+   "name": "Spear",
+   "cost": 100,
+   "weight": 3,
+   "damage": "1d6",
+   "damageType": "piercing",
+   "versatile": "1d8",
+   "properties": [
+    "thrown",
+    "versatile"
+   ],
+   "mastery": "sap",
+   "weaponCategory": "simple"
+  },
+  "trident": {
+   "name": "Trident",
+   "cost": 500,
+   "weight": 4,
+   "damage": "1d8",
+   "damageType": "piercing",
+   "versatile": "1d10",
+   "properties": [
+    "thrown",
+    "versatile"
+   ],
+   "mastery": "topple",
+   "weaponCategory": "martial"
+  },
+  "war pick": {
+   "name": "War Pick",
+   "cost": 500,
+   "weight": 2,
+   "damage": "1d8",
+   "damageType": "piercing",
+   "versatile": "1d10",
+   "properties": [
+    "versatile"
+   ],
+   "mastery": "sap",
+   "weaponCategory": "martial"
+  },
+  "warhammer": {
+   "name": "Warhammer",
+   "cost": 1500,
+   "weight": 5,
+   "damage": "1d8",
+   "damageType": "bludgeoning",
+   "versatile": "1d10",
+   "properties": [
+    "versatile"
+   ],
+   "mastery": "push",
+   "weaponCategory": "martial"
+  },
+  "whip": {
+   "name": "Whip",
+   "cost": 200,
+   "weight": 3,
+   "damage": "1d4",
+   "damageType": "slashing",
+   "versatile": null,
+   "properties": [
+    "finesse",
+    "reach"
+   ],
+   "mastery": "slow",
+   "weaponCategory": "martial"
+  }
+ }
+}

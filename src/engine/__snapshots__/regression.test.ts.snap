@@ -1,0 +1,863 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`2014 builds derive exactly as they did before the ruleset refactor > fighter/rogue multiclass 1`] = `
+{
+  "ac": 16,
+  "acSource": "Chain mail",
+  "dpr": "16.7 sustained, 24.8 nova at AC 15",
+  "findings": [
+    "1 unspent ASI or feat slot",
+    "This armor is a problem",
+    "Odd score in Dexterity",
+    "Dexterity is low for level 8",
+    "3 points of your Dexterity bonus are doing nothing",
+    "AC 16 is low for a frontliner at level 8",
+    "3 skill proficiencies not chosen",
+    "2 expertise slots unspent",
+    "1 fighting style unspent",
+    "3 maneuvers unspent",
+    "Chain mail gives disadvantage on Stealth",
+  ],
+  "hp": 65,
+  "keyAbility": "dex",
+  "priority": {
+    "cha": 1,
+    "con": 2,
+    "dex": 3,
+    "int": 1,
+    "str": 0,
+    "wis": 1,
+  },
+  "scores": {
+    "cha": 10,
+    "con": 15,
+    "dex": 17,
+    "int": 10,
+    "str": 8,
+    "wis": 12,
+  },
+  "slots": "0/1",
+  "top3": [
+    "Piercer",
+    "+1 Dexterity / +1 Constitution",
+    "Lucky",
+  ],
+}
+`;
+
+exports[`2014 builds derive exactly as they did before the ruleset refactor > goliath zealot barbarian 1`] = `
+{
+  "ac": 16,
+  "acSource": "Chain mail",
+  "dpr": "20.7 sustained, 20.7 nova at AC 17",
+  "findings": [
+    "This armor is a problem",
+    "2 points of your Dexterity bonus are doing nothing",
+    "AC 16 is low for a frontliner at level 12",
+    "2 skill proficiencies not chosen",
+    "Chain mail gives disadvantage on Stealth",
+    "Strength is maxed",
+    "Goliath is a top-tier Barbarian",
+    "Great Weapon Master is paying off",
+  ],
+  "hp": 125,
+  "keyAbility": "str",
+  "priority": {
+    "cha": 0,
+    "con": 2,
+    "dex": 1,
+    "int": 0,
+    "str": 3,
+    "wis": 1,
+  },
+  "scores": {
+    "cha": 8,
+    "con": 16,
+    "dex": 14,
+    "int": 8,
+    "str": 20,
+    "wis": 10,
+  },
+  "slots": "3/3",
+  "top3": [
+    "Lucky",
+    "Sentinel",
+    "Magic Initiate",
+  ],
+}
+`;
+
+exports[`2014 builds derive exactly as they did before the ruleset refactor > half-elf lore bard with custom origin 1`] = `
+{
+  "ac": 16,
+  "acSource": "Chain mail",
+  "dpr": "0 sustained, 0 nova at AC 17",
+  "findings": [
+    "3 unspent ASI or feat slots",
+    "2 problems with this armor",
+    "4 cantrips not chosen",
+    "15 spells not chosen",
+    "Odd score in Charisma",
+    "Charisma is low for level 12",
+    "No concentration protection",
+    "2 points of your Dexterity bonus are doing nothing",
+    "5 skill proficiencies not chosen",
+    "4 expertise slots unspent",
+    "Chain mail gives disadvantage on Stealth",
+    "Half-Elf is a top-tier Bard",
+  ],
+  "hp": 87,
+  "keyAbility": "cha",
+  "priority": {
+    "cha": 3,
+    "con": 2,
+    "dex": 2,
+    "int": 1,
+    "str": 0,
+    "wis": 1,
+  },
+  "scores": {
+    "cha": 17,
+    "con": 15,
+    "dex": 14,
+    "int": 10,
+    "str": 8,
+    "wis": 10,
+  },
+  "slots": "0/3",
+  "top3": [
+    "Fey Touched",
+    "Resilient",
+    "Shadow Touched",
+  ],
+}
+`;
+
+exports[`2014 builds derive exactly as they did before the ruleset refactor > hill dwarf life cleric with domain spells 1`] = `
+{
+  "ac": 18,
+  "acSource": "Chain mail",
+  "dpr": "4.5 sustained, 5.9 nova at AC 15",
+  "findings": [
+    "1 unspent ASI or feat slot",
+    "Longsword: not proficient",
+    "2 cantrips not chosen",
+    "Strength 14 is behind the curve",
+    "2 skill proficiencies not chosen",
+    "Spiritual Weapon is already granted by your subclass",
+    "6 spells not prepared",
+    "Chain mail gives disadvantage on Stealth",
+    "Base scores are not standard point buy",
+  ],
+  "hp": 48,
+  "keyAbility": "str",
+  "priority": {
+    "cha": 0,
+    "con": 2,
+    "dex": 1,
+    "int": 0,
+    "str": 3,
+    "wis": 3,
+  },
+  "scores": {
+    "cha": 12,
+    "con": 16,
+    "dex": 10,
+    "int": 10,
+    "str": 14,
+    "wis": 16,
+  },
+  "slots": "0/1",
+  "top3": [
+    "War Caster",
+    "Fey Touched",
+    "Lucky",
+  ],
+}
+`;
+
+exports[`2014 builds derive exactly as they did before the ruleset refactor > mountain dwarf wizard in half plate 1`] = `
+{
+  "ac": 17,
+  "acSource": "Half plate",
+  "dpr": "0 sustained, 0 nova at AC 15",
+  "findings": [
+    "2 unspent ASI or feat slots",
+    "4 cantrips not chosen",
+    "Odd score in Intelligence",
+    "Intelligence is low for level 8",
+    "No concentration protection",
+    "2 skill proficiencies not chosen",
+    "10 more spells could be prepared",
+    "Half plate gives disadvantage on Stealth",
+    "Mountain Dwarf is a top-tier Wizard",
+  ],
+  "hp": 58,
+  "keyAbility": "int",
+  "priority": {
+    "cha": 0,
+    "con": 2,
+    "dex": 2,
+    "int": 3,
+    "str": 0,
+    "wis": 1,
+  },
+  "scores": {
+    "cha": 8,
+    "con": 16,
+    "dex": 14,
+    "int": 15,
+    "str": 10,
+    "wis": 10,
+  },
+  "slots": "0/2",
+  "top3": [
+    "Fey Touched",
+    "Resilient",
+    "Shadow Touched",
+  ],
+}
+`;
+
+exports[`2014 builds derive exactly as they did before the ruleset refactor > variant human battlemaster in chain mail 1`] = `
+{
+  "ac": 16,
+  "acSource": "Chain mail",
+  "dpr": "12.7 sustained, 25.4 nova at AC 15",
+  "findings": [
+    "1 unspent ASI or feat slot",
+    "1 unspent origin feat",
+    "2 points of your Dexterity bonus are doing nothing",
+    "3 skill proficiencies not chosen",
+    "1 fighting style unspent",
+    "3 maneuvers unspent",
+    "Chain mail gives disadvantage on Stealth",
+    "Variant Human is a top-tier Fighter",
+  ],
+  "hp": 49,
+  "keyAbility": "str",
+  "priority": {
+    "cha": 0,
+    "con": 2,
+    "dex": 2,
+    "int": 0,
+    "str": 3,
+    "wis": 1,
+  },
+  "scores": {
+    "cha": 8,
+    "con": 16,
+    "dex": 14,
+    "int": 8,
+    "str": 16,
+    "wis": 10,
+  },
+  "slots": "0/1",
+  "top3": [
+    "Great Weapon Master",
+    "Lucky",
+    "+2 Strength",
+  ],
+}
+`;
+
+exports[`2014 builds derive exactly as they did before the ruleset refactor > wood elf gloom stalker archer 1`] = `
+{
+  "ac": 17,
+  "acSource": "Half plate",
+  "dpr": "15.3 sustained, 15.3 nova at AC 15",
+  "findings": [
+    "5 spells not chosen",
+    "Odd score in Dexterity",
+    "No concentration protection",
+    "2 points of your Dexterity bonus are doing nothing",
+    "3 skill proficiencies not chosen",
+    "Your longbow has nothing to shoot",
+    "1 fighting style unspent",
+    "Half plate gives disadvantage on Stealth",
+    "Wood Elf is a top-tier Ranger",
+    "Sharpshooter is paying off",
+  ],
+  "hp": 68,
+  "keyAbility": "dex",
+  "priority": {
+    "cha": 0,
+    "con": 2,
+    "dex": 3,
+    "int": 0,
+    "str": 0,
+    "wis": 2,
+  },
+  "scores": {
+    "cha": 12,
+    "con": 14,
+    "dex": 19,
+    "int": 10,
+    "str": 8,
+    "wis": 14,
+  },
+  "slots": "2/2",
+  "top3": [
+    "Elven Accuracy",
+    "Resilient",
+    "Crossbow Expert",
+  ],
+}
+`;
+
+exports[`2014 progression planning is stable > fighter/rogue multiclass 1`] = `
+[
+  {
+    "at": "Unspent slot 1 (available now)",
+    "take": "Piercer",
+  },
+  {
+    "at": "Fighter 6 (character level ~9)",
+    "take": "Lucky",
+  },
+  {
+    "at": "Rogue 4 (character level ~9)",
+    "take": "+2 Dexterity",
+  },
+  {
+    "at": "Fighter 8 (character level ~11)",
+    "take": "Mobile",
+  },
+  {
+    "at": "Rogue 8 (character level ~13)",
+    "take": "Sentinel",
+  },
+  {
+    "at": "Fighter 12 (character level ~15)",
+    "take": "Heavy Armor Master",
+  },
+  {
+    "at": "Rogue 10 (character level ~15)",
+    "take": "Alert",
+  },
+  {
+    "at": "Fighter 14 (character level ~17)",
+    "take": "Crossbow Expert",
+  },
+  {
+    "at": "Rogue 12 (character level ~17)",
+    "take": "Magic Initiate",
+  },
+  {
+    "at": "Fighter 16 (character level ~19)",
+    "take": "Gift of the Gem Dragon",
+  },
+]
+`;
+
+exports[`2014 progression planning is stable > goliath zealot barbarian 1`] = `
+[
+  {
+    "at": "Barbarian 16 (character level ~16)",
+    "take": "Lucky",
+  },
+  {
+    "at": "Barbarian 19 (character level ~19)",
+    "take": "Sentinel",
+  },
+]
+`;
+
+exports[`2014 progression planning is stable > half-elf lore bard with custom origin 1`] = `
+[
+  {
+    "at": "Unspent slot 1 (available now)",
+    "take": "Fey Touched",
+  },
+  {
+    "at": "Unspent slot 2 (available now)",
+    "take": "Resilient",
+  },
+  {
+    "at": "Unspent slot 3 (available now)",
+    "take": "War Caster",
+  },
+  {
+    "at": "Bard 16 (character level ~16)",
+    "take": "+2 Charisma",
+  },
+  {
+    "at": "Bard 19 (character level ~19)",
+    "take": "Inspiring Leader",
+  },
+]
+`;
+
+exports[`2014 progression planning is stable > hill dwarf life cleric with domain spells 1`] = `
+[
+  {
+    "at": "Unspent slot 1 (available now)",
+    "take": "War Caster",
+  },
+  {
+    "at": "Cleric 8 (character level ~8)",
+    "take": "Fey Touched",
+  },
+  {
+    "at": "Cleric 12 (character level ~12)",
+    "take": "Resilient",
+  },
+  {
+    "at": "Cleric 16 (character level ~16)",
+    "take": "Lucky",
+  },
+  {
+    "at": "Cleric 19 (character level ~19)",
+    "take": "+2 Wisdom",
+  },
+]
+`;
+
+exports[`2014 progression planning is stable > mountain dwarf wizard in half plate 1`] = `
+[
+  {
+    "at": "Unspent slot 1 (available now)",
+    "take": "Fey Touched",
+  },
+  {
+    "at": "Unspent slot 2 (available now)",
+    "take": "Resilient",
+  },
+  {
+    "at": "Wizard 12 (character level ~12)",
+    "take": "Shadow Touched",
+  },
+  {
+    "at": "Wizard 16 (character level ~16)",
+    "take": "Lucky",
+  },
+  {
+    "at": "Wizard 19 (character level ~19)",
+    "take": "War Caster",
+  },
+]
+`;
+
+exports[`2014 progression planning is stable > variant human battlemaster in chain mail 1`] = `
+[
+  {
+    "at": "Unspent slot 1 (available now)",
+    "take": "Great Weapon Master",
+  },
+  {
+    "at": "Fighter 6 (character level ~6)",
+    "take": "Lucky",
+  },
+  {
+    "at": "Fighter 8 (character level ~8)",
+    "take": "+2 Strength",
+  },
+  {
+    "at": "Fighter 12 (character level ~12)",
+    "take": "+2 Strength",
+  },
+  {
+    "at": "Fighter 14 (character level ~14)",
+    "take": "Sentinel",
+  },
+  {
+    "at": "Fighter 16 (character level ~16)",
+    "take": "Heavy Armor Master",
+  },
+  {
+    "at": "Fighter 19 (character level ~19)",
+    "take": "Magic Initiate",
+  },
+]
+`;
+
+exports[`2014 progression planning is stable > wood elf gloom stalker archer 1`] = `
+[
+  {
+    "at": "Ranger 12 (character level ~12)",
+    "take": "Elven Accuracy",
+  },
+  {
+    "at": "Ranger 16 (character level ~16)",
+    "take": "Crossbow Expert",
+  },
+  {
+    "at": "Ranger 19 (character level ~19)",
+    "take": "Lucky",
+  },
+]
+`;
+
+exports[`2014 race/class ratings are stable > barbarian 1`] = `
+[
+  "goliath sky 13.1",
+  "bugbear sky 11.3",
+  "warforged sky 11.3",
+  "human-variant sky 10.6",
+  "harengon sky 14.5",
+  "orc blue 13.3",
+  "half-orc blue 13.2",
+  "custom-lineage blue 12.7",
+]
+`;
+
+exports[`2014 race/class ratings are stable > cleric 1`] = `
+[
+  "firbolg sky 10.0",
+  "warforged sky 9.8",
+  "kalashtar sky 9.2",
+  "aasimar-protector sky 6.9",
+  "reborn blue 12.7",
+  "dwarf-hill blue 12.6",
+  "custom-lineage blue 11.7",
+  "harengon blue 13.8",
+]
+`;
+
+exports[`2014 race/class ratings are stable > fighter 1`] = `
+[
+  "goliath sky 13.1",
+  "bugbear sky 12.4",
+  "human-variant sky 10.6",
+  "warforged sky 9.8",
+  "harengon sky 14.5",
+  "orc blue 13.3",
+  "reborn blue 12.7",
+  "custom-lineage blue 12.7",
+]
+`;
+
+exports[`2014 race/class ratings are stable > rogue 1`] = `
+[
+  "harengon sky 15.5",
+  "goblin sky 14.7",
+  "halfling-stout sky 14.4",
+  "owlin sky 14.3",
+  "halfling-lightfoot sky 12.7",
+  "tabaxi sky 12.3",
+  "dhampir sky 12.2",
+  "human-variant sky 11.0",
+]
+`;
+
+exports[`2014 race/class ratings are stable > wizard 1`] = `
+[
+  "fairy sky 15.1",
+  "harengon sky 14.8",
+  "gnome-rock sky 13.6",
+  "owlin sky 12.8",
+  "dwarf-mountain sky 11.3",
+  "elf-high blue 13.7",
+  "gnome-forest blue 13.0",
+  "reborn blue 12.7",
+]
+`;
+
+exports[`2024 builds derive as recorded > cleric/wizard with two save DCs 1`] = `
+{
+  "ac": 16,
+  "acSource": "Chain mail",
+  "casting": [
+    "cleric wis DC13",
+    "wizard int DC15",
+  ],
+  "dpr": "7.7 sustained, 27.1 nova at AC 15",
+  "findings": [
+    "2 unspent ASI or feat slots",
+    "2 unspent origin feats",
+    "This armor is a problem",
+    "7 cantrips not chosen",
+    "Odd score in Wisdom",
+    "Wisdom is low for level 10",
+    "No concentration protection",
+    "1 point of your Dexterity bonus is doing nothing",
+    "3 skill proficiencies not chosen",
+    "18 more spells could be prepared",
+    "Cleric needs two high stats",
+    "Chain mail gives disadvantage on Stealth",
+    "How this character gets slots",
+  ],
+  "hp": 68,
+  "keyAbility": "wis",
+  "priority": {
+    "cha": 0,
+    "con": 2,
+    "dex": 2,
+    "int": 3,
+    "str": 1,
+    "wis": 3,
+  },
+  "scores": {
+    "cha": 9,
+    "con": 14,
+    "dex": 12,
+    "int": 17,
+    "str": 10,
+    "wis": 13,
+  },
+  "slots": "0/2",
+  "top3": [
+    "+1 Intelligence / +1 Wisdom",
+    "War Caster",
+    "Fey Touched",
+  ],
+}
+`;
+
+exports[`2024 builds derive as recorded > dwarf fighter with nothing 2024 chosen 1`] = `
+{
+  "ac": 16,
+  "acSource": "Chain mail",
+  "dpr": "12.2 sustained, 24.4 nova at AC 15",
+  "findings": [
+    "3 unspent ASI or feat slots",
+    "1 unspent origin feat",
+    "Odd score in Strength",
+    "Strength is low for level 9",
+    "2 points of your Dexterity bonus are doing nothing",
+    "AC 16 is low for a frontliner at level 9",
+    "2 skill proficiencies not chosen",
+    "1 fighting style unspent",
+    "Chain mail gives disadvantage on Stealth",
+  ],
+  "hp": 76,
+  "keyAbility": "str",
+  "masteries": "0/4: none taken",
+  "priority": {
+    "cha": 0,
+    "con": 2,
+    "dex": 2,
+    "int": 0,
+    "str": 3,
+    "wis": 1,
+  },
+  "scores": {
+    "cha": 8,
+    "con": 14,
+    "dex": 14,
+    "int": 10,
+    "str": 15,
+    "wis": 10,
+  },
+  "slots": "0/3",
+  "top3": [
+    "Great Weapon Master",
+    "Sentinel",
+    "Crusher",
+  ],
+}
+`;
+
+exports[`2024 builds derive as recorded > high elf wizard on a spread background 1`] = `
+{
+  "ac": 16,
+  "acSource": "Chain mail",
+  "dpr": "7.2 sustained, 23.6 nova at AC 15",
+  "findings": [
+    "2 unspent ASI or feat slots",
+    "2 problems with this armor",
+    "3 cantrips not chosen",
+    "Intelligence is low for level 8",
+    "No concentration protection",
+    "2 points of your Dexterity bonus are doing nothing",
+    "3 skill proficiencies not chosen",
+    "12 more spells could be prepared",
+    "Chain mail gives disadvantage on Stealth",
+  ],
+  "hp": 50,
+  "keyAbility": "int",
+  "originFeats": [
+    "magic-initiate",
+  ],
+  "priority": {
+    "cha": 0,
+    "con": 2,
+    "dex": 2,
+    "int": 3,
+    "str": 0,
+    "wis": 1,
+  },
+  "scores": {
+    "cha": 8,
+    "con": 15,
+    "dex": 14,
+    "int": 16,
+    "str": 8,
+    "wis": 11,
+  },
+  "slots": "0/2",
+  "top3": [
+    "War Caster",
+    "Resilient",
+    "Fey Touched",
+  ],
+}
+`;
+
+exports[`2024 builds derive as recorded > human champion with masteries 1`] = `
+{
+  "ac": 16,
+  "acSource": "Chain mail",
+  "dpr": "16.5 sustained, 30.9 nova at AC 15",
+  "findings": [
+    "3 unspent ASI or feat slots",
+    "Odd score in Strength",
+    "Strength is low for level 9",
+    "2 points of your Dexterity bonus are doing nothing",
+    "AC 16 is low for a frontliner at level 9",
+    "6 skill proficiencies not chosen",
+    "1 fighting style unspent",
+    "Chain mail gives disadvantage on Stealth",
+    "Weapon mastery on weapons you are not holding",
+  ],
+  "hp": 76,
+  "keyAbility": "str",
+  "masteries": "3/4: greatsword, longsword, handaxe",
+  "originFeats": [
+    "savage-attacker",
+    "skilled",
+  ],
+  "priority": {
+    "cha": 0,
+    "con": 2,
+    "dex": 2,
+    "int": 0,
+    "str": 3,
+    "wis": 1,
+  },
+  "scores": {
+    "cha": 8,
+    "con": 15,
+    "dex": 14,
+    "int": 10,
+    "str": 17,
+    "wis": 10,
+  },
+  "slots": "0/3",
+  "top3": [
+    "Great Weapon Master",
+    "Sentinel",
+    "Crusher",
+  ],
+}
+`;
+
+exports[`2024 progression planning is stable > cleric/wizard with two save DCs 1`] = `
+[
+  {
+    "at": "Unspent slot 1 (available now)",
+    "take": "+1 Intelligence / +1 Wisdom",
+  },
+  {
+    "at": "Unspent slot 2 (available now)",
+    "take": "War Caster",
+  },
+  {
+    "at": "Cleric 8 (character level ~13)",
+    "take": "Fey Touched",
+  },
+  {
+    "at": "Wizard 8 (character level ~13)",
+    "take": "Resilient",
+  },
+  {
+    "at": "Cleric 12 (character level ~17)",
+    "take": "Shadow Touched",
+  },
+  {
+    "at": "Wizard 12 (character level ~17)",
+    "take": "Lucky",
+  },
+]
+`;
+
+exports[`2024 progression planning is stable > dwarf fighter with nothing 2024 chosen 1`] = `
+[
+  {
+    "at": "Unspent slot 1 (available now)",
+    "take": "Great Weapon Master",
+  },
+  {
+    "at": "Unspent slot 2 (available now)",
+    "take": "Sentinel",
+  },
+  {
+    "at": "Unspent slot 3 (available now)",
+    "take": "Crusher",
+  },
+  {
+    "at": "Fighter 12 (character level ~12)",
+    "take": "+2 Strength",
+  },
+  {
+    "at": "Fighter 14 (character level ~14)",
+    "take": "Lucky",
+  },
+  {
+    "at": "Fighter 16 (character level ~16)",
+    "take": "Speedy",
+  },
+  {
+    "at": "Fighter 19 (character level ~19)",
+    "take": "Boon of Irresistible Offense",
+  },
+]
+`;
+
+exports[`2024 progression planning is stable > high elf wizard on a spread background 1`] = `
+[
+  {
+    "at": "Unspent slot 1 (available now)",
+    "take": "War Caster",
+  },
+  {
+    "at": "Unspent slot 2 (available now)",
+    "take": "Fey Touched",
+  },
+  {
+    "at": "Wizard 12 (character level ~12)",
+    "take": "Resilient",
+  },
+  {
+    "at": "Wizard 16 (character level ~16)",
+    "take": "Lucky",
+  },
+  {
+    "at": "Wizard 19 (character level ~19)",
+    "take": "Boon of Spell Recall",
+  },
+]
+`;
+
+exports[`2024 progression planning is stable > human champion with masteries 1`] = `
+[
+  {
+    "at": "Unspent slot 1 (available now)",
+    "take": "Great Weapon Master",
+  },
+  {
+    "at": "Unspent slot 2 (available now)",
+    "take": "+2 Strength",
+  },
+  {
+    "at": "Unspent slot 3 (available now)",
+    "take": "Lucky",
+  },
+  {
+    "at": "Fighter 12 (character level ~12)",
+    "take": "Speedy",
+  },
+  {
+    "at": "Fighter 14 (character level ~14)",
+    "take": "Sentinel",
+  },
+  {
+    "at": "Fighter 16 (character level ~16)",
+    "take": "Skill Expert",
+  },
+  {
+    "at": "Fighter 19 (character level ~19)",
+    "take": "Boon of Irresistible Offense",
+  },
+]
+`;

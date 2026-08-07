@@ -1,0 +1,310 @@
+{
+ "source": "dnd5eapi SRD 5.2",
+ "refreshed": "2026-07-31",
+ "records": {
+  "champion": {
+   "name": "Champion",
+   "class": "fighter",
+   "features": [
+    {
+     "name": "Improved Critical",
+     "level": 3
+    },
+    {
+     "name": "Remarkable Athlete",
+     "level": 3
+    },
+    {
+     "name": "Additional Fighting Style",
+     "level": 7
+    },
+    {
+     "name": "Heroic Warrior",
+     "level": 10
+    },
+    {
+     "name": "Superior Critical",
+     "level": 15
+    },
+    {
+     "name": "Survivor",
+     "level": 18
+    }
+   ]
+  },
+  "circle of the land": {
+   "name": "Circle of the Land",
+   "class": "druid",
+   "features": [
+    {
+     "name": "Circle of the Land Spells Whenever you finish a Long Rest, choose one type of land: arid, polar, temperate, or tropical. Consult the table below that corresponds to the chosen type; you have the spells listed for your Druid level and lower prepared.",
+     "level": 3
+    },
+    {
+     "name": "Land's Aid",
+     "level": 3
+    },
+    {
+     "name": "Natural Recovery",
+     "level": 6
+    },
+    {
+     "name": "Nature's Ward",
+     "level": 10
+    },
+    {
+     "name": "Nature's Sanctuary",
+     "level": 14
+    }
+   ]
+  },
+  "college of lore": {
+   "name": "College of Lore",
+   "class": "bard",
+   "features": [
+    {
+     "name": "Bonus Proficiencies",
+     "level": 3
+    },
+    {
+     "name": "Cutting Words",
+     "level": 3
+    },
+    {
+     "name": "Magical Discoveries",
+     "level": 6
+    },
+    {
+     "name": "Peerless Skill",
+     "level": 14
+    }
+   ]
+  },
+  "draconic sorcery": {
+   "name": "Draconic Sorcery",
+   "class": "sorcerer",
+   "features": [
+    {
+     "name": "Draconic Resilience",
+     "level": 3
+    },
+    {
+     "name": "Draconic Spells",
+     "level": 3
+    },
+    {
+     "name": "Elemental Affinity",
+     "level": 6
+    },
+    {
+     "name": "Dragon Wings",
+     "level": 14
+    },
+    {
+     "name": "Dragon Companion",
+     "level": 18
+    }
+   ]
+  },
+  "evoker": {
+   "name": "Evoker",
+   "class": "wizard",
+   "features": [
+    {
+     "name": "Evocation Savant",
+     "level": 3
+    },
+    {
+     "name": "Potent Cantrip",
+     "level": 3
+    },
+    {
+     "name": "Sculpt Spells",
+     "level": 6
+    },
+    {
+     "name": "Empowered Evocation",
+     "level": 10
+    },
+    {
+     "name": "Overchannel",
+     "level": 14
+    }
+   ]
+  },
+  "fiend patron": {
+   "name": "Fiend Patron",
+   "class": "warlock",
+   "features": [
+    {
+     "name": "Dark One's Blessing",
+     "level": 3
+    },
+    {
+     "name": "Fiend Spells",
+     "level": 3
+    },
+    {
+     "name": "Dark One's Own Luck",
+     "level": 6
+    },
+    {
+     "name": "Fiendish Resilience",
+     "level": 10
+    },
+    {
+     "name": "Hurl Through Hell",
+     "level": 14
+    }
+   ]
+  },
+  "hunter": {
+   "name": "Hunter",
+   "class": "ranger",
+   "features": [
+    {
+     "name": "Hunter's Lore",
+     "level": 3
+    },
+    {
+     "name": "Hunter's Prey",
+     "level": 3
+    },
+    {
+     "name": "Defensive Tactics",
+     "level": 7
+    },
+    {
+     "name": "Superior Hunter's Prey",
+     "level": 11
+    },
+    {
+     "name": "Superior Hunter's Defense",
+     "level": 15
+    }
+   ]
+  },
+  "life domain": {
+   "name": "Life Domain",
+   "class": "cleric",
+   "features": [
+    {
+     "name": "Disciple of Life",
+     "level": 3
+    },
+    {
+     "name": "Life Domain Spells",
+     "level": 3
+    },
+    {
+     "name": "Preserve Life",
+     "level": 3
+    },
+    {
+     "name": "Blessed Healer",
+     "level": 6
+    },
+    {
+     "name": "Supreme Healing",
+     "level": 17
+    }
+   ]
+  },
+  "oath of devotion": {
+   "name": "Oath of Devotion",
+   "class": "paladin",
+   "features": [
+    {
+     "name": "Oath of Devotion Spells",
+     "level": 3
+    },
+    {
+     "name": "Sacred Weapon",
+     "level": 3
+    },
+    {
+     "name": "Aura of Devotion",
+     "level": 7
+    },
+    {
+     "name": "Smite of Protection",
+     "level": 15
+    },
+    {
+     "name": "Holy Nimbus",
+     "level": 20
+    }
+   ]
+  },
+  "path of the berserker": {
+   "name": "Path of the Berserker",
+   "class": "barbarian",
+   "features": [
+    {
+     "name": "Frenzy",
+     "level": 3
+    },
+    {
+     "name": "Mindless Rage",
+     "level": 6
+    },
+    {
+     "name": "Retaliation",
+     "level": 10
+    },
+    {
+     "name": "Intimidating Presence",
+     "level": 14
+    }
+   ]
+  },
+  "thief": {
+   "name": "Thief",
+   "class": "rogue",
+   "features": [
+    {
+     "name": "Fast Hands",
+     "level": 3
+    },
+    {
+     "name": "Second-Story Work",
+     "level": 3
+    },
+    {
+     "name": "Supreme Sneak",
+     "level": 9
+    },
+    {
+     "name": "Use Magic Device",
+     "level": 13
+    },
+    {
+     "name": "Thief's Reflexes",
+     "level": 17
+    }
+   ]
+  },
+  "warrior of the open hand": {
+   "name": "Warrior of the Open Hand",
+   "class": "monk",
+   "features": [
+    {
+     "name": "Open Hand Technique",
+     "level": 3
+    },
+    {
+     "name": "Wholeness of Body",
+     "level": 6
+    },
+    {
+     "name": "Fleet Step",
+     "level": 11
+    },
+    {
+     "name": "Quivering Palm",
+     "level": 17
+    }
+   ]
+  }
+ }
+}

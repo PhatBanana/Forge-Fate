@@ -1,0 +1,21 @@
+{
+  "name": "Forge & Fate — D&D 5e builder & optimizer",
+  "short_name": "Forge & Fate",
+  "description": "A D&D 5e character builder and optimizer that works offline: lineage ratings, feat recommendations with the reasoning shown, a level-by-level plan, and a printable character sheet.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#e6dcc6",
+  "theme_color": "#e6dcc6",
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    {
+      "src": "./icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

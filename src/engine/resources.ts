@@ -1,0 +1,79 @@
+import type { Ability, ClassId, Ruleset } from '../types';
+import { resourcesForClass } from '../data/classResources';
+import type { ClassResource, ResourceMax } from '../data/classResources';
+import type { ClassSlice } from './character';
+
+/**
+ * Turning the resource table into numbers for one character.
+ *
+ * The only subtlety is multiclassing, and it is the same one the spell slots
+ * have: a resource counts your level *in the class that grants it*, not your
+ * character level. A Fighter 3 / Wizard 9 has one Action Surge, not the two a
+ * 17th-level Fighter would.
+ */
+
+export interface HeldResource {
+  /** Unique across the whole character, since two classes can both grant one. */
+  key: string;
+  classId: ClassId;
+  className: string;
+  resource: ClassResource;
+  max: number;
+}
+
+function resolveMax(
+  max: ResourceMax,
+  classLevel: number,
+  mods: Record<Ability, number>,
+): number {
+  switch (max.kind) {
+    case 'table': {
+      // The highest entry at or below this level, the way every other
+      // progression in the app is read.
+      const reached = max.byLevel.filter((entry) => classLevel >= entry.level);
+      return reached.length ? reached[reached.length - 1].count : 0;
+    }
+    case 'classLevel':
+      return classLevel * (max.times ?? 1);
+    case 'abilityMod':
+      return Math.max(max.min ?? 0, mods[max.ability] + (max.plus ?? 0));
+  }
+}
+
+export function heldResources(
+  slices: ClassSlice[],
+  ruleset: Ruleset,
+  mods: Record<Ability, number>,
+): HeldResource[] {
+  const held: HeldResource[] = [];
+
+  for (const slice of slices) {
+    const classLevel = slice.entry.level;
+    for (const resource of resourcesForClass(slice.klass.id, ruleset)) {
+      if (classLevel < resource.minLevel) continue;
+      const max = resolveMax(resource.max, classLevel, mods);
+      // A Bard with Charisma 8 has a negative modifier; the floor already
+      // handles it, but a resource that resolves to nothing is not worth a row.
+      if (max <= 0) continue;
+      held.push({
+        key: `${slice.klass.id}:${resource.id}`,
+        classId: slice.klass.id,
+        className: slice.klass.name,
+        resource,
+        max,
+      });
+    }
+  }
+
+  return held;
+}
+
+/**
+ * Bardic Inspiration is the one resource whose *recharge* moves with level:
+ * Font of Inspiration at 5th turns it from once a day into once a short rest.
+ * Everything else recharges the same way at every level.
+ */
+export function rechargeFor(held: HeldResource, classLevel: number): 'short' | 'long' {
+  if (held.resource.id === 'bardic-inspiration' && classLevel >= 5) return 'short';
+  return held.resource.recharge;
+}

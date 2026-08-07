@@ -1,0 +1,2161 @@
+{
+ "source": "dnd5eapi SRD 5.1",
+ "refreshed": "2026-07-31",
+ "records": {
+  "abacus": {
+   "name": "Abacus",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 200,
+   "weight": 2
+  },
+  "acid vial": {
+   "name": "Acid (vial)",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 2500,
+   "weight": 1
+  },
+  "alchemist s fire flask": {
+   "name": "Alchemist's fire (flask)",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 5000,
+   "weight": 1
+  },
+  "alchemist s supplies": {
+   "name": "Alchemist's Supplies",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 5000,
+   "weight": 8
+  },
+  "alms box": {
+   "name": "Alms box",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 0,
+   "weight": 0
+  },
+  "amulet": {
+   "name": "Amulet",
+   "category": "adventuring-gear",
+   "gearCategory": "holy-symbols",
+   "cost": 500,
+   "weight": 1
+  },
+  "animal feed 1 day": {
+   "name": "Animal Feed (1 day)",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 5,
+   "weight": 10
+  },
+  "antitoxin vial": {
+   "name": "Antitoxin (vial)",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 5000,
+   "weight": 0
+  },
+  "arrow": {
+   "name": "Arrow",
+   "category": "adventuring-gear",
+   "gearCategory": "ammunition",
+   "cost": 100,
+   "weight": 1
+  },
+  "backpack": {
+   "name": "Backpack",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 200,
+   "weight": 5
+  },
+  "bagpipes": {
+   "name": "Bagpipes",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 3000,
+   "weight": 6
+  },
+  "ball bearings bag of 1 000": {
+   "name": "Ball bearings (bag of 1,000)",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 100,
+   "weight": 2
+  },
+  "barding breastplate": {
+   "name": "Barding: Breastplate",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 160000,
+   "weight": 40
+  },
+  "barding chain mail": {
+   "name": "Barding: Chain mail",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 30000,
+   "weight": 110
+  },
+  "barding chain shirt": {
+   "name": "Barding: Chain shirt",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 20000,
+   "weight": 40
+  },
+  "barding half plate": {
+   "name": "Barding: Half plate",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 300000,
+   "weight": 80
+  },
+  "barding hide": {
+   "name": "Barding: Hide",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 4000,
+   "weight": 24
+  },
+  "barding leather": {
+   "name": "Barding: Leather",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 4000,
+   "weight": 20
+  },
+  "barding padded": {
+   "name": "Barding: Padded",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 2000,
+   "weight": 16
+  },
+  "barding plate": {
+   "name": "Barding: Plate",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 600000,
+   "weight": 130
+  },
+  "barding ring mail": {
+   "name": "Barding: Ring mail",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 1200,
+   "weight": 80
+  },
+  "barding scale mail": {
+   "name": "Barding: Scale mail",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 20000,
+   "weight": 90
+  },
+  "barding splint": {
+   "name": "Barding: Splint",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 80000,
+   "weight": 120
+  },
+  "barding studded leather": {
+   "name": "Barding: Studded Leather",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 18000,
+   "weight": 26
+  },
+  "barrel": {
+   "name": "Barrel",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 200,
+   "weight": 70
+  },
+  "basket": {
+   "name": "Basket",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 40,
+   "weight": 2
+  },
+  "battleaxe": {
+   "name": "Battleaxe",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 1000,
+   "weight": 4,
+   "damage": "1d8",
+   "damageType": "slashing",
+   "versatile": "1d10",
+   "properties": [
+    "versatile"
+   ],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "bedroll": {
+   "name": "Bedroll",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 100,
+   "weight": 7
+  },
+  "bell": {
+   "name": "Bell",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 100,
+   "weight": 0
+  },
+  "bit and bridle": {
+   "name": "Bit and bridle",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 200,
+   "weight": 1
+  },
+  "blanket": {
+   "name": "Blanket",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 50,
+   "weight": 3
+  },
+  "block and tackle": {
+   "name": "Block and tackle",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 100,
+   "weight": 5
+  },
+  "block of incense": {
+   "name": "Block of incense",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 0,
+   "weight": 0
+  },
+  "blowgun": {
+   "name": "Blowgun",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 1000,
+   "weight": 1,
+   "damage": "1",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "ammunition",
+    "loading"
+   ],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 25,
+    "long": 100
+   }
+  },
+  "blowgun needle": {
+   "name": "Blowgun needle",
+   "category": "adventuring-gear",
+   "gearCategory": "ammunition",
+   "cost": 100,
+   "weight": 1
+  },
+  "book": {
+   "name": "Book",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 2500,
+   "weight": 5
+  },
+  "bottle glass": {
+   "name": "Bottle, glass",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 200,
+   "weight": 2
+  },
+  "breastplate": {
+   "name": "Breastplate",
+   "category": "armor",
+   "gearCategory": null,
+   "cost": 40000,
+   "weight": 20,
+   "baseAc": 14,
+   "dexBonus": true,
+   "maxDexBonus": 2,
+   "strengthRequirement": 0,
+   "stealthDisadvantage": false,
+   "armorCategory": "medium"
+  },
+  "brewer s supplies": {
+   "name": "Brewer's Supplies",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 2000,
+   "weight": 9
+  },
+  "bucket": {
+   "name": "Bucket",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 5,
+   "weight": 2
+  },
+  "burglar s pack": {
+   "name": "Burglar's Pack",
+   "category": "adventuring-gear",
+   "gearCategory": "equipment-packs",
+   "cost": 1600,
+   "weight": 0
+  },
+  "calligrapher s supplies": {
+   "name": "Calligrapher's Supplies",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 1000,
+   "weight": 5
+  },
+  "caltrops": {
+   "name": "Caltrops",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 5,
+   "weight": 2
+  },
+  "camel": {
+   "name": "Camel",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 5000,
+   "weight": 0
+  },
+  "candle": {
+   "name": "Candle",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 1,
+   "weight": 0
+  },
+  "carpenter s tools": {
+   "name": "Carpenter's Tools",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 800,
+   "weight": 6
+  },
+  "carriage": {
+   "name": "Carriage",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 10000,
+   "weight": 600
+  },
+  "cart": {
+   "name": "Cart",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 1500,
+   "weight": 200
+  },
+  "cartographer s tools": {
+   "name": "Cartographer's Tools",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 1500,
+   "weight": 6
+  },
+  "case crossbow bolt": {
+   "name": "Case, crossbow bolt",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 100,
+   "weight": 1
+  },
+  "case map or scroll": {
+   "name": "Case, map or scroll",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 100,
+   "weight": 1
+  },
+  "censer": {
+   "name": "Censer",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 0,
+   "weight": 0
+  },
+  "chain 10 feet": {
+   "name": "Chain (10 feet)",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 500,
+   "weight": 10
+  },
+  "chain mail": {
+   "name": "Chain Mail",
+   "category": "armor",
+   "gearCategory": null,
+   "cost": 7500,
+   "weight": 55,
+   "baseAc": 16,
+   "dexBonus": false,
+   "maxDexBonus": null,
+   "strengthRequirement": 13,
+   "stealthDisadvantage": true,
+   "armorCategory": "heavy"
+  },
+  "chain shirt": {
+   "name": "Chain Shirt",
+   "category": "armor",
+   "gearCategory": null,
+   "cost": 5000,
+   "weight": 20,
+   "baseAc": 13,
+   "dexBonus": true,
+   "maxDexBonus": 2,
+   "strengthRequirement": 0,
+   "stealthDisadvantage": false,
+   "armorCategory": "medium"
+  },
+  "chalk 1 piece": {
+   "name": "Chalk (1 piece)",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 1,
+   "weight": 0
+  },
+  "chariot": {
+   "name": "Chariot",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 25000,
+   "weight": 100
+  },
+  "chest": {
+   "name": "Chest",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 500,
+   "weight": 25
+  },
+  "climber s kit": {
+   "name": "Climber's Kit",
+   "category": "adventuring-gear",
+   "gearCategory": "kits",
+   "cost": 2500,
+   "weight": 12
+  },
+  "clothes common": {
+   "name": "Clothes, common",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 50,
+   "weight": 3
+  },
+  "clothes costume": {
+   "name": "Clothes, costume",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 500,
+   "weight": 4
+  },
+  "clothes fine": {
+   "name": "Clothes, fine",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 1500,
+   "weight": 6
+  },
+  "clothes traveler s": {
+   "name": "Clothes, traveler's",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 200,
+   "weight": 4
+  },
+  "club": {
+   "name": "Club",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 10,
+   "weight": 2,
+   "damage": "1d4",
+   "damageType": "bludgeoning",
+   "versatile": null,
+   "properties": [
+    "light"
+   ],
+   "weaponCategory": "simple",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "cobbler s tools": {
+   "name": "Cobbler's Tools",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 500,
+   "weight": 5
+  },
+  "component pouch": {
+   "name": "Component pouch",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 2500,
+   "weight": 2
+  },
+  "cook s utensils": {
+   "name": "Cook's utensils",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 100,
+   "weight": 8
+  },
+  "crossbow bolt": {
+   "name": "Crossbow bolt",
+   "category": "adventuring-gear",
+   "gearCategory": "ammunition",
+   "cost": 100,
+   "weight": 1.5
+  },
+  "crossbow hand": {
+   "name": "Crossbow, hand",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 7500,
+   "weight": 3,
+   "damage": "1d6",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "ammunition",
+    "light",
+    "loading"
+   ],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 30,
+    "long": 120
+   }
+  },
+  "crossbow heavy": {
+   "name": "Crossbow, heavy",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 5000,
+   "weight": 18,
+   "damage": "1d10",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "ammunition",
+    "heavy",
+    "loading",
+    "two-handed"
+   ],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 100,
+    "long": 400
+   }
+  },
+  "crossbow light": {
+   "name": "Crossbow, light",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 2500,
+   "weight": 5,
+   "damage": "1d8",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "ammunition",
+    "loading",
+    "two-handed"
+   ],
+   "weaponCategory": "simple",
+   "range": {
+    "normal": 80,
+    "long": 320
+   }
+  },
+  "crowbar": {
+   "name": "Crowbar",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 200,
+   "weight": 5
+  },
+  "crystal": {
+   "name": "Crystal",
+   "category": "adventuring-gear",
+   "gearCategory": "arcane-foci",
+   "cost": 1000,
+   "weight": 1
+  },
+  "dagger": {
+   "name": "Dagger",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 200,
+   "weight": 1,
+   "damage": "1d4",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "finesse",
+    "light",
+    "thrown"
+   ],
+   "weaponCategory": "simple",
+   "range": {
+    "normal": 20,
+    "long": 60
+   }
+  },
+  "dart": {
+   "name": "Dart",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 5,
+   "weight": 0.25,
+   "damage": "1d4",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "finesse",
+    "thrown"
+   ],
+   "weaponCategory": "simple",
+   "range": {
+    "normal": 20,
+    "long": 60
+   }
+  },
+  "dice set": {
+   "name": "Dice Set",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 10,
+   "weight": 0
+  },
+  "diplomat s pack": {
+   "name": "Diplomat's Pack",
+   "category": "adventuring-gear",
+   "gearCategory": "equipment-packs",
+   "cost": 3900,
+   "weight": 0
+  },
+  "disguise kit": {
+   "name": "Disguise Kit",
+   "category": "adventuring-gear",
+   "gearCategory": "kits",
+   "cost": 2500,
+   "weight": 3
+  },
+  "donkey": {
+   "name": "Donkey",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 800,
+   "weight": 0
+  },
+  "drum": {
+   "name": "Drum",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 600,
+   "weight": 3
+  },
+  "dulcimer": {
+   "name": "Dulcimer",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 2500,
+   "weight": 10
+  },
+  "dungeoneer s pack": {
+   "name": "Dungeoneer's Pack",
+   "category": "adventuring-gear",
+   "gearCategory": "equipment-packs",
+   "cost": 1200,
+   "weight": 0
+  },
+  "elephant": {
+   "name": "Elephant",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 20000,
+   "weight": 0
+  },
+  "emblem": {
+   "name": "Emblem",
+   "category": "adventuring-gear",
+   "gearCategory": "holy-symbols",
+   "cost": 500,
+   "weight": 0
+  },
+  "entertainer s pack": {
+   "name": "Entertainer's Pack",
+   "category": "adventuring-gear",
+   "gearCategory": "equipment-packs",
+   "cost": 4000,
+   "weight": 0
+  },
+  "explorer s pack": {
+   "name": "Explorer's Pack",
+   "category": "adventuring-gear",
+   "gearCategory": "equipment-packs",
+   "cost": 1000,
+   "weight": 0
+  },
+  "fishing tackle": {
+   "name": "Fishing tackle",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 100,
+   "weight": 4
+  },
+  "flail": {
+   "name": "Flail",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 1000,
+   "weight": 2,
+   "damage": "1d8",
+   "damageType": "bludgeoning",
+   "versatile": null,
+   "properties": [],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "flask or tankard": {
+   "name": "Flask or tankard",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 2,
+   "weight": 1
+  },
+  "flute": {
+   "name": "Flute",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 200,
+   "weight": 1
+  },
+  "forgery kit": {
+   "name": "Forgery Kit",
+   "category": "adventuring-gear",
+   "gearCategory": "kits",
+   "cost": 1500,
+   "weight": 5
+  },
+  "galley": {
+   "name": "Galley",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 3000000,
+   "weight": 0
+  },
+  "glaive": {
+   "name": "Glaive",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 2000,
+   "weight": 6,
+   "damage": "1d10",
+   "damageType": "slashing",
+   "versatile": null,
+   "properties": [
+    "heavy",
+    "reach",
+    "two-handed"
+   ],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "glassblower s tools": {
+   "name": "Glassblower's Tools",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 3000,
+   "weight": 5
+  },
+  "grappling hook": {
+   "name": "Grappling hook",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 200,
+   "weight": 4
+  },
+  "greataxe": {
+   "name": "Greataxe",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 3000,
+   "weight": 7,
+   "damage": "1d12",
+   "damageType": "slashing",
+   "versatile": null,
+   "properties": [
+    "heavy",
+    "two-handed"
+   ],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "greatclub": {
+   "name": "Greatclub",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 20,
+   "weight": 10,
+   "damage": "1d8",
+   "damageType": "bludgeoning",
+   "versatile": null,
+   "properties": [
+    "two-handed"
+   ],
+   "weaponCategory": "simple",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "greatsword": {
+   "name": "Greatsword",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 5000,
+   "weight": 6,
+   "damage": "2d6",
+   "damageType": "slashing",
+   "versatile": null,
+   "properties": [
+    "heavy",
+    "two-handed"
+   ],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "halberd": {
+   "name": "Halberd",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 2000,
+   "weight": 6,
+   "damage": "1d10",
+   "damageType": "slashing",
+   "versatile": null,
+   "properties": [
+    "heavy",
+    "reach",
+    "two-handed"
+   ],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "half plate armor": {
+   "name": "Half Plate Armor",
+   "category": "armor",
+   "gearCategory": null,
+   "cost": 75000,
+   "weight": 40,
+   "baseAc": 15,
+   "dexBonus": true,
+   "maxDexBonus": 2,
+   "strengthRequirement": 0,
+   "stealthDisadvantage": true,
+   "armorCategory": "medium"
+  },
+  "hammer": {
+   "name": "Hammer",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 100,
+   "weight": 3
+  },
+  "hammer sledge": {
+   "name": "Hammer, sledge",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 200,
+   "weight": 10
+  },
+  "handaxe": {
+   "name": "Handaxe",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 500,
+   "weight": 2,
+   "damage": "1d6",
+   "damageType": "slashing",
+   "versatile": null,
+   "properties": [
+    "light",
+    "thrown"
+   ],
+   "weaponCategory": "simple",
+   "range": {
+    "normal": 20,
+    "long": 60
+   }
+  },
+  "healer s kit": {
+   "name": "Healer's Kit",
+   "category": "adventuring-gear",
+   "gearCategory": "kits",
+   "cost": 500,
+   "weight": 3
+  },
+  "herbalism kit": {
+   "name": "Herbalism Kit",
+   "category": "adventuring-gear",
+   "gearCategory": "kits",
+   "cost": 500,
+   "weight": 3
+  },
+  "hide armor": {
+   "name": "Hide Armor",
+   "category": "armor",
+   "gearCategory": null,
+   "cost": 1000,
+   "weight": 12,
+   "baseAc": 12,
+   "dexBonus": true,
+   "maxDexBonus": 2,
+   "strengthRequirement": 0,
+   "stealthDisadvantage": false,
+   "armorCategory": "medium"
+  },
+  "holy water flask": {
+   "name": "Holy water (flask)",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 2500,
+   "weight": 1
+  },
+  "horn": {
+   "name": "Horn",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 300,
+   "weight": 2
+  },
+  "horse draft": {
+   "name": "Horse, draft",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 5000,
+   "weight": 0
+  },
+  "horse riding": {
+   "name": "Horse, riding",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 7500,
+   "weight": 0
+  },
+  "hourglass": {
+   "name": "Hourglass",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 2500,
+   "weight": 1
+  },
+  "hunting trap": {
+   "name": "Hunting trap",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 500,
+   "weight": 25
+  },
+  "ink 1 ounce bottle": {
+   "name": "Ink (1 ounce bottle)",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 1000,
+   "weight": 0
+  },
+  "ink pen": {
+   "name": "Ink pen",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 2,
+   "weight": 0
+  },
+  "javelin": {
+   "name": "Javelin",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 50,
+   "weight": 2,
+   "damage": "1d6",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "thrown"
+   ],
+   "weaponCategory": "simple",
+   "range": {
+    "normal": 30,
+    "long": 120
+   }
+  },
+  "jeweler s tools": {
+   "name": "Jeweler's Tools",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 2500,
+   "weight": 2
+  },
+  "jug or pitcher": {
+   "name": "Jug or pitcher",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 2,
+   "weight": 4
+  },
+  "keelboat": {
+   "name": "Keelboat",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 300000,
+   "weight": 0
+  },
+  "ladder 10 foot": {
+   "name": "Ladder (10-foot)",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 10,
+   "weight": 25
+  },
+  "lamp": {
+   "name": "Lamp",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 50,
+   "weight": 1
+  },
+  "lance": {
+   "name": "Lance",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 1000,
+   "weight": 6,
+   "damage": "1d12",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "reach"
+   ],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "lantern bullseye": {
+   "name": "Lantern, bullseye",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 1000,
+   "weight": 2
+  },
+  "lantern hooded": {
+   "name": "Lantern, hooded",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 500,
+   "weight": 2
+  },
+  "leather armor": {
+   "name": "Leather Armor",
+   "category": "armor",
+   "gearCategory": null,
+   "cost": 1000,
+   "weight": 10,
+   "baseAc": 11,
+   "dexBonus": true,
+   "maxDexBonus": null,
+   "strengthRequirement": 0,
+   "stealthDisadvantage": false,
+   "armorCategory": "light"
+  },
+  "leatherworker s tools": {
+   "name": "Leatherworker's Tools",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 500,
+   "weight": 5
+  },
+  "light hammer": {
+   "name": "Light hammer",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 200,
+   "weight": 2,
+   "damage": "1d4",
+   "damageType": "bludgeoning",
+   "versatile": null,
+   "properties": [
+    "light",
+    "thrown"
+   ],
+   "weaponCategory": "simple",
+   "range": {
+    "normal": 20,
+    "long": 60
+   }
+  },
+  "little bag of sand": {
+   "name": "Little bag of sand",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 0,
+   "weight": 0
+  },
+  "lock": {
+   "name": "Lock",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 1000,
+   "weight": 1
+  },
+  "longbow": {
+   "name": "Longbow",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 5000,
+   "weight": 2,
+   "damage": "1d8",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "ammunition",
+    "heavy",
+    "two-handed"
+   ],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 150,
+    "long": 600
+   }
+  },
+  "longship": {
+   "name": "Longship",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 1000000,
+   "weight": 0
+  },
+  "longsword": {
+   "name": "Longsword",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 1500,
+   "weight": 3,
+   "damage": "1d8",
+   "damageType": "slashing",
+   "versatile": "1d10",
+   "properties": [
+    "versatile"
+   ],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "lute": {
+   "name": "Lute",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 3500,
+   "weight": 2
+  },
+  "lyre": {
+   "name": "Lyre",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 3000,
+   "weight": 2
+  },
+  "mace": {
+   "name": "Mace",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 500,
+   "weight": 4,
+   "damage": "1d6",
+   "damageType": "bludgeoning",
+   "versatile": null,
+   "properties": [],
+   "weaponCategory": "simple",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "magnifying glass": {
+   "name": "Magnifying glass",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 10000,
+   "weight": 0
+  },
+  "manacles": {
+   "name": "Manacles",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 200,
+   "weight": 6
+  },
+  "mason s tools": {
+   "name": "Mason's Tools",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 1000,
+   "weight": 8
+  },
+  "mastiff": {
+   "name": "Mastiff",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 2500,
+   "weight": 0
+  },
+  "maul": {
+   "name": "Maul",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 1000,
+   "weight": 10,
+   "damage": "2d6",
+   "damageType": "bludgeoning",
+   "versatile": null,
+   "properties": [
+    "heavy",
+    "two-handed"
+   ],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "mess kit": {
+   "name": "Mess Kit",
+   "category": "adventuring-gear",
+   "gearCategory": "kits",
+   "cost": 20,
+   "weight": 1
+  },
+  "mirror steel": {
+   "name": "Mirror, steel",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 500,
+   "weight": 0.5
+  },
+  "morningstar": {
+   "name": "Morningstar",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 1500,
+   "weight": 4,
+   "damage": "1d8",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "mule": {
+   "name": "Mule",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 800,
+   "weight": 0
+  },
+  "navigator s tools": {
+   "name": "Navigator's Tools",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 2500,
+   "weight": 2
+  },
+  "net": {
+   "name": "Net",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 100,
+   "weight": 3
+  },
+  "oil flask": {
+   "name": "Oil (flask)",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 10,
+   "weight": 1
+  },
+  "orb": {
+   "name": "Orb",
+   "category": "adventuring-gear",
+   "gearCategory": "arcane-foci",
+   "cost": 2000,
+   "weight": 3
+  },
+  "padded armor": {
+   "name": "Padded Armor",
+   "category": "armor",
+   "gearCategory": null,
+   "cost": 500,
+   "weight": 8,
+   "baseAc": 11,
+   "dexBonus": true,
+   "maxDexBonus": null,
+   "strengthRequirement": 0,
+   "stealthDisadvantage": true,
+   "armorCategory": "light"
+  },
+  "painter s supplies": {
+   "name": "Painter's Supplies",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 1000,
+   "weight": 5
+  },
+  "pan flute": {
+   "name": "Pan flute",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 1200,
+   "weight": 2
+  },
+  "paper one sheet": {
+   "name": "Paper (one sheet)",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 20,
+   "weight": 0
+  },
+  "parchment one sheet": {
+   "name": "Parchment (one sheet)",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 10,
+   "weight": 0
+  },
+  "perfume vial": {
+   "name": "Perfume (vial)",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 500,
+   "weight": 0
+  },
+  "pick miner s": {
+   "name": "Pick, miner's",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 200,
+   "weight": 10
+  },
+  "pike": {
+   "name": "Pike",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 500,
+   "weight": 18,
+   "damage": "1d10",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "heavy",
+    "reach",
+    "two-handed"
+   ],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "piton": {
+   "name": "Piton",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 5,
+   "weight": 0.25
+  },
+  "plate armor": {
+   "name": "Plate Armor",
+   "category": "armor",
+   "gearCategory": null,
+   "cost": 150000,
+   "weight": 65,
+   "baseAc": 18,
+   "dexBonus": false,
+   "maxDexBonus": null,
+   "strengthRequirement": 15,
+   "stealthDisadvantage": true,
+   "armorCategory": "heavy"
+  },
+  "playing card set": {
+   "name": "Playing Card Set",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 50,
+   "weight": 0
+  },
+  "poison basic vial": {
+   "name": "Poison, basic (vial)",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 10000,
+   "weight": 0
+  },
+  "poisoner s kit": {
+   "name": "Poisoner's Kit",
+   "category": "adventuring-gear",
+   "gearCategory": "kits",
+   "cost": 5000,
+   "weight": 2
+  },
+  "pole 10 foot": {
+   "name": "Pole (10-foot)",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 5,
+   "weight": 7
+  },
+  "pony": {
+   "name": "Pony",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 3000,
+   "weight": 0
+  },
+  "pot iron": {
+   "name": "Pot, iron",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 200,
+   "weight": 10
+  },
+  "potter s tools": {
+   "name": "Potter's Tools",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 1000,
+   "weight": 3
+  },
+  "pouch": {
+   "name": "Pouch",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 50,
+   "weight": 1
+  },
+  "priest s pack": {
+   "name": "Priest's Pack",
+   "category": "adventuring-gear",
+   "gearCategory": "equipment-packs",
+   "cost": 1900,
+   "weight": 0
+  },
+  "quarterstaff": {
+   "name": "Quarterstaff",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 20,
+   "weight": 4,
+   "damage": "1d6",
+   "damageType": "bludgeoning",
+   "versatile": "1d8",
+   "properties": [
+    "versatile"
+   ],
+   "weaponCategory": "simple",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "quiver": {
+   "name": "Quiver",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 100,
+   "weight": 1
+  },
+  "ram portable": {
+   "name": "Ram, portable",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 400,
+   "weight": 35
+  },
+  "rapier": {
+   "name": "Rapier",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 2500,
+   "weight": 2,
+   "damage": "1d8",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "finesse"
+   ],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "rations 1 day": {
+   "name": "Rations (1 day)",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 50,
+   "weight": 2
+  },
+  "reliquary": {
+   "name": "Reliquary",
+   "category": "adventuring-gear",
+   "gearCategory": "holy-symbols",
+   "cost": 500,
+   "weight": 2
+  },
+  "ring mail": {
+   "name": "Ring Mail",
+   "category": "armor",
+   "gearCategory": null,
+   "cost": 3000,
+   "weight": 40,
+   "baseAc": 14,
+   "dexBonus": false,
+   "maxDexBonus": null,
+   "strengthRequirement": 0,
+   "stealthDisadvantage": true,
+   "armorCategory": "heavy"
+  },
+  "robes": {
+   "name": "Robes",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 100,
+   "weight": 4
+  },
+  "rod": {
+   "name": "Rod",
+   "category": "adventuring-gear",
+   "gearCategory": "arcane-foci",
+   "cost": 1000,
+   "weight": 2
+  },
+  "rope hempen 50 feet": {
+   "name": "Rope, hempen (50 feet)",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 100,
+   "weight": 10
+  },
+  "rope silk 50 feet": {
+   "name": "Rope, silk (50 feet)",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 1000,
+   "weight": 5
+  },
+  "rowboat": {
+   "name": "Rowboat",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 5000,
+   "weight": 0
+  },
+  "sack": {
+   "name": "Sack",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 1,
+   "weight": 0.5
+  },
+  "saddle exotic": {
+   "name": "Saddle, Exotic",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 6000,
+   "weight": 50
+  },
+  "saddle military": {
+   "name": "Saddle, Military",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 2000,
+   "weight": 30
+  },
+  "saddle pack": {
+   "name": "Saddle, Pack",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 500,
+   "weight": 15
+  },
+  "saddle riding": {
+   "name": "Saddle, Riding",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 1000,
+   "weight": 25
+  },
+  "saddlebags": {
+   "name": "Saddlebags",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 400,
+   "weight": 8
+  },
+  "sailing ship": {
+   "name": "Sailing ship",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 1000000,
+   "weight": 0
+  },
+  "scale mail": {
+   "name": "Scale Mail",
+   "category": "armor",
+   "gearCategory": null,
+   "cost": 5000,
+   "weight": 45,
+   "baseAc": 14,
+   "dexBonus": true,
+   "maxDexBonus": 2,
+   "strengthRequirement": 0,
+   "stealthDisadvantage": true,
+   "armorCategory": "medium"
+  },
+  "scale merchant s": {
+   "name": "Scale, merchant's",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 500,
+   "weight": 3
+  },
+  "scholar s pack": {
+   "name": "Scholar's Pack",
+   "category": "adventuring-gear",
+   "gearCategory": "equipment-packs",
+   "cost": 4000,
+   "weight": 0
+  },
+  "scimitar": {
+   "name": "Scimitar",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 2500,
+   "weight": 3,
+   "damage": "1d6",
+   "damageType": "slashing",
+   "versatile": null,
+   "properties": [
+    "finesse",
+    "light"
+   ],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "sealing wax": {
+   "name": "Sealing wax",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 50,
+   "weight": 0
+  },
+  "shawm": {
+   "name": "Shawm",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 200,
+   "weight": 1
+  },
+  "shield": {
+   "name": "Shield",
+   "category": "armor",
+   "gearCategory": null,
+   "cost": 1000,
+   "weight": 6,
+   "baseAc": 2,
+   "dexBonus": false,
+   "maxDexBonus": null,
+   "strengthRequirement": 0,
+   "stealthDisadvantage": false,
+   "armorCategory": "shield"
+  },
+  "shortbow": {
+   "name": "Shortbow",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 2500,
+   "weight": 2,
+   "damage": "1d6",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "ammunition",
+    "two-handed"
+   ],
+   "weaponCategory": "simple",
+   "range": {
+    "normal": 80,
+    "long": 320
+   }
+  },
+  "shortsword": {
+   "name": "Shortsword",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 1000,
+   "weight": 2,
+   "damage": "1d6",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [
+    "finesse",
+    "light"
+   ],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "shovel": {
+   "name": "Shovel",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 200,
+   "weight": 5
+  },
+  "sickle": {
+   "name": "Sickle",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 100,
+   "weight": 2,
+   "damage": "1d4",
+   "damageType": "slashing",
+   "versatile": null,
+   "properties": [
+    "light"
+   ],
+   "weaponCategory": "simple",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "signal whistle": {
+   "name": "Signal whistle",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 5,
+   "weight": 0
+  },
+  "signet ring": {
+   "name": "Signet ring",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 500,
+   "weight": 0
+  },
+  "sled": {
+   "name": "Sled",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 2000,
+   "weight": 300
+  },
+  "sling": {
+   "name": "Sling",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 10,
+   "weight": 0,
+   "damage": "1d4",
+   "damageType": "bludgeoning",
+   "versatile": null,
+   "properties": [
+    "ammunition"
+   ],
+   "weaponCategory": "simple",
+   "range": {
+    "normal": 30,
+    "long": 120
+   }
+  },
+  "sling bullet": {
+   "name": "Sling bullet",
+   "category": "adventuring-gear",
+   "gearCategory": "ammunition",
+   "cost": 4,
+   "weight": 1.5
+  },
+  "small knife": {
+   "name": "Small knife",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 0,
+   "weight": 0
+  },
+  "smith s tools": {
+   "name": "Smith's Tools",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 2000,
+   "weight": 8
+  },
+  "soap": {
+   "name": "Soap",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 2,
+   "weight": 0
+  },
+  "spear": {
+   "name": "Spear",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 100,
+   "weight": 3,
+   "damage": "1d6",
+   "damageType": "piercing",
+   "versatile": "1d8",
+   "properties": [
+    "thrown",
+    "versatile"
+   ],
+   "weaponCategory": "simple",
+   "range": {
+    "normal": 20,
+    "long": 60
+   }
+  },
+  "spellbook": {
+   "name": "Spellbook",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 5000,
+   "weight": 3
+  },
+  "spike iron": {
+   "name": "Spike, iron",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 10,
+   "weight": 5
+  },
+  "splint armor": {
+   "name": "Splint Armor",
+   "category": "armor",
+   "gearCategory": null,
+   "cost": 20000,
+   "weight": 60,
+   "baseAc": 17,
+   "dexBonus": false,
+   "maxDexBonus": null,
+   "strengthRequirement": 15,
+   "stealthDisadvantage": true,
+   "armorCategory": "heavy"
+  },
+  "sprig of mistletoe": {
+   "name": "Sprig of mistletoe",
+   "category": "adventuring-gear",
+   "gearCategory": "druidic-foci",
+   "cost": 100,
+   "weight": 0
+  },
+  "spyglass": {
+   "name": "Spyglass",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 100000,
+   "weight": 1
+  },
+  "stabling 1 day": {
+   "name": "Stabling (1 day)",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 50,
+   "weight": 0
+  },
+  "staff": {
+   "name": "Staff",
+   "category": "adventuring-gear",
+   "gearCategory": "arcane-foci",
+   "cost": 500,
+   "weight": 4
+  },
+  "string 10 feet": {
+   "name": "String (10 feet)",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 0,
+   "weight": 0
+  },
+  "studded leather armor": {
+   "name": "Studded Leather Armor",
+   "category": "armor",
+   "gearCategory": null,
+   "cost": 4500,
+   "weight": 13,
+   "baseAc": 12,
+   "dexBonus": true,
+   "maxDexBonus": null,
+   "strengthRequirement": 0,
+   "stealthDisadvantage": false,
+   "armorCategory": "light"
+  },
+  "tent two person": {
+   "name": "Tent, two-person",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 200,
+   "weight": 20
+  },
+  "thieves tools": {
+   "name": "Thieves' Tools",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 2500,
+   "weight": 1
+  },
+  "tinderbox": {
+   "name": "Tinderbox",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 50,
+   "weight": 1
+  },
+  "tinker s tools": {
+   "name": "Tinker's Tools",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 5000,
+   "weight": 10
+  },
+  "torch": {
+   "name": "Torch",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 1,
+   "weight": 1
+  },
+  "totem": {
+   "name": "Totem",
+   "category": "adventuring-gear",
+   "gearCategory": "druidic-foci",
+   "cost": 100,
+   "weight": 0
+  },
+  "trident": {
+   "name": "Trident",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 500,
+   "weight": 4,
+   "damage": "1d6",
+   "damageType": "piercing",
+   "versatile": "1d8",
+   "properties": [
+    "thrown",
+    "versatile"
+   ],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 20,
+    "long": 60
+   }
+  },
+  "vestments": {
+   "name": "Vestments",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 0,
+   "weight": 0
+  },
+  "vial": {
+   "name": "Vial",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 100,
+   "weight": 0
+  },
+  "viol": {
+   "name": "Viol",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 3000,
+   "weight": 1
+  },
+  "wagon": {
+   "name": "Wagon",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 3500,
+   "weight": 400
+  },
+  "wand": {
+   "name": "Wand",
+   "category": "adventuring-gear",
+   "gearCategory": "arcane-foci",
+   "cost": 1000,
+   "weight": 1
+  },
+  "war pick": {
+   "name": "War pick",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 500,
+   "weight": 2,
+   "damage": "1d8",
+   "damageType": "piercing",
+   "versatile": null,
+   "properties": [],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "warhammer": {
+   "name": "Warhammer",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 1500,
+   "weight": 2,
+   "damage": "1d8",
+   "damageType": "bludgeoning",
+   "versatile": "1d10",
+   "properties": [
+    "versatile"
+   ],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "warhorse": {
+   "name": "Warhorse",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 40000,
+   "weight": 0
+  },
+  "warship": {
+   "name": "Warship",
+   "category": "mounts-and-vehicles",
+   "gearCategory": null,
+   "cost": 2500000,
+   "weight": 0
+  },
+  "waterskin": {
+   "name": "Waterskin",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 20,
+   "weight": 5
+  },
+  "weaver s tools": {
+   "name": "Weaver's Tools",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 100,
+   "weight": 5
+  },
+  "whetstone": {
+   "name": "Whetstone",
+   "category": "adventuring-gear",
+   "gearCategory": "standard-gear",
+   "cost": 1,
+   "weight": 1
+  },
+  "whip": {
+   "name": "Whip",
+   "category": "weapon",
+   "gearCategory": null,
+   "cost": 200,
+   "weight": 3,
+   "damage": "1d4",
+   "damageType": "slashing",
+   "versatile": null,
+   "properties": [
+    "finesse",
+    "reach"
+   ],
+   "weaponCategory": "martial",
+   "range": {
+    "normal": 5,
+    "long": null
+   }
+  },
+  "woodcarver s tools": {
+   "name": "Woodcarver's Tools",
+   "category": "tools",
+   "gearCategory": null,
+   "cost": 100,
+   "weight": 5
+  },
+  "wooden staff": {
+   "name": "Wooden staff",
+   "category": "adventuring-gear",
+   "gearCategory": "druidic-foci",
+   "cost": 500,
+   "weight": 4
+  },
+  "yew wand": {
+   "name": "Yew wand",
+   "category": "adventuring-gear",
+   "gearCategory": "druidic-foci",
+   "cost": 1000,
+   "weight": 1
+  }
+ }
+}

@@ -1,0 +1,6298 @@
+/*
+  Two palettes, one set of names.
+
+  **Parchment is the default**, because the app already contains a parchment
+  character sheet and having the tool be a different material from the page it
+  prints was two designs pretending to be one. The dark theme is kept because
+  people build characters at night; nothing else differs between them.
+
+  The naming is a contract, and every rule below is written against it rather
+  than against a colour:
+
+    --bg          the page
+    --panel       a section's fill, one step off the page
+    --bg-raised   a card lying on a panel, one step further up
+    --bg-sunken   an input well, one step below the panel
+    --border      the edge of a thing
+    --border-soft a line *inside* a thing
+    --border-strong  the one element the keyboard is on
+
+  The dark theme is the one that needs explaining. At those luminances a
+  background step is almost worthless as a boundary - a panel sits ~1.2:1
+  against the page however far the page is deepened - so the edges carry the
+  structure and `--border` is deliberately far lighter than a border usually
+  is. Parchment does not have that problem and its borders can be quieter,
+  which is why the two palettes are not simply inverted.
+*/
+:root {
+  --bg: #e6dcc6;
+  --bg-raised: #fffdf6;
+  --bg-sunken: #f3ecdb;
+  --panel: #faf5e7;
+  --border: #b6a88f;
+  --border-soft: #d8cdb5;
+  --border-strong: #6f6350;
+  --text: #241d15;
+  --text-dim: #5a4e3f;
+  --text-faint: #726552;
+  --accent: #8a5f18;
+  --accent-dim: #a87c2b;
+  /* Text that sits on top of an accent fill. */
+  --on-accent: #fffdf6;
+
+  --sky: #145f81;
+  --blue: #2b55a0;
+  --orange: #955707;
+  --red: #9d3123;
+  --green: #2a6c33;
+
+  /* Tints, for the callouts and chips that wash a colour over a surface. */
+  --tint-red: rgba(157, 49, 35, 0.32);
+  --tint-orange: rgba(149, 87, 7, 0.3);
+  --tint-accent: rgba(138, 95, 24, 0.3);
+
+  /*
+    A panel lifts off parchment with a shadow; on dark it catches a highlight
+    along its top edge instead, because a shadow on near-black is invisible.
+  */
+  --panel-shadow: 0 1px 2px rgba(74, 56, 24, 0.1), 0 4px 14px rgba(74, 56, 24, 0.05);
+  --menu-shadow: 0 8px 24px rgba(74, 56, 24, 0.22);
+  --page-glow: rgba(138, 95, 24, 0.07);
+  --hover-fill: #f0e7d2;
+
+  --radius: 8px;
+  --mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, monospace;
+
+  color-scheme: light;
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+:root[data-theme='dark'] {
+  --bg: #0d0b09;
+  --bg-raised: #2e2823;
+  --bg-sunken: #151210;
+  --panel: #241f1c;
+  --border: #67584e;
+  --border-soft: #473e36;
+  --border-strong: #8a7768;
+  --text: #ece5df;
+  --text-dim: #a89c93;
+  --text-faint: #948579;
+  --accent: #c9973f;
+  --accent-dim: #8a672a;
+  --on-accent: #24190a;
+
+  --sky: #5cc8f5;
+  --blue: #6f9ee8;
+  --orange: #e0913c;
+  /* Lifted from #d2604f, which read at 4.29:1 on a dark panel - under the bar
+     for the small text the build review sets in it. Same hue, same saturation,
+     four percent lighter. Caught by the contrast test, not by eye. */
+  --red: #d46b59;
+  --green: #6cbf72;
+
+  --tint-red: rgba(212, 107, 89, 0.5);
+  --tint-orange: rgba(224, 145, 60, 0.4);
+  --tint-accent: rgba(201, 151, 63, 0.35);
+
+  --panel-shadow: inset 0 1px 0 rgba(255, 245, 230, 0.045), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --menu-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --page-glow: rgba(201, 151, 63, 0.09);
+  --hover-fill: #2a2421;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/*
+  Nothing here animates for decoration - the four transitions are short colour
+  fades on hover - but "I did not ask for movement" is a setting, not a
+  judgement about whether the movement was tasteful. Honouring it costs three
+  lines and covers anything added later without anyone having to remember.
+*/
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, var(--page-glow), transparent),
+    var(--bg);
+  min-height: 100vh;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+h1, h2, h3, h4 {
+  margin: 0;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+a {
+  color: var(--accent);
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------------------ layout */
+
+.app {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 20px 80px;
+}
+
+.masthead {
+  padding: 28px 0 18px;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.masthead h1 {
+  font-size: 26px;
+  letter-spacing: 0.01em;
+}
+
+.masthead h1 span {
+  color: var(--accent);
+}
+
+.masthead .tagline {
+  color: var(--text-faint);
+  font-size: 13px;
+  font-family: var(--mono);
+}
+
+/* Pushed to the far end of the masthead, and off the printed page entirely. */
+.theme-toggle {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-sunken);
+}
+
+.theme-toggle button {
+  border: none;
+  background: none;
+  border-radius: 999px;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-family: var(--mono);
+  padding: 3px 11px;
+}
+
+.theme-toggle button:hover {
+  color: var(--text);
+}
+
+.theme-toggle button.is-on {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 18px 0 24px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.tabs > [role='tab'] {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  padding: 9px 14px;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  margin-bottom: -1px;
+}
+
+.tabs > [role='tab']:hover {
+  color: var(--text);
+}
+
+.tabs > [role='tab'][aria-selected='true'] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/*
+  Create | Play.
+
+  A segmented control rather than two more tabs, because it is a different kind
+  of choice: the tabs pick a desk, this picks which half of the app you are in.
+  Play gets the weight - for a DM mid-session it is the only button that
+  matters - and the cut corner is the one deliberate flourish of the tactical
+  skin allowed to appear outside Play mode, so the button advertises where it
+  goes.
+*/
+.mode-switch {
+  display: inline-flex;
+  gap: 0;
+  margin-right: 14px;
+  margin-bottom: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  align-self: center;
+}
+
+.mode-switch .mode-btn {
+  background: var(--bg-raised);
+  border: 0;
+  color: var(--text-dim);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-family: var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.mode-switch .mode-btn.is-on {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.mode-switch .mode-play {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+}
+
+.mode-switch .mode-play:not(.is-on) {
+  color: var(--accent);
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 22px;
+  align-items: start;
+}
+
+.columns-wide {
+  grid-template-columns: 330px minmax(0, 1fr);
+}
+
+@media (max-width: 940px) {
+  .columns, .columns-wide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------------ panels */
+
+/*
+  A panel is the unit of "section", so it has to look like one from across the
+  room: a drawn edge, a fill above the page, and a titled head separated from
+  its contents by a rule. The heading alone was carrying all of that before,
+  which meant the boundary was wherever you happened to notice gold text.
+
+  The inset highlight along the top is what stops a flat fill from reading as a
+  hole punched in the page - one hairline of light where a raised surface would
+  catch it, which is cheap and does more than another 5% of fill lightness.
+*/
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  min-width: 0;
+  box-shadow: var(--panel-shadow);
+}
+
+/*
+  The head is pulled out to the panel's edges so its rule runs the full width,
+  the way a printed section head does. Padding stays on the panel, so nothing
+  inside has to know about this.
+*/
+.panel > h2 {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-weight: 500;
+  margin: -18px -18px 14px;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+/* With a subtitle the rule belongs under *that*, so the head stays one block. */
+.panel > h2:has(+ .panel-sub) {
+  margin-bottom: 0;
+  padding-bottom: 4px;
+  border-bottom: none;
+}
+
+.panel > .panel-sub {
+  color: var(--text-faint);
+  font-size: 13px;
+  margin: 0 -18px 14px;
+  padding: 0 18px 12px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+/* ------------------------------------------------------------------ inputs */
+
+label.field,
+div.field {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.field > .field-label {
+  display: block;
+}
+
+label.field > span,
+.field > .field-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  margin-bottom: 5px;
+}
+
+input[type='text'],
+input[type='number'],
+select,
+textarea {
+  width: 100%;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 14px;
+}
+
+textarea {
+  font-family: var(--mono);
+  font-size: 12px;
+  resize: vertical;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent-dim);
+}
+
+/*
+  Where the keyboard is.
+
+  Nothing outside the text inputs had a focus style at all, so tabbing through
+  a panel of forty checkboxes and ranked cards left you guessing. `--border-
+  strong` exists for this: bright enough to find at a glance (3.8:1 against a
+  panel), and only ever drawn for the keyboard, so a mouse user never meets it.
+*/
+:focus-visible {
+  outline: 2px solid var(--border-strong);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+button:focus-visible,
+summary:focus-visible,
+[role='tab']:focus-visible {
+  outline-color: var(--accent);
+}
+
+select option {
+  background: var(--bg-raised);
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.row > * {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.btn {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.btn:hover {
+  border-color: var(--accent-dim);
+  background: var(--hover-fill);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.btn-primary:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.btn-sm {
+  padding: 4px 9px;
+  font-size: 12px;
+}
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 13px;
+  color: var(--text-dim);
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+.checkbox input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* ------------------------------------------------------------ ability grid */
+
+.abilities {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 620px) {
+  .abilities {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.ability {
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 6px;
+  text-align: center;
+}
+
+.ability.is-primary {
+  border-color: var(--accent-dim);
+}
+
+.ability .name {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+.ability.is-primary .name {
+  color: var(--accent);
+}
+
+.ability .total {
+  font-size: 26px;
+  line-height: 1.1;
+  margin: 2px 0;
+}
+
+.ability .mod {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.ability .breakdown {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  margin-top: 3px;
+  min-height: 14px;
+}
+
+.ability .stepper {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.ability .stepper button {
+  flex: 1;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 4px;
+  padding: 1px 0;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.ability .stepper button:hover:not(:disabled) {
+  border-color: var(--accent-dim);
+  color: var(--text);
+}
+
+.ability .stepper button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.budget {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.budget.over {
+  color: var(--red);
+}
+
+/* ---------------------------------------------------------------- stat bar */
+
+/*
+  The cell dividers are outlines on the cells, not the container showing
+  through a gap.
+
+  The gap trick is neater until the last row is short: `auto-fit` leaves empty
+  tracks, nothing paints them, and the divider colour fills them like a broken
+  cell. That was invisible while the divider was near-panel-coloured and
+  obvious the moment it was not - a six-figure At a glance on a narrow screen
+  laid out four across and showed two grey blocks.
+
+  An outline sits outside the cell's box, so adjacent outlines meet in the 1px
+  gap and read as one line, and the outermost ones are clipped by the
+  container. An empty track has no cell, so it has no outline, and stays the
+  colour of the panel.
+*/
+.statline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  gap: 1px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/*
+  Every direct child is a cell, not only the ones carrying `.stat`.
+
+  The grid draws its dividers by letting the container colour show through a
+  1px gap, so a child without a fill of its own leaves the divider colour
+  covering the whole cell. Several statlines are plain `<div>`s, and while the
+  divider was nearly the panel colour that was invisible; the moment the
+  borders got the contrast they needed, those cells filled with it.
+*/
+.statline > * {
+  background: var(--panel);
+  outline: 1px solid var(--border-soft);
+  padding: 11px 10px;
+  text-align: center;
+  border: none;
+  border-radius: 0;
+  color: inherit;
+  font: inherit;
+}
+
+/* A figure that explains itself. The affordance is deliberately quiet: these
+   are numbers first and buttons second. */
+.statline button.stat {
+  cursor: pointer;
+  transition: background 120ms;
+}
+
+.statline button.stat:hover {
+  background: var(--bg-raised);
+}
+
+.statline button.stat.is-open {
+  background: var(--bg-raised);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+/* A rules problem must not hide behind a click, so the figure carries it. */
+.statline button.stat.is-flagged .v {
+  color: var(--red);
+}
+
+.statline button.stat.is-flagged .v::after {
+  content: ' !';
+  font-size: 13px;
+}
+
+.glance-detail {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.statline .k {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.statline .v {
+  font-size: 21px;
+  margin-top: 2px;
+}
+
+/* ------------------------------------------------------------ suggestions */
+
+/*
+  A card inside a panel. It reads as a thing lying *on* the panel rather than a
+  hole cut into it, which is why `--bg-raised` is lighter than `--panel` and
+  the edge is drawn rather than implied.
+*/
+.suggestion {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.suggestion:hover {
+  border-color: var(--border);
+}
+
+.suggestion.is-top {
+  border-color: var(--accent-dim);
+}
+
+.suggestion.is-blocked {
+  opacity: 0.55;
+}
+
+.suggestion summary {
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  list-style: none;
+}
+
+.suggestion summary::-webkit-details-marker {
+  display: none;
+}
+
+.suggestion summary::before {
+  content: '\25B8';
+  color: var(--text-faint);
+  font-size: 11px;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+.suggestion[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.suggestion .title {
+  flex: 1;
+  min-width: 0;
+}
+
+.suggestion .title .src {
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+  margin-left: 7px;
+}
+
+.suggestion .body {
+  padding: 12px 14px 14px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 14px;
+}
+
+.suggestion .body > p {
+  margin: 0 0 10px;
+  color: var(--text-dim);
+}
+
+.rank {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  width: 20px;
+  flex-shrink: 0;
+}
+
+.fitbar {
+  width: 80px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-sunken);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.fitbar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+}
+
+.reasons {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 13px;
+}
+
+.reasons li {
+  display: flex;
+  gap: 10px;
+  padding: 5px 0;
+  border-top: 1px solid var(--border-soft);
+  color: var(--text-dim);
+}
+
+.reasons li:first-child {
+  border-top: none;
+}
+
+.reasons .delta {
+  font-family: var(--mono);
+  font-size: 12px;
+  flex-shrink: 0;
+  width: 40px;
+  text-align: right;
+}
+
+.delta.pos { color: var(--green); }
+.delta.neg { color: var(--red); }
+.delta.zero { color: var(--text-faint); }
+
+/* --------------------------------------------------------------- findings */
+
+.finding {
+  border-left: 3px solid var(--border);
+  padding: 9px 0 9px 13px;
+  margin-bottom: 12px;
+}
+
+.finding.error { border-left-color: var(--red); }
+.finding.warning { border-left-color: var(--orange); }
+.finding.info { border-left-color: var(--blue); }
+.finding.good { border-left-color: var(--green); }
+
+.finding h3 {
+  font-size: 14px;
+  margin-bottom: 3px;
+}
+
+.finding p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.finding .fix {
+  margin-top: 5px;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+.finding .fix::before {
+  content: '\2192  ';
+  color: var(--accent);
+}
+
+/* ----------------------------------------------------------------- matrix */
+
+.matrix-wrap {
+  overflow-x: auto;
+  max-height: 74vh;
+}
+
+table.matrix {
+  border-collapse: collapse;
+  font-size: 13px;
+  width: 100%;
+}
+
+table.matrix th,
+table.matrix td {
+  border: 1px solid var(--border-soft);
+  padding: 0;
+  text-align: center;
+}
+
+table.matrix thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-raised);
+  padding: 8px 5px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: 500;
+  z-index: 2;
+}
+
+table.matrix thead th:first-child {
+  left: 0;
+  z-index: 3;
+}
+
+table.matrix tbody th {
+  text-align: left;
+  padding: 6px 11px 6px 9px;
+  background: var(--bg-raised);
+  font-weight: 400;
+  white-space: nowrap;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+table.matrix tbody th .src {
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  margin-left: 6px;
+}
+
+table.matrix td button {
+  width: 100%;
+  border: none;
+  background: none;
+  color: inherit;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 7px 2px;
+  display: block;
+}
+
+td.cell-sky { background: rgba(92, 200, 245, 0.19); color: var(--sky); }
+td.cell-blue { background: rgba(111, 158, 232, 0.14); color: var(--blue); }
+td.cell-orange { background: rgba(224, 145, 60, 0.11); color: var(--orange); }
+td.cell-red { background: rgba(210, 96, 79, 0.09); color: var(--red); }
+
+td.is-selected {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+
+.legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.swatch.sky { background: var(--sky); }
+.swatch.blue { background: var(--blue); }
+.swatch.orange { background: var(--orange); }
+.swatch.red { background: var(--red); }
+
+/* ------------------------------------------------------------------- misc */
+
+.tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-soft);
+  color: var(--text-faint);
+  margin: 0 4px 4px 0;
+}
+
+/* Mixed from the colour itself, so a rating chip follows whichever palette is
+   on rather than carrying one theme's blue into the other's parchment. */
+.tag.rating-sky { color: var(--sky); border-color: color-mix(in srgb, var(--sky) 40%, transparent); }
+.tag.rating-blue { color: var(--blue); border-color: color-mix(in srgb, var(--blue) 40%, transparent); }
+.tag.rating-orange { color: var(--orange); border-color: color-mix(in srgb, var(--orange) 40%, transparent); }
+.tag.rating-red { color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, transparent); }
+
+.note {
+  font-size: 13px;
+  color: var(--text-dim);
+  background: var(--bg-sunken);
+  border-left: 2px solid var(--accent-dim);
+  padding: 9px 12px;
+  border-radius: 0 5px 5px 0;
+  margin: 0 0 12px;
+}
+
+.muted {
+  color: var(--text-faint);
+  font-size: 13px;
+}
+
+.plan-step {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 14px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border-soft);
+}
+
+.plan-step:first-child {
+  border-top: none;
+}
+
+@media (max-width: 620px) {
+  .plan-step {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+}
+
+.plan-step .when {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.plan-step .what .kind {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-right: 8px;
+}
+
+.plan-step .why {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: 3px;
+}
+
+.plan-step .alt {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+
+.scores-after {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 5px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 6px 4px 12px;
+  font-size: 13px;
+}
+
+.chip button {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.chip button:hover {
+  color: var(--red);
+}
+
+.callout {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--text-dim);
+  background: var(--bg-sunken);
+}
+
+.callout.error {
+  border-color: var(--tint-red);
+  color: var(--red);
+}
+
+.callout.warn {
+  border-color: var(--tint-orange);
+}
+
+.callout ol, .callout ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.callout li {
+  margin-bottom: 4px;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  padding: 1px 5px;
+  word-break: break-all;
+}
+
+dl.detail-list {
+  margin: 0;
+}
+
+.detail-list dt {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 10px;
+}
+
+.detail-list dd {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.searchbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.searchbar input {
+  flex: 2 1 220px;
+}
+
+.searchbar select {
+  flex: 1 1 130px;
+}
+
+.subclass-note {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: -6px;
+  margin-bottom: 12px;
+}
+
+/* --- proficiencies ------------------------------------------------------ */
+
+.skill-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.skill-row .skill-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  min-width: 190px;
+}
+
+.skill-row .skill-name input {
+  margin: 0;
+  flex: none;
+}
+
+.skill-row .skill-name input:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.skill-row .is-proficient {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.skill-row .skill-mod {
+  font-family: var(--mono);
+  font-size: 13px;
+  min-width: 28px;
+  text-align: right;
+  color: var(--text-dim);
+}
+
+.skill-row .src {
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.skill-row .tag.rec {
+  color: var(--accent);
+  border-color: var(--tint-accent);
+}
+
+/* --- class features ----------------------------------------------------- */
+
+.feature-row {
+  padding: 4px 0 6px;
+  font-size: 13px;
+}
+
+.feature-row strong {
+  color: var(--text);
+}
+
+.feature-row .src {
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+  margin-left: 7px;
+}
+
+.feature-row p {
+  margin: 2px 0 0;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.feature-next {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  opacity: 0.72;
+}
+
+/* --- damage per round ---------------------------------------------------- */
+
+.dpr-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 84px;
+  padding: 6px 0 0;
+}
+
+.dpr-bar {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.dpr-bar span {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  border-radius: 1px 1px 0 0;
+}
+
+.dpr-bar .nova {
+  background: var(--border);
+}
+
+.dpr-bar .sustained {
+  background: var(--accent);
+  opacity: 0.85;
+}
+
+.dpr-bar .marker {
+  height: 100% !important;
+  background: none;
+  border-left: 1px dashed var(--text-faint);
+  width: 0;
+  left: 50%;
+}
+
+.dpr-axis {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  margin-top: 3px;
+}
+
+/* ---------------------------------------------------------------- spells */
+
+/* Slots by level, read left to right the way a character sheet lists them. */
+/* Same dividers-as-outlines treatment as `.statline`, and for the same reason:
+   a wrapped last line leaves trailing space that nothing paints. */
+.slot-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.slot-cell {
+  background: var(--panel);
+  outline: 1px solid var(--border-soft);
+  padding: 8px 14px;
+  text-align: center;
+  flex: 1 1 auto;
+  min-width: 52px;
+}
+
+.slot-cell .k {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.slot-cell .v {
+  font-size: 19px;
+  margin-top: 1px;
+}
+
+/* Pact slots are a separate resource, so they read as a separate cell. */
+.slot-cell.is-pact .k {
+  color: var(--accent);
+}
+
+.spell-levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 12px 0;
+}
+
+.spell-levels button {
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 12px;
+  min-width: 30px;
+  padding: 4px 11px;
+}
+
+.spell-levels button[aria-selected='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+
+/* A stat value that is a phrase rather than a number needs to be smaller. */
+.statline .v.sm {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.field.field-sm input {
+  width: 64px;
+}
+
+/* An inline button that reads as a link, for suggestions inside a sentence. */
+.linkish {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.linkish:hover {
+  color: var(--text);
+}
+
+/* ------------------------------------------------------------ the roster */
+
+.roster-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  background: var(--bg-raised);
+}
+
+/* The character the Builder is editing, marked so switching is unambiguous. */
+.roster-row.is-active {
+  border-color: var(--accent-dim);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.roster-main {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.roster-name {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+  padding: 3px 6px;
+  width: 100%;
+}
+
+.roster-name:hover {
+  border-color: var(--border-soft);
+}
+
+.roster-name:focus {
+  border-color: var(--accent-dim);
+  outline: none;
+  background: var(--bg-sunken);
+}
+
+.roster-sub {
+  color: var(--text-faint);
+  font-size: 12px;
+  padding: 0 7px;
+}
+
+.roster-stats {
+  display: flex;
+  gap: 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.roster-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn-danger {
+  border-color: var(--tint-red);
+  color: var(--red);
+}
+
+.chip-btn {
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-dim);
+  font-size: 13px;
+  padding: 5px 14px;
+}
+
+.chip-btn.is-on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+
+/* ----------------------------------------------------------- comparison */
+
+.compare {
+  overflow-x: auto;
+}
+
+.compare-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+}
+
+.compare-table th,
+.compare-table td {
+  border-bottom: 1px solid var(--border-soft);
+  padding: 7px 10px;
+  text-align: left;
+}
+
+.compare-table thead th {
+  color: var(--text);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.compare-table tbody th {
+  color: var(--text-dim);
+  font-weight: 400;
+  width: 40%;
+}
+
+.compare-table td {
+  font-family: var(--mono);
+  width: 30%;
+}
+
+/* The better of the two, so a scan down the column tells the story. */
+.compare-table td.wins {
+  color: var(--green);
+  font-weight: 600;
+}
+
+.compare-heading {
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 18px 0 6px;
+}
+
+/* --------------------------------------------------------- the sheet */
+
+.print-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.sheet {
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+
+.sheet-head h1 {
+  font-size: 26px;
+  margin: 0;
+}
+
+.sheet-head p {
+  color: var(--text-dim);
+  margin: 4px 0 18px;
+}
+
+.sheet-abilities {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.sheet-ability {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 8px;
+  text-align: center;
+}
+
+.sheet-ability .k {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.sheet-ability .score {
+  font-size: 22px;
+}
+
+.sheet-ability .mod {
+  font-family: var(--mono);
+  color: var(--accent);
+}
+
+.sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.sheet-box {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 8px;
+  text-align: center;
+}
+
+.sheet-box .k {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.sheet-box .v {
+  font-size: 20px;
+}
+
+.sheet-box .sub {
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.sheet-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 26px;
+}
+
+.sheet h2 {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border-soft);
+  padding-bottom: 4px;
+  margin: 16px 0 8px;
+}
+
+.sheet-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+}
+
+.sheet-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.sheet-list .name {
+  flex: 1;
+}
+
+.sheet-list .name em {
+  color: var(--text-faint);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.sheet-list .val {
+  font-family: var(--mono);
+}
+
+/* Filled for proficient, ringed for expertise - the convention every paper
+   sheet uses, so it needs no key. */
+.sheet-list .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid var(--text-faint);
+  flex: none;
+}
+
+.sheet-list .dot.on {
+  background: var(--text-dim);
+}
+
+.sheet-list .dot.double {
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--accent);
+}
+
+.sheet-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.sheet-table th,
+.sheet-table td {
+  border-bottom: 1px solid var(--border-soft);
+  padding: 4px 6px;
+  text-align: left;
+}
+
+.sheet-table th {
+  color: var(--text-faint);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.sheet-para {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.sheet-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.sheet-slots b {
+  color: var(--text-faint);
+  font-size: 10px;
+}
+
+.sheet-spells,
+.sheet-features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+}
+
+.sheet-spells li,
+.sheet-features li {
+  padding: 2px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.sheet-spells em,
+.sheet-features em {
+  color: var(--text-faint);
+}
+
+@media (max-width: 780px) {
+  .sheet-abilities,
+  .sheet-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .sheet-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ------------------------------------------------------------------ print */
+
+/*
+  Paper is white and ink is expensive, so the sheet inverts rather than printing
+  the app's dark theme as a full-page block of toner. Everything that is not the
+  sheet is removed: tabs, buttons, the masthead.
+*/
+@media print {
+  .masthead,
+  .tabs,
+  /* The section switcher is chrome for the same reason the tab bar is: it says
+     where you are, which paper does not need to be told. */
+  .subtabs,
+  .print-controls,
+  .btn {
+    display: none !important;
+  }
+
+  body,
+  .app,
+  .sheet {
+    background: #fff !important;
+    color: #000 !important;
+    margin: 0;
+    padding: 0;
+    border: none !important;
+  }
+
+  .sheet {
+    padding: 0;
+  }
+
+  .sheet h2,
+  .sheet-ability .k,
+  .sheet-box .k,
+  .sheet-box .sub,
+  .sheet-list .name em,
+  .sheet-spells em,
+  .sheet-features em,
+  .sheet-para,
+  .muted {
+    color: #444 !important;
+  }
+
+  .sheet-ability,
+  .sheet-box,
+  .sheet h2,
+  .sheet-table th,
+  .sheet-table td,
+  .sheet-list .dot,
+  .sheet-spells li,
+  .sheet-features li {
+    border-color: #bbb !important;
+  }
+
+  .sheet-ability .mod {
+    color: #000 !important;
+  }
+
+  .sheet-list .dot.on,
+  .sheet-list .dot.double {
+    background: #000 !important;
+  }
+
+  .sheet-list .dot.double {
+    box-shadow: 0 0 0 2px #fff, 0 0 0 3px #000;
+  }
+
+  /* A section split across a page break is the main thing that makes a printed
+     sheet unusable at the table. */
+  .sheet-columns > div,
+  .sheet-table,
+  .sheet-features li,
+  .sheet-spells li {
+    break-inside: avoid;
+  }
+
+  @page {
+    margin: 14mm;
+  }
+}
+
+/* ------------------------------------------------ overlaid damage curves */
+
+.curve-chart {
+  width: 100%;
+  height: auto;
+  margin: 6px 0;
+}
+
+.curve-chart .grid {
+  stroke: var(--border-soft);
+  stroke-width: 1;
+}
+
+.curve-chart .axis {
+  fill: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+
+.curve-chart .curve {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.curve-left {
+  stroke: var(--accent);
+}
+
+/* Dashed as well as differently coloured, so the two are still told apart
+   when printed or by a reader who cannot separate the hues. */
+.curve-right {
+  stroke: var(--sky);
+  stroke-dasharray: 5 3;
+}
+
+.curve-key {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.curve-key span::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.curve-key .key-left::before {
+  background: var(--accent);
+}
+
+.curve-key .key-right::before {
+  background: repeating-linear-gradient(to right, var(--sky) 0 5px, transparent 5px 8px);
+}
+
+.tab-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  align-self: center;
+  padding-bottom: 6px;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* A compact shape of the damage curve for the printed summary. */
+.summary-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 44px;
+  margin: 8px 0 4px;
+}
+
+.summary-bars span {
+  flex: 1;
+  background: var(--accent);
+  opacity: 0.7;
+  min-height: 1px;
+}
+
+@media print {
+  .spell-levels {
+    display: none !important;
+  }
+
+  .summary-bars span {
+    background: #666 !important;
+    opacity: 1;
+  }
+}
+
+/* -------------------------------------------------------------- in play */
+
+.hp-bar {
+  height: 10px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.hp-bar .fill {
+  display: block;
+  height: 100%;
+  background: var(--green);
+  transition: width 120ms ease-out;
+}
+
+.hp-bar .fill.is-hurt {
+  background: var(--orange);
+}
+
+.hp-bar .fill.is-down {
+  background: var(--red);
+}
+
+.hp-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 6px 0 10px;
+  font-family: var(--mono);
+}
+
+.hp-line strong {
+  font-size: 20px;
+}
+
+.hp-line .temp,
+.play-track .count {
+  color: var(--sky);
+  font-size: 12px;
+}
+
+.is-down {
+  color: var(--red);
+}
+
+.play-row {
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.play-amount {
+  width: 74px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 5px 8px;
+}
+
+.play-track {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 0;
+  font-size: 13px;
+}
+
+.play-track .label {
+  flex: 0 0 118px;
+  color: var(--text-dim);
+}
+
+.play-track .label.is-pact {
+  color: var(--accent);
+}
+
+.play-track .pips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.play-track .count {
+  font-family: var(--mono);
+  color: var(--text-faint);
+}
+
+/* A spent pip is hollow, a full one solid - readable at a glance across a
+   table, which is the only place this gets used. */
+.pip {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  /* Drops the 300ms double-tap delay that makes a row of these feel dead. */
+  touch-action: manipulation;
+}
+
+.pip:hover {
+  border-color: var(--accent);
+}
+
+.pip.is-full {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.pip.is-pact.is-full {
+  background: var(--sky);
+  border-color: var(--sky);
+}
+
+.pip.is-success {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.pip.is-failure {
+  background: var(--red);
+  border-color: var(--red);
+}
+
+.death-saves {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--tint-red);
+  border-radius: var(--radius);
+}
+
+.death-saves .k {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.death-saves span {
+  display: flex;
+  gap: 4px;
+}
+
+/* A pool of dozens is a number with steppers, not a row of fifty pips. */
+.play-track .pool {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.play-track .pool input {
+  width: 58px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--mono);
+  padding: 3px 6px;
+  text-align: center;
+}
+
+/* Which rest hands it back, said once per row rather than in a legend. */
+.play-track .recharge {
+  color: var(--text-faint);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-left: 6px;
+}
+
+
+/* ---------------------------------------------------------- rules text */
+
+/*
+  The SRD's own words, under this app's verdict. Quieter than the summary above
+  it on purpose: the ranking is what a builder is for, and the rules are what
+  you check once you have chosen.
+*/
+.rules-disclosure {
+  margin-top: 12px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 10px;
+}
+
+.rules-disclosure > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--text-faint);
+  list-style: none;
+}
+
+.rules-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.rules-disclosure > summary::before {
+  content: '\25b8  ';
+}
+
+.rules-disclosure[open] > summary::before {
+  content: '\25be  ';
+}
+
+.rules-disclosure > summary:hover {
+  color: var(--text-dim);
+}
+
+.rules-text {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: 8px;
+}
+
+.rules-text p {
+  margin: 0 0 8px;
+}
+
+.rules-text p:last-child {
+  margin-bottom: 0;
+}
+
+.rules-text strong {
+  color: var(--text);
+}
+
+/* A stat table inside a description scrolls on its own rather than widening
+   the card it sits in. */
+.rules-table {
+  overflow-x: auto;
+  margin: 0 0 10px;
+}
+
+.rules-table table {
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 100%;
+}
+
+.rules-table th,
+.rules-table td {
+  border: 1px solid var(--border-soft);
+  padding: 4px 8px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.rules-table th {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------- magic items */
+
+.item-row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  background: var(--bg-raised);
+}
+
+/* An item that is actually doing something, marked so the inert ones read as
+   inert rather than as a list you have to reason about. */
+.item-row.is-active {
+  border-color: var(--accent-dim);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Rarity sits on the same line as the name with nothing between them in the
+   markup, so without this it reads "Bag of TricksUncommon". */
+.item-main .src {
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+  margin-left: 7px;
+}
+
+.item-sub {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.item-warn {
+  color: var(--orange);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Consumables carry two more controls: how many you have, and what is
+   written on the scroll. Both are narrow on purpose - they sit beside the
+   Remove button, not above it. */
+.item-actions .qty {
+  width: 52px;
+}
+
+.item-actions .detail {
+  width: 130px;
+}
+
+/* ---------------------------------------------------- the character sheet */
+
+/*
+  The paper sheet, rendered as paper.
+
+  Everything else in the app is dark; this is deliberately not, because the
+  promise the sheet makes is that the screen and the printed page are the same
+  document. Inverting one of them at the printer would break exactly that. So
+  the sheet is ink on parchment in both places, and the print block below only
+  removes the app around it and forces the page breaks.
+*/
+
+/*
+  The ink palette, declared once for everything in this app that is paper.
+
+  Three things are: the character sheet, a monster's stat block, and a dungeon
+  map. All three go on the table, all three print, and all three are ink on
+  cream in *both* themes - which is why they read `--ink` rather than `--text`.
+
+  Shared rather than copied, deliberately. Three copies of these colours would
+  be three places to fix a contrast defect and two places to forget, and the
+  sheet's own `--ink-faint` sat at 3.85:1 for months precisely because nothing
+  was checking it. One declaration, one test - `theme.test.ts` looks this block
+  up by its selector, so splitting it would fail loudly rather than quietly
+  checking one of the three.
+
+  Only the *palette* is shared. What each of them does with it differs enough
+  that a common `padding` would be wrong for at least one - an SVG does not
+  want the sheet's 16px - so the visual rules stay on each.
+*/
+.cs, .mc, .dmap {
+  --ink: #1c1713;
+  --ink-dim: #5c5147;
+  /* Lifted from #857868, which read at 3.85:1 on the paper - under the bar
+     every other text colour in this app is held to, and it carries the box
+     labels and source tags on a sheet meant to be read at a table in poor
+     light. Same hue, darker. Caught by the contrast test when the sheet's
+     palette was finally checked, having never been. */
+  --ink-faint: #786c5d;
+  --rule: #b6a88f;
+  --paper: #f7f2e6;
+  /* For the dice: a natural 20, a natural 1, and the wash under a rollable
+     number. Fixed like the rest of this block, because they sit on --paper. */
+  --ink-good: #2a6c33;
+  --ink-bad: #9d3123;
+  --ink-accent: #8a5f18;
+  --ink-wash: rgba(138, 95, 24, 0.22);
+}
+
+.cs {
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 16px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.cs input,
+.cs textarea {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--rule);
+  width: 100%;
+  padding: 2px 4px;
+  border-radius: 0;
+}
+
+.cs textarea {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  resize: vertical;
+}
+
+.cs input:focus,
+.cs textarea:focus {
+  outline: 2px solid var(--accent-dim);
+  outline-offset: 1px;
+}
+
+.cs .muted {
+  color: var(--ink-faint);
+}
+
+/* The small-caps caption under every box, which is how a paper sheet labels. */
+.cs-label {
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--ink-faint);
+  font-weight: 600;
+  margin: 4px 0 0;
+}
+
+.cs-banner {
+  display: grid;
+  /* The portrait takes a fixed column at the left, the way it sits on a paper
+     sheet. `auto` rather than a width so it collapses to nothing when there is
+     no portrait and no room - see the narrow rule below. */
+  grid-template-columns: auto minmax(180px, 1fr) 2fr;
+  gap: 12px;
+  align-items: end;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--rule);
+  margin-bottom: 12px;
+}
+
+.cs-charname {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.cs-headgrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px 12px;
+}
+
+.cs-headfield b,
+.cs-written input {
+  display: block;
+  border-bottom: 1px solid var(--rule);
+  font-weight: 600;
+  min-height: 22px;
+  padding: 2px 4px;
+}
+
+.cs-headfield span,
+.cs-written span {
+  display: block;
+  font-size: 8px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding-left: 4px;
+}
+
+.cs-written input {
+  font-weight: 600;
+}
+
+.cs-body {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.cs-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cs-lead {
+  display: grid;
+  grid-template-columns: 62px 1fr;
+  gap: 8px;
+  align-items: start;
+}
+
+.cs-abilities {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cs-ability {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  text-align: center;
+  padding: 4px 2px 2px;
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.cs-ability .k {
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.cs-ability .score {
+  font-size: 20px;
+  line-height: 1.1;
+  font-weight: 600;
+}
+
+.cs-ability .mod {
+  font-family: var(--mono);
+  font-size: 12px;
+  border-top: 1px solid var(--rule);
+  margin-top: 2px;
+}
+
+.cs-lead-right {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cs-chip {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 4px 8px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.cs-chip b {
+  font-size: 16px;
+  font-family: var(--mono);
+}
+
+.cs-chip span {
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.cs-box {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 8px 8px 4px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cs-box-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.cs-grow {
+  flex: 1;
+}
+
+.cs-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cs-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 0;
+  font-size: 12px;
+}
+
+.cs-list .val {
+  font-family: var(--mono);
+  width: 24px;
+  text-align: right;
+}
+
+.cs-list .name {
+  flex: 1;
+  min-width: 0;
+}
+
+.cs-list .name em {
+  color: var(--ink-faint);
+  font-size: 9px;
+  text-transform: uppercase;
+  font-style: normal;
+}
+
+/* Filled for proficient, ringed for expertise, half-filled for Jack of All
+   Trades - the convention a paper sheet uses, so it needs no key. */
+.cs-list .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid var(--ink-faint);
+  flex: none;
+}
+
+.cs-list .dot.on {
+  background: var(--ink);
+}
+
+.cs-list .dot.half {
+  background: linear-gradient(to right, var(--ink) 50%, transparent 50%);
+}
+
+.cs-list .dot.double {
+  background: var(--ink);
+  box-shadow: 0 0 0 1.5px var(--paper), 0 0 0 2.5px var(--ink);
+}
+
+.cs-para {
+  margin: 4px 0;
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+.cs-para b {
+  color: var(--ink);
+}
+
+.cs-defense {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.cs-shield {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  text-align: center;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.cs-shield b {
+  display: block;
+  font-size: 24px;
+  font-family: var(--mono);
+  line-height: 1.1;
+}
+
+.cs-shield span {
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.cs-defense .cs-chip {
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  justify-content: center;
+}
+
+.cs-hp-line {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  gap: 8px;
+  align-items: end;
+}
+
+.cs-hp-max {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+}
+
+.cs-hp-max b {
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.cs-hp-line input {
+  font-family: var(--mono);
+  font-size: 18px;
+  text-align: center;
+}
+
+.cs-hp-line input.is-down {
+  color: var(--red);
+}
+
+.cs-hp-keys {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  gap: 8px;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+.cs-hp-keys > :first-child {
+  grid-column: 2;
+}
+
+.cs-bar {
+  height: 5px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 6px 0 4px;
+}
+
+.cs-bar .fill {
+  display: block;
+  height: 100%;
+  background: var(--ink-dim);
+}
+
+.cs-bar .fill.is-hurt {
+  background: var(--orange);
+}
+
+.cs-bar .fill.is-down {
+  background: var(--red);
+}
+
+.cs-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  /* The column is a third of the page; without wrapping the last button
+     overhangs into the next column and swallows its clicks. */
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.cs-amount {
+  width: 56px;
+  flex: none;
+  text-align: center;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+}
+
+.cs-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.cs-track {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 2px 0;
+  font-size: 11px;
+}
+
+.cs-track .label {
+  flex: 1;
+  min-width: 70px;
+}
+
+.cs-track .label em {
+  color: var(--ink-faint);
+  font-style: normal;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.cs-pips {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.cs .pip {
+  width: 11px;
+  height: 11px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--ink-faint);
+  background: transparent;
+}
+
+.cs .pip.is-full {
+  background: var(--ink-dim);
+}
+
+.cs .pip.is-pact.is-full {
+  background: var(--accent-dim);
+}
+
+/* Death saves start empty and fill as they are rolled, which is why they are
+   passed the recorded count rather than the remaining one. */
+.cs .pip.is-success.is-full {
+  background: var(--green);
+}
+
+.cs .pip.is-failure.is-full {
+  background: var(--red);
+}
+
+.cs-pool {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.cs-pool input {
+  width: 44px;
+  text-align: center;
+  font-family: var(--mono);
+}
+
+.cs-pool .of {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+}
+
+/* The step buttons on a counter you named yourself. `cs-screen` drops them
+   at the printer, and the number they change stays. */
+.cs-pool button {
+  appearance: none;
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+
+.cs-pool button:hover {
+  border-color: var(--ink-accent);
+  color: var(--ink-accent);
+}
+
+.cs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.cs-table th,
+.cs-table td {
+  border-bottom: 1px solid var(--rule);
+  padding: 2px 4px;
+  text-align: left;
+}
+
+.cs-table th {
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+
+.cs-plain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+}
+
+.cs-plain li {
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(182, 168, 143, 0.5);
+}
+
+.cs-plain li:last-child {
+  border-bottom: none;
+}
+
+.cs-plain em {
+  color: var(--ink-faint);
+  font-style: normal;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.cs-plain .sub {
+  color: var(--ink-dim);
+  font-size: 11px;
+}
+
+.cs-prose {
+  display: flex;
+  flex-direction: column;
+}
+
+.cs-rests {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 11px;
+}
+
+/*
+  The action economy.
+
+  Screen only, so nothing here needs a print rule - but it still reads against
+  the sheet's ink palette rather than the app's, because it sits on paper next
+  to the armor class and would be the one panel that looked like software.
+
+  A spent slot is struck through and dimmed rather than hidden: what you have
+  used this turn matters as much as what is left, and three empty spaces would
+  say nothing about which three.
+*/
+.cs-turn {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 7px 9px;
+  margin-bottom: 8px;
+  font-size: 11px;
+}
+
+.cs-turn-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.cs-turn-title {
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.cs-turn-new {
+  appearance: none;
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink-dim);
+  font-family: var(--mono);
+  font-size: 9px;
+  line-height: 1;
+  padding: 3px 7px;
+  cursor: pointer;
+}
+
+.cs-turn-new:hover {
+  border-color: var(--ink-accent);
+  color: var(--ink-accent);
+}
+
+.cs-turn-slots {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.cs-turn-slots button {
+  appearance: none;
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+
+.cs-turn-slots button:hover {
+  border-color: var(--ink-accent);
+}
+
+.cs-turn-slots button.is-spent {
+  color: var(--ink-faint);
+  text-decoration: line-through;
+  background: var(--ink-wash);
+}
+
+.cs-turn-move {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.cs-turn-move .label {
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.cs-turn-move button {
+  appearance: none;
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink-dim);
+  font-family: var(--mono);
+  font-size: 9px;
+  line-height: 1;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+
+.cs-turn-move button:hover:not(:disabled) {
+  border-color: var(--ink-accent);
+  color: var(--ink-accent);
+}
+
+.cs-turn-move button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.cs-turn-left {
+  font-family: var(--mono);
+  color: var(--ink-dim);
+}
+
+.cs-turn-left b {
+  color: var(--ink);
+}
+
+/*
+  Rolling.
+
+  Everything here is scoped inside `.cs` and reads the sheet's own ink palette,
+  not the app's. The sheet is ink on paper in both themes - that is the whole
+  conceit - so `var(--text)` would be near-white on cream the moment somebody
+  switched to dark mode, and `var(--green)` is a light green chosen for a dark
+  panel rather than for paper. The two accents below are fixed for the same
+  reason: they sit on `--paper`, which does not change.
+
+  `.cs-roll` is the important one. It wraps a number that is already on the
+  sheet, so by default it must look like nothing at all - no border, no
+  background, the inherited font and colour. Only hover and focus give it away,
+  and a printer sees neither, so the `@media print` block has nothing to hide.
+*/
+.cs-roll {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.cs-roll:hover {
+  /* The wash extends past the glyphs so a "+3" has something to hit, without
+     the number moving. Translucent, so the ink keeps its own contrast. */
+  background: var(--ink-wash);
+  box-shadow: 0 0 0 3px var(--ink-wash);
+}
+
+.cs-roll:active {
+  background: var(--ink-accent);
+  box-shadow: 0 0 0 3px var(--ink-accent);
+  color: var(--paper);
+}
+
+/* Small enough to sit inside a table cell without stretching the row. */
+.cs-crit {
+  appearance: none;
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 9px;
+  line-height: 1;
+  padding: 2px 4px;
+  margin-left: 5px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.cs-crit:hover {
+  border-color: var(--ink-accent);
+  color: var(--ink-accent);
+}
+
+.cs-deathroll {
+  margin-top: 6px;
+}
+
+/*
+  Using a potion or a scroll. Styled like `.cs-crit` rather than like an app
+  button, for the same reason everything else inside `.cs` is: it sits on
+  paper, and an app button would be the one thing on the sheet that looks
+  like software.
+*/
+.cs-useline {
+  margin: 3px 0 2px;
+}
+
+.cs-useline button {
+  appearance: none;
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink-dim);
+  font-family: var(--mono);
+  font-size: 9px;
+  line-height: 1;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+
+.cs-useline button:hover {
+  border-color: var(--ink-accent);
+  color: var(--ink-accent);
+}
+
+.cs-rolls {
+  margin-top: 10px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11px;
+}
+
+.cs-rolls-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.cs-rolls-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.cs-rolls .muted {
+  color: var(--ink-dim);
+}
+
+.cs-modes {
+  display: inline-flex;
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.cs-modes button {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-left: 1px solid var(--rule);
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 10px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.cs-modes button:first-child {
+  border-left: 0;
+}
+
+.cs-modes button.is-on {
+  background: var(--ink-accent);
+  color: var(--paper);
+}
+
+.cs-rolls-clear {
+  appearance: none;
+  background: none;
+  border: 0;
+  color: var(--ink-faint);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  margin-left: auto;
+  text-decoration: underline;
+}
+
+.cs-rolllog {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.cs-rolllog li {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 2px 8px;
+  align-items: baseline;
+  padding: 4px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.cs-rolllog li:first-child {
+  border-top: 0;
+}
+
+.cs-rolltotal {
+  grid-row: span 2;
+  font-family: var(--mono);
+  font-size: 16px;
+  text-align: right;
+  color: var(--ink);
+}
+
+/* A natural 20 and a natural 1 are the two the table looks up for. */
+.cs-rolllog li.is-nat20 .cs-rolltotal {
+  color: var(--ink-good);
+}
+
+.cs-rolllog li.is-nat1 .cs-rolltotal {
+  color: var(--ink-bad);
+}
+
+.cs-rolllabel {
+  color: var(--ink);
+}
+
+.cs-rollwork {
+  grid-column: 2;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+}
+
+/* A second sheet of paper, and it starts on one. */
+.cs-page {
+  border-top: 2px solid var(--rule);
+  margin-top: 16px;
+  padding-top: 12px;
+}
+
+.cs-spellhead {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+/* A multiclass caster gets one of these rows per casting class, so they need
+   to read as a stack rather than as one header that wrapped. */
+.cs-spellhead + .cs-spellhead {
+  margin-top: -4px;
+}
+
+.cs-castingnote {
+  margin: -6px 0 12px;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.cs-spellhead .cs-chip {
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.cs-spellbook {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.cs-slotrow {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+}
+
+/* Which class taught a spell, offered only where two of yours could have. */
+/* Which class a spell was learned as: a chip row under the card it belongs to,
+   in the app's chrome rather than the sheet's paper. Small and quiet, because
+   most characters never see it - only a multiclass caster with two casting
+   abilities has anything to choose. */
+.spell-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: -4px 0 10px 14px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.spell-source button {
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-dim);
+  font-size: 12px;
+  padding: 2px 10px;
+}
+
+.spell-source button.is-on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+
+/* The two in-play controls that sit under the row they act on: the quiver
+   below the attacks it feeds, Font of Magic below the slots it trades. Both
+   are small and quiet on purpose - they are things you do every fight, not
+   headlines - so they share one button rule. */
+.cs-ammo button,
+.cs-fontofmagic button {
+  font-size: 9px;
+  padding: 1px 5px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+
+.cs-ammo button:disabled,
+.cs-fontofmagic button:disabled {
+  opacity: 0.35;
+}
+
+.cs-ammo {
+  border-top: 1px solid var(--rule);
+  padding-top: 4px;
+  margin-top: 4px;
+}
+
+.cs-fontofmagic {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.cs-fontofmagic em {
+  font-style: normal;
+  font-size: 9px;
+  color: var(--ink-faint);
+  align-self: center;
+}
+
+.cs-addback {
+  margin-top: 12px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 1080px) {
+  .cs-body {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  /* The sentence explaining that the screen is the printout costs a fifth of a
+     phone screen, above the sheet it is explaining. */
+  .print-controls .muted {
+    display: none;
+  }
+
+  .cs-body,
+  .cs-banner,
+  .cs-spellhead {
+    grid-template-columns: 1fr;
+  }
+
+  /* Two up, not six stacked: these are short fields, and six full-width rows
+     push every number on the sheet below the fold. */
+  .cs-headgrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/*
+  Printing the sheet. The screen already shows ink on paper, so there is almost
+  nothing to invert - only the app around it to remove, the controls that are
+  how you fill a box in rather than what is in it, and the page breaks.
+*/
+@media print {
+  .cs-screen {
+    display: none !important;
+  }
+
+  .cs {
+    --paper: #fff;
+    --rule: #999;
+    background: #fff !important;
+    border: none;
+    padding: 0;
+    font-size: 10.5px;
+  }
+
+  .cs input,
+  .cs textarea {
+    border-color: #999 !important;
+  }
+
+  .cs textarea {
+    /* A textarea that scrolls on paper has lost whatever was below the fold. */
+    height: auto;
+    min-height: 3em;
+    overflow: visible;
+    resize: none;
+  }
+
+  .cs .pip.is-full {
+    background: #333 !important;
+  }
+
+  .cs-page {
+    break-before: page;
+  }
+
+  .cs-box,
+  .cs-ability,
+  .cs-plain li,
+  .cs-table {
+    break-inside: avoid;
+  }
+}
+
+/* Sections inside a tab. Quieter than the top-level tabs, because moving
+   between them is moving within one activity rather than between two. */
+.subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.subtabs button {
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-dim);
+  font-size: 13px;
+  padding: 5px 14px;
+}
+
+.subtabs button[aria-selected='true'] {
+  background: var(--panel);
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+
+.cs-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+}
+
+/* A count of choices still unmade, so the nav answers "what have I not
+   finished" without scrolling the tab. */
+.subtabs .badge {
+  display: inline-block;
+  margin-left: 7px;
+  min-width: 17px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 17px;
+  text-align: center;
+}
+
+.subtabs button[aria-selected='true'] .badge {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+/* The occasional actions on a roster row, behind one button. */
+.row-menu {
+  position: relative;
+}
+
+.row-menu-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  min-width: 168px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--menu-shadow);
+}
+
+.row-menu-list button {
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  padding: 7px 10px;
+  text-align: left;
+}
+
+.row-menu-list button:hover {
+  background: var(--bg-raised);
+}
+
+.row-menu-list button.is-danger {
+  color: var(--red);
+}
+
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+}
+
+/* ------------------------------------------------------------- inventory */
+
+.gear-results {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: -6px 0 12px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.gear-result {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 10px;
+  align-items: baseline;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.gear-result:hover {
+  border-color: var(--accent-dim);
+  background: var(--bg-raised);
+}
+
+.gear-result .src {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.gear-result .cost,
+.gear-result .weight {
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.gear-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 13px;
+}
+
+.gear-row .name {
+  flex: 1;
+  min-width: 0;
+}
+
+.gear-row .name em.note {
+  display: block;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.gear-row .weight {
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.gear-qty {
+  width: 52px;
+  text-align: center;
+}
+
+/* How close to the limit, which is the only rule this table actually drives. */
+.carry-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.carry-bar .fill {
+  display: block;
+  height: 100%;
+  background: var(--accent-dim);
+}
+
+.carry-bar .fill.is-heavy {
+  background: var(--orange);
+}
+
+.carry-bar .fill.is-over {
+  background: var(--red);
+}
+
+.coin-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.coin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.coin input {
+  width: 64px;
+  text-align: center;
+  font-family: var(--mono);
+}
+
+.coin span {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* A weight is a measurement, not a label, so it keeps its own case. */
+.cs-weight {
+  color: var(--ink-faint);
+  font-size: 10px;
+  font-family: var(--mono);
+}
+
+/* The conditions, as toggles with their effect a hover away. */
+/*
+  Touch targets on the sheet.
+
+  The sheet is a paper facsimile and its controls are paper-sized: an 11px pip
+  in a row with 3px between them, a 14px pitch. That is fine under a mouse and
+  much too small for what the sheet is actually *for* - ticking off hit dice
+  and death saves, mid-fight, on a phone.
+
+  The first attempt grew an invisible 24px box around each pip, and made it
+  worse rather than better: at a 14px pitch those boxes overlap, so a pip's
+  neighbour covered it and `elementFromPoint` stopped returning the pip at
+  all. There is no conjuring a 24px target out of a 14px pitch - the space has
+  to come from somewhere.
+
+  So it comes from the layout, and only where it is needed. A coarse pointer
+  means a finger; there the pips and chips grow and the gaps grow with them. A
+  mouse sees exactly what it saw before, and so does the printed page.
+*/
+@media (pointer: coarse) {
+  /* Scoped to `.cs` so these beat the base rules on specificity rather than on
+     source order - the conditions block below this one would otherwise win. */
+  .cs .pip {
+    width: 24px;
+    height: 24px;
+  }
+
+  .cs .cs-pips {
+    gap: 6px;
+  }
+
+  .cs .cs-cond {
+    font-size: 12px;
+    padding: 5px 12px;
+  }
+
+  .cs .cs-conditions {
+    gap: 6px;
+  }
+}
+
+.cs-conditions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.cs-cond {
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 10px;
+  padding: 1px 7px;
+  touch-action: manipulation;
+}
+
+.cs-cond.is-on {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+
+@media print {
+  /* On paper an unticked condition is noise; only what is on you prints. */
+  .cs-cond:not(.is-on) {
+    display: none;
+  }
+}
+
+/* The spellbook, with today's ticks. */
+.prepared-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.prepared-row .name {
+  flex: 1;
+}
+
+/* On the sheet, a filled dot is live today and a ring is only in the book. */
+.cs-plain .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 50%;
+  border: 1px solid var(--ink-faint);
+}
+
+.cs-plain .dot.on {
+  background: var(--ink);
+}
+
+/* ------------------------------------------------- the update prompt */
+
+/*
+  Anchored to the bottom rather than dropped in the flow, because it can appear
+  at any moment - including while somebody is halfway down the Builder - and
+  reflowing the page under them to announce an update would be a poor way to
+  ask for their attention. It carries `cs-screen` in the markup too, so it can
+  never print.
+*/
+.update-prompt {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  max-width: min(560px, calc(100vw - 24px));
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.update-prompt-text {
+  flex: 1;
+  min-width: 200px;
+}
+
+.update-prompt-actions {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  .update-prompt {
+    /* Full width on a phone: a centred pill with wrapped buttons reads as
+       three separate things rather than one message. */
+    left: 12px;
+    right: 12px;
+    transform: none;
+    max-width: none;
+  }
+}
+
+/* -------------------------------------------- the starting equipment panel */
+
+.start-fixed {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+
+.start-group {
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  padding: 8px 10px 10px;
+  margin: 0 0 10px;
+}
+
+.start-group legend {
+  /* The source's own sentence, which is the question. Set apart from the
+     options under it so the two do not read as one list. */
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 0 6px;
+}
+
+.start-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.start-option:hover {
+  background: var(--bg-sunken);
+}
+
+.start-option.is-on {
+  background: var(--bg-sunken);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.start-option input {
+  margin-top: 3px;
+  flex: none;
+}
+
+.start-option-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.start-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.start-picks select {
+  max-width: 100%;
+}
+
+/* ------------------------------------------------------ the level-up panel */
+
+.levelup {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.levelup li {
+  border-top: 1px solid var(--border-soft);
+  padding: 8px 0;
+}
+
+.levelup li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+/* A step still waiting on a decision, marked the way the section badges mark
+   the same thing, so the two read as one idea. */
+.levelup li.is-owed {
+  box-shadow: inset 3px 0 0 var(--accent);
+  padding-left: 10px;
+}
+
+.levelup-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.levelup-count {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 1px 7px;
+}
+
+.levelup-detail {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.levelup-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+/* --------------------------------------------------------- the portrait */
+
+.cs-portrait {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  /* Pinned to the frame's width. The banner column is `auto`, so without this
+     the storage note - the widest thing here - decides how much of the header
+     the portrait takes, and pushes the name box across. */
+  width: 96px;
+}
+
+.cs-portrait-frame {
+  width: 96px;
+  height: 96px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper);
+}
+
+.cs-portrait-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cs-portrait-empty {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.cs-portrait-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  max-width: 96px;
+}
+
+/* The file input is the thing the button clicks; it is never shown, because a
+   browser's own "No file chosen" is not part of a character sheet. */
+.cs-portrait-actions input[type='file'] {
+  display: none;
+}
+
+.cs-portrait-actions button {
+  appearance: none;
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 10px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+
+.cs-portrait-actions button:hover:not(:disabled) {
+  border-color: var(--ink-accent);
+  color: var(--ink-accent);
+}
+
+.cs-portrait-note {
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--ink-faint);
+  margin: 0;
+}
+
+.cs-portrait-note.is-down {
+  color: var(--ink-bad);
+}
+
+@media (max-width: 720px) {
+  .cs-banner {
+    /* Two columns on a phone, with the portrait sharing the first. */
+    grid-template-columns: auto 1fr;
+  }
+}
+
+/* ------------------------------------------------------- the DM's table */
+
+/*
+  The turn order.
+
+  App chrome, so it reads the app's own palette - this is a screen for running
+  a game, not a paper artefact. The one thing on it that *is* a paper artefact,
+  the stat block, takes the ink palette it shares with the character sheet.
+
+  A row is a grid rather than a flex line so the initiative box, the name and
+  the hit points hold their columns down the whole list. Scanning a column is
+  the point: a DM looks for "who is on 4 hit points", not for one row.
+*/
+.init-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.init-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--bg-sunken);
+}
+
+/* Whose turn it is. A bar down the left rather than a fill, so the row stays
+   readable and the marker is a shape rather than only a colour. */
+.init-row.is-up {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* At nothing. Dimmed rather than hidden: a downed character is still in the
+   order, still rolling death saves, and it is still their turn. */
+.init-row.is-down {
+  opacity: 0.6;
+}
+
+.init-score {
+  width: 52px;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 15px;
+}
+
+.init-who {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  text-align: left;
+  /* A button rather than a click handler on the row, so it is reachable from a
+     keyboard - but it has to look like the name it is, not like a control. */
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.init-who:hover b {
+  color: var(--accent);
+}
+
+/* Selected is not the same as "up". Whose turn it is and who you are looking at
+   are different questions, and a DM checks the Wizard on the Fighter's turn. */
+.init-row.is-selected {
+  background: var(--hover-fill);
+}
+
+.rail-monster .mc {
+  font-size: 11px;
+}
+
+/* -------------------------------------------------------- the monster workshop */
+
+.mon-list li.is-selected {
+  background: var(--hover-fill);
+}
+
+/*
+  One trait or action, boxed.
+
+  A stack of name-and-prose pairs with nothing between them reads as one long
+  form, and the question a DM is answering - "where does this action end" - is
+  exactly what the boxes answer.
+*/
+.ability-edit {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 10px 12px 2px;
+  margin-bottom: 10px;
+  background: var(--bg-sunken);
+}
+
+.ability-edit .field:last-child {
+  margin-bottom: 10px;
+}
+
+.ability-edit textarea {
+  width: 100%;
+}
+
+/*
+  Not `.row`, which gives every child `flex: 1 1 140px` - even and stretched,
+  which is right for four inputs of equal weight and wrong here. A name wants
+  the space, "Recharge 5-6" wants enough to read, and Remove wants exactly its
+  own width rather than a quarter of the panel.
+*/
+.ability-head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.ability-head .field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ability-head input {
+  width: 100%;
+}
+
+.ability-head .field-usage {
+  flex: 0 0 120px;
+}
+
+.ability-head .btn {
+  flex: 0 0 auto;
+  margin-bottom: 12px;
+}
+
+/* Wide enough for "bludgeoning", which is what they mostly say. */
+.ability-nums {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ability-nums .field {
+  flex: 0 0 auto;
+}
+
+.ability-nums input {
+  width: 110px;
+}
+
+.ability-nums .field-tohit input {
+  width: 64px;
+}
+
+.init-who .src {
+  font-size: 11px;
+}
+
+.init-hp {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: var(--mono);
+}
+
+.init-hp input {
+  width: 58px;
+  text-align: center;
+  font-family: var(--mono);
+}
+
+.init-hp .of {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.init-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* An expanded stat block spans the row rather than sitting in a column. */
+.init-block {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+}
+
+.mon-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.mon-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--border-soft);
+  /* In a 330px column the summary would otherwise squeeze the name into three
+     lines. Wrapping puts it underneath instead, which is what a narrow list
+     wants and what a wide one never has to do. */
+  flex-wrap: wrap;
+}
+
+.mon-list .src {
+  margin-left: auto;
+  font-size: 11px;
+  text-align: right;
+}
+
+/* The stat block itself. Its colours come from the `.cs, .mc` block above. */
+.mc {
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.mc h3 {
+  font-size: 17px;
+  margin: 0;
+  color: var(--ink);
+}
+
+.mc-kind {
+  margin: 0 0 6px;
+  font-style: italic;
+  color: var(--ink-dim);
+  font-size: 11px;
+}
+
+.mc-top {
+  border-top: 1px solid var(--rule);
+  padding-top: 5px;
+  margin-top: 5px;
+}
+
+.mc-line {
+  margin: 0 0 2px;
+}
+
+.mc-scores {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--rule);
+  margin-top: 5px;
+  padding-top: 5px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.mc-scores > div {
+  display: flex;
+  gap: 3px;
+  align-items: baseline;
+}
+
+.mc-score-key {
+  color: var(--ink-faint);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+}
+
+.mc-score-mod {
+  color: var(--ink-dim);
+}
+
+.mc-heading {
+  font-size: 13px;
+  margin: 10px 0 3px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink);
+}
+
+.mc-ability {
+  margin: 0 0 4px;
+}
+
+.mc-ability b {
+  font-style: italic;
+}
+
+.mc-ability em {
+  color: var(--ink-dim);
+}
+
+/* Narrow: the columns stop being columns and the row becomes a stack. */
+@media (max-width: 640px) {
+  .init-row {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+
+  .init-hp,
+  .init-actions {
+    grid-column: 1 / -1;
+  }
+}
+
+@media print {
+  /*
+    The tracker is a control surface and does not print; a stat block does,
+    because that is a thing you put on the table. This is the same line the
+    character sheet draws with `cs-screen`.
+  */
+  .init-actions,
+  .mon-list,
+  .init-score {
+    display: none;
+  }
+
+  /*
+    The workshop is a control surface for the same reason the tracker is: a form
+    is a thing you type into, and printing one gives you a page of empty-looking
+    boxes. What prints from the Bestiary is the stat block it is making, which
+    is a thing you put on the table.
+  */
+  .bestiary-screen {
+    display: none !important;
+  }
+
+  .bestiary-card > h2,
+  .bestiary-card > .panel-sub {
+    display: none;
+  }
+
+  .bestiary-card {
+    border: 0;
+    padding: 0;
+  }
+}
+
+/*
+  A popped-out panel.
+
+  Two presentations of one thing. `.popout-body` is shared because it is the
+  content wrapper in both, and in the real-window case it is the *only* element
+  between the child document's body and the sheet - so the padding and the
+  background live there rather than on a chrome element that a real window does
+  not have.
+*/
+.popout-body {
+  padding: 10px;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+/*
+  The in-page fallback. Fixed rather than absolute so dragging it is measured
+  against the viewport and it cannot be scrolled away from, and a high z-index
+  because the whole point is that it sits above whatever you are reading.
+*/
+.popout-float {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: min(440px, calc(100vw - 32px));
+  max-height: min(80vh, 800px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--menu-shadow);
+  z-index: 60;
+  overflow: hidden;
+}
+
+.popout-float .popout-body {
+  overflow-y: auto;
+  background: var(--bg-raised);
+  min-height: 0;
+}
+
+/* The drag handle. `cursor: move` and `touch-action: none` together are what
+   make a pointer drag work on a touchscreen without the page scrolling under
+   it - which is the device this fallback exists for. */
+.popout-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg-sunken);
+  border-bottom: 1px solid var(--border-soft);
+  cursor: move;
+  touch-action: none;
+  font-size: 12px;
+  font-weight: 600;
+  flex: none;
+}
+
+.popout-bar button {
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+}
+
+.popout-bar button:hover {
+  color: var(--text);
+}
+
+@media print {
+  /* A floating panel over the page would print on top of whatever is under it.
+     The real window prints on its own, which is a separate page anyway. */
+  .popout-float {
+    display: none;
+  }
+}
+
+/* The forecast: three figures and a sentence, not a chart. */
+.forecast-verdict {
+  margin: 0 0 10px;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.forecast-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.forecast-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--bg-sunken);
+  font-size: 12px;
+}
+
+.forecast-grid .k {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.forecast-grid b {
+  font-family: var(--mono);
+  font-size: 17px;
+  color: var(--text);
+}
+
+.forecast-grid .src {
+  font-size: 11px;
+}
+
+/*
+  The dungeon map.
+
+  Ink on paper in both themes, like the character sheet and the stat block, and
+  for the same reason: it is a thing that goes on the table. The colours come
+  from the palette shared with `.cs` and `.mc`, so a contrast fix reaches all
+  three at once.
+*/
+.dmap {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+/* The grid is a guide, not a feature: visible enough to count squares against
+   and quiet enough that the rooms read first. */
+.dmap-grid {
+  stroke: var(--rule);
+  stroke-width: 0.5;
+  opacity: 0.45;
+}
+
+/* A corridor is floor without walls, so it is a fill and no stroke - two
+   overlapping runs would otherwise draw a seam down the middle. */
+.dmap-floor {
+  fill: #e6ddc8;
+}
+
+.dmap-room {
+  fill: #ddd2b8;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+
+.dmap-number {
+  fill: var(--ink-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.dmap-door {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 1.2;
+}
+
+@media print {
+  /* The map prints; the controls above it are how you got here. */
+  .dmap {
+    border-color: #999;
+    break-inside: avoid;
+  }
+}
+
+/*
+  Tokens.
+
+  Initials rather than names: a grid square is fourteen units across and the
+  point of a token is that you can tell at a glance which one is yours. The
+  full name and hit points are in a `<title>`, which is a tooltip and is also
+  what a screen reader reads.
+*/
+.dmap-token {
+  cursor: grab;
+}
+
+.dmap-token:active {
+  cursor: grabbing;
+}
+
+/* A click here would be an attack: the cursor says so before the commit.
+   Wins over :active too - mid-press on a target is still an attack. */
+.dmap-token.is-target,
+.dmap-token.is-target:active {
+  cursor: crosshair;
+}
+
+.dmap-token circle {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+
+.dmap-token text {
+  fill: var(--ink);
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 700;
+  /* Or the label eats the pointer and the drag starts on a text node. */
+  pointer-events: none;
+}
+
+/* The party is filled, monsters are outlined - the one distinction a DM needs
+   at speed, and it survives being printed in black and white. */
+.dmap-token.character circle {
+  fill: #c9b78e;
+}
+
+.dmap-token.is-up circle {
+  stroke: var(--ink-accent);
+  stroke-width: 2.5;
+}
+
+.dmap-token.is-down circle {
+  fill: var(--paper);
+  stroke-dasharray: 2 2;
+}
+
+.dmap-token.is-down text {
+  fill: var(--ink-faint);
+}
+
+/*
+  Where a row came from.
+
+  Deliberately quiet for a published book: it is a fact a reader glances at,
+  not a warning. The original is the one case that has to catch the eye, so it
+  gets the accent border and the accent text - because "this is not a published
+  option" is the single thing somebody must not miss while choosing.
+*/
+.source-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  padding: 1px 5px;
+  border: 1px solid var(--border-soft);
+  border-radius: 3px;
+  color: var(--text-faint);
+  background: none;
+  white-space: nowrap;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.source-tag.is-original {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pick-source {
+  margin: -6px 0 12px;
+}
+
+@media print {
+  /* A published book code is chrome on paper. An original is not: a sheet that
+     did not say so could be handed to a DM as though it were official. */
+  .source-tag:not(.is-original) {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------ the workspace */
+
+/*
+  Three columns, the shape every tool that runs a session settles on.
+
+  The centre gets `minmax(0, 1fr)` rather than `1fr` because a grid track sized
+  `1fr` refuses to go below its content's intrinsic width - so one wide table in
+  the middle would push the rails off the screen instead of scrolling itself,
+  which is the classic way a three-column layout comes apart.
+*/
+.ws {
+  --ws-divider: 7px;
+  display: grid;
+  gap: 0;
+  align-items: stretch;
+  /* Full height minus the chrome above it, so the rails scroll independently
+     and the page itself does not grow a second scrollbar. */
+  min-height: 60vh;
+}
+
+.ws-centre {
+  min-width: 0;
+  padding: 0 14px;
+  overflow-x: auto;
+}
+
+.ws-rail {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.ws-rail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-soft);
+  flex: none;
+}
+
+.ws-rail-title {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.ws-collapse {
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 4px;
+}
+
+.ws-collapse:hover {
+  color: var(--text);
+}
+
+/* The rail scrolls, not the page. Two hours of a session are spent looking at
+   one of these while the middle stays put. */
+.ws-rail-body {
+  overflow-y: auto;
+  padding: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/*
+  Collapsed: a strip you can still read. The title runs bottom-to-top, which is
+  the convention every editor uses for a vertical tab, and means the strip says
+  which rail it is rather than leaving you to open both to find out.
+*/
+.ws-rail.is-collapsed {
+  background: var(--bg-sunken);
+}
+
+.ws-strip {
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ws-strip span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ws-strip:hover {
+  color: var(--text);
+}
+
+/*
+  The divider. Seven pixels of target is on the mean side for a pointer, so the
+  hit area is widened with padding while the visible grip stays hairline - the
+  same trick a scrollbar uses.
+*/
+.ws-divider {
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.ws-grip {
+  width: 1px;
+  height: 100%;
+  background: var(--border-soft);
+  transition: background 0.12s, width 0.12s;
+}
+
+.ws-divider:hover .ws-grip,
+.ws-divider:focus-visible .ws-grip,
+.ws-divider.is-dragging .ws-grip {
+  background: var(--accent);
+  width: 3px;
+}
+
+.ws-divider:focus-visible {
+  outline: none;
+}
+
+/*
+  One column below this, because three columns on a phone is three unusable
+  columns. The rails go back to being ordinary blocks in source order: the
+  centre first, since on a narrow screen the thing you came for should not be
+  underneath two sidebars.
+*/
+@media (max-width: 1000px) {
+  .ws {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .ws-centre {
+    order: -1;
+    padding: 0;
+  }
+
+  .ws-divider {
+    display: none;
+  }
+
+  .ws-rail,
+  .ws-rail.is-collapsed {
+    width: auto !important;
+  }
+
+  .ws-rail-body {
+    max-height: 50vh;
+  }
+
+  /* A collapsed rail becomes a full-width bar rather than a tall thin strip. */
+  .ws-strip span {
+    writing-mode: horizontal-tb;
+    transform: none;
+  }
+
+  .ws-strip {
+    height: auto;
+    padding: 8px;
+  }
+}
+
+@media print {
+  /* The rails are how you drive the middle; the middle is what goes on paper. */
+  .ws-rail,
+  .ws-divider {
+    display: none;
+  }
+
+  .ws {
+    display: block;
+  }
+
+  .ws-centre {
+    padding: 0;
+    overflow: visible;
+  }
+}
+
+/*
+  A character in a rail.
+
+  Not the character sheet - that is paper and reads the ink palette. This is
+  app chrome for a 320px column, so it takes the app's own colours and is laid
+  out for scanning down rather than reading across.
+*/
+.pcard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.pcard-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pcard-head strong {
+  font-size: 14px;
+}
+
+.pcard-vitals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pcard-vitals > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 5px;
+  background: var(--bg-raised);
+  min-width: 0;
+}
+
+.pcard-vitals .k,
+.pcard .k {
+  font-size: 8px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.pcard-vitals b {
+  font-family: var(--mono);
+  font-size: 16px;
+  line-height: 1.1;
+}
+
+.pcard-vitals b.is-down {
+  color: var(--red);
+}
+
+.pcard .of {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.pcard-bar {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-soft);
+  overflow: hidden;
+}
+
+.pcard-bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.15s;
+}
+
+.pcard-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.pcard-amount {
+  width: 60px;
+  text-align: center;
+  font-family: var(--mono);
+}
+
+.pcard-turn {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.pcard-turn button {
+  appearance: none;
+  background: none;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  padding: 3px 7px;
+  cursor: pointer;
+}
+
+.pcard-turn button:hover {
+  border-color: var(--accent);
+}
+
+/* Spent is struck through rather than hidden: what has gone matters as much
+   as what is left, and an empty space says nothing about which. */
+.pcard-turn button.is-spent {
+  color: var(--text-faint);
+  text-decoration: line-through;
+  background: var(--bg-sunken);
+}
+
+.pcard-newturn {
+  margin-left: auto;
+  color: var(--text-dim) !important;
+}
+
+.pcard-saves,
+.pcard-attacks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pcard-savelist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.pcard-savelist em {
+  color: var(--text-faint);
+  font-style: normal;
+  font-size: 9px;
+  margin-right: 2px;
+}
+
+/* Proficient saves are the ones a DM needs to know before choosing a spell. */
+.pcard-savelist .is-proficient {
+  color: var(--accent);
+}
+
+.pcard-savelist .is-proficient em {
+  color: var(--accent-dim);
+}
+
+.pcard-attacks p {
+  margin: 0;
+  font-size: 11px;
+}
+
+.pcard-conditions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.pcard-warn {
+  margin: 0;
+  color: var(--red);
+  font-size: 11px;
+}
+
+.pcard.is-down .pcard-bar i {
+  background: var(--red);
+}
+
+/*
+  Inside a rail, a panel is already in a box - so it drops its own frame and
+  its padding rather than nesting a card in a card two hundred pixels wide.
+*/
+.ws-rail .panel {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0 0 14px;
+}
+
+.ws-rail .panel h2 {
+  font-size: 12px;
+}
+
+.ws-rail .init-row {
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 6px;
+}
+
+.ws-rail .init-hp,
+.ws-rail .init-actions {
+  grid-column: 1 / -1;
+}
+
+.ws-rail .init-actions .btn {
+  font-size: 10px;
+  padding: 2px 5px;
+}
+
+/*
+  A workspace wants the window; a document wants a column.
+
+  The 1240px cap is what keeps the Builder and the sheet readable - a line of
+  prose stretched across a wide monitor is harder to read, not easier. The
+  Table is neither: it is three panels a DM drives, and the centre one is the
+  whole point, so it takes whatever the screen has.
+*/
+.app.is-wide {
+  max-width: none;
+}
+
+/* ------------------------------------------------------------ the battle HUD */
+
+/*
+  The tactical skin.
+
+  Play mode borrows the *shape* of a squad-tactics screen - a strip of units
+  across the top, an action bar along the bottom, chrome with a cut corner -
+  because fifth edition shares the bones of one: a grid, a turn order, an
+  action economy, classes. Everything is drawn from the theme's own variables,
+  so parchment stays parchment and dark stays dark; the skin is geometry and
+  weight, not a third palette.
+*/
+
+.init-strip {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+  overflow-x: auto;
+  padding: 2px 2px 8px;
+  margin-bottom: 10px;
+}
+
+.init-strip-round {
+  align-self: center;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent);
+  padding: 0 6px;
+  flex: 0 0 auto;
+}
+
+/* The tile, laid out the way Tactics lays its timeline: queue number, face,
+   then the name over the hit bar. Blue numbers for the party, red for the
+   enemy - the convention every player of the genre already reads. */
+.strip-tile {
+  flex: 0 0 auto;
+  width: 118px;
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 0 6px;
+  align-items: center;
+  padding: 5px 8px 6px 6px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
+}
+
+.strip-tile .strip-order {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--blue);
+  min-width: 12px;
+  text-align: center;
+}
+
+.strip-tile.is-monster .strip-order {
+  color: var(--red);
+}
+
+.strip-tile .strip-face {
+  width: 26px;
+  height: 26px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+}
+
+.strip-tile .strip-face img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.strip-tile .strip-face i {
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.strip-tile .strip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.strip-tile .strip-name {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.strip-tile .strip-bar {
+  display: block;
+  height: 3px;
+  background: var(--border-soft);
+}
+
+.strip-tile .strip-bar i {
+  display: block;
+  height: 100%;
+  background: var(--green);
+}
+
+/* A slot holds the tile and, at the wrap, the round divider beside it. */
+.strip-slot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+/* The tile's clocks: what expires, and the concentration a hit would break. */
+.strip-tile .strip-notes {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--orange);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The round boundary, standing between this round and the next with what
+   ends there written down its face. */
+.strip-wrap {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 7px;
+  border-left: 2px solid var(--accent);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--accent);
+}
+
+.strip-wrap i {
+  font-style: normal;
+  font-size: 9px;
+  color: var(--orange);
+  white-space: nowrap;
+}
+
+/* Monsters are the outlined ones, same convention as their map tokens. */
+.strip-tile.is-monster {
+  background: var(--bg-sunken);
+}
+
+.strip-tile.is-monster .strip-bar i {
+  background: var(--red);
+}
+
+.strip-tile.is-up {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.strip-tile.is-selected {
+  background: var(--hover-fill);
+}
+
+.strip-tile.is-down {
+  opacity: 0.45;
+}
+
+.strip-tile.is-down .strip-name {
+  text-decoration: line-through;
+}
+
+.hud-k {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-faint);
+}
+
+/* ---- the stage: readouts floated over the map itself ---- */
+
+.map-stage {
+  position: relative;
+}
+
+/* What the tool in hand wants, said where the player is looking - the FFT
+   instruction pill. Fixed map-ink colours, like everything over the map. */
+.hud-hint {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  max-width: min(92%, 620px);
+  padding: 6px 16px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #f2ede2;
+  background: rgba(24, 22, 18, 0.82);
+  border: 1px solid rgba(242, 237, 226, 0.25);
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+/* The height readout, top right like Tactics prints it. */
+.hud-height {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: 4px 10px;
+  color: #f2ede2;
+  background: rgba(24, 22, 18, 0.72);
+  border: 1px solid rgba(242, 237, 226, 0.2);
+  pointer-events: none;
+}
+
+.hud-height b {
+  font-family: var(--mono);
+  font-size: 15px;
+}
+
+.hud-height .hud-k {
+  color: rgba(242, 237, 226, 0.6);
+}
+
+/* The controls legend, bottom right, the way a pad game keeps its buttons
+   on screen. */
+.hud-legend {
+  position: absolute;
+  bottom: 6px;
+  right: 10px;
+  z-index: 3;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: rgba(242, 237, 226, 0.75);
+  background: rgba(24, 22, 18, 0.6);
+  padding: 3px 8px;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+@media print {
+  .hud-hint,
+  .hud-height,
+  .hud-legend {
+    display: none !important;
+  }
+}
+
+.hud-pips {
+  display: flex;
+  gap: 6px;
+}
+
+.hud-pip {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 7px 12px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+}
+
+.hud-pip.is-spent {
+  border-color: var(--border);
+  color: var(--text-faint);
+  text-decoration: line-through;
+  background: none;
+}
+
+.hud-move {
+  min-width: 130px;
+}
+
+.hud-move-bar {
+  display: block;
+  height: 4px;
+  margin: 3px 0 2px;
+  background: var(--border-soft);
+}
+
+.hud-move-bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.hud-move .of {
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
+.hud-advance {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 10px 22px;
+  background: var(--accent);
+  border: 0;
+  color: var(--bg);
+  cursor: pointer;
+  clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px);
+}
+
+.hud-advance:disabled {
+  background: var(--border);
+  color: var(--text-faint);
+  cursor: default;
+}
+
+/* ------------------------------------------- the command menu (21) */
+
+/*
+  The Breath-of-Fire box: what an action can be spent on, as a bordered
+  menu in the cockpit. Mono voice, a pointer that appears on hover, a
+  two-column grid of commands - the grammar every JRPG player already has
+  in their hands.
+*/
+.cmd-menu {
+  margin: 8px 0;
+  padding: 8px;
+  background: var(--bg-sunken);
+  border: 2px solid var(--accent);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+}
+
+.cmd-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.cmd-item {
+  position: relative;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  padding: 7px 8px 7px 18px;
+  background: none;
+  border: 0;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.cmd-item::before {
+  /* The empty alt text keeps the pointer out of the accessible name -
+     without it every command reads as "▸ Attack" to a screen reader. */
+  content: '▸' / '';
+  position: absolute;
+  left: 5px;
+  color: var(--accent);
+  opacity: 0;
+}
+
+.cmd-item:hover,
+.cmd-item:focus-visible {
+  background: var(--hover-fill);
+}
+
+.cmd-item:hover::before,
+.cmd-item:focus-visible::before {
+  opacity: 1;
+}
+
+.cmd-item em {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--text-faint);
+  margin-left: 5px;
+}
+
+.cmd-sub {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.cmd-sub .hud-attack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.cmd-note {
+  margin: 0 0 4px;
+  font-size: 11px;
+  color: var(--text-faint);
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.cmd-back {
+  margin-top: 6px;
+  align-self: flex-start;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 4px 8px;
+  background: none;
+  border: 0;
+  color: var(--accent);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+/* The pip whose menu is open reads as pressed-and-waiting. */
+.pcard-turn button.is-open {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ------------------------------------------- the right-pane cockpit (20) */
+
+/* The turn control at the top of the right pane: whose turn, and the End
+   turn button - the one piece of the retired dock that had to stay always
+   reachable. */
+.turn-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--accent);
+}
+
+.turn-panel-who b {
+  display: block;
+  font-size: 14px;
+}
+
+.turn-panel .hud-advance {
+  margin-left: 0;
+  flex: 0 0 auto;
+}
+
+/* The movement bar, folded into the cards from the dock. */
+.pcard-movebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.pcard-movebar .hud-move-bar {
+  flex: 1;
+}
+
+.pcard-movebar .of {
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
+/* The condition quick-add, in the card. */
+.pcard-addcond,
+.rail-conditions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+.pcard-conc {
+  margin: 6px 0 0;
+}
+
+/* Panel titles in Play mode pick up the mono tactical voice. */
+.app.battle .ws-centre .panel > h2,
+.app.battle .ws-rail-title {
+  font-family: var(--mono);
+  letter-spacing: 0.12em;
+}
+
+@media print {
+  /* What prints from a battle is the map. */
+  .init-strip {
+    display: none !important;
+  }
+}
+
+/* --------------------------------------------------------- terrain and height */
+
+/*
+  Graph-paper marks, in the map's own ink. Fixed colours like the rest of the
+  `.dmap` palette: the map is paper in both themes, so its marks do not follow
+  the app theme either.
+*/
+.dmap-t-wall { fill: #4a4238; }
+.dmap-t-floor { fill: #e6ddc8; }
+.dmap-t-water { fill: #b9c9c4; }
+.dmap-t-wave { stroke: #6a8680; stroke-width: 1; }
+.dmap-t-pillar { fill: #6b5f50; stroke: #1c1713; stroke-width: 1; }
+.dmap-t-rock { fill: #a5977f; stroke: #1c1713; stroke-width: 1; }
+.dmap-t-tree { fill: #a9b592; stroke: #55643f; stroke-width: 1.2; }
+.dmap-t-trunk { fill: #55643f; }
+.dmap-t-rubble circle { fill: #6b5f50; }
+
+/* Height: a wash and a numeral. Up washes light, down washes dark, and the
+   numeral is what makes +2 legible against +1 without a legend. */
+.dmap-z-up rect { fill: #fdfaf1; }
+.dmap-z-down rect { fill: #2c261e; }
+.dmap-z-label {
+  font-family: var(--mono);
+  font-size: 4.5px;
+  fill: #5c5147;
+}
+
+/* The brush palette above the map. */
+.terrain-kit {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.terrain-kit .brush {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 5px 10px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
+}
+
+.terrain-kit .brush.is-on {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--hover-fill);
+}
+
+/* Sight lines: clear runs solid in the accent, blocked is dashed ink. Width in
+   map units - the SVG scales, so a hairline would vanish at print size. */
+.dmap-sight {
+  stroke: #8a6d1d;
+  stroke-width: 1.4;
+  opacity: 0.8;
+}
+
+.dmap-sight.is-blocked {
+  stroke: #a33;
+  stroke-dasharray: 4 3;
+  opacity: 0.55;
+}
+
+/* Zones: four translucent washes over the paper, one per tint, fixed like the
+   rest of the map's palette. The label floats above the origin square. */
+.dmap-zone rect { opacity: 0.32; }
+.dmap-zone.tint-0 rect { fill: #c25b3a; }
+.dmap-zone.tint-1 rect { fill: #4a7d3a; }
+.dmap-zone.tint-2 rect { fill: #4a5d9e; }
+.dmap-zone.tint-3 rect { fill: #7d4a8e; }
+
+.dmap-zone-label {
+  font-family: var(--mono);
+  font-size: 6px;
+  fill: #1c1713;
+  paint-order: stroke;
+  stroke: #f7f2e6;
+  stroke-width: 2;
+}
+
+.zone-row {
+  margin: 4px 0;
+  font-size: 13px;
+}
+
+.zone-row .src {
+  color: var(--text-faint);
+}
+
+/* --------------------------------------- the command menu's action rows */
+
+.hud-attack {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.hud-act {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 5px 9px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
+}
+
+.hud-act:hover {
+  border-color: var(--accent);
+}
+
+.hud-act:disabled {
+  color: var(--text-faint);
+  cursor: default;
+  text-decoration: line-through;
+}
+
+.hud-act em {
+  font-style: normal;
+  color: var(--text-faint);
+  margin-left: 4px;
+  font-size: 10px;
+}
+
+.hud-act-sub {
+  color: var(--text-dim);
+  padding: 5px 6px;
+}
+
+.hud-lastroll {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+  margin-left: auto;
+}
+
+.hud-spells summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.hud-spells summary::before {
+  content: '▸';
+  color: var(--text-faint);
+}
+
+.hud-spells[open] summary::before {
+  content: '▾';
+}
+
+.hud-spells .tag.is-spent {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.hud-spell-list {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 6px 0 4px;
+}
+
+/* Conditions, wherever the cockpit shows them. */
+.hud-conditions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.hud-condition {
+  cursor: pointer;
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+.hud-condition.is-warn {
+  cursor: default;
+}
+
+.hud-add-condition {
+  font-size: 11px;
+  padding: 3px 6px;
+  background: none;
+  border: 1px dashed var(--border);
+  color: var(--text-faint);
+  max-width: 110px;
+}
+
+/* ------------------------------------------------ aiming, log and legendary */
+
+/* The aim row, floating along the map's bottom edge - the shot chips sit
+   where the shooting is, X-COM's shot bar. Above the controls legend. */
+.hud-aim-row {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 28px;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(24, 22, 18, 0.85);
+  border: 1px solid var(--accent);
+}
+
+.hud-aim-row .hud-aim-banner {
+  color: var(--accent);
+}
+
+.hud-aim-banner {
+  display: block;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 8px 12px;
+  background: none;
+  border: 0;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.hud-target {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 12px;
+  padding: 6px 10px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+}
+
+.hud-target:hover {
+  border-color: var(--accent);
+}
+
+.hud-target .hud-odds {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.hud-target .hud-exp {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.hud-target i {
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--orange);
+}
+
+/* A friendly target is offered - the DM is the DM - but reads as the risk
+   it is. */
+.hud-target.is-friend {
+  opacity: 0.6;
+}
+
+/* A ruling in the attacker's favour - flanked, high ground - noted in green,
+   never applied for you. */
+.hud-target i.is-boon {
+  color: var(--green);
+}
+
+/* The percentage over the token itself, in the note's ink discipline. */
+.dmap-odds {
+  font-family: var(--mono);
+  font-size: 6.5px;
+  font-weight: 700;
+  fill: #2e6f9e;
+  paint-order: stroke;
+  stroke: #f7f2e6;
+  stroke-width: 1.6;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------ combat juice (18.2) */
+
+/* FFT's status bubbles: the afflictions, shortened, over the head. */
+.dmap-cond {
+  font-family: var(--mono);
+  font-size: 5.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  fill: #7c5a1d;
+  paint-order: stroke;
+  stroke: #f7f2e6;
+  stroke-width: 1.4;
+  pointer-events: none;
+}
+
+/* The number that floats off a token when hit points change. `forwards`
+   holds it invisible once risen; the keyed remount replays it. */
+@keyframes dmap-float-up {
+  0% { opacity: 0; transform: translateY(2px); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-11px); }
+}
+
+.dmap-float {
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 700;
+  fill: #9d3123;
+  paint-order: stroke;
+  stroke: #f7f2e6;
+  stroke-width: 1.8;
+  opacity: 0;
+  animation: dmap-float-up 1.2s ease-out 1 forwards;
+  pointer-events: none;
+}
+
+.dmap-float.is-heal {
+  fill: #2a6c33;
+}
+
+/* The phase card: FFT's turn announcement, briefly, then gone. */
+@keyframes turn-banner-in {
+  0% { opacity: 0; transform: translate(-50%, 6px); }
+  12% { opacity: 1; transform: translate(-50%, 0); }
+  78% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.turn-banner {
+  position: absolute;
+  top: 38%;
+  left: 50%;
+  z-index: 4;
+  padding: 10px 28px;
+  font-family: var(--mono);
+  font-size: 18px;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  color: #f2ede2;
+  background: rgba(24, 22, 18, 0.85);
+  border-top: 1px solid rgba(242, 237, 226, 0.4);
+  border-bottom: 1px solid rgba(242, 237, 226, 0.4);
+  opacity: 0;
+  animation: turn-banner-in 1.5s ease-out 1 forwards;
+  pointer-events: none;
+}
+
+/* Going down is an event, not a restyle: one collapse when the class first
+   lands, then the dimmed marker the token already wears. */
+@keyframes token-down {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.15); }
+  100% { transform: scale(0.85); }
+}
+
+.dmap-token.is-down > circle {
+  animation: token-down 0.5s ease-out 1;
+}
+
+@media print {
+  .dmap-float,
+  .dmap-odds,
+  .turn-banner {
+    display: none !important;
+  }
+}
+
+/* ------------------------------------------------------- fog of war (19.1) */
+
+/* Three states, fixed map ink: never seen is near-black, seen-before keeps a
+   dim memory of the drawing under it, in sight is clear (no rect at all). */
+.dmap-fog {
+  fill: #292219;
+  opacity: 0.9;
+}
+
+.dmap-fog.is-known {
+  opacity: 0.42;
+}
+
+@media print {
+  /* The printed map is the DM's copy; the fog is a screen thing. */
+  .dmap-fog {
+    display: none !important;
+  }
+}
+
+/* Hiding: there, but not seen - translucent, dashed, the plan drawing's
+   convention for the unseen. */
+.dmap-token.is-hiding {
+  opacity: 0.55;
+}
+
+.dmap-token.is-hiding > circle {
+  stroke-dasharray: 3 2;
+}
+
+/* The debrief table: the recap you read to the table, so it prints. */
+.debrief {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.debrief th {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  text-align: left;
+  padding: 2px 6px 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.debrief td {
+  padding: 4px 6px 4px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.debrief td:not(:first-child) {
+  font-family: var(--mono);
+}
+
+.debrief tr.is-monster td:first-child {
+  color: var(--text-faint);
+}
+
+.battle-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+}
+
+.battle-log li {
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-dim);
+}
+
+.battle-log li:first-child {
+  color: var(--text);
+}
+
+.rail-legendary {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+/* ------------------------------------------------------ clocks on the bar */
+
+.hud-rounds {
+  width: 46px;
+  font-size: 11px;
+  padding: 3px 5px;
+  background: none;
+  border: 1px dashed var(--border);
+  color: var(--text-dim);
+}
+
+.hud-deathsaves {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-ds-dots {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  color: var(--text-faint);
+}
+
+.hud-ds-dots i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  display: inline-block;
+}
+
+.hud-ds-dots i.is-success { background: var(--green); border-color: var(--green); }
+.hud-ds-dots i.is-failure { background: var(--red); border-color: var(--red); }
+
+/* ------------------------------------------------- the pointer's loop (16) */
+
+/* Where the selected combatant can still get to: FFT's lit blue tiles. Each
+   square carries its own bright edge so the field reads as tiles, not a
+   stain; the perimeter path draws the hard boundary. Fixed colours, like all
+   the map's ink. */
+.dmap-reach {
+  fill: #3f7fae;
+  stroke: #5b9bca;
+  stroke-width: 0.7;
+  opacity: 0.3;
+}
+
+/* A footprint being previewed: the same wash as the real zone, thinner, with
+   a dashed edge so it reads as "not yet". */
+.dmap-zone.is-ghost rect {
+  opacity: 0.18;
+  stroke: #5c5147;
+  stroke-width: 0.6;
+  stroke-dasharray: 3 2;
+}
+
+.dmap-zone.is-ghost .dmap-zone-label {
+  opacity: 0.6;
+}
+
+.dmap-cursor {
+  fill: none;
+  stroke: #8a6d1d;
+  stroke-width: 1.2;
+  pointer-events: none;
+}
+
+.dmap-note {
+  font-family: var(--mono);
+  font-size: 7px;
+  fill: #5c5147;
+  paint-order: stroke;
+  stroke: #f7f2e6;
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+/* Bloodied: the word every table uses, as a tint. Fixed colours, like all the
+   map's ink. */
+.dmap-token.is-bloodied circle {
+  fill: #a35b3a;
+}
+
+.dmap-token.character.is-bloodied circle {
+  fill: #7d4a35;
+}
+
+.strip-tile.is-bloodied .strip-bar i {
+  background: var(--orange) !important;
+}
+
+/* The hit flash. Remounting the element replays it; is-hit keeps the very
+   first mount from flashing. */
+@keyframes dmap-hit {
+  0% { opacity: 1; }
+  25% { opacity: 0.2; }
+  50% { opacity: 1; }
+  75% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+.dmap-token.is-hit {
+  animation: dmap-hit 0.5s ease-out 1;
+}
+
+@keyframes tile-hit {
+  0% { background: color-mix(in srgb, var(--red) 45%, var(--bg-raised)); }
+  100% { background: var(--bg-raised); }
+}
+
+.strip-tile.is-hit {
+  animation: tile-hit 0.7s ease-out 1;
+}
+
+/* The ruler's own line: measured, not menacing - dotted, in the note's ink. */
+.dmap-ruler {
+  stroke: #5c5147;
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+/* The dash tier: further than your feet, inside your Dash. Amber, the way
+   X-COM colours its second action. */
+.dmap-reach.is-dash {
+  fill: #b0703a;
+  stroke: #c08a4e;
+  stroke-width: 0.7;
+  opacity: 0.2;
+}
+
+/* ---------------------------------------------- the ground speaks (17.2) */
+
+/* The move perimeters: solid around what plain feet cover, dashed around
+   what a Dash adds - X-COM's outline, the wash's exact edge. */
+.dmap-reach-edge {
+  stroke: #2e6f9e;
+  stroke-width: 1.1;
+  stroke-linecap: square;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.dmap-reach-edge.is-dash {
+  stroke: #a8642c;
+  stroke-dasharray: 3 2;
+  opacity: 0.7;
+}
+
+/* The lob: caster to cursor, bowed, with the impact ring where it lands. */
+.dmap-arc path {
+  stroke: #2e6f9e;
+  stroke-width: 1.1;
+  stroke-dasharray: 4 3;
+  stroke-linecap: round;
+}
+
+.dmap-impact {
+  fill: none;
+  stroke: #a8642c;
+  stroke-width: 1.1;
+}
+
+.dmap-impact.is-core {
+  fill: #a8642c;
+  stroke: none;
+  opacity: 0.8;
+}
+
+@media print {
+  /* Tactical light does not belong on the printed table map. */
+  .dmap-reach,
+  .dmap-reach-edge,
+  .dmap-arc {
+    display: none !important;
+  }
+
+  /* If a print is triggered from the tactical view, the flat map is the one
+     that goes on the table - the camera is a screen thing. */
+  .isomap {
+    display: none !important;
+  }
+}
+
+/* ---------------------------------------------- the tactical camera (17.3) */
+
+.view-toggle {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 6px 12px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  color: var(--text-faint);
+  cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+}
+
+.view-toggle.is-on {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--bg-raised);
+}
+
+/* The ground, in the flat map's ink: parchment caps over darker skirts, so
+   height reads as blocks of the same paper the map is drawn on. */
+.isomap .iso-top {
+  fill: #efe8da;
+  stroke: #b5a893;
+  stroke-width: 0.5;
+}
+
+.isomap .iso-side {
+  stroke: #9c8f7b;
+  stroke-width: 0.4;
+}
+
+.isomap .iso-side.is-se {
+  fill: #cfc3ac;
+}
+
+.isomap .iso-side.is-sw {
+  fill: #bfb29a;
+}
+
+.iso-cell.is-wall .iso-top {
+  fill: #8d8172;
+}
+
+.iso-cell.is-wall .iso-side.is-se {
+  fill: #7a6f61;
+}
+
+.iso-cell.is-wall .iso-side.is-sw {
+  fill: #6b6154;
+}
+
+.iso-cell.is-water .iso-top {
+  fill: #b9cfd8;
+}
+
+.iso-cell.is-floor .iso-top {
+  fill: #f5efe2;
+}
+
+.iso-cell .iso-pillar {
+  fill: #6d6257;
+}
+
+.iso-cell .iso-tree line {
+  stroke: #6b5b43;
+  stroke-width: 1.4;
+}
+
+.iso-cell .iso-tree circle {
+  fill: #7d8f68;
+  stroke: #5f7050;
+  stroke-width: 0.6;
+}
+
+.iso-cell .iso-rock {
+  fill: #a99d8a;
+  stroke: #6d6257;
+  stroke-width: 0.5;
+}
+
+.iso-cell .iso-rubble circle {
+  fill: #8b7f6d;
+}
+
+/* Tokens standing on the ground: the shadow sells the height. */
+.iso-token .iso-shadow {
+  fill: rgba(40, 34, 26, 0.3);
+}
+
+/* Overlay diamonds keep the flat map's classes, so the washes, the ghost,
+   the cursor and the perimeter colours carry over without a second palette.
+   Only the reach needs a nudge: polygons sit over the cap's stroke. */
+.isomap .dmap-reach {
+  opacity: 0.38;
+}

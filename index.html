@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <!--
+      Two theme colours rather than one, so the browser chrome around an
+      installed app matches the palette the app is actually showing. A single
+      value would leave a parchment title bar over a dark page.
+    -->
+    <meta name="theme-color" content="#e6dcc6" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0d0b09" media="(prefers-color-scheme: dark)" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A D&D 5e character builder and optimizer: race/class ratings, feat recommendations with reasoning, and a level-by-level ASI plan."
+    />
+    <title>Forge &amp; Fate — D&amp;D 5e builder &amp; optimizer</title>
+    <!--
+      The theme is set before the first paint rather than in a React effect,
+      or someone who prefers dark gets a full frame of parchment on every
+      load. It duplicates a few lines of theme.ts on purpose: this has to run
+      as plain script in <head>, before any module is fetched.
+    -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('dnd-forge:theme:v1');
+          var dark =
+            saved === 'dark' ||
+            (saved !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+        } catch (e) {
+          /* No storage: the stylesheet's own default (parchment) stands. */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

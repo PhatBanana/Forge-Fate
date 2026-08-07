@@ -1,0 +1,827 @@
+import { describe, expect, it } from 'vitest';
+import equipmentFixture from './srd/srd-2014-equipment.json';
+import magicItemFixture from './srd/srd-2014-magic-items.json';
+import spellFixture from './srd/srd-2014-spells.json';
+import coreFixture from './srd/srd-2014-core.json';
+import weapon2024Fixture from './srd/srd-2024-weapons.json';
+import subclass2024Fixture from './srd/srd-2024-subclasses.json';
+import class2024Fixture from './srd/srd-2024-classes.json';
+import { GEAR } from './gear';
+import { WEAPONS, weaponsFor } from './weapons';
+import { ARMOR } from './armor';
+import { MAGIC_ITEMS } from './magicItems';
+import { SPELLS, SPELLS_BY_ID } from './spells';
+import type { CastingTime } from './spells';
+import { CLASSES } from './classes';
+import { SORCERY_POINT_SLOT_COSTS, resourcesForClass } from './classResources';
+import { PREPARED_2024 } from './spellSlots';
+import { computeSlots } from '../engine/spellcasting';
+import type { ClassId } from '../types';
+import { RACES } from './races';
+import { SKILLS } from './skills';
+import { CONDITIONS } from './conditions';
+import { LANGUAGES } from './languages';
+import { SUBCLASS_FEATURES, SUBCLASS_FEATURES_2024 } from './subclassFeatures';
+import { key, srdKey } from './srd/names';
+
+/**
+ * The data tables, checked against the SRD.
+ *
+ * Every table here was first written from the books, and a one-off diff
+ * against the SRD found fourteen real defects across them: a 2014 lance
+ * rolling the 2024 damage die, two magic items demanding an attunement slot
+ * they do not need, thirteen spells offered to Warlocks who cannot take them,
+ * and every 2024 subclass showing its 2014 feature levels. Recall is a
+ * perfectly good way to write a table and a poor way to be sure of one.
+ *
+ * So the diff is a test rather than an errand. It compares against fixtures in
+ * `src/data/srd`, distilled from the SRD 5.1 and 5.2 APIs, so this
+ * needs no network and runs with everything else. Refresh them with
+ * `npm run audit:refresh` when you want to re-verify against upstream.
+ *
+ * Where the app deliberately departs from a source, `EXPECTED` records it with
+ * a reason. An exception that stops matching anything fails too - a stale
+ * excuse is worse than no excuse, because it reads as though someone checked.
+ */
+
+/**
+ * The fixtures are imported rather than read off disk so the typecheck stays a
+ * browser typecheck: pulling in `node:fs` here would mean adding node types to
+ * the app project, and then app code could reach for `process` and still pass.
+ * Nothing in the app graph imports these, so they never reach the bundle.
+ */
+const records = <T,>(f: { records: unknown }): T => f.records as T;
+
+/**
+ * Where the app knowingly differs from a source, and why.
+ *
+ * Keyed `domain:record:field`. Most of these are the source being wrong: the
+ * two SRD APIs are careful transcriptions and neither is perfect, so where one
+ * contradicts the Player's Handbook the book wins and the disagreement is
+ * written down here rather than argued again every time the audit runs.
+ */
+const EXPECTED_SOURCE: Record<string, string> = {
+  // --- dnd5eapi's spell-to-class mapping contradicts the PHB in five places.
+  'spell:Arcane Eye:classes':
+    'dnd5eapi adds Cleric. Arcane Eye is a Wizard spell in the PHB.',
+  'spell:Create Food and Water:classes':
+    'dnd5eapi adds Druid. The PHB has Cleric and Paladin.',
+  'spell:Divination:classes':
+    'dnd5eapi swaps Cleric for Druid. Divination is a Cleric spell.',
+  'spell:Faerie Fire:classes':
+    'dnd5eapi omits Bard. Faerie Fire is on the Bard and Druid lists.',
+  'spell:Meld into Stone:classes':
+    'dnd5eapi omits Druid. The PHB has Cleric and Druid.',
+
+  // --- dnd5eapi's equipment table has four cells the books disagree with.
+  'gear:Caltrops (bag of 20):cost':
+    'dnd5eapi says 5 cp for a bag of twenty; both the PHB and open5e say 1 gp.',
+  'gear:Spikes, iron (10):cost':
+    'dnd5eapi prices one spike where the app lists ten, as the PHB does.',
+  'gear:Saddle, exotic:weight':
+    'dnd5eapi says 50 lb.; the PHB and open5e both say 40.',
+  'weapon:Blowgun:damage':
+    'The blowgun deals a flat 1 damage, which the app models as 1d1 so the '
+    + 'damage calculator has dice to read.',
+
+  'weapon2024:Blowgun:damage':
+    'As above. The 2024 blowgun is unchanged.',
+  'gear:Barding, ring mail:cost':
+    'Barding is four times the armor it is made from, which the SRD confirms in '
+    + 'twelve of thirteen rows. Its ring mail barding at 12 gp is a dropped zero.',
+
+  // --- Equipment the SRD API records with no weight at all.
+  "gear:Burglar's Pack:weight": 'The API gives packs no weight and lists their contents instead.',
+  "gear:Diplomat's Pack:weight": 'The API gives packs no weight and lists their contents instead.',
+  "gear:Dungeoneer's Pack:weight": 'The API gives packs no weight and lists their contents instead.',
+  "gear:Entertainer's Pack:weight": 'The API gives packs no weight and lists their contents instead.',
+  "gear:Explorer's Pack:weight": 'The API gives packs no weight and lists their contents instead.',
+  "gear:Priest's Pack:weight": 'The API gives packs no weight and lists their contents instead.',
+  "gear:Scholar's Pack:weight": 'The API gives packs no weight and lists their contents instead.',
+  'gear:Rowboat:weight': 'The API gives vehicles no weight; the PHB rowboat is 100 lb.',
+
+  // --- A subrace that changes its lineage's speed.
+  'race:Wood Elf:speed':
+    'Fleet of Foot raises a Wood Elf to 35 feet; the SRD records the Elf base of 30.',
+
+  // --- Subclass spell lists.
+  'subclassSpells:life 7:spells':
+    'dnd5eapi lists only Death Ward at Cleric 7. The PHB and the SRD document '
+    + 'both give the Life Domain Guardian of Faith there too, so the book wins.',
+  'subclassSpells:land:missing':
+    "Circle of the Land's spells depend on which land you picked, and the app "
+    + 'does not model that choice. dnd5eapi flattens all seven lands into one '
+    + 'list, so granting it would hand a coastal Druid the mountain spells.',
+};
+
+/** Normalised the same way findings are, so the keys can be written readably. */
+const EXPECTED: Record<string, string> = Object.fromEntries(
+  Object.entries(EXPECTED_SOURCE).map(([composite, reason]) => {
+    const [domain, name, field] = composite.split(':');
+    return [`${domain}:${key(name)}:${field}`, reason];
+  }),
+);
+
+/** A single disagreement between the app and a fixture. */
+interface Finding {
+  key: string;
+  detail: string;
+}
+
+/**
+ * Split findings into the ones that were expected and the ones that were not,
+ * and report any exception that no longer applies.
+ *
+ * `fields` is what this particular check looked at, and it matters: two tests
+ * share the `spell` domain, and without it the range check would call the five
+ * class-list exceptions stale purely because it never examines class lists.
+ * Pass `['*']` where the field is open-ended, as it is for subclass features.
+ */
+function reconcile(findings: Finding[], domains: string[], fields: string[]) {
+  const unexpected = findings.filter((f) => !(f.key in EXPECTED));
+  const matched = new Set(findings.map((f) => f.key));
+  const examined = (k: string) => {
+    const parts = k.split(':');
+    return domains.includes(parts[0])
+      && (fields.includes('*') || fields.includes(parts[parts.length - 1]));
+  };
+  const stale = Object.keys(EXPECTED).filter((k) => examined(k) && !matched.has(k));
+  return { unexpected, stale };
+}
+
+const show = (findings: Finding[]) => findings.map((f) => `${f.key} — ${f.detail}`);
+
+// ---------------------------------------------------------------- equipment
+
+interface SrdEquipment {
+  name: string; category: string; cost: number; weight: number;
+  damage?: string; damageType?: string; versatile?: string | null;
+  properties?: string[]; range?: { normal: number; long: number | null } | null;
+  baseAc?: number | null; strengthRequirement?: number; stealthDisadvantage?: boolean;
+}
+
+describe('the equipment tables against SRD 5.1', () => {
+  const srd = records<Record<string, SrdEquipment>>(equipmentFixture);
+
+  it('prices and weighs the gear the way the books do', () => {
+    const findings: Finding[] = [];
+    for (const item of GEAR) {
+      const s = srd[srdKey(item.name)];
+      if (!s) continue;
+      if (s.cost !== item.cost) {
+        findings.push({ key: `gear:${key(item.name)}:cost`, detail: `app ${item.cost}cp, srd ${s.cost}cp` });
+      }
+      if (Math.abs(s.weight - item.weight) > 0.001) {
+        findings.push({ key: `gear:${key(item.name)}:weight`, detail: `app ${item.weight}lb, srd ${s.weight}lb` });
+      }
+    }
+    const { unexpected, stale } = reconcile(findings, ['gear'], ['cost', 'weight']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  it('gives the 2014 weapons their 2014 stats', () => {
+    const findings: Finding[] = [];
+    for (const weapon of weaponsFor('2014')) {
+      const s = srd[srdKey(weapon.name)];
+      if (!s?.damage) continue;
+      const k = key(weapon.name);
+      const dice = `${weapon.damage.count}d${weapon.damage.die}`;
+      if (s.damage !== dice) findings.push({ key: `weapon:${k}:damage`, detail: `app ${dice}, srd ${s.damage}` });
+      if (s.damageType !== weapon.damage.type) {
+        findings.push({ key: `weapon:${k}:damageType`, detail: `app ${weapon.damage.type}, srd ${s.damageType}` });
+      }
+      const versatile = weapon.versatileDie ? `1d${weapon.versatileDie}` : null;
+      if ((s.versatile ?? null) !== versatile) {
+        findings.push({ key: `weapon:${k}:versatile`, detail: `app ${versatile}, srd ${s.versatile}` });
+      }
+      const props = [...weapon.properties].sort().join(',');
+      const srdProps = (s.properties ?? []).join(',');
+      if (props !== srdProps) findings.push({ key: `weapon:${k}:properties`, detail: `app [${props}], srd [${srdProps}]` });
+      if (s.cost !== weapon.cost) findings.push({ key: `weapon:${k}:cost`, detail: `app ${weapon.cost}cp, srd ${s.cost}cp` });
+      if (Math.abs(s.weight - weapon.weight) > 0.001) {
+        findings.push({ key: `weapon:${k}:weight`, detail: `app ${weapon.weight}lb, srd ${s.weight}lb` });
+      }
+      if (s.range && weapon.range && s.range.normal !== weapon.range.normal) {
+        findings.push({ key: `weapon:${k}:range`, detail: `app ${weapon.range.normal}, srd ${s.range.normal}` });
+      }
+    }
+    const { unexpected, stale } = reconcile(findings, ['weapon'],
+      ['damage', 'damageType', 'versatile', 'properties', 'cost', 'weight', 'range']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  it('matches the armor table on class, cap and Strength requirement', () => {
+    const findings: Finding[] = [];
+    for (const armor of ARMOR) {
+      const s = srd[srdKey(armor.name)];
+      if (!s || s.baseAc == null) continue;
+      const k = key(armor.name);
+      if (s.baseAc !== armor.baseAc) findings.push({ key: `armor:${k}:baseAc`, detail: `app ${armor.baseAc}, srd ${s.baseAc}` });
+      if ((s.strengthRequirement ?? 0) !== (armor.strengthRequirement ?? 0)) {
+        findings.push({ key: `armor:${k}:strength`, detail: `app ${armor.strengthRequirement ?? 0}, srd ${s.strengthRequirement}` });
+      }
+      if (Boolean(s.stealthDisadvantage) !== Boolean(armor.stealthDisadvantage)) {
+        findings.push({ key: `armor:${k}:stealth`, detail: `app ${armor.stealthDisadvantage}, srd ${s.stealthDisadvantage}` });
+      }
+      if (s.cost !== armor.cost) findings.push({ key: `armor:${k}:cost`, detail: `app ${armor.cost}cp, srd ${s.cost}cp` });
+      if (Math.abs(s.weight - armor.weight) > 0.001) {
+        findings.push({ key: `armor:${k}:weight`, detail: `app ${armor.weight}lb, srd ${s.weight}lb` });
+      }
+    }
+    const { unexpected, stale } = reconcile(findings, ['armor'], ['baseAc', 'strength', 'stealth', 'cost', 'weight']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  /** Everything the SRD sells should be somewhere in the three tables. */
+  it('carries every piece of SRD equipment somewhere', () => {
+    const known = new Set([
+      ...GEAR.map((g) => srdKey(g.name)),
+      ...WEAPONS.map((w) => srdKey(w.name)),
+      ...ARMOR.map((a) => srdKey(a.name)),
+      // The app models a shield as a flag on the character rather than a row.
+      'shield',
+      // The books sell a donkey and a mule as one line at the same price; the
+      // SRD splits them, and the app follows the books.
+      'mule',
+    ]);
+    const missing = Object.entries(srd)
+      .filter(([k]) => !known.has(k))
+      .map(([, s]) => s.name);
+    expect(missing).toEqual([]);
+  });
+});
+
+// -------------------------------------------------------------- 2024 weapons
+
+interface SrdWeapon2024 {
+  name: string; cost: number; weight: number; damage: string;
+  versatile: string | null; properties: string[]; mastery: string | null;
+}
+
+describe('the weapon table against SRD 5.2', () => {
+  const srd = records<Record<string, SrdWeapon2024>>(weapon2024Fixture);
+
+  it('gives the 2024 weapons their 2024 stats, including mastery', () => {
+    const findings: Finding[] = [];
+    for (const weapon of weaponsFor('2024')) {
+      const s = srd[srdKey(weapon.name)];
+      if (!s) continue;
+      const k = key(weapon.name);
+      const dice = `${weapon.damage.count}d${weapon.damage.die}`;
+      if (s.damage !== dice) findings.push({ key: `weapon2024:${k}:damage`, detail: `app ${dice}, srd ${s.damage}` });
+      const versatile = weapon.versatileDie ? `1d${weapon.versatileDie}` : null;
+      if ((s.versatile ?? null) !== versatile) {
+        findings.push({ key: `weapon2024:${k}:versatile`, detail: `app ${versatile}, srd ${s.versatile}` });
+      }
+      const props = [...weapon.properties].sort().join(',');
+      if (props !== s.properties.join(',')) {
+        findings.push({ key: `weapon2024:${k}:properties`, detail: `app [${props}], srd [${s.properties.join(',')}]` });
+      }
+      if ((weapon.mastery ?? null) !== s.mastery) {
+        findings.push({ key: `weapon2024:${k}:mastery`, detail: `app ${weapon.mastery}, srd ${s.mastery}` });
+      }
+      if (Math.abs(s.weight - weapon.weight) > 0.001) {
+        findings.push({ key: `weapon2024:${k}:weight`, detail: `app ${weapon.weight}lb, srd ${s.weight}lb` });
+      }
+    }
+    const { unexpected, stale } = reconcile(findings, ['weapon2024'],
+      ['damage', 'versatile', 'properties', 'mastery', 'weight']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+});
+
+// -------------------------------------------------------------- magic items
+
+interface SrdMagicItem { name: string; rarity: string; attunement: boolean }
+
+const RARITY: Record<string, string> = {
+  Common: 'common', Uncommon: 'uncommon', Rare: 'rare',
+  'Very Rare': 'very-rare', Legendary: 'legendary', Artifact: 'artifact',
+};
+
+describe('the magic item catalogue against SRD 5.1', () => {
+  const srd = records<Record<string, SrdMagicItem>>(magicItemFixture);
+
+  it('rates every item the way the SRD rates it', () => {
+    const findings: Finding[] = [];
+    for (const item of MAGIC_ITEMS) {
+      const s = srd[srdKey(item.name)];
+      if (!s) continue;
+      const k = key(item.name);
+      const rarity = RARITY[s.rarity];
+      if (rarity && rarity !== item.rarity) {
+        findings.push({ key: `item:${k}:rarity`, detail: `app ${item.rarity}, srd ${s.rarity}` });
+      }
+      if (s.attunement !== Boolean(item.attunement)) {
+        findings.push({ key: `item:${k}:attunement`, detail: `app ${Boolean(item.attunement)}, srd ${s.attunement}` });
+      }
+    }
+    const { unexpected, stale } = reconcile(findings, ['item'], ['rarity', 'attunement']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  it('carries every SRD magic item', () => {
+    const known = new Set(MAGIC_ITEMS.map((i) => srdKey(i.name)));
+    // The app splits several families the SRD keeps whole and vice versa; the
+    // ones it merges are named here rather than duplicated in the table.
+    const MERGED: Record<string, string> = {
+      'belt of stone giant strength': 'belt of stone frost giant strength',
+      'belt of frost giant strength': 'belt of stone frost giant strength',
+      'potion of stone giant strength': 'potion of frost stone giant strength',
+      'potion of frost giant strength': 'potion of frost stone giant strength',
+    };
+    const missing = Object.entries(srd)
+      .filter(([k]) => !known.has(k) && !known.has(MERGED[k] ?? ''))
+      .map(([, s]) => s.name);
+    expect(missing).toEqual([]);
+  });
+});
+
+// ------------------------------------------------------------------- spells
+
+interface SrdSpell {
+  name: string; level: number; school: string;
+  concentration: boolean; ritual: boolean; classes: string[];
+  range: string; duration: string; castingTime: string;
+}
+
+/**
+ * The SRD writes casting times as prose; the app models the nine distinct
+ * values those 319 spells actually use. Anything not in this map is a time no
+ * SRD spell has, and should fail rather than be quietly bucketed.
+ */
+const CASTING_TIME_FROM_SRD: Record<string, CastingTime> = {
+  '1 action': 'action',
+  '1 bonus action': 'bonus',
+  '1 reaction': 'reaction',
+  '1 minute': 'minute',
+  '10 minutes': '10-minutes',
+  '1 hour': 'hour',
+  '8 hours': '8-hours',
+  '12 hours': '12-hours',
+  '24 hours': '24-hours',
+};
+
+/**
+ * Durations, reduced to the thing being compared.
+ *
+ * The SRD writes "Up to 1 hour" and carries concentration in its own field;
+ * the app writes "Concentration, up to 1 hour" because that is what belongs on
+ * a printed sheet. And a day is twenty-four hours whichever the source says.
+ */
+function normaliseDuration(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/^concentration,\s*/, '')
+    .replace(/^up to\s*/, '')
+    .replace(/\b1 day\b/, '24 hours')
+    .trim();
+}
+
+describe('the spell list against SRD 5.1', () => {
+  const srd = records<Record<string, SrdSpell>>(spellFixture);
+  // The app models the Artificer, which the SRD does not carry at all.
+  const NOT_IN_SRD = new Set(['artificer']);
+
+  it('matches on level, school, concentration, ritual and class list', () => {
+    const findings: Finding[] = [];
+    for (const spell of SPELLS) {
+      const s = srd[srdKey(spell.name)];
+      if (!s) continue;
+      const k = key(spell.name);
+      if (s.level !== spell.level) findings.push({ key: `spell:${k}:level`, detail: `app ${spell.level}, srd ${s.level}` });
+      if (s.school !== spell.school) findings.push({ key: `spell:${k}:school`, detail: `app ${spell.school}, srd ${s.school}` });
+      if (s.concentration !== spell.concentration) {
+        findings.push({ key: `spell:${k}:concentration`, detail: `app ${spell.concentration}, srd ${s.concentration}` });
+      }
+      if (s.ritual !== spell.ritual) {
+        findings.push({ key: `spell:${k}:ritual`, detail: `app ${spell.ritual}, srd ${s.ritual}` });
+      }
+      const app = spell.classes.filter((c) => !NOT_IN_SRD.has(c)).sort().join(',');
+      const want = s.classes.join(',');
+      if (app !== want) findings.push({ key: `spell:${k}:classes`, detail: `app [${app}], srd [${want}]` });
+    }
+    const { unexpected, stale } = reconcile(findings, ['spell'],
+      ['level', 'school', 'concentration', 'ritual', 'classes']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  /**
+   * Range and duration, which nothing was checking - which is how Produce
+   * Flame came to be recorded at 30 feet. Its range is Self; the 30 feet is
+   * how far you may then hurl the flame, and the two are not the same thing
+   * to anything that reads the field.
+   *
+   * The app writes the shape into the range where the SRD leaves it to the
+   * rules text, so "Self (15-foot cone)" is right where the SRD says "Self".
+   * That is allowed by prefix. Everything else has to match.
+   */
+  it('states the range, duration and casting time the books state', () => {
+    const findings: Finding[] = [];
+    for (const spell of SPELLS) {
+      const s = srd[srdKey(spell.name)];
+      if (!s) continue;
+      const k = key(spell.name);
+
+      const srdRange = s.range.trim().toLowerCase();
+      const appRange = String(spell.range).trim().toLowerCase();
+      const rangeOk = srdRange === 'self'
+        ? appRange === 'self' || appRange.startsWith('self (')
+        : srdRange.replace(/\.$/, '') === appRange.replace(/\.$/, '');
+      if (!rangeOk) {
+        findings.push({ key: `spell:${k}:range`, detail: `app "${spell.range}", srd "${s.range}"` });
+      }
+
+      if (normaliseDuration(s.duration) !== normaliseDuration(String(spell.duration))) {
+        findings.push({
+          key: `spell:${k}:duration`,
+          detail: `app "${spell.duration}", srd "${s.duration}"`,
+        });
+      }
+
+      const wantTime = CASTING_TIME_FROM_SRD[s.castingTime.trim().toLowerCase()];
+      if (!wantTime) {
+        findings.push({
+          key: `spell:${k}:castingTime`,
+          detail: `the SRD says "${s.castingTime}", which the app has no value for`,
+        });
+      } else if (wantTime !== spell.castingTime) {
+        findings.push({
+          key: `spell:${k}:castingTime`,
+          detail: `app "${spell.castingTime}", srd "${s.castingTime}"`,
+        });
+      }
+    }
+    const { unexpected, stale } = reconcile(findings, ['spell'], ['range', 'duration', 'castingTime']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  it('carries every SRD spell', () => {
+    const known = new Set(SPELLS.map((s) => srdKey(s.name)));
+    const missing = Object.entries(srd).filter(([k]) => !known.has(k)).map(([, s]) => s.name);
+    expect(missing).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------- 2014 subclass spells
+
+interface SrdSubclass2014 {
+  name: string;
+  class: string | null;
+  spells: Record<string, string[]>;
+}
+
+/**
+ * The spells a subclass hands over. Four of the twelve SRD subclasses have a
+ * list and the app grants three of them - Circle of the Land is a choice the
+ * app does not model, which is recorded above rather than silently skipped.
+ */
+describe('the 2014 subclass spell lists against SRD 5.1', () => {
+  const srd = records<{ subclasses: Record<string, SrdSubclass2014> }>(coreFixture).subclasses;
+
+  it('grants exactly what the subclass table prints', () => {
+    const findings: Finding[] = [];
+    for (const [subclassKey, entry] of Object.entries(srd)) {
+      const levels = Object.keys(entry.spells);
+      if (!levels.length) continue;
+
+      const klass = CLASSES.find((c) => c.id === entry.class);
+      const sub = klass?.subclasses.find((s) => key(s.name) === subclassKey)
+        ?? klass?.subclasses.find((s) => s.id === subclassKey);
+      expect(sub, `no app subclass matches "${entry.name}"`).toBeDefined();
+
+      if (!sub!.spells?.length) {
+        findings.push({ key: `subclassSpells:${sub!.id}:missing`, detail: 'the app grants none' });
+        continue;
+      }
+
+      const ours = new Map(sub!.spells.map((g) => [String(g.level), g.ids]));
+      for (const [level, names] of Object.entries(entry.spells)) {
+        const book = names.map((n) => srdKey(n)).sort();
+        const app = (ours.get(level) ?? []).map((id) => srdKey(SPELLS_BY_ID[id]?.name ?? id)).sort();
+        if (app.join('|') !== book.join('|')) {
+          findings.push({
+            key: `subclassSpells:${sub!.id} ${level}:spells`,
+            detail: `app [${app.join(', ')}], srd [${book.join(', ')}]`,
+          });
+        }
+      }
+    }
+    const { unexpected, stale } = reconcile(findings, ['subclassSpells'], ['spells', 'missing']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  /** Every id in every list has to resolve, or the grant hands over nothing. */
+  it('names spells that exist', () => {
+    for (const klass of CLASSES) {
+      for (const sub of klass.subclasses) {
+        for (const grant of sub.spells ?? []) {
+          for (const id of grant.ids) {
+            expect(SPELLS_BY_ID[id], `${sub.id} level ${grant.level}: ${id}`).toBeDefined();
+          }
+        }
+      }
+    }
+  });
+});
+
+// -------------------------------------------------------- 2024 subclasses
+
+interface SrdSubclass {
+  name: string; class: string; features: { name: string; level: number }[];
+}
+
+describe('the 2024 subclasses against SRD 5.2', () => {
+  const srd = records<Record<string, SrdSubclass>>(subclass2024Fixture);
+
+  /** SRD 5.2 renamed several subclasses the app still lists under 2014 names. */
+  const SUBCLASS_ALIAS: Record<string, string> = {
+    'path of the berserker': 'berserker',
+    'warrior of the open hand': 'way of the open hand',
+    'draconic sorcery': 'draconic bloodline',
+    'fiend patron': 'the fiend',
+    evoker: 'school of evocation',
+  };
+
+  it('places every feature at the level 2024 gives it', () => {
+    const byName = new Map<string, { id: string; name: string }>();
+    for (const klass of CLASSES) {
+      for (const sub of klass.subclasses) byName.set(key(sub.name), { id: sub.id, name: sub.name });
+    }
+
+    const findings: Finding[] = [];
+    for (const [k, s] of Object.entries(srd)) {
+      const match = byName.get(SUBCLASS_ALIAS[k] ?? k) ?? byName.get(k);
+      expect(match, `no app subclass matches "${s.name}"`).toBeDefined();
+      const table = SUBCLASS_FEATURES_2024[match!.id] ?? SUBCLASS_FEATURES[match!.id] ?? [];
+      const app = new Map(table.map((f) => [key(f.name), f.level]));
+
+      for (const feature of s.features) {
+        // The SRD runs a couple of feature tables into the name field; compare
+        // on the leading words, which are the name proper.
+        const fk = key(feature.name).split(' ').slice(0, 4).join(' ');
+        const hit = [...app].find(([n]) => n.startsWith(fk) || fk.startsWith(n));
+        if (!hit) {
+          findings.push({ key: `subclass:${k}:${fk}`, detail: `missing, srd has it at level ${feature.level}` });
+        } else if (hit[1] !== feature.level) {
+          findings.push({ key: `subclass:${k}:${fk}`, detail: `app level ${hit[1]}, srd level ${feature.level}` });
+        }
+      }
+    }
+    const { unexpected, stale } = reconcile(findings, ['subclass'], ['*']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+});
+
+// --------------------------------------------------------------------- core
+
+interface SrdCore {
+  classes: Record<string, { name: string; hitDie: number; saves: string[]; skillPicks: number | null }>;
+  races: Record<string, { name: string; speed: number; size: string; asi: Record<string, number> }>;
+  skills: Record<string, { name: string; ability: string }>;
+  sorceryPointCosts: Record<string, number>;
+  conditions: string[];
+  languages: string[];
+}
+
+describe('classes, races, skills, conditions and languages against SRD 5.1', () => {
+  const srd = records<SrdCore>(coreFixture);
+
+  it('matches every class on hit die, saves and skill picks', () => {
+    const findings: Finding[] = [];
+    for (const klass of CLASSES) {
+      const s = srd.classes[key(klass.name)];
+      if (!s) continue;
+      const k = key(klass.name);
+      if (s.hitDie !== klass.hitDie) findings.push({ key: `class:${k}:hitDie`, detail: `app d${klass.hitDie}, srd d${s.hitDie}` });
+      const saves = [...klass.saves].sort().join(',');
+      if (saves !== s.saves.join(',')) findings.push({ key: `class:${k}:saves`, detail: `app [${saves}], srd [${s.saves.join(',')}]` });
+      if (s.skillPicks != null && s.skillPicks !== klass.skillChoices.count) {
+        findings.push({ key: `class:${k}:skillPicks`, detail: `app ${klass.skillChoices.count}, srd ${s.skillPicks}` });
+      }
+    }
+    const { unexpected, stale } = reconcile(findings, ['class'], ['hitDie', 'saves', 'skillPicks']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  it('matches every 2014 lineage on speed, size and ability increases', () => {
+    const findings: Finding[] = [];
+    // Only the 2014 lineages, because this fixture is SRD 5.1 - the 2024
+    // species share their names and differ on purpose. A Forest Gnome moves at
+    // 25 feet in 2014 and 30 in 2024, and comparing the latter to the former
+    // is how this check first reported a bug that was not there.
+    const in2014 = RACES.filter((r) => (r.rulesets ?? ['2014']).includes('2014'));
+
+    // A lineage's numbers live on its subraces where it has any, because that
+    // is where the books put them.
+    const children = new Map<string, typeof RACES>();
+    for (const race of in2014) {
+      if (!race.parent) continue;
+      const list = children.get(key(race.parent)) ?? [];
+      list.push(race);
+      children.set(key(race.parent), list);
+    }
+
+    for (const [k, s] of Object.entries(srd.races)) {
+      const kids = children.get(k);
+      const compare = kids ?? in2014.filter((r) => key(r.name) === k && !r.parent);
+      for (const race of compare) {
+        if (s.speed !== race.speed) {
+          findings.push({ key: `race:${key(race.name)}:speed`, detail: `app ${race.speed}, srd ${s.speed}` });
+        }
+        if (s.size.toLowerCase() !== race.size.toLowerCase()) {
+          findings.push({ key: `race:${key(race.name)}:size`, detail: `app ${race.size}, srd ${s.size}` });
+        }
+      }
+    }
+    const { unexpected, stale } = reconcile(findings, ['race'], ['speed', 'size']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  it('carries all eighteen skills against the right abilities', () => {
+    const app = new Map(SKILLS.map((s) => [key(s.name), s.ability]));
+    const findings: Finding[] = [];
+    for (const [k, s] of Object.entries(srd.skills)) {
+      const ability = app.get(k);
+      if (!ability) findings.push({ key: `skill:${k}:missing`, detail: 'not in the app' });
+      else if (ability !== s.ability) findings.push({ key: `skill:${k}:ability`, detail: `app ${ability}, srd ${s.ability}` });
+    }
+    expect(show(findings)).toEqual([]);
+    expect(SKILLS).toHaveLength(Object.keys(srd.skills).length);
+  });
+
+  it("charges Font of Magic's rate for a made spell slot", () => {
+    // The rate is not derivable - 5 points for a 3rd-level slot, 6 for a 4th -
+    // so the whole value of having it in a table is that it came from the SRD
+    // and not from memory.
+    expect(
+      Object.fromEntries(
+        Object.entries(SORCERY_POINT_SLOT_COSTS).map(([level, cost]) => [String(level), cost]),
+      ),
+    ).toEqual(srd.sorceryPointCosts);
+  });
+
+  it('carries every condition and every language', () => {
+    const conditions = new Set(CONDITIONS.map((c) => key(c.name)));
+    const missingConditions = srd.conditions
+      // Exhaustion is a six-level track rather than an on/off state, so it is
+      // modelled apart from the rest in `EXHAUSTION_LEVELS`.
+      .filter((c) => key(c) !== 'exhaustion')
+      .filter((c) => !conditions.has(key(c)));
+    expect(missingConditions).toEqual([]);
+
+    const languages = new Set(LANGUAGES.map((l) => key(l.name)));
+    const missingLanguages = srd.languages.filter((l) => !languages.has(key(l)));
+    expect(missingLanguages).toEqual([]);
+  });
+});
+
+/**
+ * The 2024 class resource counts.
+ *
+ * This table was 2014-only for a long time, on the recorded belief that "the
+ * 2024 sources describe what changed qualitatively and never print the
+ * per-level tables". They do: SRD 5.2 prints a column per resource, and the
+ * fixture is that column. This check exists so the belief cannot come back.
+ */
+describe('the 2024 class resources against SRD 5.2', () => {
+  const srd = records<Record<string, Record<string, { level: number; value: string }[]>>>(
+    class2024Fixture,
+  );
+
+  /** Which of our resources answers which column of the printed table. */
+  const COLUMNS: [ClassId, string, string][] = [
+    ['barbarian', 'rage', 'Rages'],
+    ['cleric', 'channel-divinity', 'Channel Divinity'],
+    ['fighter', 'second-wind', 'Second Wind'],
+    ['paladin', 'channel-divinity-paladin', 'Channel Divinity'],
+    ['ranger', 'favored-enemy', 'Favored Enemy'],
+  ];
+
+  it('matches the printed progression for every resource with a column', () => {
+    const findings: Finding[] = [];
+    for (const [classId, resourceId, column] of COLUMNS) {
+      const ours = resourcesForClass(classId, '2024').find((r) => r.id === resourceId);
+      const theirs = srd[classId]?.[column];
+      if (!ours || !theirs) {
+        findings.push({ key: `resource:${classId} ${resourceId}:missing`, detail: `ours ${!!ours}, srd ${!!theirs}` });
+        continue;
+      }
+      if (ours.max.kind !== 'table') {
+        findings.push({ key: `resource:${classId} ${resourceId}:shape`, detail: `app is ${ours.max.kind}, the SRD prints a table` });
+        continue;
+      }
+      const app = ours.max.byLevel.map((b) => `${b.level}:${b.count}`).join(' ');
+      const book = theirs.map((s) => `${s.level}:${s.value}`).join(' ');
+      if (app !== book) {
+        findings.push({ key: `resource:${classId} ${resourceId}:counts`, detail: `app [${app}], srd [${book}]` });
+      }
+    }
+    const { unexpected, stale } = reconcile(findings, ['resource'], ['missing', 'shape', 'counts']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  /**
+   * The Prepared Spells column, which 2024 gave to every caster in place of
+   * both "spells known" and "Wisdom + level". The app applied the 2014 rules
+   * under both rulesets for a while, which was wrong for seven of the eight.
+   */
+  it('matches the printed Prepared Spells column for every caster', () => {
+    const findings: Finding[] = [];
+    for (const [classId, table] of Object.entries(PREPARED_2024)) {
+      const book = srd[classId]?.['Prepared Spells'];
+      if (!book) {
+        findings.push({ key: `prepared:${classId}:missing`, detail: 'no column in the fixture' });
+        continue;
+      }
+      // The fixture records the levels a number changes at; the app carries one
+      // entry per level, so the column is expanded before comparing.
+      const expanded = Array.from({ length: 20 }, (_, i) => {
+        let value = 0;
+        for (const step of book) if (step.level <= i + 1) value = Number(step.value);
+        return value;
+      });
+      const app = table.join(',');
+      if (app !== expanded.join(',')) {
+        findings.push({ key: `prepared:${classId}:counts`, detail: `app [${app}], srd [${expanded.join(',')}]` });
+      }
+    }
+    const { unexpected, stale } = reconcile(findings, ['prepared'], ['missing', 'counts']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  /**
+   * The half-caster slot progression, which is where rounding the class's own
+   * table *down* cost a single-class Paladin or Ranger a whole spell level.
+   * 2024 also moved their first slots from 2nd level to 1st, so this checks
+   * both the shape and where it starts.
+   */
+  it('gives a 2024 Paladin and Ranger the slots their table prints', () => {
+    const columns = ['1st', '2nd', '3rd', '4th', '5th'];
+    const findings: Finding[] = [];
+    for (const classId of ['paladin', 'ranger'] as ClassId[]) {
+      const klass = CLASSES.find((c) => c.id === classId)!;
+      for (let level = 1; level <= 20; level++) {
+        const book = columns.map((column) => {
+          let value = 0;
+          for (const step of srd[classId]?.[column] ?? []) if (step.level <= level) value = Number(step.value);
+          return value;
+        });
+        const app = computeSlots(
+          [{ entry: { classId, level }, klass, subclass: undefined }],
+          '2024',
+        ).bySpellLevel.slice(0, 5);
+        if (app.join(',') !== book.join(',')) {
+          findings.push({ key: `slots:${classId} ${level}:counts`, detail: `app [${app}], srd [${book}]` });
+        }
+      }
+    }
+    const { unexpected, stale } = reconcile(findings, ['slots'], ['counts']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  /**
+   * A pool equal to your class level is printed as twenty identical-looking
+   * rows, so it is checked at its ends rather than transcribed.
+   */
+  it('agrees that Focus and Sorcery Points track your level', () => {
+    for (const [classId, column] of [['monk', 'Focus Points'], ['sorcerer', 'Sorcery Points']] as const) {
+      const ours = resourcesForClass(classId, '2024').find((r) => r.max.kind === 'classLevel');
+      expect(ours, classId).toBeDefined();
+      const book = srd[classId][column];
+      expect(book[0], classId).toEqual({ level: 2, value: '2' });
+      expect(book[book.length - 1], classId).toEqual({ level: 20, value: '20' });
+    }
+  });
+
+  /** Ki is Focus in 2024, which is a rename and not a second resource. */
+  it('renames Ki to Focus Points without duplicating it', () => {
+    expect(resourcesForClass('monk', '2014').map((r) => r.name)).toEqual(['Ki points']);
+    expect(resourcesForClass('monk', '2024').map((r) => r.name)).toEqual(['Focus Points']);
+  });
+
+  /**
+   * The reason this item was worth doing at all. Every row used to be tagged
+   * 2014-only, so a 2024 character was shown nothing.
+   */
+  it('leaves no 2024 class without the resources it has', () => {
+    for (const classId of ['barbarian', 'bard', 'cleric', 'fighter', 'monk', 'paladin',
+                           'ranger', 'sorcerer', 'warlock', 'wizard'] as ClassId[]) {
+      expect(resourcesForClass(classId, '2024').length, classId).toBeGreaterThan(0);
+    }
+  });
+});

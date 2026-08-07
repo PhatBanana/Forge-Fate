@@ -1,0 +1,490 @@
+{
+ "source": "dnd5eapi SRD 5.1",
+ "refreshed": "2026-08-03",
+ "records": {
+  "classes": {
+   "barbarian": {
+    "name": "Barbarian",
+    "hitDie": 12,
+    "saves": [
+     "con",
+     "str"
+    ],
+    "skillPicks": 2
+   },
+   "bard": {
+    "name": "Bard",
+    "hitDie": 8,
+    "saves": [
+     "cha",
+     "dex"
+    ],
+    "skillPicks": 3
+   },
+   "cleric": {
+    "name": "Cleric",
+    "hitDie": 8,
+    "saves": [
+     "cha",
+     "wis"
+    ],
+    "skillPicks": 2
+   },
+   "druid": {
+    "name": "Druid",
+    "hitDie": 8,
+    "saves": [
+     "int",
+     "wis"
+    ],
+    "skillPicks": 2
+   },
+   "fighter": {
+    "name": "Fighter",
+    "hitDie": 10,
+    "saves": [
+     "con",
+     "str"
+    ],
+    "skillPicks": 2
+   },
+   "monk": {
+    "name": "Monk",
+    "hitDie": 8,
+    "saves": [
+     "dex",
+     "str"
+    ],
+    "skillPicks": 2
+   },
+   "paladin": {
+    "name": "Paladin",
+    "hitDie": 10,
+    "saves": [
+     "cha",
+     "wis"
+    ],
+    "skillPicks": 2
+   },
+   "ranger": {
+    "name": "Ranger",
+    "hitDie": 10,
+    "saves": [
+     "dex",
+     "str"
+    ],
+    "skillPicks": 3
+   },
+   "rogue": {
+    "name": "Rogue",
+    "hitDie": 8,
+    "saves": [
+     "dex",
+     "int"
+    ],
+    "skillPicks": 4
+   },
+   "sorcerer": {
+    "name": "Sorcerer",
+    "hitDie": 6,
+    "saves": [
+     "cha",
+     "con"
+    ],
+    "skillPicks": 2
+   },
+   "warlock": {
+    "name": "Warlock",
+    "hitDie": 8,
+    "saves": [
+     "cha",
+     "wis"
+    ],
+    "skillPicks": 2
+   },
+   "wizard": {
+    "name": "Wizard",
+    "hitDie": 6,
+    "saves": [
+     "int",
+     "wis"
+    ],
+    "skillPicks": 2
+   }
+  },
+  "subclasses": {
+   "berserker": {
+    "name": "Berserker",
+    "class": "barbarian",
+    "spells": {}
+   },
+   "champion": {
+    "name": "Champion",
+    "class": "fighter",
+    "spells": {}
+   },
+   "devotion": {
+    "name": "Devotion",
+    "class": "paladin",
+    "spells": {
+     "3": [
+      "Protection from Evil and Good",
+      "Sanctuary"
+     ],
+     "5": [
+      "Lesser Restoration",
+      "Zone of Truth"
+     ],
+     "9": [
+      "Beacon of Hope",
+      "Dispel Magic"
+     ],
+     "13": [
+      "Freedom of Movement",
+      "Guardian of Faith"
+     ],
+     "17": [
+      "Commune",
+      "Flame Strike"
+     ]
+    }
+   },
+   "draconic": {
+    "name": "Draconic",
+    "class": "sorcerer",
+    "spells": {}
+   },
+   "evocation": {
+    "name": "Evocation",
+    "class": "wizard",
+    "spells": {}
+   },
+   "fiend": {
+    "name": "Fiend",
+    "class": "warlock",
+    "spells": {
+     "1": [
+      "Burning Hands",
+      "Command"
+     ],
+     "3": [
+      "Blindness/Deafness",
+      "Scorching Ray"
+     ],
+     "5": [
+      "Fireball",
+      "Stinking Cloud"
+     ],
+     "7": [
+      "Fire Shield",
+      "Wall of Fire"
+     ],
+     "9": [
+      "Flame Strike",
+      "Hallow"
+     ]
+    }
+   },
+   "hunter": {
+    "name": "Hunter",
+    "class": "ranger",
+    "spells": {}
+   },
+   "land": {
+    "name": "Land",
+    "class": "druid",
+    "spells": {
+     "3": [
+      "Acid Arrow",
+      "Barkskin",
+      "Blur",
+      "Darkness",
+      "Hold Person",
+      "Invisibility",
+      "Mirror Image",
+      "Misty Step",
+      "Pass Without Trace",
+      "Silence",
+      "Spider Climb",
+      "Spike Growth"
+     ],
+     "5": [
+      "Call Lightning",
+      "Create Food and Water",
+      "Daylight",
+      "Haste",
+      "Lightning Bolt",
+      "Meld Into Stone",
+      "Plant Growth",
+      "Protection From Energy",
+      "Sleet Storm",
+      "Slow",
+      "Stinking Cloud",
+      "Water Breathing",
+      "Water Walk"
+     ],
+     "7": [
+      "Blight",
+      "Control Water",
+      "Divination",
+      "Freedom of Movement",
+      "Hallucinatory Terrain",
+      "Ice Storm",
+      "Locate Creature",
+      "Stone Shape",
+      "Stoneskin"
+     ],
+     "9": [
+      "Commune With Nature",
+      "Cone of Cold",
+      "Conjure Elemental",
+      "Dream",
+      "Insect Plague",
+      "Passwall",
+      "Scrying",
+      "Tree Stride",
+      "Wall of Stone"
+     ]
+    }
+   },
+   "life": {
+    "name": "Life",
+    "class": "cleric",
+    "spells": {
+     "1": [
+      "Bless",
+      "Cure Wounds"
+     ],
+     "3": [
+      "Lesser Restoration",
+      "Spiritual Weapon"
+     ],
+     "5": [
+      "Beacon of Hope",
+      "Revivify"
+     ],
+     "7": [
+      "Death Ward"
+     ],
+     "9": [
+      "Mass Cure Wounds",
+      "Raise Dead"
+     ]
+    }
+   },
+   "lore": {
+    "name": "Lore",
+    "class": "bard",
+    "spells": {}
+   },
+   "open hand": {
+    "name": "Open Hand",
+    "class": "monk",
+    "spells": {}
+   },
+   "thief": {
+    "name": "Thief",
+    "class": "rogue",
+    "spells": {}
+   }
+  },
+  "sorceryPointCosts": {
+   "1": 2,
+   "2": 3,
+   "3": 5,
+   "4": 6,
+   "5": 7
+  },
+  "races": {
+   "dragonborn": {
+    "name": "Dragonborn",
+    "speed": 30,
+    "size": "Medium",
+    "asi": {
+     "str": 2,
+     "cha": 1
+    }
+   },
+   "dwarf": {
+    "name": "Dwarf",
+    "speed": 25,
+    "size": "Medium",
+    "asi": {
+     "con": 2
+    }
+   },
+   "elf": {
+    "name": "Elf",
+    "speed": 30,
+    "size": "Medium",
+    "asi": {
+     "dex": 2
+    }
+   },
+   "gnome": {
+    "name": "Gnome",
+    "speed": 25,
+    "size": "Small",
+    "asi": {
+     "int": 2
+    }
+   },
+   "half elf": {
+    "name": "Half-Elf",
+    "speed": 30,
+    "size": "Medium",
+    "asi": {
+     "cha": 2
+    }
+   },
+   "half orc": {
+    "name": "Half-Orc",
+    "speed": 30,
+    "size": "Medium",
+    "asi": {
+     "str": 2,
+     "con": 1
+    }
+   },
+   "halfling": {
+    "name": "Halfling",
+    "speed": 25,
+    "size": "Small",
+    "asi": {
+     "dex": 2
+    }
+   },
+   "human": {
+    "name": "Human",
+    "speed": 30,
+    "size": "Medium",
+    "asi": {
+     "str": 1,
+     "dex": 1,
+     "con": 1,
+     "int": 1,
+     "wis": 1,
+     "cha": 1
+    }
+   },
+   "tiefling": {
+    "name": "Tiefling",
+    "speed": 30,
+    "size": "Medium",
+    "asi": {
+     "int": 1,
+     "cha": 2
+    }
+   }
+  },
+  "skills": {
+   "acrobatics": {
+    "name": "Acrobatics",
+    "ability": "dex"
+   },
+   "animal handling": {
+    "name": "Animal Handling",
+    "ability": "wis"
+   },
+   "arcana": {
+    "name": "Arcana",
+    "ability": "int"
+   },
+   "athletics": {
+    "name": "Athletics",
+    "ability": "str"
+   },
+   "deception": {
+    "name": "Deception",
+    "ability": "cha"
+   },
+   "history": {
+    "name": "History",
+    "ability": "int"
+   },
+   "insight": {
+    "name": "Insight",
+    "ability": "wis"
+   },
+   "intimidation": {
+    "name": "Intimidation",
+    "ability": "cha"
+   },
+   "investigation": {
+    "name": "Investigation",
+    "ability": "int"
+   },
+   "medicine": {
+    "name": "Medicine",
+    "ability": "wis"
+   },
+   "nature": {
+    "name": "Nature",
+    "ability": "int"
+   },
+   "perception": {
+    "name": "Perception",
+    "ability": "wis"
+   },
+   "performance": {
+    "name": "Performance",
+    "ability": "cha"
+   },
+   "persuasion": {
+    "name": "Persuasion",
+    "ability": "cha"
+   },
+   "religion": {
+    "name": "Religion",
+    "ability": "int"
+   },
+   "sleight of hand": {
+    "name": "Sleight of Hand",
+    "ability": "dex"
+   },
+   "stealth": {
+    "name": "Stealth",
+    "ability": "dex"
+   },
+   "survival": {
+    "name": "Survival",
+    "ability": "wis"
+   }
+  },
+  "conditions": [
+   "Blinded",
+   "Charmed",
+   "Deafened",
+   "Exhaustion",
+   "Frightened",
+   "Grappled",
+   "Incapacitated",
+   "Invisible",
+   "Paralyzed",
+   "Petrified",
+   "Poisoned",
+   "Prone",
+   "Restrained",
+   "Stunned",
+   "Unconscious"
+  ],
+  "languages": [
+   "Abyssal",
+   "Celestial",
+   "Common",
+   "Deep Speech",
+   "Draconic",
+   "Dwarvish",
+   "Elvish",
+   "Giant",
+   "Gnomish",
+   "Goblin",
+   "Halfling",
+   "Infernal",
+   "Orc",
+   "Primordial",
+   "Sylvan",
+   "Undercommon"
+  ]
+ }
+}

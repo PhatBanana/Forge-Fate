@@ -1,0 +1,34 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Scratch from data-pipeline runs. The audit's real fixtures live in
+# src/data/srd/; anything a one-off analysis leaves in the root is working
+# out loud, not part of the app, and does not belong in the history.
+/gap_analysis*.json
+/open5e_raw_data.json
+/local_parsed_data.json
+/parsed_classes.json
+/subclass_*.json
+/subclass_features_new.ts
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

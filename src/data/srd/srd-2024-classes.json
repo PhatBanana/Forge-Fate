@@ -1,0 +1,1952 @@
+{
+ "source": "open5e SRD 5.2",
+ "refreshed": "2026-08-02",
+ "records": {
+  "barbarian": {
+   "Proficiency Bonus": [
+    {
+     "level": 1,
+     "value": "+2"
+    },
+    {
+     "level": 5,
+     "value": "+3"
+    },
+    {
+     "level": 9,
+     "value": "+4"
+    },
+    {
+     "level": 13,
+     "value": "+5"
+    },
+    {
+     "level": 17,
+     "value": "+6"
+    }
+   ],
+   "Rage Damage": [
+    {
+     "level": 1,
+     "value": "+2"
+    },
+    {
+     "level": 9,
+     "value": "+3"
+    },
+    {
+     "level": 16,
+     "value": "+4"
+    }
+   ],
+   "Rages": [
+    {
+     "level": 1,
+     "value": "2"
+    },
+    {
+     "level": 3,
+     "value": "3"
+    },
+    {
+     "level": 6,
+     "value": "4"
+    },
+    {
+     "level": 12,
+     "value": "5"
+    },
+    {
+     "level": 17,
+     "value": "6"
+    }
+   ],
+   "Weapon Mastery": [
+    {
+     "level": 1,
+     "value": "2"
+    },
+    {
+     "level": 4,
+     "value": "3"
+    },
+    {
+     "level": 10,
+     "value": "4"
+    }
+   ]
+  },
+  "bard": {
+   "Bardic Die": [
+    {
+     "level": 1,
+     "value": "D6"
+    },
+    {
+     "level": 5,
+     "value": "D8"
+    },
+    {
+     "level": 10,
+     "value": "D10"
+    },
+    {
+     "level": 15,
+     "value": "D12"
+    }
+   ],
+   "Cantrips": [
+    {
+     "level": 1,
+     "value": "2"
+    },
+    {
+     "level": 4,
+     "value": "3"
+    },
+    {
+     "level": 10,
+     "value": "4"
+    }
+   ],
+   "Prepared Spells": [
+    {
+     "level": 1,
+     "value": "4"
+    },
+    {
+     "level": 2,
+     "value": "5"
+    },
+    {
+     "level": 3,
+     "value": "6"
+    },
+    {
+     "level": 4,
+     "value": "7"
+    },
+    {
+     "level": 5,
+     "value": "9"
+    },
+    {
+     "level": 6,
+     "value": "10"
+    },
+    {
+     "level": 7,
+     "value": "11"
+    },
+    {
+     "level": 8,
+     "value": "12"
+    },
+    {
+     "level": 9,
+     "value": "14"
+    },
+    {
+     "level": 10,
+     "value": "15"
+    },
+    {
+     "level": 11,
+     "value": "16"
+    },
+    {
+     "level": 13,
+     "value": "17"
+    },
+    {
+     "level": 15,
+     "value": "18"
+    },
+    {
+     "level": 17,
+     "value": "19"
+    },
+    {
+     "level": 18,
+     "value": "20"
+    },
+    {
+     "level": 19,
+     "value": "21"
+    },
+    {
+     "level": 20,
+     "value": "22"
+    }
+   ],
+   "Proficiency Bonus": [
+    {
+     "level": 1,
+     "value": "+2"
+    },
+    {
+     "level": 5,
+     "value": "+3"
+    },
+    {
+     "level": 9,
+     "value": "+4"
+    },
+    {
+     "level": 13,
+     "value": "+5"
+    },
+    {
+     "level": 17,
+     "value": "+6"
+    }
+   ],
+   "1st": [
+    {
+     "level": 1,
+     "value": "2"
+    },
+    {
+     "level": 2,
+     "value": "3"
+    },
+    {
+     "level": 3,
+     "value": "4"
+    }
+   ],
+   "2nd": [
+    {
+     "level": 3,
+     "value": "2"
+    },
+    {
+     "level": 4,
+     "value": "3"
+    }
+   ],
+   "3rd": [
+    {
+     "level": 5,
+     "value": "2"
+    },
+    {
+     "level": 6,
+     "value": "3"
+    }
+   ],
+   "4th": [
+    {
+     "level": 7,
+     "value": "1"
+    },
+    {
+     "level": 8,
+     "value": "2"
+    },
+    {
+     "level": 9,
+     "value": "3"
+    }
+   ],
+   "5th": [
+    {
+     "level": 9,
+     "value": "1"
+    },
+    {
+     "level": 10,
+     "value": "2"
+    },
+    {
+     "level": 18,
+     "value": "3"
+    }
+   ],
+   "6th": [
+    {
+     "level": 11,
+     "value": "1"
+    },
+    {
+     "level": 19,
+     "value": "2"
+    }
+   ],
+   "7th": [
+    {
+     "level": 13,
+     "value": "1"
+    },
+    {
+     "level": 20,
+     "value": "2"
+    }
+   ],
+   "8th": [
+    {
+     "level": 15,
+     "value": "1"
+    }
+   ],
+   "9th": [
+    {
+     "level": 17,
+     "value": "1"
+    }
+   ]
+  },
+  "cleric": {
+   "Cantrips": [
+    {
+     "level": 1,
+     "value": "3"
+    },
+    {
+     "level": 4,
+     "value": "4"
+    },
+    {
+     "level": 10,
+     "value": "5"
+    }
+   ],
+   "Channel Divinity": [
+    {
+     "level": 2,
+     "value": "2"
+    },
+    {
+     "level": 6,
+     "value": "3"
+    },
+    {
+     "level": 18,
+     "value": "4"
+    }
+   ],
+   "Prepared Spells": [
+    {
+     "level": 1,
+     "value": "4"
+    },
+    {
+     "level": 2,
+     "value": "5"
+    },
+    {
+     "level": 3,
+     "value": "6"
+    },
+    {
+     "level": 4,
+     "value": "7"
+    },
+    {
+     "level": 5,
+     "value": "9"
+    },
+    {
+     "level": 6,
+     "value": "10"
+    },
+    {
+     "level": 7,
+     "value": "11"
+    },
+    {
+     "level": 8,
+     "value": "12"
+    },
+    {
+     "level": 9,
+     "value": "14"
+    },
+    {
+     "level": 10,
+     "value": "15"
+    },
+    {
+     "level": 11,
+     "value": "16"
+    },
+    {
+     "level": 13,
+     "value": "17"
+    },
+    {
+     "level": 15,
+     "value": "18"
+    },
+    {
+     "level": 17,
+     "value": "19"
+    },
+    {
+     "level": 18,
+     "value": "20"
+    },
+    {
+     "level": 19,
+     "value": "21"
+    },
+    {
+     "level": 20,
+     "value": "22"
+    }
+   ],
+   "Proficiency Bonus": [
+    {
+     "level": 1,
+     "value": "+2"
+    },
+    {
+     "level": 5,
+     "value": "+3"
+    },
+    {
+     "level": 9,
+     "value": "+4"
+    },
+    {
+     "level": 13,
+     "value": "+5"
+    },
+    {
+     "level": 17,
+     "value": "+6"
+    }
+   ],
+   "1st": [
+    {
+     "level": 1,
+     "value": "2"
+    },
+    {
+     "level": 2,
+     "value": "3"
+    },
+    {
+     "level": 3,
+     "value": "4"
+    }
+   ],
+   "2nd": [
+    {
+     "level": 3,
+     "value": "2"
+    },
+    {
+     "level": 4,
+     "value": "3"
+    }
+   ],
+   "3rd": [
+    {
+     "level": 5,
+     "value": "2"
+    },
+    {
+     "level": 6,
+     "value": "3"
+    }
+   ],
+   "4th": [
+    {
+     "level": 7,
+     "value": "1"
+    },
+    {
+     "level": 8,
+     "value": "2"
+    },
+    {
+     "level": 9,
+     "value": "3"
+    }
+   ],
+   "5th": [
+    {
+     "level": 9,
+     "value": "1"
+    },
+    {
+     "level": 10,
+     "value": "2"
+    },
+    {
+     "level": 18,
+     "value": "3"
+    }
+   ],
+   "6th": [
+    {
+     "level": 11,
+     "value": "1"
+    },
+    {
+     "level": 19,
+     "value": "2"
+    }
+   ],
+   "7th": [
+    {
+     "level": 13,
+     "value": "1"
+    },
+    {
+     "level": 20,
+     "value": "2"
+    }
+   ],
+   "8th": [
+    {
+     "level": 15,
+     "value": "1"
+    }
+   ],
+   "9th": [
+    {
+     "level": 17,
+     "value": "1"
+    }
+   ]
+  },
+  "druid": {
+   "Cantrips": [
+    {
+     "level": 1,
+     "value": "2"
+    },
+    {
+     "level": 4,
+     "value": "3"
+    },
+    {
+     "level": 10,
+     "value": "4"
+    }
+   ],
+   "Prepared Spells": [
+    {
+     "level": 1,
+     "value": "4"
+    },
+    {
+     "level": 2,
+     "value": "5"
+    },
+    {
+     "level": 3,
+     "value": "6"
+    },
+    {
+     "level": 4,
+     "value": "7"
+    },
+    {
+     "level": 5,
+     "value": "9"
+    },
+    {
+     "level": 6,
+     "value": "10"
+    },
+    {
+     "level": 7,
+     "value": "11"
+    },
+    {
+     "level": 8,
+     "value": "12"
+    },
+    {
+     "level": 9,
+     "value": "14"
+    },
+    {
+     "level": 10,
+     "value": "15"
+    },
+    {
+     "level": 11,
+     "value": "16"
+    },
+    {
+     "level": 13,
+     "value": "17"
+    },
+    {
+     "level": 15,
+     "value": "18"
+    },
+    {
+     "level": 17,
+     "value": "19"
+    },
+    {
+     "level": 18,
+     "value": "20"
+    },
+    {
+     "level": 19,
+     "value": "21"
+    },
+    {
+     "level": 20,
+     "value": "22"
+    }
+   ],
+   "Proficiency Bonus": [
+    {
+     "level": 1,
+     "value": "+2"
+    },
+    {
+     "level": 5,
+     "value": "+3"
+    },
+    {
+     "level": 9,
+     "value": "+4"
+    },
+    {
+     "level": 13,
+     "value": "+5"
+    },
+    {
+     "level": 17,
+     "value": "+6"
+    }
+   ],
+   "1st": [
+    {
+     "level": 1,
+     "value": "2"
+    },
+    {
+     "level": 2,
+     "value": "3"
+    },
+    {
+     "level": 3,
+     "value": "4"
+    }
+   ],
+   "2nd": [
+    {
+     "level": 3,
+     "value": "2"
+    },
+    {
+     "level": 4,
+     "value": "3"
+    }
+   ],
+   "3rd": [
+    {
+     "level": 5,
+     "value": "2"
+    },
+    {
+     "level": 6,
+     "value": "3"
+    }
+   ],
+   "4th": [
+    {
+     "level": 7,
+     "value": "1"
+    },
+    {
+     "level": 8,
+     "value": "2"
+    },
+    {
+     "level": 9,
+     "value": "3"
+    }
+   ],
+   "5th": [
+    {
+     "level": 9,
+     "value": "1"
+    },
+    {
+     "level": 10,
+     "value": "2"
+    },
+    {
+     "level": 18,
+     "value": "3"
+    }
+   ],
+   "6th": [
+    {
+     "level": 11,
+     "value": "1"
+    },
+    {
+     "level": 19,
+     "value": "2"
+    }
+   ],
+   "7th": [
+    {
+     "level": 13,
+     "value": "1"
+    },
+    {
+     "level": 20,
+     "value": "2"
+    }
+   ],
+   "8th": [
+    {
+     "level": 15,
+     "value": "1"
+    }
+   ],
+   "9th": [
+    {
+     "level": 17,
+     "value": "1"
+    }
+   ],
+   "Cantrips Known": [
+    {
+     "level": 2,
+     "value": "2"
+    },
+    {
+     "level": 6,
+     "value": "3"
+    },
+    {
+     "level": 17,
+     "value": "4"
+    }
+   ]
+  },
+  "fighter": {
+   "Proficiency Bonus": [
+    {
+     "level": 1,
+     "value": "+2"
+    },
+    {
+     "level": 5,
+     "value": "+3"
+    },
+    {
+     "level": 9,
+     "value": "+4"
+    },
+    {
+     "level": 13,
+     "value": "+5"
+    },
+    {
+     "level": 17,
+     "value": "+6"
+    }
+   ],
+   "Second Wind": [
+    {
+     "level": 1,
+     "value": "2"
+    },
+    {
+     "level": 4,
+     "value": "3"
+    },
+    {
+     "level": 10,
+     "value": "4"
+    }
+   ],
+   "Weapon Mastery": [
+    {
+     "level": 1,
+     "value": "3"
+    },
+    {
+     "level": 4,
+     "value": "4"
+    },
+    {
+     "level": 10,
+     "value": "5"
+    },
+    {
+     "level": 16,
+     "value": "6"
+    }
+   ]
+  },
+  "monk": {
+   "Focus Points": [
+    {
+     "level": 2,
+     "value": "2"
+    },
+    {
+     "level": 3,
+     "value": "3"
+    },
+    {
+     "level": 4,
+     "value": "4"
+    },
+    {
+     "level": 5,
+     "value": "5"
+    },
+    {
+     "level": 6,
+     "value": "6"
+    },
+    {
+     "level": 7,
+     "value": "7"
+    },
+    {
+     "level": 8,
+     "value": "8"
+    },
+    {
+     "level": 9,
+     "value": "9"
+    },
+    {
+     "level": 10,
+     "value": "10"
+    },
+    {
+     "level": 11,
+     "value": "11"
+    },
+    {
+     "level": 12,
+     "value": "12"
+    },
+    {
+     "level": 13,
+     "value": "13"
+    },
+    {
+     "level": 14,
+     "value": "14"
+    },
+    {
+     "level": 15,
+     "value": "15"
+    },
+    {
+     "level": 16,
+     "value": "16"
+    },
+    {
+     "level": 17,
+     "value": "17"
+    },
+    {
+     "level": 18,
+     "value": "18"
+    },
+    {
+     "level": 19,
+     "value": "19"
+    },
+    {
+     "level": 20,
+     "value": "20"
+    }
+   ],
+   "Martial Arts": [
+    {
+     "level": 1,
+     "value": "1d6"
+    },
+    {
+     "level": 5,
+     "value": "1d8"
+    },
+    {
+     "level": 11,
+     "value": "1d10"
+    },
+    {
+     "level": 17,
+     "value": "1d12"
+    }
+   ],
+   "Proficiency Bonus": [
+    {
+     "level": 1,
+     "value": "+2"
+    },
+    {
+     "level": 5,
+     "value": "+3"
+    },
+    {
+     "level": 9,
+     "value": "+4"
+    },
+    {
+     "level": 13,
+     "value": "+5"
+    },
+    {
+     "level": 17,
+     "value": "+6"
+    }
+   ],
+   "Unarmoed Movement": [
+    {
+     "level": 2,
+     "value": "+10 ft."
+    },
+    {
+     "level": 6,
+     "value": "+15 ft."
+    },
+    {
+     "level": 10,
+     "value": "+20 ft."
+    },
+    {
+     "level": 14,
+     "value": "+25 ft."
+    },
+    {
+     "level": 18,
+     "value": "+30 ft."
+    }
+   ]
+  },
+  "paladin": {
+   "Channel Divinity": [
+    {
+     "level": 3,
+     "value": "2"
+    },
+    {
+     "level": 11,
+     "value": "3"
+    }
+   ],
+   "Prepared Spells": [
+    {
+     "level": 1,
+     "value": "2"
+    },
+    {
+     "level": 2,
+     "value": "3"
+    },
+    {
+     "level": 3,
+     "value": "4"
+    },
+    {
+     "level": 4,
+     "value": "5"
+    },
+    {
+     "level": 5,
+     "value": "6"
+    },
+    {
+     "level": 7,
+     "value": "7"
+    },
+    {
+     "level": 9,
+     "value": "9"
+    },
+    {
+     "level": 11,
+     "value": "10"
+    },
+    {
+     "level": 13,
+     "value": "11"
+    },
+    {
+     "level": 15,
+     "value": "12"
+    },
+    {
+     "level": 17,
+     "value": "14"
+    },
+    {
+     "level": 19,
+     "value": "15"
+    }
+   ],
+   "Proficiency Bonus": [
+    {
+     "level": 1,
+     "value": "+2"
+    },
+    {
+     "level": 5,
+     "value": "+3"
+    },
+    {
+     "level": 9,
+     "value": "+4"
+    },
+    {
+     "level": 13,
+     "value": "+5"
+    },
+    {
+     "level": 17,
+     "value": "+6"
+    }
+   ],
+   "1st": [
+    {
+     "level": 1,
+     "value": "2"
+    },
+    {
+     "level": 3,
+     "value": "3"
+    },
+    {
+     "level": 5,
+     "value": "4"
+    }
+   ],
+   "2nd": [
+    {
+     "level": 5,
+     "value": "2"
+    },
+    {
+     "level": 7,
+     "value": "3"
+    }
+   ],
+   "3rd": [
+    {
+     "level": 9,
+     "value": "2"
+    },
+    {
+     "level": 11,
+     "value": "3"
+    }
+   ],
+   "4th": [
+    {
+     "level": 13,
+     "value": "1"
+    },
+    {
+     "level": 15,
+     "value": "2"
+    },
+    {
+     "level": 17,
+     "value": "3"
+    }
+   ],
+   "5th": [
+    {
+     "level": 17,
+     "value": "1"
+    },
+    {
+     "level": 19,
+     "value": "2"
+    }
+   ]
+  },
+  "ranger": {
+   "Favored Enemy": [
+    {
+     "level": 1,
+     "value": "2"
+    },
+    {
+     "level": 5,
+     "value": "3"
+    },
+    {
+     "level": 9,
+     "value": "4"
+    },
+    {
+     "level": 13,
+     "value": "5"
+    },
+    {
+     "level": 17,
+     "value": "6"
+    }
+   ],
+   "Prepared Spells": [
+    {
+     "level": 1,
+     "value": "2"
+    },
+    {
+     "level": 2,
+     "value": "3"
+    },
+    {
+     "level": 3,
+     "value": "4"
+    },
+    {
+     "level": 4,
+     "value": "5"
+    },
+    {
+     "level": 5,
+     "value": "6"
+    },
+    {
+     "level": 7,
+     "value": "7"
+    },
+    {
+     "level": 9,
+     "value": "9"
+    },
+    {
+     "level": 11,
+     "value": "10"
+    },
+    {
+     "level": 13,
+     "value": "11"
+    },
+    {
+     "level": 15,
+     "value": "12"
+    },
+    {
+     "level": 17,
+     "value": "14"
+    },
+    {
+     "level": 19,
+     "value": "15"
+    }
+   ],
+   "Proficiency Bonus": [
+    {
+     "level": 1,
+     "value": "+2"
+    },
+    {
+     "level": 5,
+     "value": "+3"
+    },
+    {
+     "level": 9,
+     "value": "+4"
+    },
+    {
+     "level": 13,
+     "value": "+5"
+    },
+    {
+     "level": 17,
+     "value": "+6"
+    }
+   ],
+   "1st": [
+    {
+     "level": 1,
+     "value": "2"
+    },
+    {
+     "level": 3,
+     "value": "3"
+    },
+    {
+     "level": 5,
+     "value": "4"
+    }
+   ],
+   "2nd": [
+    {
+     "level": 5,
+     "value": "2"
+    },
+    {
+     "level": 7,
+     "value": "3"
+    }
+   ],
+   "3rd": [
+    {
+     "level": 9,
+     "value": "2"
+    },
+    {
+     "level": 11,
+     "value": "3"
+    }
+   ],
+   "4th": [
+    {
+     "level": 13,
+     "value": "1"
+    },
+    {
+     "level": 15,
+     "value": "2"
+    },
+    {
+     "level": 17,
+     "value": "3"
+    }
+   ],
+   "5th": [
+    {
+     "level": 17,
+     "value": "1"
+    },
+    {
+     "level": 19,
+     "value": "2"
+    }
+   ]
+  },
+  "rogue": {
+   "Proficiency Bonus": [
+    {
+     "level": 1,
+     "value": "+2"
+    },
+    {
+     "level": 5,
+     "value": "+3"
+    },
+    {
+     "level": 9,
+     "value": "+4"
+    },
+    {
+     "level": 13,
+     "value": "+5"
+    },
+    {
+     "level": 17,
+     "value": "+6"
+    }
+   ],
+   "Sneak Attack": [
+    {
+     "level": 1,
+     "value": "1d6"
+    },
+    {
+     "level": 3,
+     "value": "2d6"
+    },
+    {
+     "level": 5,
+     "value": "3d6"
+    },
+    {
+     "level": 7,
+     "value": "4d6"
+    },
+    {
+     "level": 9,
+     "value": "5d6"
+    },
+    {
+     "level": 11,
+     "value": "6d6"
+    },
+    {
+     "level": 13,
+     "value": "7d6"
+    },
+    {
+     "level": 15,
+     "value": "8d6"
+    },
+    {
+     "level": 17,
+     "value": "9d6"
+    },
+    {
+     "level": 19,
+     "value": "10d6"
+    }
+   ]
+  },
+  "sorcerer": {
+   "Cantrips": [
+    {
+     "level": 1,
+     "value": "4"
+    },
+    {
+     "level": 4,
+     "value": "5"
+    },
+    {
+     "level": 10,
+     "value": "6"
+    }
+   ],
+   "Prepared Spells": [
+    {
+     "level": 1,
+     "value": "2"
+    },
+    {
+     "level": 2,
+     "value": "4"
+    },
+    {
+     "level": 3,
+     "value": "6"
+    },
+    {
+     "level": 4,
+     "value": "7"
+    },
+    {
+     "level": 5,
+     "value": "9"
+    },
+    {
+     "level": 6,
+     "value": "10"
+    },
+    {
+     "level": 7,
+     "value": "11"
+    },
+    {
+     "level": 8,
+     "value": "12"
+    },
+    {
+     "level": 9,
+     "value": "14"
+    },
+    {
+     "level": 10,
+     "value": "15"
+    },
+    {
+     "level": 11,
+     "value": "16"
+    },
+    {
+     "level": 13,
+     "value": "17"
+    },
+    {
+     "level": 15,
+     "value": "18"
+    },
+    {
+     "level": 17,
+     "value": "19"
+    },
+    {
+     "level": 18,
+     "value": "20"
+    },
+    {
+     "level": 19,
+     "value": "21"
+    },
+    {
+     "level": 20,
+     "value": "22"
+    }
+   ],
+   "Proficiency Bonus": [
+    {
+     "level": 1,
+     "value": "+2"
+    },
+    {
+     "level": 5,
+     "value": "+3"
+    },
+    {
+     "level": 9,
+     "value": "+4"
+    },
+    {
+     "level": 13,
+     "value": "+5"
+    },
+    {
+     "level": 17,
+     "value": "+6"
+    }
+   ],
+   "1st": [
+    {
+     "level": 1,
+     "value": "2"
+    },
+    {
+     "level": 2,
+     "value": "3"
+    },
+    {
+     "level": 3,
+     "value": "4"
+    }
+   ],
+   "2nd": [
+    {
+     "level": 3,
+     "value": "2"
+    },
+    {
+     "level": 4,
+     "value": "3"
+    }
+   ],
+   "3rd": [
+    {
+     "level": 5,
+     "value": "2"
+    },
+    {
+     "level": 6,
+     "value": "3"
+    }
+   ],
+   "4th": [
+    {
+     "level": 7,
+     "value": "1"
+    },
+    {
+     "level": 8,
+     "value": "2"
+    },
+    {
+     "level": 9,
+     "value": "3"
+    }
+   ],
+   "5th": [
+    {
+     "level": 9,
+     "value": "1"
+    },
+    {
+     "level": 10,
+     "value": "2"
+    },
+    {
+     "level": 18,
+     "value": "3"
+    }
+   ],
+   "6th": [
+    {
+     "level": 11,
+     "value": "1"
+    },
+    {
+     "level": 19,
+     "value": "2"
+    }
+   ],
+   "7th": [
+    {
+     "level": 13,
+     "value": "1"
+    },
+    {
+     "level": 20,
+     "value": "2"
+    }
+   ],
+   "8th": [
+    {
+     "level": 15,
+     "value": "1"
+    }
+   ],
+   "9th": [
+    {
+     "level": 17,
+     "value": "1"
+    }
+   ],
+   "Sorcery Points": [
+    {
+     "level": 2,
+     "value": "2"
+    },
+    {
+     "level": 3,
+     "value": "3"
+    },
+    {
+     "level": 4,
+     "value": "4"
+    },
+    {
+     "level": 5,
+     "value": "5"
+    },
+    {
+     "level": 6,
+     "value": "6"
+    },
+    {
+     "level": 7,
+     "value": "7"
+    },
+    {
+     "level": 8,
+     "value": "8"
+    },
+    {
+     "level": 9,
+     "value": "9"
+    },
+    {
+     "level": 10,
+     "value": "10"
+    },
+    {
+     "level": 11,
+     "value": "11"
+    },
+    {
+     "level": 12,
+     "value": "12"
+    },
+    {
+     "level": 13,
+     "value": "13"
+    },
+    {
+     "level": 14,
+     "value": "14"
+    },
+    {
+     "level": 15,
+     "value": "15"
+    },
+    {
+     "level": 16,
+     "value": "16"
+    },
+    {
+     "level": 17,
+     "value": "17"
+    },
+    {
+     "level": 18,
+     "value": "18"
+    },
+    {
+     "level": 19,
+     "value": "19"
+    },
+    {
+     "level": 20,
+     "value": "20"
+    }
+   ]
+  },
+  "warlock": {
+   "Cantrips": [
+    {
+     "level": 1,
+     "value": "2"
+    },
+    {
+     "level": 4,
+     "value": "3"
+    },
+    {
+     "level": 10,
+     "value": "4"
+    }
+   ],
+   "Eldritch Invocations": [
+    {
+     "level": 1,
+     "value": "1"
+    },
+    {
+     "level": 2,
+     "value": "3"
+    },
+    {
+     "level": 5,
+     "value": "5"
+    },
+    {
+     "level": 7,
+     "value": "6"
+    },
+    {
+     "level": 9,
+     "value": "7"
+    },
+    {
+     "level": 12,
+     "value": "8"
+    },
+    {
+     "level": 15,
+     "value": "9"
+    },
+    {
+     "level": 18,
+     "value": "10"
+    }
+   ],
+   "Prepared Spells": [
+    {
+     "level": 1,
+     "value": "2"
+    },
+    {
+     "level": 2,
+     "value": "3"
+    },
+    {
+     "level": 3,
+     "value": "4"
+    },
+    {
+     "level": 4,
+     "value": "5"
+    },
+    {
+     "level": 5,
+     "value": "6"
+    },
+    {
+     "level": 6,
+     "value": "7"
+    },
+    {
+     "level": 7,
+     "value": "8"
+    },
+    {
+     "level": 8,
+     "value": "9"
+    },
+    {
+     "level": 9,
+     "value": "10"
+    },
+    {
+     "level": 11,
+     "value": "11"
+    },
+    {
+     "level": 13,
+     "value": "12"
+    },
+    {
+     "level": 15,
+     "value": "13"
+    },
+    {
+     "level": 17,
+     "value": "14"
+    },
+    {
+     "level": 19,
+     "value": "15"
+    }
+   ],
+   "Proficiency Bonus": [
+    {
+     "level": 1,
+     "value": "+2"
+    },
+    {
+     "level": 5,
+     "value": "+3"
+    },
+    {
+     "level": 9,
+     "value": "+4"
+    },
+    {
+     "level": 13,
+     "value": "+5"
+    },
+    {
+     "level": 17,
+     "value": "+6"
+    }
+   ],
+   "Slot Level": [
+    {
+     "level": 1,
+     "value": "1st"
+    },
+    {
+     "level": 3,
+     "value": "2nd"
+    },
+    {
+     "level": 5,
+     "value": "3rd"
+    },
+    {
+     "level": 7,
+     "value": "4th"
+    },
+    {
+     "level": 9,
+     "value": "5th"
+    }
+   ],
+   "Spell Slots": [
+    {
+     "level": 1,
+     "value": "1"
+    },
+    {
+     "level": 2,
+     "value": "2"
+    },
+    {
+     "level": 11,
+     "value": "3"
+    },
+    {
+     "level": 17,
+     "value": "4"
+    }
+   ]
+  },
+  "wizard": {
+   "Cantrips": [
+    {
+     "level": 1,
+     "value": "3"
+    },
+    {
+     "level": 4,
+     "value": "4"
+    },
+    {
+     "level": 10,
+     "value": "5"
+    }
+   ],
+   "Prepared Spells": [
+    {
+     "level": 1,
+     "value": "4"
+    },
+    {
+     "level": 2,
+     "value": "5"
+    },
+    {
+     "level": 3,
+     "value": "6"
+    },
+    {
+     "level": 4,
+     "value": "7"
+    },
+    {
+     "level": 5,
+     "value": "9"
+    },
+    {
+     "level": 6,
+     "value": "10"
+    },
+    {
+     "level": 7,
+     "value": "11"
+    },
+    {
+     "level": 8,
+     "value": "12"
+    },
+    {
+     "level": 9,
+     "value": "14"
+    },
+    {
+     "level": 10,
+     "value": "15"
+    },
+    {
+     "level": 11,
+     "value": "16"
+    },
+    {
+     "level": 13,
+     "value": "17"
+    },
+    {
+     "level": 14,
+     "value": "18"
+    },
+    {
+     "level": 15,
+     "value": "19"
+    },
+    {
+     "level": 16,
+     "value": "21"
+    },
+    {
+     "level": 17,
+     "value": "22"
+    },
+    {
+     "level": 18,
+     "value": "23"
+    },
+    {
+     "level": 19,
+     "value": "24"
+    },
+    {
+     "level": 20,
+     "value": "25"
+    }
+   ],
+   "Proficiency Bonus": [
+    {
+     "level": 1,
+     "value": "+2"
+    },
+    {
+     "level": 5,
+     "value": "+3"
+    },
+    {
+     "level": 9,
+     "value": "+4"
+    },
+    {
+     "level": 13,
+     "value": "+5"
+    },
+    {
+     "level": 17,
+     "value": "+6"
+    }
+   ],
+   "1st": [
+    {
+     "level": 1,
+     "value": "2"
+    },
+    {
+     "level": 2,
+     "value": "3"
+    },
+    {
+     "level": 3,
+     "value": "4"
+    }
+   ],
+   "2nd": [
+    {
+     "level": 3,
+     "value": "2"
+    },
+    {
+     "level": 4,
+     "value": "3"
+    }
+   ],
+   "3rd": [
+    {
+     "level": 5,
+     "value": "2"
+    },
+    {
+     "level": 6,
+     "value": "3"
+    }
+   ],
+   "4th": [
+    {
+     "level": 7,
+     "value": "1"
+    },
+    {
+     "level": 8,
+     "value": "2"
+    },
+    {
+     "level": 9,
+     "value": "3"
+    }
+   ],
+   "5th": [
+    {
+     "level": 9,
+     "value": "1"
+    },
+    {
+     "level": 10,
+     "value": "2"
+    },
+    {
+     "level": 18,
+     "value": "3"
+    }
+   ],
+   "6th": [
+    {
+     "level": 11,
+     "value": "1"
+    },
+    {
+     "level": 19,
+     "value": "2"
+    }
+   ],
+   "7th": [
+    {
+     "level": 13,
+     "value": "1"
+    },
+    {
+     "level": 20,
+     "value": "2"
+    }
+   ],
+   "8th": [
+    {
+     "level": 15,
+     "value": "1"
+    }
+   ],
+   "9th": [
+    {
+     "level": 17,
+     "value": "1"
+    }
+   ]
+  }
+ }
+}
