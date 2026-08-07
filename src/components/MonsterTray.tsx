@@ -4,6 +4,8 @@ import { parseUsage } from '../data/monsters';
 import type { MonsterCombatant } from '../encounter';
 import { rechargeReady, usesLeft } from '../encounter';
 import { defaultRng, rollDie } from '../engine/dice';
+import { routineFor, strikeOf } from '../engine/strikes';
+import type { Strike } from '../engine/strikes';
 
 /**
  * The monster's command menu - the stat block behind Attack / Abilities,
@@ -23,16 +25,14 @@ import { defaultRng, rollDie } from '../engine/dice';
  * Hide rolls the stat block's real Stealth through the battlefield.
  */
 
-export interface Strike {
-  label: string;
-  toHit: number;
-  damage: { dice: string; type: string }[];
-}
-
-const strikeOf = (ability: MonsterAbility): Strike | null =>
-  ability.toHit !== undefined && ability.damage?.length
-    ? { label: ability.name, toHit: ability.toHit, damage: ability.damage }
-    : null;
+/*
+  The strike shape and the Multiattack expansion moved to `engine/strikes.ts`
+  in section 25: the turn planner wants a monster's routine without rendering
+  a menu to get it, and two copies of "what does a dragon do in a round" would
+  drift the first time one of them learned something. Re-exported here because
+  this is where the rest of the app already imports it from.
+*/
+export type { Strike } from '../engine/strikes';
 
 export function MonsterCommandMenu({
   monster,
@@ -62,15 +62,7 @@ export function MonsterCommandMenu({
 }) {
   const [sub, setSub] = useState<null | 'attack' | 'abilities'>(null);
 
-  const byName = new Map(monster.actions.map((a) => [a.name, a]));
-  const multi = monster.actions.find((a) => a.multiattack?.length);
-  const routine: Strike[] = multi?.multiattack
-    ? multi.multiattack.flatMap((part) => {
-        const strike = strikeOf(byName.get(part.name) ?? ({} as MonsterAbility));
-        return strike ? Array.from({ length: part.count }, () => strike) : [];
-      })
-    : [];
-
+  const routine = routineFor(monster);
   const strikes = monster.actions.filter((a) => strikeOf(a) !== null);
   const announced = monster.actions.filter((a) => strikeOf(a) === null && !a.multiattack?.length);
 
