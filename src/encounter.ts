@@ -28,9 +28,11 @@ import { initiativeMod } from './data/monsters';
  * ## What is stored
  *
  * Ids and numbers. A monster instance keeps the SRD index, never the stat
- * block, so a saved encounter is a few hundred bytes rather than 60 kB against
- * a roster-wide `localStorage` budget of about five megabytes. The stat block
- * is resolved from the lazy bestiary at render time.
+ * block, so a saved encounter is a few hundred bytes rather than 60 kB. That
+ * was first done against a five megabyte `localStorage` budget; the store has
+ * since moved to IndexedDB and the reason survived the move, because a stat
+ * block copied into a save is a stat block that goes stale the moment the
+ * bestiary is corrected. The block is resolved at render time instead.
  */
 
 /**

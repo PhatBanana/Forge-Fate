@@ -555,10 +555,9 @@ export interface CharacterDetails {
   /**
    * A portrait, as a data URL.
    *
-   * Downscaled to 256 square and re-encoded before it is stored, because the
-   * whole roster shares one `localStorage` budget of about five megabytes and
-   * a phone camera produces four of them in a single photograph. See
-   * `engine/portrait.ts`.
+   * Downscaled to 512 square and re-encoded before it is stored, because a
+   * phone camera produces four megabytes in a single photograph and the whole
+   * roster shares one storage budget. See `engine/portrait.ts`.
    *
    * **Not carried in a share link.** A link is a URL fragment - about 1.2 kB
    * today - and a portrait would make it hundreds of kilobytes and unpasteable.

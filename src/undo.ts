@@ -5,11 +5,12 @@
  * is what removes the save button - and what makes a wrong click cost you
  * something. This is the way back.
  *
- * Two things are deliberate. The history lives in memory rather than
- * `localStorage`: a deep stack across several characters could push the saved
- * roster past the storage quota, and losing your characters to make room for
- * their history would be an absurd trade. And edits made in quick succession
- * **coalesce**, so typing a nine-letter name is one step back rather than nine.
+ * Two things are deliberate. The history lives in memory rather than being
+ * saved: a deep stack across several characters would multiply the roster on
+ * disk many times over, and forty copies of a character is a strange thing to
+ * keep forever to serve a session's worth of undo. And edits made in quick
+ * succession **coalesce**, so typing a nine-letter name is one step back
+ * rather than nine.
  */
 
 /** How many steps back a character remembers. */

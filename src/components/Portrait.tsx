@@ -71,7 +71,9 @@ export function Portrait({
       {!error && stored > 0 && (
         <p className="cs-portrait-note cs-screen">
           {/* Said out loud because the roster shares one storage budget, and
-              "why did my characters stop saving" is a bad way to learn it. */}
+              "why did my characters stop saving" is a bad way to learn it.
+              The cap is far higher than it was - see `engine/portrait.ts` -
+              but a cap that nobody is told about is still a trap. */}
           Stored at {Math.round(stored / 1024)} kB of a {Math.round(PORTRAIT_MAX_BYTES / 1024)} kB
           cap. Not carried in share links.
         </p>

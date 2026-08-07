@@ -661,7 +661,10 @@ describe('the portrait', () => {
       ...build,
       details: { ...build.details, portrait: `data:image/jpeg;base64,${'A'.repeat(20_000)}` },
     });
-    expect(within(portraitBox()).getByText(/of a 39 kB cap/)).toBeInTheDocument();
+    // 512 kB, not the 39 it was: the store underneath is IndexedDB now, so
+    // the portrait no longer has to be rationed against five megabytes for
+    // the whole origin.
+    expect(within(portraitBox()).getByText(/of a 512 kB cap/)).toBeInTheDocument();
     expect(within(portraitBox()).getByText(/Not carried in share links/)).toBeInTheDocument();
   });
 

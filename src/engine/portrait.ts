@@ -1,38 +1,52 @@
 /**
  * Making a photograph small enough to keep.
  *
- * The roster lives in `localStorage`, which is one budget of roughly five
- * megabytes shared by every character on it. A phone camera produces four of
- * those in a single picture, so storing what somebody chose would fill the
- * quota with one portrait and take the whole roster down with it - a saved
- * character that will not save is a worse failure than no portraits at all.
+ * The original file is never stored. It is drawn onto a canvas at a fixed
+ * square size, re-encoded as JPEG, and only that is kept - a four megabyte
+ * phone photograph has no business sitting in a roster, whatever the store
+ * underneath will tolerate.
  *
- * So the file is never stored. It is drawn onto a canvas at 256 square,
- * re-encoded as JPEG, and only that is kept.
+ * ## Why these numbers moved
  *
- * ## Why the quality search
+ * They were set against `localStorage`, which gives one budget of roughly five
+ * megabytes to the entire origin: 256 square at 40 kB, with a six-step quality
+ * search grinding a photograph down until it fit. That was rationing, and it
+ * showed - a face at 256 square is soft on any modern display, and 0.3 quality
+ * is visibly mushy.
  *
- * A single fixed quality cannot serve both a flat drawing and a photograph of
- * a face: the first is tiny at 0.9 and the second is still over budget at 0.6.
- * So it steps down until the result fits, and reports honestly when even the
- * lowest setting will not - which is better than storing something that breaks
- * the roster the next time anything else is saved.
+ * The roster now lives in IndexedDB (see `persist.ts`), where the budget is
+ * measured against free disk rather than five megabytes. So the portrait gets
+ * the size it should always have had, and the search shrinks to a single
+ * fallback: at 512 square and half a megabyte, quality 0.85 fits every ordinary
+ * photograph outright, and 0.7 catches the noisy ones. Anything that will not
+ * fit at 0.7 is still refused rather than stored, because a store with more
+ * room is not a store with no limit.
  */
 
-/** The stored size. Big enough to print at an inch square without mush. */
-export const PORTRAIT_SIZE = 256;
+/**
+ * The stored size.
+ *
+ * 512 rather than 256 so the face is still sharp on a tablet at 2x, which is
+ * the screen this is actually used on.
+ */
+export const PORTRAIT_SIZE = 512;
 
 /**
  * The cap, in bytes of data URL.
  *
- * Chosen against the budget rather than by eye: `localStorage` gives about
- * 5 MB, a roster of twenty characters is a lot, and 40 kB each leaves the
- * portraits under a fifth of it with everything else's growth still covered.
+ * Half a megabyte each. A roster of twenty characters is a lot, and even all
+ * twenty carrying a portrait at the ceiling comes to 10 MB - twice what the
+ * whole origin used to get, and a rounding error against an IndexedDB quota.
  */
-export const PORTRAIT_MAX_BYTES = 40_000;
+export const PORTRAIT_MAX_BYTES = 524_288;
 
-/** Tried in order until one fits. */
-const QUALITIES = [0.82, 0.7, 0.6, 0.5, 0.4, 0.3];
+/**
+ * Tried in order until one fits.
+ *
+ * Two steps, not six. The first is the one nearly every picture is stored at;
+ * the second exists for the noisy photograph that the first overshoots.
+ */
+const QUALITIES = [0.85, 0.7];
 
 export type PortraitResult =
   | { ok: true; dataUrl: string; bytes: number }

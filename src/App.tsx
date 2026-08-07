@@ -216,9 +216,9 @@ export default function App() {
   const linkError = share.error;
   const clearShare = () => setShare({ build: null, error: null });
 
-  // Undo lives in memory, not localStorage: a deep stack across several
-  // characters could push the saved roster past the storage quota, and losing
-  // your characters to make room for their history would be an absurd trade.
+  // Undo lives in memory, not in the saved roster: a deep stack across several
+  // characters would multiply the roster on disk many times over, to keep
+  // forever what only a session ever needs. See `undo.ts`.
   const [histories, setHistories] = useState<Histories<Build>>({});
 
   const build = activeBuild(roster);
