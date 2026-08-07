@@ -760,23 +760,25 @@ consumed, and no accounting of a turn.
   the top left, and it prints — a face is part of the sheet rather than a
   control on it. The buttons under it are `cs-screen` and are not.
 
-  What you choose is never what gets stored. The image is drawn onto a canvas
-  at 256 square, cropped to centre rather than letterboxed, and re-encoded as
-  JPEG stepping down through six qualities until it fits 40 kB. One fixed
-  quality cannot serve both a flat drawing and a photograph of a face — the
-  first is tiny at 0.82 and the second is still over budget at 0.6 — and a
-  phone photograph is four megabytes against a roster-wide `localStorage`
-  budget of five, so storing the original would fill the quota with one picture
-  and stop every character saving. Verified in a browser: 3.6 MB of
-  incompressible noise comes out at 32 kB and 256×256.
+  What you choose is never what gets stored. The image is drawn onto a canvas,
+  cropped to centre rather than letterboxed, and re-encoded as JPEG — a phone
+  photograph is four megabytes and has no business sitting in a roster.
+  Verified in a browser: 3.6 MB of incompressible noise comes out at 32 kB and
+  256×256.
+
+  *The sizes here — 256 square, 40 kB, six qualities stepping down to 0.3 —
+  were set against a roster-wide `localStorage` budget of five megabytes, and
+  §24 raised them once that ceiling came off. `engine/portrait.ts` carries the
+  current numbers.*
 
   It refuses rather than storing something oversized when even the lowest
   quality will not fit, and the sheet says what the portrait costs — "why did
   my characters stop saving" is a bad way to learn about a shared quota.
 
   **Not carried in share links.** A link is a URL fragment of about 1.2 kB, and
-  40 kB of portrait would make it forty times longer — past what several chat
-  clients send in one piece and well past what anyone will paste. Stripped in
+  a portrait would make it a hundred times longer — past what several chat
+  clients send in one piece and well past what anyone will paste. That argument
+  only got stronger when §24 raised the portrait ceiling. Stripped in
   `share.ts` beside `combatAssumptions`, and pinned by a test that asserts the
   link stays short.
 
@@ -1856,6 +1858,64 @@ flanking, high ground, the OA swing itself (the reaction is the
 defender's choice). *Deliberately absent* - grappling/shoving arithmetic,
 mounted combat, readied-action triggers, spell components: rulings richer
 than a grid should model, logged by hand where they come up.
+
+---
+
+## 24. The ceiling comes off storage
+
+Everything this app remembers — a roster, a bestiary, prepped fights,
+saved dungeons, a workspace layout, a theme — shared one `localStorage`
+budget of about five megabytes for the whole origin. That is not a lot,
+and it had already started shaping the code rather than the design:
+`engine/portrait.ts` existed largely to buy headroom back a kilobyte at
+a time.
+
+- `[x]` **24.1 `persist.ts`: a synchronous surface over an asynchronous
+  store.** IndexedDB has no such ceiling and an API this app cannot use
+  directly — a hundred `useState(loadRoster)` call sites want an answer
+  *now*, not a promise. So the asynchrony lives in exactly one file.
+  `hydrate()` runs once before the first render and fills an in-memory
+  cache; `read`/`write`/`remove` are synchronous against that cache, and
+  writes echo to the store in the background, coalesced, so a
+  save-per-render burst costs one transaction rather than thirty.
+- `[x]` **24.2 The six stores repointed.** `storage`, `bestiary`,
+  `encounters`, `dungeons`, `theme` and `workspace` swap
+  `localStorage.getItem/setItem/removeItem` for `read/write/remove`.
+  **No signature changed and no call site moved** — that is the whole
+  point of 24.1.
+- `[x]` **24.3 Boot hydration, and a store behind an adapter.** One
+  `await hydrate()` in `main.tsx` before the tree is built, plus a flush
+  on `pagehide` and on the tab being hidden, because a coalesced write
+  must not be lost to a closing page. The store sits behind an adapter
+  for two reasons: a browser that refuses IndexedDB falls back to
+  `localStorage` and then to memory rather than failing to start, and
+  jsdom has no IndexedDB at all, so the tests get the `localStorage`
+  adapter — which answers synchronously, so a test seeding a fixture
+  mid-run is seen at once, exactly as before. **All 1358 tests passed
+  with no test file touched**, which is what makes the swap provably
+  transparent rather than merely claimed to be.
+
+  Old data is carried across once, keyed on a marker so it cannot happen
+  twice, and only for keys the new store lacks so it can never overwrite
+  something newer. `localStorage` is deliberately left intact: a version
+  rolled back finds every character where it left them.
+- `[x]` **24.4 The portrait stops being rationed.** The payoff, landed
+  separately so the migration itself stands on "behaviour is identical".
+  256 square at 40 kB with a six-step quality search grinding a
+  photograph down to 0.3 was what five shared megabytes could afford,
+  and it showed. Now 512 square — sharp on a tablet at 2x — with half a
+  megabyte to fit in, and the search shrinks to two steps because at
+  that ceiling 0.85 fits an ordinary photograph outright. Sized against
+  the worst case rather than by eye: 1600×1200 of pure random noise, as
+  badly as JPEG can possibly do, encodes to 146 kB. Still refused rather
+  than stored above the cap — a store with more room is not a store with
+  no limit — and the encoder got the tests it never had.
+
+**What this unblocks.** Not a feature yet, but the reason several were
+never proposed: the bestiary holding full stat blocks rather than SRD
+indices, a dungeon library measured in dozens rather than a handful,
+map thumbnails, an encounter log kept across sessions. Each of those was
+a few hundred kilobytes against a budget that could not spare them.
 
 ---
 
