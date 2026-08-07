@@ -138,10 +138,23 @@ export const singleStrikes = (monster: Monster): Strike[] =>
   monster.actions.map(strikeOf).filter((s): s is Strike => s !== null);
 
 /**
- * The best round this monster can throw: its Multiattack when the data
- * carries one, otherwise its single attacks for a caller to choose between.
+ * Every round this monster could choose to throw, each as a whole round.
+ *
+ * A Multiattack is one option and is taken entire - a dragon does not bite
+ * without clawing. Without one, each single attack is its own option, because
+ * a goblin picking between its scimitar and its shortbow is choosing, and a
+ * planner that was handed only the first action in the list would march every
+ * archer into melee.
  */
-export const bestRoutine = (monster: Monster): Strike[] => {
+export const routineOptions = (monster: Monster): Strike[][] => {
   const routine = routineFor(monster);
-  return routine.length ? routine : singleStrikes(monster).slice(0, 1);
+  return routine.length ? [routine] : singleStrikes(monster).map((s) => [s]);
 };
+
+/**
+ * How close a whole round needs you to be, in feet: the *shortest* reach in
+ * it, because a dragon whose bite reaches 10 and whose claws reach 5 has to
+ * stand at 5 to use the round it actually has.
+ */
+export const routineReach = (routine: Strike[]): number =>
+  routine.length ? Math.min(...routine.map(preferredReach)) : 0;

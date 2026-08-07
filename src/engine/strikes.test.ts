@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
-  bestRoutine,
   isMelee,
   maxReach,
   preferredReach,
   rangeOf,
   routineFor,
+  routineOptions,
+  routineReach,
   singleStrikes,
   strikeOf,
 } from './strikes';
@@ -198,15 +199,31 @@ describe('the round a monster throws', () => {
     const m = monster([bite, claw]);
     expect(routineFor(m)).toEqual([]);
     expect(singleStrikes(m).map((s) => s.label)).toEqual(['Bite', 'Claw']);
-    expect(bestRoutine(m).map((s) => s.label)).toEqual(['Bite']);
   });
 
-  it('prefers the Multiattack when there is one', () => {
+  it('offers each single attack as its own round, so a choice exists', () => {
+    // A goblin has a scimitar and a shortbow. Handing a planner only the
+    // first action in the list would march every archer into melee.
+    const m = monster([bite, claw]);
+    expect(routineOptions(m).map((r) => r.map((s) => s.label))).toEqual([['Bite'], ['Claw']]);
+  });
+
+  it('offers the Multiattack as one indivisible round', () => {
+    // A dragon does not bite without clawing.
     const m = monster([
-      ability({ name: 'Multiattack', multiattack: [{ name: 'Claw', count: 2 }] }),
+      ability({ name: 'Multiattack', multiattack: [{ name: 'Bite', count: 1 }, { name: 'Claw', count: 2 }] }),
       bite,
       claw,
     ]);
-    expect(bestRoutine(m).map((s) => s.label)).toEqual(['Claw', 'Claw']);
+    expect(routineOptions(m)).toHaveLength(1);
+    expect(routineOptions(m)[0].map((s) => s.label)).toEqual(['Bite', 'Claw', 'Claw']);
+  });
+
+  it('prices a round by its shortest reach', () => {
+    // Bite at 10 and claws at 5 means standing at 5: the round is only worth
+    // having entire, so the closest requirement in it is the requirement.
+    expect(routineReach([strikeOf(bite)!, strikeOf(claw)!])).toBe(5);
+    expect(routineReach([strikeOf(bite)!])).toBe(10);
+    expect(routineReach([])).toBe(0);
   });
 });
