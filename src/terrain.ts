@@ -41,7 +41,10 @@ export interface TerrainInfo {
   blocksSight: boolean;
   /** Nobody can stand here. */
   blocksMovement: boolean;
-  /** Costs double to cross, by the ordinary rule. Shown, not enforced. */
+  /** Costs double to cross, by the ordinary rule. Enforced: `entryCost` in
+      `engine/path.ts` charges 10 feet for it, so the walk, the glow tiles and
+      the click's price all agree. (This said "shown, not enforced" long after
+      it stopped being true.) */
   difficult: boolean;
 }
 

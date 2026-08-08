@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { circumstances, describeOdds, mayApproach, oddsFor } from './advantage';
+import {
+  circumstances,
+  describeOdds,
+  mayApproach,
+  mayAttack,
+  oddsFor,
+  speedUnderExhaustion,
+} from './advantage';
 import type { Exchange } from './advantage';
 
 const exchange = (
@@ -187,5 +194,50 @@ describe('frightened on the move', () => {
 
   it('does not restrain when the source is not on the map', () => {
     expect(mayApproach(scaredMover, { x: 5, y: 10 }, { x: 6, y: 10 }, () => undefined)).toBe(true);
+  });
+});
+
+describe('exhaustion, which was a number that did nothing', () => {
+  it('costs advantage from level three, and not before', () => {
+    const tired = (level: number): Exchange => ({
+      attacker: { conditions: [], exhaustion: level },
+      target: { conditions: [] },
+      adjacent: true,
+    });
+    // One and two hit ability checks and speed; a swing notices at three.
+    expect(oddsFor(tired(1)).mode).toBe('normal');
+    expect(oddsFor(tired(2)).mode).toBe('normal');
+    expect(oddsFor(tired(3)).mode).toBe('disadvantage');
+    expect(oddsFor(tired(6)).mode).toBe('disadvantage');
+  });
+
+  it('halves a speed from level two and stops it at five', () => {
+    expect(speedUnderExhaustion(30, 0)).toBe(30);
+    expect(speedUnderExhaustion(30, 1)).toBe(30);
+    expect(speedUnderExhaustion(30, 2)).toBe(15);
+    expect(speedUnderExhaustion(30, 4)).toBe(15);
+    expect(speedUnderExhaustion(30, 5)).toBe(0);
+    // Odd speeds round down, the way everything here rounds.
+    expect(speedUnderExhaustion(25, 2)).toBe(12);
+  });
+});
+
+describe('charmed, which the source field also answers', () => {
+  const charmed = { conditions: ['charmed'], conditionSources: { charmed: 'bard' } };
+
+  it('will not attack the one who charmed them', () => {
+    expect(mayAttack(charmed, 'bard')).toBe(false);
+  });
+
+  it('will attack anybody else', () => {
+    expect(mayAttack(charmed, 'goblin')).toBe(true);
+  });
+
+  it('does not restrain somebody who is not charmed', () => {
+    expect(mayAttack({ conditions: [] }, 'bard')).toBe(true);
+  });
+
+  it('does not restrain when nobody recorded the charmer', () => {
+    expect(mayAttack({ conditions: ['charmed'] }, 'bard')).toBe(true);
   });
 });

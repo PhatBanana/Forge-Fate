@@ -34,7 +34,10 @@ export interface MonsterAbility {
   /** One entry per damage type, each with dice `parseNotation` can read. */
   damage?: { dice: string; type: string }[];
   save?: { ability: string; dc: number; onSuccess: string };
-  /** "Recharge 5-6", "3/Day" - shown, not enforced. */
+  /** "Recharge 5-6", "3/Day". Enforced since §13.1: the command menu counts
+      per-day uses on the instance and gates a spent recharge until the die
+      comes up. (This said "shown, not enforced" long after it stopped being
+      true.) */
   usage?: string;
   /**
    * What a Multiattack is made of, on the Multiattack action itself.

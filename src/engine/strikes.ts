@@ -42,6 +42,14 @@ export interface Strike {
    */
   magical?: boolean;
   /**
+   * The gear id of the ammunition this consumes, when it consumes any.
+   *
+   * §2.3 put arrows in the play state and the battle screen never spent one:
+   * a fighter could loose forty shots from an empty quiver. Absent for
+   * anything that is not fired.
+   */
+  ammo?: string;
+  /**
    * How far it reaches. Absent when the prose did not say - a homebrew
    * monster written in the bestiary workshop has no SRD sentence to read -
    * and callers treat that as ordinary melee rather than as unlimited.

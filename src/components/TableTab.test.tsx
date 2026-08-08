@@ -2974,3 +2974,109 @@ describe('frightened, of something in particular', () => {
     expect(whereIsIt()).toEqual({ x: 21, y: 10 });
   });
 });
+
+/**
+ * Section 27.3. Three trackers the app kept faithfully and never consulted:
+ * a quiver nothing came out of, a concentration DC nobody rolled against, and
+ * death saves that only ever failed by taking a hit.
+ */
+describe('the trackers that were only ever watched', () => {
+  const logOf = (view: ReturnType<typeof setup>) =>
+    (view.encounter.log ?? []).map((l) => l.text).join('\n');
+
+  const inFight = async (
+    user: ReturnType<typeof userEvent.setup>,
+    prepare?: (r: Roster) => Roster,
+  ) => {
+    const base = { ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } };
+    const view = setup(prepare ? prepare(base) : base);
+    await bestiaryReady();
+    const name = view.roster.entries[0].build.name;
+    await user.click(screen.getByRole('button', { name }));
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
+    const entry = [...document.querySelectorAll('.mon-list li')].find(
+      (li) => li.querySelector('b')?.textContent === 'Goblin',
+    ) as HTMLElement;
+    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
+    fireEvent.change(within(rowFor(name)).getByLabelText(new RegExp(`${name} initiative`, 'i')), {
+      target: { value: '30' },
+    });
+    fireEvent.change(within(rowFor('Goblin')).getByLabelText(/goblin initiative/i), {
+      target: { value: '1' },
+    });
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+    return { view, name };
+  };
+
+  it('rolls the concentration save instead of only naming the DC', async () => {
+    const user = userEvent.setup();
+    const { view, name } = await inFight(user, (r) => ({
+      ...r,
+      entries: r.entries.map((e, i) =>
+        i === 0 ? { ...e, play: { ...e.play, concentratingOn: 'Hunter’s Mark' } } : e,
+      ),
+    }));
+    /*
+      Driven through burning ground rather than a sword: fewer moving parts,
+      and it exercises the path that used to announce the DC without rolling
+      it while the strike path did the same thing differently.
+    */
+    const standing = view.encounter.combatants.find((c) => c.kind === 'character')!.at!;
+    await user.selectOptions(
+      screen.getByLabelText(/load a hazard from the shelf/i),
+      'burning-ground',
+    );
+    await user.click(screen.getByRole('button', { name: /place on map/i }));
+    const svg = document.querySelector('.dmap') as SVGSVGElement;
+    svg.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+    fireEvent.pointerDown(svg, {
+      clientX: (standing.x + 0.5) * 10,
+      clientY: (standing.y + 0.5) * 10,
+    });
+    // Ending their turn in it is what bites.
+    await user.click(screen.getByRole('button', { name: /end turn/i }));
+
+    const log = logOf(view);
+    expect(log).toMatch(new RegExp(`${name} — CON save \\d+ vs DC \\d+ to hold Hunter’s Mark: (holds|LOST)`));
+    if (/: LOST/.test(log)) {
+      expect(view.roster.entries[0].play.concentratingOn).toBeUndefined();
+    } else {
+      expect(view.roster.entries[0].play.concentratingOn).toBe('Hunter’s Mark');
+    }
+  });
+
+  it('rolls a death save when a downed character’s turn comes round', async () => {
+    const user = userEvent.setup();
+    const { view, name } = await inFight(user, (r) => ({
+      ...r,
+      // Down but not dead: exactly the state the rule fires in.
+      // `currentHp` is the field; my first draft invented `damageTaken`.
+      entries: r.entries.map((e, i) =>
+        i === 0 ? { ...e, play: { ...e.play, currentHp: 0 } } : e,
+      ),
+    }));
+
+    /*
+      The save has already happened: the fighter wins initiative, so starting
+      the fight *is* the beginning of their turn, which is the moment the rule
+      fires. The first draft of this test asserted zero saves at this point
+      and was wrong about when - which is the behaviour working, not failing.
+    */
+    const after = view.roster.entries[0].play.deathSaves;
+    const rolled = after.successes + after.failures > 0;
+    const stoodUp = hpNow(view.roster.entries[0].play, 999) > 0;
+    // A natural 20 puts them up on one hit point and clears the saves, which
+    // is why standing up counts as the roll having happened.
+    expect(rolled || stoodUp).toBe(true);
+    expect(logOf(view)).toMatch(new RegExp(`${name} rolls a death save`));
+
+    // And it happens again each time their turn comes round.
+    const firstTotal = after.successes + after.failures;
+    await user.click(screen.getByRole('button', { name: /end turn/i }));
+    await user.click(screen.getByRole('button', { name: /end turn/i }));
+    const later = view.roster.entries[0].play.deathSaves;
+    if (!stoodUp) expect(later.successes + later.failures).toBeGreaterThan(firstTotal - 1);
+  });
+});

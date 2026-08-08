@@ -32,6 +32,13 @@ export interface Circumstance {
 /** What the battle knows about one side of an exchange. */
 export interface Combatant {
   conditions: string[];
+  /**
+   * Levels of exhaustion, 0-6. Three of them cost advantage on attacks, which
+   * is the first level a swing notices - the earlier ones hit ability checks
+   * and speed instead, and speed is `walkInto`'s business rather than this
+   * function's.
+   */
+  exhaustion?: number;
   /** Set when this creature is successfully hidden. */
   hidden?: boolean;
   /**
@@ -94,6 +101,9 @@ export function circumstances(exchange: Exchange): Circumstance[] {
   if (frightenedInSight(exchange)) {
     out.push({ label: 'frightened, and it is watching', gives: 'disadvantage' });
   }
+  if ((attacker.exhaustion ?? 0) >= 3) {
+    out.push({ label: `exhaustion ${attacker.exhaustion}`, gives: 'disadvantage' });
+  }
 
   return out;
 }
@@ -137,6 +147,32 @@ export function mayApproach(
   const gap = (p: { x: number; y: number }) =>
     Math.max(Math.abs(p.x - at.x), Math.abs(p.y - at.y));
   return gap(to) >= gap(from);
+}
+
+/**
+ * What exhaustion does to a speed, in the SRD's own steps: halved from level
+ * two, and nothing at all from level five, where the creature cannot move.
+ *
+ * Levels one and four touch ability checks and hit point maximum, neither of
+ * which is a movement question - so this function is deliberately about the
+ * two that are.
+ */
+export function speedUnderExhaustion(speed: number, exhaustion: number): number {
+  if (exhaustion >= 5) return 0;
+  if (exhaustion >= 2) return Math.floor(speed / 2);
+  return speed;
+}
+
+/**
+ * Whether a charmed creature is allowed to attack this target.
+ *
+ * "The creature can't attack the charmer" - free once conditions carry a
+ * source, which is the whole reason `conditionSources` is named for the
+ * general case rather than for frightened.
+ */
+export function mayAttack(attacker: Combatant, targetId: string): boolean {
+  if (!has(attacker, 'charmed')) return true;
+  return attacker.conditionSources?.charmed !== targetId;
 }
 
 export interface Odds {

@@ -66,7 +66,8 @@ import type { EncounterState, Square } from '../encounter';
 import { placeZone } from '../surfaces';
 import { canShove, fallDamage, fallFeet, pushedTo, shoveContest } from '../engine/shove';
 import { applyDefences } from '../engine/defences';
-import { describeOdds, mayApproach, oddsFor } from '../engine/advantage';
+import { describeOdds, mayApproach, mayAttack, oddsFor, speedUnderExhaustion } from '../engine/advantage';
+import { ammunitionCarried } from '../engine/inventory';
 import type { Defences } from '../engine/defences';
 import { HOUSE_RULE_INFO, highGroundBonus, loadHouseRules, saveHouseRules } from '../houseRules';
 import type { HouseRules } from '../houseRules';
@@ -74,7 +75,7 @@ import { SURFACE_KINDS } from '../zones';
 import type { SurfaceKind } from '../zones';
 import { deriveBuild } from '../engine/character';
 import { forecast } from '../engine/forecast';
-import { concentrationDc, damage, dash, emptyPlay, heal, hpNow, moveBy, movementLeft, newTurn, setTurnSlot, tickConditions, toggleCondition } from '../play';
+import { concentrationDc, damage, dash, emptyPlay, heal, hpNow, moveBy, movementLeft, newTurn, setTurnSlot, tickConditions, toggleCondition, spendAmmo, applyDeathSaveRoll } from '../play';
 import { defaultRng, expectedTotal, parseNotation, rollD20, rollDamage, rollNotation } from '../engine/dice';
 import { CONDITIONS, CONDITIONS_BY_ID } from '../data/conditions';
 import { damageDice } from '../data/weapons';
@@ -779,10 +780,21 @@ export function TableTab({
   }, [encounter, partyVisible, sightContext]);
 
   /** A combatant's speed in feet, from whichever side owns it. */
+  /** Exhaustion, which only a character carries - a stat block has no track
+      for it, so a monster reads as rested. */
+  const exhaustionOf = (c: Combatant): number =>
+    c.kind === 'character'
+      ? (roster.entries.find((e) => e.id === c.rosterId)?.play.exhaustion ?? 0)
+      : 0;
+
   const speedOf = (combatant: Combatant): number => {
-    if (combatant.kind === 'monster') return byId.get(combatant.monsterId)?.speed.walk ?? 30;
-    const info = derived.get(combatant.rosterId);
-    return info ? info.ctx.speed.total : 30;
+    const base =
+      combatant.kind === 'monster'
+        ? (byId.get(combatant.monsterId)?.speed.walk ?? 30)
+        : (derived.get(combatant.rosterId)?.ctx.speed.total ?? 30);
+    // Exhaustion halves it from level two and stops it at five - the two
+    // levels that are a movement question rather than a roll.
+    return speedUnderExhaustion(base, exhaustionOf(combatant));
   };
 
   /*
@@ -1072,6 +1084,7 @@ export function TableTab({
         conditions: attacker ? conditionsOf(attacker) : [],
         hidden: attacker?.hidden !== undefined,
         ...(attacker ? { conditionSources: sourcesOf(attacker) } : {}),
+        ...(attacker ? { exhaustion: exhaustionOf(attacker) } : {}),
       },
       target: { conditions: conditionsOf(target) },
       ...(attacker ? { canSee: canSeeFrom(attacker) } : {}),
@@ -1198,13 +1211,26 @@ export function TableTab({
     for (const line of lines.reverse()) enc = appendLog(enc, line);
     // The concentration reminder rides with the damage, because that is the
     // moment the rule fires: CON save, DC 10 or half the damage.
+    /*
+      Concentration, rolled rather than announced. The DC has been printed
+      correctly since §2.8 and nobody ever made the save: the spell stayed up
+      through any amount of punishment unless the DM remembered by hand.
+    */
+    let concentrationBroken: string | null = null;
     if (target.kind === 'character' && totalDamage > 0) {
       const entry = updated.entries.find((e) => e.id === target.rosterId);
       if (entry?.play.concentratingOn) {
+        const dc = concentrationDc(totalDamage);
+        const bonus = saveBonusFor(target, 'con') ?? 0;
+        const roll = rollD20(bonus, 'normal', defaultRng).total;
+        const held = roll >= dc;
         enc = appendLog(
           enc,
-          `${targetName} is concentrating on ${entry.play.concentratingOn} — CON save DC ${concentrationDc(totalDamage)}.`,
+          `${targetName} — CON save ${roll} vs DC ${dc} to hold ${entry.play.concentratingOn}: ${
+            held ? 'holds' : 'LOST'
+          }.`,
         );
+        if (!held) concentrationBroken = entry.id;
       }
     }
     let next = updateEncounter(updated, enc);
@@ -1213,6 +1239,32 @@ export function TableTab({
       const max = derived.get(target.rosterId)?.ctx.hp.total ?? 0;
       if (entry) next = updatePlay(next, entry.id, damage(entry.play, totalDamage, max));
     }
+    // The spell drops in the same write as the damage that broke it.
+    if (concentrationBroken) {
+      const entry = next.entries.find((e) => e.id === concentrationBroken);
+      if (entry) next = updatePlay(next, entry.id, { ...entry.play, concentratingOn: undefined });
+    }
+    /*
+      Arrows. §2.3 gave the sheet a quiver and the battle screen never took
+      anything out of it, so a fighter could loose forty shots from an empty
+      one. One per swing that fires, in the same composed write as the dice.
+    */
+    if (attacker?.kind === 'character') {
+      const fired = strikes.filter((s) => s.ammo);
+      if (fired.length) {
+        const entry = next.entries.find((e) => e.id === attacker.rosterId);
+        const stacks = entry ? ammunitionCarried(entry.build) : [];
+        if (entry) {
+          let play = entry.play;
+          for (const strike of fired) {
+            const stack = stacks.find((s) => s.gearId === strike.ammo);
+            if (stack) play = spendAmmo(play, stack.gearId, stack.total);
+          }
+          if (play !== entry.play) next = updatePlay(next, entry.id, play);
+        }
+      }
+    }
+
     // A token-click attack is taking the Attack action: the pip rides the
     // same write as the dice - two onChange calls would erase each other.
     if (opts?.spendAction && attacker?.kind === 'character') {
@@ -1356,16 +1408,28 @@ export function TableTab({
     const entry = out.entries.find((e) => e.id === combatant.rosterId);
     const max = derived.get(combatant.rosterId)?.ctx.hp.total ?? 0;
     if (entry) {
+      /*
+        The same roll the strike path makes. Ground that hurts breaks
+        concentration exactly like a sword does, and having one door roll it
+        and the other only mention it would be the worse kind of inconsistency.
+      */
+      let play = damage(entry.play, dealt, max);
       if (entry.play.concentratingOn) {
+        const dc = concentrationDc(dealt);
+        const roll = rollD20(saveBonusFor(combatant, 'con') ?? 0, 'normal', defaultRng).total;
+        const held = roll >= dc;
         out = updateEncounter(
           out,
           appendLog(
             activeEncounter(out),
-            `${name} is concentrating on ${entry.play.concentratingOn} — CON save DC ${concentrationDc(dealt)}.`,
+            `${name} — CON save ${roll} vs DC ${dc} to hold ${entry.play.concentratingOn}: ${
+              held ? 'holds' : 'LOST'
+            }.`,
           ),
         );
+        if (!held) play = { ...play, concentratingOn: undefined };
       }
-      out = updatePlay(out, entry.id, damage(entry.play, dealt, max));
+      out = updatePlay(out, entry.id, play);
     }
     return out;
   };
@@ -1677,6 +1741,7 @@ export function TableTab({
           label: line.weapon.name,
           toHit: line.toHit,
           magical: line.magical,
+          ...(line.weapon.ammo ? { ammo: line.weapon.ammo } : {}),
           damage: [
             {
               dice: `${dice}${line.damage.bonus ? sign(line.damage.bonus) : ''}`,
@@ -1714,6 +1779,11 @@ export function TableTab({
       active?.kind === 'character' &&
       target.kind === 'monster' &&
       (hpOf(target)?.now ?? 0) > 0 &&
+      // A charmed creature cannot attack whoever charmed it.
+      mayAttack(
+        { conditions: conditionsOf(active), conditionSources: sourcesOf(active) },
+        target.id,
+      ) &&
       // The fog's rule, same as the aim chips: no attacking what the party
       // cannot see, nor what is hidden in plain sight.
       !(partyVisible && (!target.at || !partyVisible.has(keyOf(target.at)) || target.hidden)) &&
@@ -1979,6 +2049,43 @@ export function TableTab({
     if (began?.kind === 'character') {
       const entry = updated.entries.find((e) => e.id === began.rosterId);
       if (entry) updated = updatePlay(updated, entry.id, newTurn(entry.play));
+
+      /*
+        A death save, at the top of a downed character's turn.
+
+        `applyDeathSaveRoll` has had the whole rule in it since §7 - a natural
+        twenty stands you up on one hit point, a natural one counts double -
+        and the battle screen never called it, so a dying character simply lay
+        there until the DM remembered. Rolled here because this is the moment
+        the rule fires, and composed into the same write as the turn advance.
+      */
+      const now = updated.entries.find((e) => e.id === began.rosterId);
+      const max = derived.get(began.rosterId)?.ctx.hp.total ?? 0;
+      if (now && hpNow(now.play, max) <= 0 && now.play.deathSaves.failures < 3) {
+        const d20 = rollD20(0, 'normal', defaultRng);
+        const natural = d20.rolls[d20.kept] ?? d20.rolls[0];
+        const roll = {
+          total: d20.total,
+          natural: (natural === 20 ? 20 : natural === 1 ? 1 : null) as 20 | 1 | null,
+        };
+        const after = applyDeathSaveRoll(now.play, roll, max);
+        updated = updatePlay(updated, now.id, after);
+        const said =
+          natural === 20
+            ? 'a natural 20 — up on one hit point'
+            : natural === 1
+              ? 'a natural 1 — two failures'
+              : d20.total >= 10
+                ? 'a success'
+                : 'a failure';
+        updated = updateEncounter(
+          updated,
+          appendLog(
+            activeEncounter(updated),
+            `${nameOf(began)} rolls a death save: ${d20.total}, ${said}. (${after.deathSaves.successes}/3 up, ${after.deathSaves.failures}/3 down)`,
+          ),
+        );
+      }
     }
     // The phase card: a round wrap announces the round, otherwise whoever
     // just came up. Keyed by seq so each advance replays the animation.
