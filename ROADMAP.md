@@ -2337,7 +2337,8 @@ underneath pushed it further away. Thirty sections of building a very good
   correction to the first draft: deploy puts monsters in the rooms farthest
   from the party, those are often on the right, and the probe caught a goblin
   standing behind the cockpit where nobody could click it. A drawer may cover
-  the map, because a drawer is something you opened on purpose.
+  the map, because a drawer is something you opened on purpose. §32.2
+  generalises that reservation into a safe area every docked float shares.
 - `[x]` **31.4 The Builder becomes a route.** The five sections were already
   the steps of making a character; the strip above them said so only by their
   order, which is the one thing a row of pills does not communicate. Numbered,
@@ -2370,6 +2371,99 @@ the toggle now.
 a control lives in, which is what a DM does. One of them caught the trap that
 creates: a node captured before a drawer closes is detached by the time it is
 clicked, and clicking a detached node does nothing at all.
+
+---
+
+## 32. The HUD floats inside the game window
+
+The ask, in the user's words: *"more of the UI should be within the map — think
+about how the game is full screen. There's elements floating within the game
+window, not alongside of. I still want pop-out windows, but a lot of it should
+be HUDs or elements within the main window."*
+
+§31 got the map to full screen and then stopped half way. The initiative
+timeline and the command bar were still chrome *around* the stage, so the
+battle screen was three stacked regions with a map in the middle one. This
+section removes the middle.
+
+- `[x]` **32.1 A click lands on the square you clicked.** Both maps mapped a
+  click by dividing straight through the SVG element's box, which is only
+  correct while the drawing fills its element. §31.3 made it stop: it styled
+  the map `height: 100%` to fill the stage, and an SVG with a viewBox
+  letterboxes inside a box of a different aspect. On the real 988×662 stage
+  against a 672×504 grid there were 52px bars either side and a click at the
+  drawing's right edge resolved **six squares out**.
+
+  Token clicks were unaffected — a token is its own element with its own
+  correct box — which is why every browser probe missed it for a whole section,
+  and why the regression test clicks empty ground. `engine/letterbox.ts` does
+  the maths, taking the viewBox origin as an argument because the isometric
+  map's is not zero. The CSS also stops stretching the map, so in practice
+  there is no letterbox at all now; the fix still belongs in the maths, because
+  a stylesheet can be changed by anybody at any time.
+- `[x]` **32.2 One stage.** `.btl-stage` is the whole window, with the
+  timeline, cockpit, log tail, drawers and command bar positioned inside it
+  over a board that runs edge to edge.
+
+  Floating over a battle map is only survivable with a rule about who may cover
+  what, so the stage owns four numbers — `--hud-top/right/bottom/left` — and the
+  drawing is inset by them. **Docked floats reserve; drawers do not**, because
+  you opened a drawer and can close it, and neither does the log tail, which
+  takes no clicks.
+
+  Fitting the drawing to that rectangle took three attempts, and the two failed
+  ones are worth naming. `width: 100%` with `max-height` clamps one axis and
+  leaves the box the wrong shape. The photograph recipe — `auto` plus both
+  maxima — fits but never grows, leaving a 672-wide map in a 1004-wide space.
+  Contain is a *comparison* of two axes, so the rule has to see both: the map
+  publishes its shape as `--map-ratio` and the stage sizes it in container
+  query units.
+- `[x]` **32.3 One floating frame.** The cockpit and the drawer were two frames
+  doing nearly the same job with their own header markup, and neither could be
+  collapsed, dragged or torn off. `HudPanel` is the one frame; the two class
+  names now say only where each sits.
+
+  Collapsing and dragging are the same bargain with the safe area: a panel
+  docked to a known edge may honestly reserve a rectangle, and one collapsed to
+  its title bar or dragged somewhere of the DM's choosing may not — so both hand
+  the space back, and Dock puts it on its edge again. Collapsing hides the body
+  with CSS rather than unmounting it, so a half-typed damage number survives
+  somebody glancing at the board.
+
+  The turn moves out of the cockpit into its own float. It was a header on it,
+  which meant whose turn it is and End turn vanished with any panel somebody
+  shut — the two things on this screen that must never be more than a glance
+  away.
+
+  **A bug found by extracting the drag.** `useDragPosition` comes from
+  `PopOut`'s in-page fallback, where the listeners were attached in an effect
+  guarded on a ref — and pressing a title bar sets a ref without causing a
+  render, so nothing was ever listening and the panel did not move at all. It
+  shipped unnoticed because that panel only appears under 900px wide.
+- `[x]` **32.4 More than one window, and a key that shows the board.** Pop-out
+  has been one at a time since the mini window was built, on the argument that
+  six floating panels recreated the problem the tracker solved. That does not
+  survive this section: the reason to tear a panel off is precisely that it
+  should not be on this screen — a second monitor, or a sheet beside the stat
+  block it is fighting.
+
+  Holding **H** fades every float to 15% and stops it taking clicks. Held
+  rather than toggled, because a HUD you can switch off is one somebody leaves
+  off and then wonders where the controls went. It deliberately does not
+  release the safe area: resizing the drawing under a held key would move every
+  square out from under the pointer.
+
+**What the probe measures.** That the element box equals the drawing box (zero
+skew against the viewBox), that no deployed token's centre falls inside a
+docked float, that collapsing and dragging both widen the board and Dock
+restores it, that two real browser windows coexist, and that the fade lands
+without the drawing changing size. Both themes at 1360, clicking the theme
+toggle.
+
+**Deferred: §34, the camera.** Pan and zoom means a `{x, y, scale}` driving the
+viewBox, and it must rewrite `squareAt` in lockstep in *both* maps — the
+isometric one hardcodes its own origin. That coupling is the riskiest edit on
+this screen, which is exactly why it is not in the same section as the HUD.
 
 ---
 

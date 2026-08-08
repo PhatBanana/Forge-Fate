@@ -4488,11 +4488,13 @@ export function TableTab({
   });
 
   /*
-    The HUD: the strip above the map, the bar below it.
+    The HUD: the timeline across the top of the board, the command bar along
+    its bottom. Both float *inside* the stage since §32.2 rather than sitting
+    above and below it.
 
-    Both are windows onto state that already exists - the strip onto the same
-    sorted order the rail lists, the bar onto the same `PlayState` the sheet
-    tracks - so neither can drift from anything.
+    Both are windows onto state that already exists - the timeline onto the
+    same sorted order the party drawer lists, the bar onto the same `PlayState`
+    the sheet tracks - so neither can drift from anything.
   */
   // The queue counted from whoever is up: 1 is acting, 2 is next - the way
   // Tactics numbers its timeline, wrapping through the bottom of the round.
@@ -4554,15 +4556,20 @@ export function TableTab({
 
     Thirty sections of very good document: the map was the fifth thing down a
     scrolling column and every panel opened underneath pushed it further away.
-    So the map becomes the stage - it fills whatever the window has left - and
-    everything that used to sit above or below it becomes something that slides
-    *over* it and goes away again.
+    §31.3 made the map the stage; §32.2 finished the job by putting the last
+    two pieces of chrome - the timeline and the command bar - *inside* it. The
+    stage is now the whole screen and everything else floats in it.
 
-    Three things stay on screen always, because all three answer a question
-    that never stops being live: the initiative timeline along the top, the
-    cockpit down the right, and the last few lines of the log bottom-left. The
-    rest - the party, the bestiary, the field, the areas, the forecast, the
-    debrief - are drawers on a command bar, one at a time, Escape closes.
+    Four things stay on screen always, because all four answer a question that
+    never stops being live: the initiative timeline along the top, the turn and
+    the cockpit down the right, and the last few lines of the log bottom-left.
+    The rest - the party, the bestiary, the field, the areas, the forecast, the
+    debrief - are drawers on the command bar, one at a time, Escape closes.
+
+    The docked ones reserve their space through the stage's safe area, so a
+    token can never end up under one; a drawer does not, because you opened it
+    and can close it. Collapsing or dragging a docked panel hands the space
+    back, and holding H fades the lot for a look at the board.
 
     The three-column `Workspace` from §10.1 is deleted with this, and its
     header said why in advance: it was built as a shell "so a second surface
