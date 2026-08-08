@@ -97,7 +97,6 @@ import { visibleFrom } from '../engine/fog';
 import { Panel } from './shared';
 import { MonsterCard } from './MonsterCard';
 import { PopOut } from './PopOut';
-import { Workspace } from './Workspace';
 import { PlayCard } from './PlayCard';
 import { InitiativeStrip } from './InitiativeStrip';
 import { MonsterCommandMenu } from './MonsterTray';
@@ -285,6 +284,15 @@ export function TableTab({
    */
   const [shoving, setShoving] = useState<{ byId: string; mode: 'push' | 'prone' } | null>(null);
   /** The optional rules this table has switched on. Off is the book. */
+  /*
+    Which drawer is open over the map, or none.
+
+    Component state rather than stored: what you had open last Tuesday is not
+    something a battle screen should remember, and opening on a drawer would
+    hide the map on arrival - which is the exact defect §31.3 exists to fix.
+  */
+  const [drawer, setDrawer] = useState<string | null>(null);
+
   const [houseRules, setHouseRules] = useState<HouseRules>(loadHouseRules);
   useEffect(() => saveHouseRules(houseRules), [houseRules]);
 
@@ -3374,527 +3382,541 @@ export function TableTab({
     </>
   );
 
-  const dungeonPanel = (
-      <Panel
-        title="The battlefield"
-        subtitle="Play is for playing. Build and edit maps in the Dungeons tab; load one here and fight on it."
-      >
-        {/*
-          The optional rules, where the rule applies. Off is the book: the
-          app's claim is that it plays fifth edition, and a number quietly
-          disagreeing with it would make every other number harder to trust.
-          The log names each one either way, so a fight can be read back and
-          understood whichever way the switch was set.
-        */}
-        <div className="row" style={{ gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
-          {HOUSE_RULE_INFO.map((rule) => (
-            <label className="checkbox" key={rule.id} title={rule.hint}>
-              <input
-                type="checkbox"
-                checked={houseRules[rule.id]}
-                onChange={(e) => setHouseRules({ ...houseRules, [rule.id]: e.target.checked })}
-              />
-              <span>{rule.label}</span>
-            </label>
-          ))}
-        </div>
+  /*
+    The stage, and the two drawers that used to sit above and below it.
 
-        {/*
-          The picker: the Dungeons tab's drawer, read-only from here. Loading
-          copies the saved map's fields onto the live encounter in one write -
-          tokens come off, because the rooms they stood in are gone.
-        */}
-        {dungeonLibrary.length > 0 && (
-          <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-            <label className="checkbox">
-              <span>Load a dungeon</span>
-              <select
-                aria-label="Load a saved dungeon"
-                value=""
-                onChange={(e) => {
-                  const saved = dungeonLibrary.find((d) => d.id === e.target.value);
-                  if (saved) setEncounter(applyDungeon(encounter, saved.map));
-                }}
-              >
-                <option value="">— saved in the Dungeons tab —</option>
-                {dungeonLibrary.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+    Until §31.3 all of this was one Panel: house rules, a dungeon picker, six
+    toggles, the map, a sight report and the whole zone kit, stacked in a
+    column that scrolled. The map was the fifth thing down and everything
+    opened underneath pushed it further away - exactly backwards for the one
+    element every person at the table is looking at.
+
+    Split three ways. The stage floats free and fills the screen; the controls
+    that set the field and the controls that put spells on the ground become
+    drawers the command bar slides over it. Nothing inside any of them
+    changed - this is a move, not a rewrite.
+  */
+  /*
+    The map with the tactical readouts floated over it, the way squad-tactics
+    screens annotate the field itself rather than a sidebar. The hint says what
+    the current tool wants; the height readout answers "how high is that" at
+    the cursor; the legend keeps the keyboard discoverable.
+  */
+  const mapStage = (
+      <div className="map-stage">
+        {hint && (
+          <div className="hud-hint" role="status">
+            {hint}
           </div>
         )}
-
-        <p className="muted" style={{ margin: '0 0 8px' }}>
-          {dungeon.rooms.length === 0
-            ? 'A blank grid. Each square is 5 ft.'
-            : `Seed ${seed} · ${dungeon.rooms.length} rooms · each square is 5 ft.`}
-        </p>
-
-        <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-          <button
-            className="btn btn-sm"
-            disabled={!encounter.combatants.length}
-            onClick={deploy}
-          >
-            Put everyone on the map
-          </button>
-          {tokens.length > 0 && (
-            <button
-              className="btn btn-sm"
-              onClick={() =>
-                setEncounter(
-                  encounter.combatants.reduce(
-                    (acc, c) => placeCombatant(acc, c.id, undefined),
-                    encounter,
-                  ),
-                )
-              }
-            >
-              Take them off
-            </button>
-          )}
-        </div>
-
-
-        <div className="row" style={{ alignItems: 'center', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
-          <label className="checkbox" style={{ margin: 0 }}>
-            <input
-              type="checkbox"
-              checked={showSight}
-              onChange={(e) => setShowSight(e.target.checked)}
-            />
-            <span>Sight lines from whoever is selected</span>
-          </label>
-          <label className="checkbox" style={{ margin: 0 }}>
-            <input
-              type="checkbox"
-              checked={!!encounter.fog}
-              onChange={(e) => setEncounter({ ...encounter, fog: e.target.checked || undefined })}
-            />
-            <span>Fog of war</span>
-          </label>
-          <button
-            type="button"
-            className={`view-toggle ${view === 'tactical' ? 'is-on' : ''}`}
-            aria-pressed={view === 'tactical'}
-            onClick={() => setView(view === 'tactical' ? 'map' : 'tactical')}
-          >
-            Tactical view
-          </button>
-          {view === 'tactical' && (
+        {hover && (
+          <div className="hud-height">
+            <span className="hud-k">Height</span>
+            <b>{heightAtHover}</b>
+          </div>
+        )}
+        {/* The phase card, replayed by key on every advance. Decorative:
+            the turn panel announces the same turn accessibly. */}
+        {banner?.text && (
+          <div key={banner.seq} className="turn-banner" aria-hidden="true">
+            {banner.text}
+          </div>
+        )}
+        {/*
+          The shot list, floating along the map's bottom edge - the chips
+          sit where the shooting is, X-COM's shot bar. Same resolveAim as
+          clicking a token.
+        */}
+        {aim && (
+          <div className="hud-aim-row">
             <button
               type="button"
-              className="view-toggle"
-              title="Rotate the camera a quarter turn"
-              aria-label="Rotate the camera"
-              onClick={() => setFacing((facing + 1) % 4)}
+              className="hud-aim-banner"
+              onClick={() => setAim(null)}
+              title="Press to cancel"
             >
-              Rotate
+              Aiming: <b>{aim.strikes.map((s) => s.label).join(', ')}</b> — Esc cancels
             </button>
-          )}
-        </div>
-
-        {/*
-          The stage: the map with the tactical readouts floated over it, the
-          way squad-tactics screens annotate the field itself rather than a
-          sidebar. The hint says what the current tool wants; the height
-          readout answers "how high is that" at the cursor; the legend keeps
-          the keyboard discoverable.
-        */}
-        <div className="map-stage">
-          {hint && (
-            <div className="hud-hint" role="status">
-              {hint}
-            </div>
-          )}
-          {hover && (
-            <div className="hud-height">
-              <span className="hud-k">Height</span>
-              <b>{heightAtHover}</b>
-            </div>
-          )}
-          {/* The phase card, replayed by key on every advance. Decorative:
-              the turn panel announces the same turn accessibly. */}
-          {banner?.text && (
-            <div key={banner.seq} className="turn-banner" aria-hidden="true">
-              {banner.text}
-            </div>
-          )}
-          {/*
-            The shot list, floating along the map's bottom edge - the chips
-            sit where the shooting is, X-COM's shot bar. Same resolveAim as
-            clicking a token.
-          */}
-          {aim && (
-            <div className="hud-aim-row">
+            {aimTargets.map((t) => (
               <button
+                key={t.id}
                 type="button"
-                className="hud-aim-banner"
-                onClick={() => setAim(null)}
-                title="Press to cancel"
+                className={`hud-target ${t.foe ? '' : 'is-friend'}`}
+                title={`${t.name} — ${Math.round(t.chance * 100)}% to hit, about ${
+                  Math.round(t.expected * 10) / 10
+                } damage${t.cover ? ', behind half cover' : ''}${
+                  t.blocked ? ', no line of sight' : ''
+                }${t.flanking ? '. Flanked — advantage, if your table uses the optional rule' : ''}${
+                  t.high ? `. High ground: +${t.high * 5} ft over them` : ''
+                }`}
+                onClick={() => {
+                  const target = encounter.combatants.find((c) => c.id === t.id);
+                  if (target) resolveAim(target);
+                }}
               >
-                Aiming: <b>{aim.strikes.map((s) => s.label).join(', ')}</b> — Esc cancels
+                <b>{t.name}</b>
+                <span className="hud-odds">{Math.round(t.chance * 100)}%</span>
+                <span className="hud-exp">~{Math.round(t.expected)} dmg</span>
+                {t.cover && <i>cover</i>}
+                {t.blocked && <i>no sight</i>}
+                {t.flanking && <i className="is-boon">flanked</i>}
+                {t.high > 0 && <i className="is-boon">high ground</i>}
               </button>
-              {aimTargets.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className={`hud-target ${t.foe ? '' : 'is-friend'}`}
-                  title={`${t.name} — ${Math.round(t.chance * 100)}% to hit, about ${
-                    Math.round(t.expected * 10) / 10
-                  } damage${t.cover ? ', behind half cover' : ''}${
-                    t.blocked ? ', no line of sight' : ''
-                  }${t.flanking ? '. Flanked — advantage, if your table uses the optional rule' : ''}${
-                    t.high ? `. High ground: +${t.high * 5} ft over them` : ''
-                  }`}
-                  onClick={() => {
-                    const target = encounter.combatants.find((c) => c.id === t.id);
-                    if (target) resolveAim(target);
-                  }}
-                >
-                  <b>{t.name}</b>
-                  <span className="hud-odds">{Math.round(t.chance * 100)}%</span>
-                  <span className="hud-exp">~{Math.round(t.expected)} dmg</span>
-                  {t.cover && <i>cover</i>}
-                  {t.blocked && <i>no sight</i>}
-                  {t.flanking && <i className="is-boon">flanked</i>}
-                  {t.high > 0 && <i className="is-boon">high ground</i>}
-                </button>
-              ))}
-            </div>
-          )}
-          {(() => {
-            /* One props object, two cameras: the flat map that prints and
-               paints, and the tactical view through FFT's lens. Same tokens,
-               same washes, same handlers - only the projection differs. */
-            const mapProps = {
-              dungeon,
-              // While aiming, each targetable token carries its odds - the
-              // same number the chip shows, floated over the head X-COM puts
-              // it on.
-              tokens: aim
-                ? tokens.map((t) => {
-                    const shot = aimTargets.find((a) => a.id === t.id);
-                    return shot ? { ...t, odds: `${Math.round(shot.chance * 100)}%` } : t;
-                  })
-                : tokens,
-              terrain: encounter.terrain,
-              elevation: encounter.elevation,
-              sight: sightLines,
-              zones: [
-                ...(encounter.zones ?? []).map((zone) => ({
-                  id: zone.id,
-                  label: zone.label + (zone.rounds !== undefined ? ` (${zone.rounds})` : ''),
-                  tint: zone.tint,
-                  origin: zone.at,
-                  squares: zoneSquares(zone),
-                })),
-                ...ghostZone,
-              ],
-              reach,
-              cursor: placing ? hover : null,
-              note: rulerNote,
-              noteAt: measuring?.to ?? null,
-              ruler: measuring ? { points: measuring.points } : null,
-              arc:
-                placing && hover && (aimFrom ?? selected?.at)
-                  ? { from: (aimFrom ?? selected?.at)!, to: hover }
-                  : null,
-              fog: partyVisible
-                ? { visible: partyVisible, explored: new Set(encounter.explored ?? []) }
-                : null,
-              onMove,
-              onPaint: paintAt,
-              onHover: setHover,
-              onTokenClick: tokenClick,
-              onTokenOpen: (id: string) => setPopped(id),
-            };
-            return view === 'tactical' ? (
-              <IsoMap {...mapProps} orientation={facing} />
-            ) : (
-              <DungeonMap {...mapProps} />
-            );
-          })()}
-          <div className="hud-legend" aria-hidden="true">
-            Space ends the turn · Esc cancels · double-click a token opens the sheet
+            ))}
           </div>
+        )}
+        {(() => {
+          /* One props object, two cameras: the flat map that prints and
+             paints, and the tactical view through FFT's lens. Same tokens,
+             same washes, same handlers - only the projection differs. */
+          const mapProps = {
+            dungeon,
+            // While aiming, each targetable token carries its odds - the
+            // same number the chip shows, floated over the head X-COM puts
+            // it on.
+            tokens: aim
+              ? tokens.map((t) => {
+                  const shot = aimTargets.find((a) => a.id === t.id);
+                  return shot ? { ...t, odds: `${Math.round(shot.chance * 100)}%` } : t;
+                })
+              : tokens,
+            terrain: encounter.terrain,
+            elevation: encounter.elevation,
+            sight: sightLines,
+            zones: [
+              ...(encounter.zones ?? []).map((zone) => ({
+                id: zone.id,
+                label: zone.label + (zone.rounds !== undefined ? ` (${zone.rounds})` : ''),
+                tint: zone.tint,
+                origin: zone.at,
+                squares: zoneSquares(zone),
+              })),
+              ...ghostZone,
+            ],
+            reach,
+            cursor: placing ? hover : null,
+            note: rulerNote,
+            noteAt: measuring?.to ?? null,
+            ruler: measuring ? { points: measuring.points } : null,
+            arc:
+              placing && hover && (aimFrom ?? selected?.at)
+                ? { from: (aimFrom ?? selected?.at)!, to: hover }
+                : null,
+            fog: partyVisible
+              ? { visible: partyVisible, explored: new Set(encounter.explored ?? []) }
+              : null,
+            onMove,
+            onPaint: paintAt,
+            onHover: setHover,
+            onTokenClick: tokenClick,
+            onTokenOpen: (id: string) => setPopped(id),
+          };
+          return view === 'tactical' ? (
+            <IsoMap {...mapProps} orientation={facing} />
+          ) : (
+            <DungeonMap {...mapProps} />
+          );
+        })()}
+        <div className="hud-legend" aria-hidden="true">
+          Space ends the turn · Esc cancels · double-click a token opens the sheet
         </div>
+      </div>
+  );
 
-        {/*
-          The lines in words, because a DM narrates: "the archer cannot see
-          Goblin B" is a sentence before it is a dashed line. Cover is a note
-          rather than a modifier - whether that pillar counts is a ruling.
-        */}
-        {showSight && selected?.at && sightLines.length > 0 && (
-          <p className="muted sight-report" style={{ marginTop: 8 }}>
-            <b>{selected ? nameOf(selected) : ''}</b> sees{' '}
-            {sightLines.filter((l) => l.visible).length
-              ? sightLines
-                  .filter((l) => l.visible)
-                  .map((l) => `${l.name}${l.cover ? ' (half cover, +2 AC)' : ''}`)
-                  .join(', ')
-              : 'nobody'}
-            {sightLines.some((l) => !l.visible) && (
-              <>
-                {' '}
-                — cannot see{' '}
-                {sightLines
-                  .filter((l) => !l.visible)
-                  .map((l) => l.name)
-                  .join(', ')}
-              </>
-            )}
-            .
-          </p>
-        )}
-        {showSight && !selected?.at && (
-          <p className="muted" style={{ marginTop: 8 }}>
-            Select somebody who is on the map to see their sight lines.
-          </p>
-        )}
+  /** What the field is: the ground under the fight, and how it is being looked at. */
+  const fieldPanel = (
+    <Panel
+      title="The field"
+      subtitle="The ground you are fighting on, and how the table is looking at it."
+    >
+      {/*
+        The optional rules, where the rule applies. Off is the book: the
+        app's claim is that it plays fifth edition, and a number quietly
+        disagreeing with it would make every other number harder to trust.
+        The log names each one either way, so a fight can be read back and
+        understood whichever way the switch was set.
+      */}
+      <div className="row" style={{ gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
+        {HOUSE_RULE_INFO.map((rule) => (
+          <label className="checkbox" key={rule.id} title={rule.hint}>
+            <input
+              type="checkbox"
+              checked={houseRules[rule.id]}
+              onChange={(e) => setHouseRules({ ...houseRules, [rule.id]: e.target.checked })}
+            />
+            <span>{rule.label}</span>
+          </label>
+        ))}
+      </div>
 
-        {/*
-          Spells on the ground. Since 23.1 a zone can carry what it DOES -
-          the shelf below loads the SRD's standing hazards, and the placed
-          zone bites for real: entry damage, end-of-turn damage, real saves,
-          walls of force nobody walks through. The custom slate still places
-          a drawn-only area for everything richer than the model.
-        */}
-        <div className="zone-kit" style={{ marginTop: 12 }}>
-          <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+      {/*
+        The picker: the Dungeons tab's drawer, read-only from here. Loading
+        copies the saved map's fields onto the live encounter in one write -
+        tokens come off, because the rooms they stood in are gone.
+      */}
+      {dungeonLibrary.length > 0 && (
+        <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+          <label className="checkbox">
+            <span>Load a dungeon</span>
+            <select
+              aria-label="Load a saved dungeon"
+              value=""
+              onChange={(e) => {
+                const saved = dungeonLibrary.find((d) => d.id === e.target.value);
+                if (saved) setEncounter(applyDungeon(encounter, saved.map));
+              }}
+            >
+              <option value="">— saved in the Dungeons tab —</option>
+              {dungeonLibrary.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+
+      <p className="muted" style={{ margin: '0 0 8px' }}>
+        {dungeon.rooms.length === 0
+          ? 'A blank grid. Each square is 5 ft.'
+          : `Seed ${seed} · ${dungeon.rooms.length} rooms · each square is 5 ft.`}
+      </p>
+
+      <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+        <button
+          className="btn btn-sm"
+          disabled={!encounter.combatants.length}
+          onClick={deploy}
+        >
+          Put everyone on the map
+        </button>
+        {tokens.length > 0 && (
+          <button
+            className="btn btn-sm"
+            onClick={() =>
+              setEncounter(
+                encounter.combatants.reduce(
+                  (acc, c) => placeCombatant(acc, c.id, undefined),
+                  encounter,
+                ),
+              )
+            }
+          >
+            Take them off
+          </button>
+        )}
+      </div>
+
+
+      <div className="row" style={{ alignItems: 'center', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
+        <label className="checkbox" style={{ margin: 0 }}>
+          <input
+            type="checkbox"
+            checked={showSight}
+            onChange={(e) => setShowSight(e.target.checked)}
+          />
+          <span>Sight lines from whoever is selected</span>
+        </label>
+        <label className="checkbox" style={{ margin: 0 }}>
+          <input
+            type="checkbox"
+            checked={!!encounter.fog}
+            onChange={(e) => setEncounter({ ...encounter, fog: e.target.checked || undefined })}
+          />
+          <span>Fog of war</span>
+        </label>
+        <button
+          type="button"
+          className={`view-toggle ${view === 'tactical' ? 'is-on' : ''}`}
+          aria-pressed={view === 'tactical'}
+          onClick={() => setView(view === 'tactical' ? 'map' : 'tactical')}
+        >
+          Tactical view
+        </button>
+        {view === 'tactical' && (
+          <button
+            type="button"
+            className="view-toggle"
+            title="Rotate the camera a quarter turn"
+            aria-label="Rotate the camera"
+            onClick={() => setFacing((facing + 1) % 4)}
+          >
+            Rotate
+          </button>
+        )}
+      </div>
+
+
+      {/*
+        The lines in words, because a DM narrates: "the archer cannot see
+        Goblin B" is a sentence before it is a dashed line. Cover is a note
+        rather than a modifier - whether that pillar counts is a ruling.
+      */}
+      {showSight && selected?.at && sightLines.length > 0 && (
+        <p className="muted sight-report" style={{ marginTop: 8 }}>
+          <b>{selected ? nameOf(selected) : ''}</b> sees{' '}
+          {sightLines.filter((l) => l.visible).length
+            ? sightLines
+                .filter((l) => l.visible)
+                .map((l) => `${l.name}${l.cover ? ' (half cover, +2 AC)' : ''}`)
+                .join(', ')
+            : 'nobody'}
+          {sightLines.some((l) => !l.visible) && (
+            <>
+              {' '}
+              — cannot see{' '}
+              {sightLines
+                .filter((l) => !l.visible)
+                .map((l) => l.name)
+                .join(', ')}
+            </>
+          )}
+          .
+        </p>
+      )}
+      {showSight && !selected?.at && (
+        <p className="muted" style={{ marginTop: 8 }}>
+          Select somebody who is on the map to see their sight lines.
+        </p>
+      )}
+
+    </Panel>
+  );
+
+  /*
+    Spells on the ground. Since §23.1 a zone carries what it DOES - the shelf
+    loads the SRD's standing hazards, and the placed zone bites for real:
+    entry damage, end-of-turn damage, real saves, walls of force nobody walks
+    through. The custom slate still places a drawn-only area for everything
+    richer than the model.
+  */
+  const zonePanel = (
+    <Panel
+      title="Areas"
+      subtitle="Spells on the ground. They bite for real — damage, saves, walls nobody walks through."
+    >
+      <div className="zone-kit">
+        <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+          <label className="field field-sm">
+            <span>Spell</span>
+            <select
+              aria-label="Load a hazard from the shelf"
+              value={zoneForm.preset}
+              onChange={(e) => {
+                const preset = ZONE_PRESETS.find((p) => p.id === e.target.value);
+                if (!preset) return;
+                setZoneForm({
+                  ...zoneForm,
+                  preset: preset.id,
+                  label: preset.id === 'custom' ? '' : preset.label,
+                  shape: preset.shape,
+                  feet: preset.feet,
+                  rounds: preset.rounds ? String(preset.rounds) : '',
+                  dc: preset.effect?.save ? String(preset.effect.save.dc) : '',
+                  surface: preset.effect?.surface ?? '',
+                });
+              }}
+            >
+              {ZONE_PRESETS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field field-sm" style={{ flex: '1 1 130px' }}>
+            <span>Effect</span>
+            <input
+              type="text"
+              placeholder="Wall of fire"
+              value={zoneForm.label}
+              onChange={(e) => setZoneForm({ ...zoneForm, label: e.target.value })}
+            />
+          </label>
+          {/* What the ground is made of, which is what reacts. A preset
+              fills this in; a custom area is whatever you say it is. */}
+          <label className="field field-sm">
+            <span>Made of</span>
+            <select
+              aria-label="What this area is made of"
+              value={zoneForm.surface}
+              onChange={(e) =>
+                setZoneForm({ ...zoneForm, surface: e.target.value as SurfaceKind | '' })
+              }
+            >
+              <option value="">Nothing that reacts</option>
+              {SURFACE_KINDS.map((s) => (
+                <option key={s.kind} value={s.kind}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field field-sm">
+            <span>Shape</span>
+            <select
+              value={zoneForm.shape}
+              onChange={(e) => {
+                const shape = e.target.value as ZoneShape;
+                const sizes = ZONE_SHAPES.find((s) => s.shape === shape)!.sizes;
+                setZoneForm({
+                  ...zoneForm,
+                  shape,
+                  feet: sizes.includes(zoneForm.feet) ? zoneForm.feet : sizes[1] ?? sizes[0],
+                });
+              }}
+            >
+              {ZONE_SHAPES.map((s) => (
+                <option key={s.shape} value={s.shape}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field field-sm">
+            <span>Size</span>
+            <select
+              aria-label="Size in feet"
+              value={zoneForm.feet}
+              onChange={(e) => setZoneForm({ ...zoneForm, feet: Number(e.target.value) })}
+            >
+              {ZONE_SHAPES.find((s) => s.shape === zoneForm.shape)!.sizes.map((feet) => (
+                <option key={feet} value={feet}>
+                  {feet} ft
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field field-sm">
+            <span>Rounds</span>
+            <input
+              type="number"
+              min={1}
+              className="qty"
+              placeholder="∞"
+              aria-label="Rounds it lasts — empty means until removed"
+              value={zoneForm.rounds}
+              onChange={(e) => setZoneForm({ ...zoneForm, rounds: e.target.value })}
+            />
+          </label>
+          {ZONE_PRESETS.find((p) => p.id === zoneForm.preset)?.effect?.save && (
             <label className="field field-sm">
-              <span>Spell</span>
-              <select
-                aria-label="Load a hazard from the shelf"
-                value={zoneForm.preset}
-                onChange={(e) => {
-                  const preset = ZONE_PRESETS.find((p) => p.id === e.target.value);
-                  if (!preset) return;
-                  setZoneForm({
-                    ...zoneForm,
-                    preset: preset.id,
-                    label: preset.id === 'custom' ? '' : preset.label,
-                    shape: preset.shape,
-                    feet: preset.feet,
-                    rounds: preset.rounds ? String(preset.rounds) : '',
-                    dc: preset.effect?.save ? String(preset.effect.save.dc) : '',
-                    surface: preset.effect?.surface ?? '',
-                  });
-                }}
-              >
-                {ZONE_PRESETS.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field field-sm" style={{ flex: '1 1 130px' }}>
-              <span>Effect</span>
-              <input
-                type="text"
-                placeholder="Wall of fire"
-                value={zoneForm.label}
-                onChange={(e) => setZoneForm({ ...zoneForm, label: e.target.value })}
-              />
-            </label>
-            {/* What the ground is made of, which is what reacts. A preset
-                fills this in; a custom area is whatever you say it is. */}
-            <label className="field field-sm">
-              <span>Made of</span>
-              <select
-                aria-label="What this area is made of"
-                value={zoneForm.surface}
-                onChange={(e) =>
-                  setZoneForm({ ...zoneForm, surface: e.target.value as SurfaceKind | '' })
-                }
-              >
-                <option value="">Nothing that reacts</option>
-                {SURFACE_KINDS.map((s) => (
-                  <option key={s.kind} value={s.kind}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field field-sm">
-              <span>Shape</span>
-              <select
-                value={zoneForm.shape}
-                onChange={(e) => {
-                  const shape = e.target.value as ZoneShape;
-                  const sizes = ZONE_SHAPES.find((s) => s.shape === shape)!.sizes;
-                  setZoneForm({
-                    ...zoneForm,
-                    shape,
-                    feet: sizes.includes(zoneForm.feet) ? zoneForm.feet : sizes[1] ?? sizes[0],
-                  });
-                }}
-              >
-                {ZONE_SHAPES.map((s) => (
-                  <option key={s.shape} value={s.shape}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field field-sm">
-              <span>Size</span>
-              <select
-                aria-label="Size in feet"
-                value={zoneForm.feet}
-                onChange={(e) => setZoneForm({ ...zoneForm, feet: Number(e.target.value) })}
-              >
-                {ZONE_SHAPES.find((s) => s.shape === zoneForm.shape)!.sizes.map((feet) => (
-                  <option key={feet} value={feet}>
-                    {feet} ft
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field field-sm">
-              <span>Rounds</span>
+              <span>Save DC</span>
               <input
                 type="number"
                 min={1}
                 className="qty"
-                placeholder="∞"
-                aria-label="Rounds it lasts — empty means until removed"
-                value={zoneForm.rounds}
-                onChange={(e) => setZoneForm({ ...zoneForm, rounds: e.target.value })}
+                aria-label="The save DC this casting uses"
+                value={zoneForm.dc}
+                onChange={(e) => setZoneForm({ ...zoneForm, dc: e.target.value })}
               />
             </label>
-            {ZONE_PRESETS.find((p) => p.id === zoneForm.preset)?.effect?.save && (
-              <label className="field field-sm">
-                <span>Save DC</span>
-                <input
-                  type="number"
-                  min={1}
-                  className="qty"
-                  aria-label="The save DC this casting uses"
-                  value={zoneForm.dc}
-                  onChange={(e) => setZoneForm({ ...zoneForm, dc: e.target.value })}
-                />
-              </label>
-            )}
-            <button
-              type="button"
-              className={`btn btn-sm ${placing ? 'btn-primary' : ''}`}
-              style={{ alignSelf: 'center' }}
-              onClick={() => {
-                if (placing) {
-                  setPlacing(null);
-                  setAimFrom(null);
-                  return;
-                }
-                // The shelf's recipe, with this casting's DC typed over it.
-                const preset = ZONE_PRESETS.find((p) => p.id === zoneForm.preset);
-                const base: ZoneEffect | undefined = preset?.effect
-                  ? {
-                      ...preset.effect,
-                      save: preset.effect.save
-                        ? {
-                            ...preset.effect.save,
-                            dc: Math.max(1, Number(zoneForm.dc) || preset.effect.save.dc),
-                          }
-                        : undefined,
-                    }
-                  : undefined;
-                /*
-                  The chosen material wins over the preset's, so a DM can draw
-                  a plain area and declare it oil - and clearing it back to
-                  none means the area reacts to nothing, which is the right
-                  answer for a drawn-only marker.
-                */
-                const effect: ZoneEffect | undefined = zoneForm.surface
-                  ? { ...(base ?? {}), surface: zoneForm.surface }
-                  : base && base.surface
-                    ? { ...base, surface: undefined }
-                    : base;
-                setPlacing({
-                  label: zoneForm.label,
-                  shape: zoneForm.shape,
-                  feet: zoneForm.feet,
-                  rounds: zoneForm.rounds ? Math.max(1, Number(zoneForm.rounds)) : undefined,
-                  effect,
-                });
-              }}
-            >
-              {placing ? 'Cancel placing' : 'Place on map'}
-            </button>
-          </div>
-          {placing && (
-            <p className="muted" style={{ margin: '0 0 8px' }}>
-              {ZONE_SHAPES.find((s) => s.shape === placing.shape)?.aimed
-                ? aimFrom
-                  ? 'Now click the way it points.'
-                  : 'Click where it starts, then the way it points.'
-                : 'Click the map to place it.'}
-            </p>
           )}
-
-          {(encounter.zones ?? []).map((zone) => {
-            const inside = combatantsIn(zone, encounter.combatants);
-            const effect = zone.effect;
-            const does = effect
-              ? [
-                  effect.damage
-                    ? `${effect.damage.dice} ${effect.damage.type}${
-                        effect.onEnter && effect.onEndTurn
-                          ? ' on entry and turn end'
-                          : effect.onEnter
-                            ? ' on entry'
-                            : effect.onEndTurn
-                              ? ' at turn end'
-                              : ''
-                      }`
-                    : '',
-                  effect.save
-                    ? `${effect.save.ability.toUpperCase()} ${effect.save.dc}${effect.save.half ? ' half' : ''}`
-                    : '',
-                  effect.blocks ? 'impassable' : '',
-                  effect.difficult ? 'difficult ground' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' · ')
-              : '';
-            return (
-              <p key={zone.id} className="zone-row">
-                <button
-                  className="btn btn-sm"
-                  aria-label={`Remove ${zone.label}`}
-                  onClick={() => setEncounter(removeZone(encounter, zone.id))}
-                >
-                  Remove
-                </button>{' '}
-                <b>{zone.label}</b> — {zone.shape}, {zone.feet} ft
-                {zone.rounds !== undefined
-                  ? `, ${zone.rounds} round${zone.rounds === 1 ? '' : 's'} left`
-                  : ''}
-                {does && <span className="src"> · {does}</span>}
-                {inside.length > 0 && (
-                  <span className="src"> · inside: {inside.map(nameOf).join(', ')}</span>
-                )}
-              </p>
-            );
-          })}
+          <button
+            type="button"
+            className={`btn btn-sm ${placing ? 'btn-primary' : ''}`}
+            style={{ alignSelf: 'center' }}
+            onClick={() => {
+              if (placing) {
+                setPlacing(null);
+                setAimFrom(null);
+                return;
+              }
+              // The shelf's recipe, with this casting's DC typed over it.
+              const preset = ZONE_PRESETS.find((p) => p.id === zoneForm.preset);
+              const base: ZoneEffect | undefined = preset?.effect
+                ? {
+                    ...preset.effect,
+                    save: preset.effect.save
+                      ? {
+                          ...preset.effect.save,
+                          dc: Math.max(1, Number(zoneForm.dc) || preset.effect.save.dc),
+                        }
+                      : undefined,
+                  }
+                : undefined;
+              /*
+                The chosen material wins over the preset's, so a DM can draw
+                a plain area and declare it oil - and clearing it back to
+                none means the area reacts to nothing, which is the right
+                answer for a drawn-only marker.
+              */
+              const effect: ZoneEffect | undefined = zoneForm.surface
+                ? { ...(base ?? {}), surface: zoneForm.surface }
+                : base && base.surface
+                  ? { ...base, surface: undefined }
+                  : base;
+              setPlacing({
+                label: zoneForm.label,
+                shape: zoneForm.shape,
+                feet: zoneForm.feet,
+                rounds: zoneForm.rounds ? Math.max(1, Number(zoneForm.rounds)) : undefined,
+                effect,
+              });
+            }}
+          >
+            {placing ? 'Cancel placing' : 'Place on map'}
+          </button>
         </div>
+        {placing && (
+          <p className="muted" style={{ margin: '0 0 8px' }}>
+            {ZONE_SHAPES.find((s) => s.shape === placing.shape)?.aimed
+              ? aimFrom
+                ? 'Now click the way it points.'
+                : 'Click where it starts, then the way it points.'
+              : 'Click the map to place it.'}
+          </p>
+        )}
 
-        {/*
-          A place to write what is in each room. The map gives you numbered
-          rooms so a DM can say "the third one"; this is where the third one
-          gets a name. Not stored - a seed reproduces the map, and notes belong
-          wherever the DM keeps their notes.
-        */}
-        <p className="muted" style={{ marginTop: 8 }}>
-          Rooms are numbered left to right so you can say which one out loud. Any text works as a
-          seed — <b>the sunken abbey</b> is easier to write in your notes than a number, and gives
-          the same map every time.
-        </p>
-      </Panel>
+        {(encounter.zones ?? []).map((zone) => {
+          const inside = combatantsIn(zone, encounter.combatants);
+          const effect = zone.effect;
+          const does = effect
+            ? [
+                effect.damage
+                  ? `${effect.damage.dice} ${effect.damage.type}${
+                      effect.onEnter && effect.onEndTurn
+                        ? ' on entry and turn end'
+                        : effect.onEnter
+                          ? ' on entry'
+                          : effect.onEndTurn
+                            ? ' at turn end'
+                            : ''
+                    }`
+                  : '',
+                effect.save
+                  ? `${effect.save.ability.toUpperCase()} ${effect.save.dc}${effect.save.half ? ' half' : ''}`
+                  : '',
+                effect.blocks ? 'impassable' : '',
+                effect.difficult ? 'difficult ground' : '',
+              ]
+                .filter(Boolean)
+                .join(' · ')
+            : '';
+          return (
+            <p key={zone.id} className="zone-row">
+              <button
+                className="btn btn-sm"
+                aria-label={`Remove ${zone.label}`}
+                onClick={() => setEncounter(removeZone(encounter, zone.id))}
+              >
+                Remove
+              </button>{' '}
+              <b>{zone.label}</b> — {zone.shape}, {zone.feet} ft
+              {zone.rounds !== undefined
+                ? `, ${zone.rounds} round${zone.rounds === 1 ? '' : 's'} left`
+                : ''}
+              {does && <span className="src"> · {does}</span>}
+              {inside.length > 0 && (
+                <span className="src"> · inside: {inside.map(nameOf).join(', ')}</span>
+              )}
+            </p>
+          );
+        })}
+      </div>
+
+    </Panel>
   );
 
   /*
@@ -4400,6 +4422,10 @@ export function TableTab({
           setPlacing(null);
           setAimFrom(null);
         } else if (saveResults) setSaveResults(null);
+        // Last, because a drawer is the least urgent thing in hand: a DM
+        // pressing Escape mid-aim means "put the bow down", not "close the
+        // bestiary I opened a minute ago".
+        else if (drawer) setDrawer(null);
         return;
       }
       if ((e.key === ' ' || e.key.toLowerCase() === 'n') && isRunning(encounter)) {
@@ -4474,29 +4500,112 @@ export function TableTab({
 
 
   /*
-    Three columns, the shape a session wants.
+    The battle screen, at last a screen.
 
-    Turn order on the left because it is the question that never stops being
-    live. The map in the middle because it is what everyone is looking at. The
-    selected combatant on the right because "what is left of them" is the other
-    question, and it changes every few seconds.
+    Thirty sections of very good document: the map was the fifth thing down a
+    scrolling column and every panel opened underneath pushed it further away.
+    So the map becomes the stage - it fills whatever the window has left - and
+    everything that used to sit above or below it becomes something that slides
+    *over* it and goes away again.
 
-    Everything else - the forecast, the bestiary - lives in the centre under the
-    map, where it is reachable without displacing either rail.
+    Three things stay on screen always, because all three answer a question
+    that never stops being live: the initiative timeline along the top, the
+    cockpit down the right, and the last few lines of the log bottom-left. The
+    rest - the party, the bestiary, the field, the areas, the forecast, the
+    debrief - are drawers on a command bar, one at a time, Escape closes.
+
+    The three-column `Workspace` from §10.1 is deleted with this, and its
+    header said why in advance: it was built as a shell "so a second surface
+    can adopt it if it earns it, rather than because every screen should look
+    the same". No second surface ever did, and the one that had it has moved
+    on - a battle screen with a resizable left rail is a tool for reading
+    about a fight rather than for running one. Kept-but-unused code that
+    carries its own tests reads as load-bearing, so it goes.
   */
+  const drawers = [
+    { id: 'party', label: 'Party', hint: 'Who is in the fight, and who could be', content: partyPanel },
+    { id: 'foes', label: 'Bestiary', hint: 'Search the stat blocks and add them', content: monstersPanel },
+    { id: 'field', label: 'Field', hint: 'The ground, the dungeon, fog and the camera', content: fieldPanel },
+    { id: 'areas', label: 'Areas', hint: 'Spells on the ground', content: zonePanel },
+    { id: 'order', label: 'Order', hint: 'Initiative, hit points, conditions, saves', content: <>{fightPanel}{savesPanel}</> },
+    { id: 'plan', label: 'Prep', hint: 'What this fight will do, and the drawer of saved ones', content: <>{forecastPanel}{libraryPanel}</> },
+    { id: 'after', label: 'After', hint: 'The debrief, the payout and the whole log', content: <>{debriefPanel}{logPanel}</> },
+  ] as const;
+  const openDrawer = drawers.find((d) => d.id === drawer);
+
   return (
-    <Workspace
-      id="table"
-      left={{ title: 'Turn order', content: <>{fightPanel}{debriefPanel}{logPanel}{partyPanel}</> }}
-      right={{ title: selectedTitle, content: <>{turnPanel}{selectedPanel}</> }}
-    >
-      {strip}
-      {dungeonPanel}
-      {savesPanel}
-      {forecastPanel}
-      {monstersPanel}
-      {libraryPanel}
+    <div className="btl">
+      <div className="btl-top">{strip}</div>
+
+      <div className="btl-stage">
+        {mapStage}
+
+        {/*
+          The cockpit, docked rather than railed. Whoever is selected, in
+          whatever form suits them - and it follows the turn, so after End turn
+          this is the active combatant without anybody clicking anything.
+        */}
+        <aside className="btl-cockpit" aria-label={selectedTitle}>
+          {turnPanel}
+          <div className="btl-cockpit-body">{selectedPanel}</div>
+        </aside>
+
+        {/*
+          The last few lines of the fight, where a DM can read them without
+          opening anything. The whole log is behind the After drawer; this is
+          the tail, which is the part anybody actually looks at.
+        */}
+        {(encounter.log?.length ?? 0) > 0 && (
+          <div className="btl-tail" aria-hidden="true">
+            {encounter.log!.slice(0, 3).map((entry) => (
+              <p key={entry.id}>{entry.text}</p>
+            ))}
+          </div>
+        )}
+
+        {/*
+          The drawer, over the map rather than under it. One at a time, because
+          two open would be the scrolling column again with extra steps.
+        */}
+        {openDrawer && (
+          <section className="btl-drawer" aria-label={openDrawer.label}>
+            <header className="btl-drawer-head">
+              <span className="btl-drawer-title">{openDrawer.label}</span>
+              <button
+                type="button"
+                className="btl-drawer-close"
+                onClick={() => setDrawer(null)}
+                aria-label={`Close ${openDrawer.label}`}
+              >
+                ✕
+              </button>
+            </header>
+            <div className="btl-drawer-body">{openDrawer.content}</div>
+          </section>
+        )}
+      </div>
+
+      {/*
+        The command bar. Every one of these used to be a panel you scrolled
+        past; each is now a button that puts the thing on screen and takes it
+        away again, which is the difference between a page and a game.
+      */}
+      <nav className="btl-bar" aria-label="Battle menus">
+        {drawers.map((d) => (
+          <button
+            key={d.id}
+            type="button"
+            className={`btl-cmd ${drawer === d.id ? 'is-on' : ''}`}
+            aria-pressed={drawer === d.id}
+            title={d.hint}
+            onClick={() => setDrawer(drawer === d.id ? null : d.id)}
+          >
+            {d.label}
+          </button>
+        ))}
+      </nav>
+
       {poppedPanel}
-    </Workspace>
+    </div>
   );
 }

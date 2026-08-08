@@ -59,13 +59,45 @@ function setup(initial: Roster, bestiary: Monster[] = []) {
   };
 }
 
-/** The bestiary is a dynamic import, so the panel arrives a tick late. */
-const bestiaryReady = () =>
-  waitFor(() => expect(screen.getByText(/from SRD 5\.1/)).toBeInTheDocument());
+/*
+  §31.3 put every panel behind a command-bar button, so reaching a control now
+  means opening the drawer it lives in - which is exactly what a DM does. The
+  always-on controls did not move: the initiative timeline runs along the top,
+  and Start the fight / End turn are on the cockpit, because those three are
+  what a table looks at continuously.
+
+  Two flavours. `open` is the one a test uses, awaited like any other click.
+  `openSync` exists because the helpers below are called from inside other
+  helpers that have no `user` in scope, and a synchronous `fireEvent` is enough
+  to press a button that only flips component state.
+*/
+const openSync = (label: string) => {
+  const bar = document.querySelector('.btl-bar');
+  if (!bar) return;
+  const button = within(bar as HTMLElement).queryByRole('button', { name: label });
+  if (button && button.getAttribute('aria-pressed') !== 'true') fireEvent.click(button);
+};
+
+const open = async (user: ReturnType<typeof userEvent.setup>, label: string) => {
+  const bar = document.querySelector('.btl-bar');
+  if (!bar) return;
+  const button = within(bar as HTMLElement).getByRole('button', { name: label });
+  if (button.getAttribute('aria-pressed') !== 'true') await user.click(button);
+};
+
+/** The bestiary is a dynamic import, so the panel arrives a tick late - and
+    now it is behind a button, so this opens the drawer before it waits. */
+const bestiaryReady = () => {
+  openSync('Bestiary');
+  return waitFor(() => expect(screen.getByText(/from SRD 5\.1/)).toBeInTheDocument());
+};
 
 const party = () => rosterOf(fighter(), wizard());
 
 const rowFor = (name: string): HTMLElement => {
+  // The rows live in the Order drawer now, and this is called from inside
+  // other helpers that have no `user` - so it opens its own door.
+  openSync('Order');
   const row = [...document.querySelectorAll('.init-row')].find((el) =>
     el.querySelector('.init-who b')?.textContent?.includes(name),
   );
@@ -77,7 +109,7 @@ describe('putting a fight together', () => {
   it('adds a character from the roster by reference', async () => {
     const user = userEvent.setup();
     const view = setup(party());
-
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
 
     expect(view.encounter.combatants).toHaveLength(1);
@@ -93,7 +125,7 @@ describe('putting a fight together', () => {
     const user = userEvent.setup();
     const view = setup(party());
     const name = view.roster.entries[0].build.name;
-
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
     await user.click(screen.getByRole('button', { name }));
     expect(view.encounter.combatants).toHaveLength(0);
@@ -104,17 +136,27 @@ describe('putting a fight together', () => {
     setup(party());
     await bestiaryReady();
 
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
-    const entry = [...document.querySelectorAll('.mon-list li')].find(
-      (li) => li.querySelector('b')?.textContent === 'Goblin',
-    ) as HTMLElement;
 
-    // Scoped to the turn order: the name is also in the bestiary list below,
-    // so a bare getByText matches twice.
-    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    /*
+      Re-queried each time rather than held in a variable. Reading the turn
+      order opens the Order drawer, which takes the bestiary off screen - so a
+      node captured before that is detached by the time it is clicked, and
+      clicking a detached node does nothing at all. §31.3's own trap.
+    */
+    const addGoblin = async () => {
+      await open(user, 'Bestiary');
+      const entry = [...document.querySelectorAll('.mon-list li')].find(
+        (li) => li.querySelector('b')?.textContent === 'Goblin',
+      ) as HTMLElement;
+      await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    };
+
+    await addGoblin();
     expect(rowFor('Goblin')).toBeTruthy();
 
-    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await addGoblin();
     expect(rowFor('Goblin A')).toBeTruthy();
     expect(rowFor('Goblin B')).toBeTruthy();
   });
@@ -127,7 +169,7 @@ describe('hit points have one home', () => {
     const id = view.roster.entries[0].id;
     const name = view.roster.entries[0].build.name;
     const max = deriveBuild(view.roster.entries[0].build).hp.total;
-
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
     await user.click(within(rowFor(name)).getByRole('button', { name: '−5' }));
 
@@ -142,7 +184,7 @@ describe('hit points have one home', () => {
     const view = setup(party());
     const name = view.roster.entries[0].build.name;
     const max = deriveBuild(view.roster.entries[0].build).hp.total;
-
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
     await user.click(within(rowFor(name)).getByRole('button', { name: '−5' }));
     await user.click(within(rowFor(name)).getByRole('button', { name: '+5' }));
@@ -154,12 +196,12 @@ describe('hit points have one home', () => {
     const view = setup(party());
     await bestiaryReady();
 
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
-
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
     expect(view.encounter.combatants[0]).toMatchObject({ kind: 'monster', hp: 2, maxHp: 7 });
   });
@@ -170,11 +212,13 @@ describe('running the fight', () => {
     const user = userEvent.setup();
     const view = setup(party());
     for (const entry of view.roster.entries) {
+      await open(user, 'Party');
       await user.click(screen.getByRole('button', { name: entry.build.name }));
     }
 
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
     expect(view.encounter.round).toBe(1);
+    await open(user, 'Order');
     expect(screen.getByText(/Round 1 ·/)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /end turn/i }));
@@ -198,7 +242,7 @@ describe('running the fight', () => {
       })),
     };
     const view = setup(spent);
-
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
 
@@ -224,6 +268,7 @@ describe('running the fight', () => {
     const view = setup(spent);
 
     // Only the first character joins, and only their turn begins.
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
 
@@ -234,8 +279,10 @@ describe('running the fight', () => {
   it('keeps who was in it when the fight ends', async () => {
     const user = userEvent.setup();
     const view = setup(party());
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
+    await open(user, 'Order');
     await user.click(screen.getByRole('button', { name: /end the fight/i }));
 
     expect(view.encounter.combatants).toHaveLength(1);
@@ -271,7 +318,7 @@ describe('the mini window', () => {
     const user = userEvent.setup();
     const view = setup(party());
     const name = view.roster.entries[0].build.name;
-
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
     await user.click(within(rowFor(name)).getByRole('button', { name: /pop out/i }));
 
@@ -285,7 +332,7 @@ describe('the mini window', () => {
     const view = setup(party());
     const name = view.roster.entries[0].build.name;
     const max = deriveBuild(view.roster.entries[0].build).hp.total;
-
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
     await user.click(within(rowFor(name)).getByRole('button', { name: /pop out/i }));
 
@@ -303,6 +350,7 @@ describe('the mini window', () => {
     setup(party());
     await bestiaryReady();
 
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
@@ -320,6 +368,7 @@ describe('the mini window', () => {
     const user = userEvent.setup();
     const view = setup(party());
     for (const entry of view.roster.entries) {
+      await open(user, 'Party');
       await user.click(screen.getByRole('button', { name: entry.build.name }));
     }
 
@@ -344,10 +393,13 @@ describe('what this fight will do', () => {
   it('says nothing until there is a fight to describe', async () => {
     const user = userEvent.setup();
     const view = setup(party());
+    await open(user, 'Prep');
     expect(screen.queryByText(/what this fight will do/i)).not.toBeInTheDocument();
 
     // A party with nothing to fight is still not a fight.
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Prep');
     expect(screen.queryByText(/what this fight will do/i)).not.toBeInTheDocument();
   });
 
@@ -355,14 +407,15 @@ describe('what this fight will do', () => {
     const user = userEvent.setup();
     const view = setup(party());
     await bestiaryReady();
-
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
-
+    await open(user, 'Prep');
     const panel = screen.getByText(/what this fight will do/i).closest('.panel') as HTMLElement;
     expect(within(panel).getByText(/50 XP from the stat blocks/)).toBeInTheDocument();
     expect(within(panel).getByText(/a projection, not a promise/i)).toBeInTheDocument();
@@ -374,14 +427,15 @@ describe('what this fight will do', () => {
     const user = userEvent.setup();
     const view = setup(party());
     await bestiaryReady();
-
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
-
+    await open(user, 'Prep');
     const panel = screen.getByText(/what this fight will do/i).closest('.panel') as HTMLElement;
     expect(panel.textContent?.toLowerCase()).not.toMatch(/\bdeadly\b|\bmedium\b/);
   });
@@ -399,9 +453,11 @@ describe('the map', () => {
   it('puts everyone in the fight onto the first room', async () => {
     const user = userEvent.setup();
     const view = setup(party());
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
 
     expect(view.encounter.combatants[0].at).toBeUndefined();
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     expect(view.encounter.combatants[0].at).toBeTruthy();
   });
@@ -411,14 +467,16 @@ describe('the map', () => {
     const view = setup(party());
     await bestiaryReady();
     for (const entry of view.roster.entries) {
+      await open(user, 'Party');
       await user.click(screen.getByRole('button', { name: entry.build.name }));
     }
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
-
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
 
     const room = generateDungeon(DEFAULT_SEED, { rooms: 8, ...MAP_SIZES.medium }).rooms[0];
@@ -436,7 +494,9 @@ describe('the map', () => {
   it('takes them off again', async () => {
     const user = userEvent.setup();
     const view = setup(party());
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     await user.click(screen.getByRole('button', { name: /take them off/i }));
     expect(view.encounter.combatants.every((c) => !c.at)).toBe(true);
@@ -446,10 +506,11 @@ describe('the map', () => {
     const user = userEvent.setup();
     const view = setup(party());
     for (const entry of view.roster.entries) {
+      await open(user, 'Party');
       await user.click(screen.getByRole('button', { name: entry.build.name }));
     }
     expect(document.querySelectorAll('.dmap-token')).toHaveLength(0);
-
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     expect(document.querySelectorAll('.dmap-token')).toHaveLength(2);
   });
@@ -457,7 +518,9 @@ describe('the map', () => {
   it('says what the character whose turn it is has left to move', async () => {
     const user = userEvent.setup();
     const view = setup(party());
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
 
@@ -496,7 +559,9 @@ describe('the battlefield loads, it does not build', () => {
     );
     const user = userEvent.setup();
     const view = setup(party());
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     expect(view.encounter.combatants[0].at).toBeTruthy();
 
@@ -518,21 +583,29 @@ describe('the battlefield loads, it does not build', () => {
  * left rail, the selected combatant is in the right one, and selecting is a
  * different question from whose turn it is.
  */
-describe('the workspace', () => {
-  const rail = (title: string) =>
-    (document.querySelector(`.ws-rail[aria-label="${title}"]`) ??
-      [...document.querySelectorAll('.ws-rail')].find((el) =>
-        el.querySelector('.ws-rail-title')?.textContent === title,
-      )) as HTMLElement;
+/*
+  §31.3 retired the three-column workspace on this screen. The questions these
+  tests ask did not change - where is the turn order, where is the map, whose
+  card is on screen - only where the answers live: the timeline is a top bar,
+  the map fills the stage, and the cockpit is docked right.
+*/
+describe('the battle screen', () => {
+  const cockpit = () => document.querySelector('.btl-cockpit') as HTMLElement;
 
   it('pins the turn order in the left rail and the map in the centre', async () => {
     const user = userEvent.setup();
     const view = setup(party());
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
-
-    expect(within(rail('Turn order')).getByText(/round|roll initiative|nobody in the fight/i))
-      .toBeInTheDocument();
-    expect(document.querySelector('.ws-centre .dmap')).toBeTruthy();
+    await open(user, 'Order');
+    expect(
+      within(document.querySelector('.btl-drawer') as HTMLElement).getByText(
+        /round|roll initiative|nobody in the fight/i,
+      ),
+    ).toBeInTheDocument();
+    // The map is the stage rather than a column of it, and it is on screen
+    // whether or not a drawer is open - which is the whole point of §31.3.
+    expect(document.querySelector('.btl-stage .dmap')).toBeTruthy();
   });
 
   it('says nothing is selected before there is anybody', () => {
@@ -543,11 +616,12 @@ describe('the workspace', () => {
   it('shows whoever is up once a fight starts, without being asked', async () => {
     const user = userEvent.setup();
     const view = setup(party());
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
 
-    // The rail is never empty during a fight without somebody having emptied it.
-    expect(document.querySelector('.ws-right .pcard')).toBeTruthy();
+    // The cockpit is never empty during a fight without somebody emptying it.
+    expect(document.querySelector('.btl-cockpit .pcard')).toBeTruthy();
   });
 
   it('keeps looking at who you chose when the turn moves on', async () => {
@@ -560,6 +634,7 @@ describe('the workspace', () => {
     const user = userEvent.setup();
     const view = setup(party());
     for (const entry of view.roster.entries) {
+      await open(user, 'Party');
       await user.click(screen.getByRole('button', { name: entry.build.name }));
     }
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
@@ -568,8 +643,8 @@ describe('the workspace', () => {
     await user.click(within(rowFor(second)).getByRole('button', { name: /show .* in the rail/i }));
     await user.click(screen.getByRole('button', { name: /end turn/i }));
 
-    const card = document.querySelector('.ws-right .pcard') as HTMLElement;
-    expect(within(card).getByText(second)).toBeInTheDocument();
+    const card = within(cockpit()).getByText(second);
+    expect(card).toBeInTheDocument();
   });
 
   it('puts a monster’s stat block in the rail rather than inside the row', async () => {
@@ -579,17 +654,16 @@ describe('the workspace', () => {
     setup(party());
     await bestiaryReady();
 
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
-
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: /show goblin in the rail/i }));
     expect(document.querySelector('.init-block')).toBeNull();
-    expect(document.querySelector('.ws-right .mc')).toBeTruthy();
-    expect(within(document.querySelector('.ws-right') as HTMLElement).getByText(/Nimble Escape/))
-      .toBeInTheDocument();
+    expect(document.querySelector('.btl-cockpit .mc')).toBeTruthy();
+    expect(within(cockpit()).getByText(/Nimble Escape/)).toBeInTheDocument();
   });
 });
 
@@ -616,6 +690,7 @@ describe('your own monsters', () => {
     setup(party(), [thug]);
     await bestiaryReady();
 
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'bandit');
     const rows = [...document.querySelectorAll('.mon-list li')];
     expect(rows[0].querySelector('b')?.textContent).toBe('Bandit, harbour');
@@ -630,6 +705,7 @@ describe('your own monsters', () => {
     const view = setup(party(), [thug]);
     await bestiaryReady();
 
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'harbour');
     const entry = document.querySelector('.mon-list li') as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
@@ -672,7 +748,6 @@ describe('your own monsters', () => {
       },
     });
     await bestiaryReady();
-
     const row = rowFor('Something that was here');
     expect(within(row).getByText(/deleted from your bestiary/i)).toBeInTheDocument();
     expect(within(row).queryByText(/still loading/i)).toBeNull();
@@ -704,8 +779,10 @@ describe('line of sight', () => {
 
     // Two characters, both on the map, a pillar wall between them.
     for (const entry of view.roster.entries) {
+      await open(user, 'Party');
       await user.click(screen.getByRole('button', { name: entry.build.name }));
     }
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
 
     // Select the first character and turn the lines on.
@@ -713,10 +790,11 @@ describe('line of sight', () => {
     await user.click(
       within(rowFor(first)).getByRole('button', { name: /show .* in the rail/i }),
     );
+    await open(user, 'Field');
     await user.click(screen.getByRole('checkbox', { name: /sight lines/i }));
 
     // Deployed into the same room with nothing between them: visible, in words
-    // and in ink.
+    // and in ink. The sight report is in the same drawer as its switch.
     expect(screen.getByText(/sees/i)).toBeInTheDocument();
     expect(document.querySelector('.dmap-sight:not(.is-blocked)')).toBeTruthy();
     expect(document.querySelector('.dmap-sight.is-blocked')).toBeNull();
@@ -725,7 +803,9 @@ describe('line of sight', () => {
   it('says so when the selected combatant is not on the map', async () => {
     const user = userEvent.setup();
     const view = setup(party());
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('checkbox', { name: /sight lines/i }));
     expect(screen.getByText(/select somebody who is on the map/i)).toBeInTheDocument();
   });
@@ -741,7 +821,7 @@ describe('areas of effect', () => {
   it('places a sphere where the DM clicks and counts its rounds down', async () => {
     const user = userEvent.setup();
     const view = setup(party());
-
+    await open(user, 'Areas');
     await user.type(screen.getByPlaceholderText('Wall of fire'), 'Cloudkill');
     await user.type(screen.getByLabelText(/rounds it lasts/i), '2');
     await user.click(screen.getByRole('button', { name: /place on map/i }));
@@ -759,20 +839,24 @@ describe('areas of effect', () => {
     expect(document.querySelectorAll('.dmap-zone rect').length).toBeGreaterThan(0);
 
     // A full round passing burns one; the zone panel says so.
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
     await user.click(screen.getByRole('button', { name: /end turn/i }));
     expect(view.encounter.zones![0].rounds).toBe(1);
+    await open(user, 'Areas');
     expect(screen.getByText(/1 round left/i)).toBeInTheDocument();
   });
 
   it('aims a cone with two clicks and names who is inside', async () => {
     const user = userEvent.setup();
     const view = setup(party());
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     const standing = view.encounter.combatants[0].at!;
-
+    await open(user, 'Areas');
     await user.selectOptions(screen.getByLabelText('Shape'), 'cone');
     await user.click(screen.getByRole('button', { name: /place on map/i }));
     giveBox();
@@ -795,6 +879,7 @@ describe('areas of effect', () => {
   it('removes a zone from the list', async () => {
     const user = userEvent.setup();
     const view = setup(party());
+    await open(user, 'Areas');
     await user.click(screen.getByRole('button', { name: /place on map/i }));
     giveBox();
     fireEvent.pointerDown(mapSvg2(), { clientX: 100, clientY: 100 });
@@ -814,6 +899,7 @@ describe('areas of effect', () => {
     preset: string,
     at: { x: number; y: number },
   ) => {
+    await open(user, 'Areas');
     await user.selectOptions(screen.getByLabelText(/load a hazard from the shelf/i), preset);
     await user.click(screen.getByRole('button', { name: /place on map/i }));
     giveBox();
@@ -853,7 +939,9 @@ describe('areas of effect', () => {
   it('charges the jolt and the placement to a single write', async () => {
     const user = userEvent.setup();
     const view = setup(party());
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     const standing = view.encounter.combatants[0].at!;
 
@@ -874,7 +962,7 @@ describe('areas of effect', () => {
   it('lets a custom area be declared flammable, and then burns it', async () => {
     const user = userEvent.setup();
     const view = setup(party());
-
+    await open(user, 'Areas');
     await user.type(screen.getByPlaceholderText('Wall of fire'), 'Oil slick');
     await user.selectOptions(screen.getByLabelText(/what this area is made of/i), 'grease');
     await user.click(screen.getByRole('button', { name: /place on map/i }));
@@ -892,14 +980,16 @@ describe('the simulation', () => {
     const user = userEvent.setup();
     const view = setup(party());
     await bestiaryReady();
-
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
 
+    await open(user, 'Prep');
     await user.click(screen.getByRole('button', { name: /run it 1,000 times/i }));
 
     // A fighter against one goblin: the distribution exists and says a
@@ -921,7 +1011,9 @@ describe('the simulation', () => {
 describe('running the monsters', () => {
   const fightWithGoblin = async (user: ReturnType<typeof userEvent.setup>, view: ReturnType<typeof setup>) => {
     await bestiaryReady();
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
@@ -936,6 +1028,7 @@ describe('running the monsters', () => {
 
     // The goblin goes first.
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: /roll init/i }));
+    await open(user, 'Order');
     fireEvent.change(within(rowFor('Goblin')).getByLabelText(/goblin initiative/i), {
       target: { value: '30' },
     });
@@ -953,6 +1046,7 @@ describe('running the monsters', () => {
     const user = userEvent.setup();
     const view = setup(party());
     await fightWithGoblin(user, view);
+    await open(user, 'Order');
     fireEvent.change(within(rowFor('Goblin')).getByLabelText(/goblin initiative/i), {
       target: { value: '30' },
     });
@@ -981,6 +1075,7 @@ describe('running the monsters', () => {
     await fightWithGoblin(user, view);
 
     // DC 30: everybody fails, so the arithmetic is deterministic.
+    await open(user, 'Order');
     fireEvent.change(screen.getByLabelText('DC'), { target: { value: '30' } });
     fireEvent.change(screen.getByLabelText('Damage'), { target: { value: '8' } });
     await user.click(screen.getByRole('button', { name: /roll the room/i }));
@@ -1008,7 +1103,9 @@ describe('the fight’s clocks and the drawer', () => {
     };
     const view = setup(concentrating);
     await bestiaryReady();
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[1].build.name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
@@ -1016,6 +1113,7 @@ describe('the fight’s clocks and the drawer', () => {
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
 
     // Fireball the room: everyone fails at DC 30, 20 damage → DC 10 vs half.
+    await open(user, 'Order');
     fireEvent.change(screen.getByLabelText('DC'), { target: { value: '30' } });
     fireEvent.change(screen.getByLabelText('Damage'), { target: { value: '22' } });
     await user.click(screen.getByRole('button', { name: /roll the room/i }));
@@ -1027,6 +1125,7 @@ describe('the fight’s clocks and the drawer', () => {
   it('a timed condition comes off as the rounds pass', async () => {
     const user = userEvent.setup();
     const view = setup(party());
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
 
@@ -1046,19 +1145,22 @@ describe('the fight’s clocks and the drawer', () => {
     const user = userEvent.setup();
     const view = setup(party());
     await bestiaryReady();
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
-
+    await open(user, 'Prep');
     await user.type(screen.getByLabelText(/name to save this fight/i), 'The kennel');
     await user.click(screen.getByRole('button', { name: /save this fight/i }));
     expect(screen.getByText('The kennel')).toBeInTheDocument();
 
     // Clear the table, then load it back.
+    await open(user, 'Order');
     await user.click(screen.getByRole('button', { name: /^clear$/i }));
     expect(view.encounter.combatants).toHaveLength(0);
+    await open(user, 'Prep');
     await user.click(screen.getByRole('button', { name: /load the kennel/i }));
     expect(view.encounter.combatants).toHaveLength(1);
     expect(view.encounter.round).toBe(0);
@@ -1068,13 +1170,16 @@ describe('the fight’s clocks and the drawer', () => {
     const user = userEvent.setup();
     const view = setup(party());
     await bestiaryReady();
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
 
+    await open(user, 'Prep');
     expect(screen.getByText(/of 200 quick\s+runs/i)).toBeInTheDocument();
   });
 });
@@ -1105,7 +1210,9 @@ describe('the pointer’s loop', () => {
     const user = userEvent.setup();
     const view = setup(party());
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
     await user.click(within(rowFor(name)).getByRole('button', { name: /show .* in the rail/i }));
@@ -1156,7 +1263,9 @@ describe('the pointer’s loop', () => {
     // A blank map: all open ground, so the walked prices are pure feet.
     const view = setup({ ...start, encounter: { ...emptyEncounter(), mapRooms: 0 } });
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
 
@@ -1196,12 +1305,15 @@ describe('the pointer’s loop', () => {
   /** A fighter and a goblin on a blank grid, deployed to opposite corners. */
   const blankFight = async (user: ReturnType<typeof userEvent.setup>, view: ReturnType<typeof setup>) => {
     await bestiaryReady();
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
   };
 
@@ -1220,6 +1332,7 @@ describe('the pointer’s loop', () => {
     const view = setup({ ...start, encounter: { ...emptyEncounter(), mapRooms: 0 } });
     await blankFight(user, view);
     // The fighter's initiative puts them first; the goblin is nobody's turn.
+    await open(user, 'Order');
     fireEvent.change(within(rowFor('Goblin')).getByLabelText(/goblin initiative/i), {
       target: { value: '1' },
     });
@@ -1256,6 +1369,7 @@ describe('the pointer’s loop', () => {
     await blankFight(user, view);
     // The fighter goes first; the goblin's turn is beneath theirs.
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Order');
     fireEvent.change(within(rowFor(name)).getByLabelText(new RegExp(`${name} initiative`, 'i')), {
       target: { value: '30' },
     });
@@ -1305,6 +1419,7 @@ describe('the pointer’s loop', () => {
     const start = party();
     const view = setup({ ...start, encounter: { ...emptyEncounter(), mapRooms: 0 } });
     await blankFight(user, view);
+    await open(user, 'Order');
     fireEvent.change(within(rowFor('Goblin')).getByLabelText(/goblin initiative/i), {
       target: { value: '1' },
     });
@@ -1343,12 +1458,13 @@ describe('the pointer’s loop', () => {
     const user = userEvent.setup();
     const view = setup(rosterOf({ ...fighter(), featIds: ['mobile'] }));
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
 
     expect(screen.getByTitle('40 of 40 feet left this turn')).toBeInTheDocument();
-
     await user.click(within(rowFor(name)).getByRole('button', { name: /show .* in the rail/i }));
     await armMove(user);
     const from = view.encounter.combatants[0].at!;
@@ -1369,6 +1485,7 @@ describe('the pointer’s loop', () => {
     const view = setup({ ...start, encounter: { ...emptyEncounter(), mapRooms: 0 } });
     await bestiaryReady();
 
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
@@ -1419,8 +1536,10 @@ describe('the pointer’s loop', () => {
     };
     const view = setup(poisoned);
     for (const entry of view.roster.entries) {
+      await open(user, 'Party');
       await user.click(screen.getByRole('button', { name: entry.build.name }));
     }
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
 
     expect(document.querySelector('.dmap-cond')?.textContent).toContain('POI');
@@ -1438,6 +1557,7 @@ describe('the pointer’s loop', () => {
     const user = userEvent.setup();
     const view = setup(party());
     for (const entry of view.roster.entries) {
+      await open(user, 'Party');
       await user.click(screen.getByRole('button', { name: entry.build.name }));
     }
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
@@ -1462,7 +1582,9 @@ describe('the pointer’s loop', () => {
     });
     await bestiaryReady();
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
@@ -1483,6 +1605,7 @@ describe('the pointer’s loop', () => {
     await waitFor(() => expect(view.encounter.explored?.length ?? 0).toBeGreaterThan(0));
 
     // Fog off: the world comes back.
+    await open(user, 'Field');
     await user.click(screen.getByLabelText(/fog of war/i));
     expect(document.querySelectorAll('.dmap-fog').length).toBe(0);
     expect(document.querySelectorAll('.dmap-token.monster').length).toBe(1);
@@ -1499,7 +1622,9 @@ describe('the pointer’s loop', () => {
     });
     await bestiaryReady();
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
@@ -1508,6 +1633,7 @@ describe('the pointer’s loop', () => {
 
     // Under fog the goblin arrived dormant.
     const goblin = () => view.encounter.combatants.find((c) => c.kind === 'monster')!;
+    await open(user, 'Order');
     expect(goblin()).toMatchObject({ dormant: true });
 
     // Fighter west of the wall, goblin east: still dormant, unseen.
@@ -1530,12 +1656,15 @@ describe('the pointer’s loop', () => {
     const view = setup(party());
     await bestiaryReady();
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
 
@@ -1576,7 +1705,9 @@ describe('the pointer’s loop', () => {
     const view = setup(party());
     await bestiaryReady();
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
@@ -1587,8 +1718,9 @@ describe('the pointer’s loop', () => {
     // Seven off the goblin drops it (7 hp): taken 7, one knockdown.
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
+    await open(user, 'Order');
     await user.click(screen.getByRole('button', { name: /end the fight/i }));
-
+    await open(user, 'After');
     const debrief = screen.getByText('The debrief').closest('.panel') as HTMLElement;
     expect(debrief).toBeTruthy();
     const goblinRow = within(debrief).getByText('Goblin').closest('tr')!;
@@ -1604,8 +1736,10 @@ describe('the pointer’s loop', () => {
     await bestiaryReady();
     // Both of them, because the point of a share is that it is divided.
     for (const e of view.roster.entries) {
+      await open(user, 'Party');
       await user.click(screen.getByRole('button', { name: e.build.name }));
     }
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
@@ -1614,9 +1748,11 @@ describe('the pointer’s loop', () => {
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
+    await open(user, 'Order');
     await user.click(screen.getByRole('button', { name: /end the fight/i }));
 
     // A goblin is 50 XP, split between the two characters in the fight.
+    await open(user, 'After');
     const award = screen.getByRole('button', { name: /Award 25 XP each/ });
     await user.click(award);
     expect(view.roster.entries.map((e) => e.play.xp)).toEqual([25, 25]);
@@ -1636,8 +1772,10 @@ describe('the pointer’s loop', () => {
     const view = setup(party());
     await bestiaryReady();
     for (const e of view.roster.entries) {
+      await open(user, 'Party');
       await user.click(screen.getByRole('button', { name: e.build.name }));
     }
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
@@ -1646,7 +1784,9 @@ describe('the pointer’s loop', () => {
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
+    await open(user, 'Order');
     await user.click(screen.getByRole('button', { name: /end the fight/i }));
+    await open(user, 'After');
     await user.click(screen.getByRole('button', { name: /Award 25 XP each/ }));
 
     const [chapter] = activeCampaign(loadCampaigns())!.chronicle;
@@ -1668,8 +1808,10 @@ describe('the pointer’s loop', () => {
     const view = setup(wounded);
     await bestiaryReady();
     for (const e of view.roster.entries) {
+      await open(user, 'Party');
       await user.click(screen.getByRole('button', { name: e.build.name }));
     }
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
@@ -1678,8 +1820,9 @@ describe('the pointer’s loop', () => {
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
+    await open(user, 'Order');
     await user.click(screen.getByRole('button', { name: /end the fight/i }));
-
+    await open(user, 'After');
     const debrief = screen.getByText('The debrief').closest('.panel') as HTMLElement;
     await user.click(within(debrief).getByRole('button', { name: /Long rest/ }));
 
@@ -1711,6 +1854,7 @@ describe('the pointer’s loop', () => {
     };
     const view = setup(clocked);
     for (const entry of view.roster.entries) {
+      await open(user, 'Party');
       await user.click(screen.getByRole('button', { name: entry.build.name }));
     }
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
@@ -1737,12 +1881,15 @@ describe('the pointer’s loop', () => {
     const view = setup(party());
     await bestiaryReady();
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
     await user.click(within(rowFor(name)).getByRole('button', { name: /show .* in the rail/i }));
@@ -1778,7 +1925,9 @@ describe('the pointer’s loop', () => {
     const user = userEvent.setup();
     const view = setup(party());
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
     await user.click(within(rowFor(name)).getByRole('button', { name: /show .* in the rail/i }));
@@ -1799,12 +1948,14 @@ describe('the pointer’s loop', () => {
     const user = userEvent.setup();
     const view = setup(party());
     for (const entry of view.roster.entries) {
+      await open(user, 'Party');
       await user.click(screen.getByRole('button', { name: entry.build.name }));
     }
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     const name = view.roster.entries[0].build.name;
     await user.click(within(rowFor(name)).getByRole('button', { name: /show .* in the rail/i }));
-
+    await open(user, 'Areas');
     await user.click(screen.getByRole('button', { name: /place on map/i }));
     boxMap();
     // Hover right on the caster's neighbour: a 20 ft sphere from there swallows
@@ -1835,9 +1986,11 @@ describe('the pointer’s loop', () => {
       encounter: { ...emptyEncounter(), mapRooms: 0, elevation: { '14,10': 2 } },
     });
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
     await user.click(within(rowFor(name)).getByRole('button', { name: /show .* in the rail/i }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /tactical view/i }));
 
     const iso = () => document.querySelector('.isomap') as SVGSVGElement;
@@ -1886,9 +2039,11 @@ describe('the pointer’s loop', () => {
     const start = party();
     const view = setup({ ...start, encounter: { ...emptyEncounter(), mapRooms: 0 } });
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
     await user.click(within(rowFor(name)).getByRole('button', { name: /show .* in the rail/i }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /tactical view/i }));
     await user.click(screen.getByRole('button', { name: /rotate the camera/i }));
 
@@ -1911,6 +2066,7 @@ describe('the pointer’s loop', () => {
   it('shows a spell’s footprint at the cursor before any click', async () => {
     const user = userEvent.setup();
     setup(party());
+    await open(user, 'Areas');
     await user.click(screen.getByRole('button', { name: /place on map/i }));
     boxMap();
     fireEvent.pointerMove(mapEl(), { clientX: 205, clientY: 155 });
@@ -1925,7 +2081,9 @@ describe('the pointer’s loop', () => {
     const user = userEvent.setup();
     const view = setup(party());
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     await user.click(within(rowFor(name)).getByRole('button', { name: /show .* in the rail/i }));
 
@@ -1943,6 +2101,7 @@ describe('the pointer’s loop', () => {
   it('escape puts down whatever is in hand, most urgent first', async () => {
     const user = userEvent.setup();
     setup(party());
+    await open(user, 'Areas');
     await user.click(screen.getByRole('button', { name: /place on map/i }));
     expect(screen.getByText(/click the map to place it/i)).toBeInTheDocument();
     fireEvent.keyDown(window, { key: 'Escape' });
@@ -1952,6 +2111,7 @@ describe('the pointer’s loop', () => {
   it('space ends the turn from the keyboard', async () => {
     const user = userEvent.setup();
     const view = setup(party());
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
     const round = view.encounter.round;
@@ -1964,13 +2124,13 @@ describe('the pointer’s loop', () => {
     const user = userEvent.setup();
     const view = setup(party());
     await bestiaryReady();
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
     expect(view.encounter.combatants[0]).toMatchObject({ hp: 7 });
-
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
     // Two of seven left: under half, above nothing.
     expect(document.querySelector('.strip-tile.is-bloodied')).toBeTruthy();
@@ -2002,7 +2162,9 @@ describe('walking, not flying', () => {
       encounter: { ...emptyEncounter(), mapRooms: 0, terrain: column('wall') },
     });
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
 
@@ -2030,7 +2192,9 @@ describe('walking, not flying', () => {
       encounter: { ...emptyEncounter(), mapRooms: 0, terrain: column('water') },
     });
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
 
@@ -2055,7 +2219,9 @@ describe('walking, not flying', () => {
     const user = userEvent.setup();
     const view = setup(party());
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     await user.click(within(rowFor(name)).getByRole('button', { name: /show .* in the rail/i }));
 
@@ -2075,6 +2241,7 @@ describe('the command menu', () => {
     const user = userEvent.setup();
     const view = setup(party());
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
 
@@ -2095,6 +2262,7 @@ describe('the command menu', () => {
     const user = userEvent.setup();
     const view = setup(party());
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
 
@@ -2111,7 +2279,9 @@ describe('the command menu', () => {
     const user = userEvent.setup();
     const view = setup(party());
     await bestiaryReady();
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
@@ -2151,7 +2321,9 @@ describe('the ground bites back', () => {
     view: ReturnType<typeof setup>,
   ) => {
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
     await user.click(
@@ -2248,7 +2420,9 @@ describe('the ground bites back', () => {
       },
     });
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
 
@@ -2266,12 +2440,15 @@ describe('the ground bites back', () => {
     const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
     await bestiaryReady();
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
 
     // Stand the goblin next to the fighter, then the fighter walks away.
@@ -2280,6 +2457,7 @@ describe('the ground bites back', () => {
       within(rowFor('Goblin')).getByRole('button', { name: /show goblin in the rail/i }),
     );
     fireEvent.pointerDown(mapEl4(), { clientX: (2 + 0.5) * 10, clientY: (1 + 0.5) * 10 });
+    await open(user, 'Order');
     fireEvent.change(within(rowFor(name)).getByLabelText(new RegExp(`${name} initiative`, 'i')), {
       target: { value: '30' },
     });
@@ -2310,12 +2488,15 @@ describe('the ground bites back', () => {
     const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
     await bestiaryReady();
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
 
     boxMap4();
@@ -2323,6 +2504,7 @@ describe('the ground bites back', () => {
       within(rowFor('Goblin')).getByRole('button', { name: /show goblin in the rail/i }),
     );
     fireEvent.pointerDown(mapEl4(), { clientX: (2 + 0.5) * 10, clientY: (1 + 0.5) * 10 });
+    await open(user, 'Order');
     fireEvent.change(within(rowFor(name)).getByLabelText(new RegExp(`${name} initiative`, 'i')), {
       target: { value: '30' },
     });
@@ -2364,7 +2546,9 @@ describe('the ruler walks', () => {
       },
     });
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     await user.click(within(rowFor(name)).getByRole('button', { name: /show .* in the rail/i }));
 
@@ -2387,7 +2571,9 @@ describe('the ruler walks', () => {
     const user = userEvent.setup();
     const view = setup(party());
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     await user.click(within(rowFor(name)).getByRole('button', { name: /show .* in the rail/i }));
 
@@ -2401,7 +2587,9 @@ describe('the ruler walks', () => {
     const user = userEvent.setup();
     const view = setup(party());
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     // Select by clicking their row; no fight running.
     await user.click(within(rowFor(name)).getByRole('button', { name: /show .* in the rail/i }));
@@ -2436,15 +2624,19 @@ describe('the enemy turn', () => {
     { goblinFirst }: { goblinFirst: boolean },
   ) => {
     await bestiaryReady();
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
 
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Order');
     fireEvent.change(within(rowFor(name)).getByLabelText(new RegExp(`${name} initiative`, 'i')), {
       target: { value: goblinFirst ? '1' : '30' },
     });
@@ -2576,7 +2768,9 @@ describe('shoving, and the ledge behind them', () => {
     });
     await bestiaryReady();
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
@@ -2592,6 +2786,7 @@ describe('shoving, and the ledge behind them', () => {
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
     put({ x: 11, y: 10 });
 
+    await open(user, 'Order');
     fireEvent.change(within(rowFor(name)).getByLabelText(new RegExp(`${name} initiative`, 'i')), {
       target: { value: '30' },
     });
@@ -2640,6 +2835,7 @@ describe('shoving, and the ledge behind them', () => {
     const { view } = await brawl(user);
     // Walk the goblin far away first, by placing it before the fight? Simpler:
     // end the fight so placement is free again, then move it out of reach.
+    await open(user, 'Order');
     await user.click(screen.getByRole('button', { name: /end the fight/i }));
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
     boxMap4();
@@ -2729,7 +2925,9 @@ describe('the optional rules', () => {
     });
     await bestiaryReady();
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
@@ -2744,6 +2942,7 @@ describe('the optional rules', () => {
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
     put({ x: 11, y: 10 });
 
+    await open(user, 'Order');
     fireEvent.change(within(rowFor(name)).getByLabelText(new RegExp(`${name} initiative`, 'i')), {
       target: { value: '30' },
     });
@@ -2762,8 +2961,10 @@ describe('the optional rules', () => {
     await user.click(document.querySelector('.dmap-token.monster') as Element);
   };
 
-  it('starts off, with the book’s numbers', () => {
+  it('starts off, with the book’s numbers', async () => {
+    const user = userEvent.setup();
     setup(party());
+    await open(user, 'Field');
     const box = screen.getByLabelText(/high ground grants/i, { selector: 'input' });
     expect((box as HTMLInputElement).checked).toBe(false);
   });
@@ -2780,6 +2981,7 @@ describe('the optional rules', () => {
   it('applies +2 and says so, once the table switches it on', async () => {
     const user = userEvent.setup();
     const { view } = await uphill(user);
+    await open(user, 'Field');
     await user.click(screen.getByLabelText(/high ground grants/i, { selector: 'input' }));
     await strike(user);
     // The log distinguishes applied from merely noticed, so a fight can be
@@ -2790,12 +2992,16 @@ describe('the optional rules', () => {
   it('remembers the choice, because a table does not re-agree every session', async () => {
     const user = userEvent.setup();
     setup(party());
+    await open(user, 'Field');
     await user.click(screen.getByLabelText(/high ground grants/i, { selector: 'input' }));
 
     // Torn down and stood back up, which is what a reload is. The switch is
     // a table's standing agreement, not a per-fight decision.
     cleanup();
     setup(party());
+    // A fresh mount opens on the map, drawers closed - which is the point of
+    // §31.3 and means this has to knock again.
+    openSync('Field');
     expect(
       (screen.getByLabelText(/high ground grants/i, { selector: 'input' }) as HTMLInputElement)
         .checked,
@@ -2820,6 +3026,7 @@ describe('ground that helps, and ground that picks a side', () => {
     preset: string,
     at: { x: number; y: number },
   ) => {
+    await open(user, 'Areas');
     await user.selectOptions(screen.getByLabelText(/load a hazard from the shelf/i), preset);
     await user.click(screen.getByRole('button', { name: /place on map/i }));
     boxMap6();
@@ -2835,6 +3042,7 @@ describe('ground that helps, and ground that picks a side', () => {
   it('carries the shelf’s beneficial areas, not only its hazards', async () => {
     const user = userEvent.setup();
     setup(party());
+    await open(user, 'Areas');
     const shelf = screen.getByLabelText(/load a hazard from the shelf/i);
     const labels = [...shelf.querySelectorAll('option')].map((o) => o.textContent);
     expect(labels).toContain('Aura of Protection');
@@ -2845,16 +3053,20 @@ describe('ground that helps, and ground that picks a side', () => {
   it('adds the aura to a saving throw rolled inside it', async () => {
     const user = userEvent.setup();
     const view = setup(party());
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     const standing = view.encounter.combatants[0].at!;
 
     // Roll the room once with no aura, then again standing in one: the same
     // character's bonus is three higher, which is the whole feature.
+    await open(user, 'Order');
     await user.click(screen.getByRole('button', { name: /roll the room/i }));
     const before = [...document.querySelectorAll('.reasons li')][0]?.textContent ?? '';
 
     await dropAt6(user, 'aura-of-protection', standing);
+    await open(user, 'Order');
     await user.click(screen.getByRole('button', { name: /roll the room/i }));
     const after = [...document.querySelectorAll('.reasons li')][0]?.textContent ?? '';
 
@@ -2867,18 +3079,21 @@ describe('ground that helps, and ground that picks a side', () => {
     const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
     await bestiaryReady();
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
 
     const goblin = () => view.encounter.combatants.find((c) => c.kind === 'monster') as MonsterCombatant;
     // The circle lands on the goblin.
     await dropAt6(user, 'spirit-guardians', goblin().at!);
-
+    await open(user, 'Order');
     fireEvent.change(within(rowFor('Goblin')).getByLabelText(/goblin initiative/i), {
       target: { value: '30' },
     });
@@ -2910,7 +3125,9 @@ describe('conditions that change the dice', () => {
     const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
     await bestiaryReady();
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
@@ -2925,6 +3142,7 @@ describe('conditions that change the dice', () => {
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
     put({ x: 11, y: 10 });
 
+    await open(user, 'Order');
     fireEvent.change(within(rowFor(name)).getByLabelText(new RegExp(`${name} initiative`, 'i')), {
       target: { value: '30' },
     });
@@ -2980,7 +3198,9 @@ describe('conditions that change the dice', () => {
     const user = userEvent.setup();
     const view = setup(party());
     await bestiaryReady();
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'zombie');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Zombie',
@@ -3013,7 +3233,9 @@ describe('frightened, of something in particular', () => {
     const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
     await bestiaryReady();
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = () =>
       [...document.querySelectorAll('.mon-list li')].find(
@@ -3092,6 +3314,7 @@ describe('frightened, of something in particular', () => {
       fighter.id,
     );
 
+    await open(user, 'Order');
     fireEvent.change(within(rowFor(first.label)).getByLabelText(/goblin.*initiative/i), {
       target: { value: '30' },
     });
@@ -3141,13 +3364,17 @@ describe('the trackers that were only ever watched', () => {
     const view = setup(prepare ? prepare(base) : base);
     await bestiaryReady();
     const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Bestiary');
     await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
     const entry = [...document.querySelectorAll('.mon-list li')].find(
       (li) => li.querySelector('b')?.textContent === 'Goblin',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
+    await open(user, 'Order');
     fireEvent.change(within(rowFor(name)).getByLabelText(new RegExp(`${name} initiative`, 'i')), {
       target: { value: '30' },
     });
@@ -3180,6 +3407,7 @@ describe('the trackers that were only ever watched', () => {
       it while the strike path did the same thing differently.
     */
     const standing = view.encounter.combatants.find((c) => c.kind === 'character')!.at!;
+    await open(user, 'Areas');
     await user.selectOptions(
       screen.getByLabelText(/load a hazard from the shelf/i),
       'burning-ground',

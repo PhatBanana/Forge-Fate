@@ -6453,3 +6453,295 @@ dl.detail-list {
 .isomap .dmap-reach {
   opacity: 0.38;
 }
+
+/* --------------------------------------------------------- the battle screen */
+
+/*
+  §31.3. The map is the screen.
+
+  For thirty sections the battlefield was the fifth thing down a scrolling
+  column, and every panel opened underneath pushed it further away. Now it
+  fills whatever the window has left, and everything that used to sit above or
+  below it either floats over it or is a drawer that slides in and goes away.
+
+  Three regions: the timeline across the top, the stage, and the command bar
+  along the bottom. Only the stage flexes; the other two are exactly as tall as
+  their contents. `min-height: 0` on the stage is what makes that true - a flex
+  child sizes to its content by default and would push the bar off screen.
+*/
+.btl {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 0;
+}
+
+.btl-top {
+  flex: 0 0 auto;
+  padding: 6px 12px 0;
+  overflow: hidden;
+}
+
+.btl-top .init-strip {
+  margin-bottom: 6px;
+}
+
+.btl-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0 12px;
+  /* One number, used by the cockpit and by the space the map leaves for it. */
+  --cockpit: min(340px, 34vw);
+}
+
+/*
+  The map fills the stage, *beside* the cockpit rather than under it.
+
+  Reserving the width rather than floating over it is a correction to the first
+  draft of this screen, which floated: deploy puts monsters in the rooms
+  farthest from the party, those are often on the right, and a goblin standing
+  behind the cockpit is a goblin nobody can click. A drawer may cover the map,
+  because a drawer is something you opened on purpose and can close; the
+  cockpit is always there.
+
+  `preserveAspectRatio` on the SVG means a wide map letterboxes rather than
+  stretching - a battle grid whose squares are not square would be worse than
+  a small one.
+*/
+.btl-stage .map-stage {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: calc(var(--cockpit) + 8px);
+}
+
+.btl-stage .dmap,
+.btl-stage .iso {
+  width: 100%;
+  height: 100%;
+}
+
+/*
+  The cockpit, docked to the right edge over the map.
+
+  Not a rail: a rail takes width from the map permanently, and the map is the
+  thing. This floats, so on a narrow window it overlaps rather than squeezing.
+  Its own scroll, because a monster's stat block is longer than any screen.
+*/
+.btl-cockpit {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--cockpit);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  /* Opaque. A cockpit you can read the map through is a cockpit you cannot
+     read, and the numbers on it are the ones being argued about. */
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--menu-shadow);
+  z-index: 4;
+  overflow: hidden;
+}
+
+.btl-cockpit-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* The panels inside the cockpit are already framed by the cockpit itself. */
+.btl-cockpit .panel {
+  border: none;
+  background: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0 0 8px;
+}
+
+/*
+  The tail of the log, bottom-left, over the map.
+
+  Three lines, because three is what a DM glances at. The whole log is behind
+  the After drawer. Pointer-events off: this is a readout, and a readout that
+  eats clicks meant for the map is a bug.
+*/
+.btl-tail {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 3;
+  max-width: min(46ch, 40%);
+  padding: 8px 10px;
+  pointer-events: none;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #f2ede2;
+  background: rgba(24, 20, 15, 0.72);
+  border-radius: var(--radius);
+}
+
+.btl-tail p {
+  margin: 0 0 4px;
+}
+
+.btl-tail p:first-child {
+  color: #fff;
+}
+
+.btl-tail p:last-child {
+  margin-bottom: 0;
+  opacity: 0.6;
+}
+
+/*
+  A drawer: the thing the command bar opens, over the map and gone again.
+
+  Left side rather than right, so it never fights the cockpit, and capped so
+  the map is still visible beside it - a drawer that covers the board is a
+  page with extra steps.
+*/
+.btl-drawer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(480px, 52vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--menu-shadow);
+  z-index: 6;
+  overflow: hidden;
+}
+
+.btl-drawer-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-sunken);
+}
+
+.btl-drawer-title {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.btl-drawer-close {
+  margin-left: auto;
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text-dim);
+  border-radius: var(--radius);
+  padding: 2px 8px;
+  line-height: 1.2;
+}
+
+.btl-drawer-close:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.btl-drawer-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+/* Inside a drawer the panel frame is redundant - the drawer is the frame. */
+.btl-drawer-body .panel {
+  border: none;
+  background: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0 0 14px;
+}
+
+.btl-drawer-body .panel:last-child {
+  margin-bottom: 0;
+}
+
+/*
+  The command bar.
+
+  Every one of these used to be a panel you scrolled past. Chunky, evenly
+  weighted, and wrapping rather than scrolling, because a menu button that has
+  moved since last time is one you have to read instead of aim at.
+*/
+.btl-bar {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+}
+
+.btl-cmd {
+  flex: 1 1 auto;
+  min-width: 88px;
+  padding: 10px 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  /* The cut corner the mode switch uses, so the battle screen's chrome is one
+     idea rather than two that happen to be adjacent. */
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+}
+
+.btl-cmd:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: var(--panel);
+}
+
+.btl-cmd.is-on {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/*
+  Narrow windows: the cockpit and drawer stop floating and take the bottom
+  half, because at that width overlapping them onto a map leaves neither
+  readable. Tablets in portrait land here.
+*/
+@media (max-width: 900px) {
+  .btl-stage {
+    --cockpit: 0px;
+  }
+
+  .btl-stage .map-stage {
+    right: 0;
+    bottom: 52%;
+  }
+
+  .btl-cockpit,
+  .btl-drawer {
+    top: auto;
+    left: 0;
+    right: 0;
+    width: auto;
+    height: 52%;
+  }
+}
