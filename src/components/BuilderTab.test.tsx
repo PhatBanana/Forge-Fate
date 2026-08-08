@@ -36,8 +36,17 @@ function setup(build: Build) {
   };
 }
 
+/**
+ * The rail, clicked.
+ *
+ * §33.4 put every section on one page, so this no longer decides what is
+ * *rendered* - everything is. It sets which section's readouts the right-hand
+ * column shows, which is the one thing the rail still switches, and it is a
+ * link now rather than a tab. Kept under the old name because most call sites
+ * only ever meant "go and look at this bit".
+ */
 const goTo = (label: string | RegExp) =>
-  userEvent.click(screen.getByRole('tab', { name: label }));
+  userEvent.click(screen.getByRole('link', { name: label }));
 
 const panelTitles = () =>
   [...document.querySelectorAll('.panel > h2')].map((h) => h.textContent);
@@ -90,11 +99,23 @@ describe('feats and ability score improvements', () => {
 });
 
 describe('the section nav', () => {
-  it('opens on Identity and shows only that section', () => {
+  it('shows every section at once', () => {
+    /*
+      §33.4, and the whole of the ask: one window with your character, race,
+      class and the rest, rather than five tabs. This used to assert the
+      opposite - that only Identity was rendered.
+    */
     setup(fighter(5));
-    expect(screen.getByText('Character')).toBeInTheDocument();
-    expect(screen.queryByText('Ability scores')).not.toBeInTheDocument();
-    expect(screen.queryByText('Feats and ability score improvements')).not.toBeInTheDocument();
+    // Panel headings, not any text - "Equipment" is also a label on the rail.
+    for (const title of [
+      'Character',
+      'Ability scores',
+      'Equipment',
+      'Class options',
+      'Feats and ability score improvements',
+    ]) {
+      expect(panelTitles(), title).toContain(title);
+    }
   });
 
   /** The readouts an edit moves have to be beside the edit, or the loop breaks. */
@@ -126,14 +147,14 @@ describe('the section nav', () => {
     setup(fighter(5));
     // One unspent improvement, reached at Fighter 4. A plain Human grants no
     // free origin feat, so that is the whole count.
-    expect(within(screen.getByRole('tab', { name: /^feats/i })).getByText('1')).toBeInTheDocument();
+    expect(within(screen.getByRole('link', { name: /^feats/i })).getByText('1')).toBeInTheDocument();
     // Skill picks and the Battle Master's style and maneuvers.
     expect(
-      Number(within(screen.getByRole('tab', { name: /^skills/i })).getByTitle(/still to choose/i).textContent),
+      Number(within(screen.getByRole('link', { name: /^skills/i })).getByTitle(/still to choose/i).textContent),
     ).toBeGreaterThan(0);
     // Nothing is outstanding on abilities.
     expect(
-      within(screen.getByRole('tab', { name: /^abilities/i })).queryByTitle(/still to choose/i),
+      within(screen.getByRole('link', { name: /^abilities/i })).queryByTitle(/still to choose/i),
     ).not.toBeInTheDocument();
   });
 
@@ -145,7 +166,7 @@ describe('the section nav', () => {
   it('counts the two things only a 2024 character has', () => {
     const badge = (section: RegExp) =>
       Number(
-        within(screen.getByRole('tab', { name: section })).queryByTitle(/still to choose/i)
+        within(screen.getByRole('link', { name: section })).queryByTitle(/still to choose/i)
           ?.textContent ?? 0,
       );
 
@@ -177,14 +198,14 @@ describe('the section nav', () => {
       }),
     );
     expect(
-      within(screen.getByRole('tab', { name: /^identity/i })).queryByTitle(/still to choose/i),
+      within(screen.getByRole('link', { name: /^identity/i })).queryByTitle(/still to choose/i),
     ).not.toBeInTheDocument();
   });
 
   /** A 2014 character has neither feature, so neither can inflate their nav. */
   it('counts neither of them for a 2014 character', () => {
     setup(fighter(9));
-    const equipment = within(screen.getByRole('tab', { name: /^equipment/i })).queryByTitle(
+    const equipment = within(screen.getByRole('link', { name: /^equipment/i })).queryByTitle(
       /still to choose/i,
     );
     expect(equipment).not.toBeInTheDocument();
@@ -192,70 +213,42 @@ describe('the section nav', () => {
 });
 
 /*
-  §31.4 turned the five sections into a numbered route with Back and Next,
-  without taking away the ability to jump between them - a returning player
-  editing one thing must not have to walk past four screens to reach it.
+  §33.4 replaced §31.4's numbered route - Back, Next, and one section rendered
+  at a time - with one page and a rail of anchors down its side. The six tests
+  that walked that route are gone with it rather than repointed: there is no
+  forward and back to walk any more, and a test that still described one would
+  be describing a screen that does not exist.
+
+  What survives from it is the numbering, which was the good idea: the sections
+  are the order a character is made in.
 */
-describe('the creation route', () => {
+describe('the section rail', () => {
   it('numbers the steps in the order a character is made', () => {
     setup(fighter(5));
-    const numbers = [...document.querySelectorAll('.step-n')].map((n) => n.textContent);
-    expect(numbers).toEqual(['1', '2', '3', '4', '5']);
+    expect([...document.querySelectorAll('.step-n')].map((n) => n.textContent)).toEqual([
+      '1', '2', '3', '4', '5',
+    ]);
   });
 
-  it('walks forward, and the button says where it is going', async () => {
-    const user = userEvent.setup();
+  it('points each one at a section that is actually on the page', () => {
+    // A rail of anchors is only navigation if every target exists. This is the
+    // cheapest guard against a section being renamed out from under its link.
     setup(fighter(5));
-    await user.click(screen.getByRole('button', { name: /^Abilities ›/ }));
-    expect(screen.getByRole('tab', { name: /^abilities/i })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
+    const links = [...document.querySelectorAll('.steps a')] as HTMLAnchorElement[];
+    expect(links).toHaveLength(5);
+    for (const link of links) {
+      const id = link.getAttribute('href')!.slice(1);
+      expect(document.getElementById(id), id).not.toBeNull();
+    }
   });
 
-  it('walks back, and the button says where that is too', async () => {
-    const user = userEvent.setup();
+  it('marks where you are without hiding anywhere else', async () => {
     setup(fighter(5));
-    await user.click(screen.getByRole('button', { name: /^Abilities ›/ }));
-    await user.click(screen.getByRole('button', { name: /^‹ Identity/ }));
-    expect(screen.getByRole('tab', { name: /^identity/i })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
-  });
-
-  it('offers no Back from the first step', () => {
-    setup(fighter(5));
-    expect(screen.queryByRole('button', { name: /^‹/ })).toBeNull();
-  });
-
-  /*
-    Nothing is submitted at the end. The character has been saved the whole way
-    down, and a "Finish" implying otherwise would be a lie about how this app
-    works.
-  */
-  it('says the route is over rather than pretending there is a sixth step', async () => {
-    const user = userEvent.setup();
-    setup(fighter(5));
-    await user.click(screen.getByRole('tab', { name: /^feats/i }));
-    expect(screen.getByText(/already saved/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /›$/ })).toBeNull();
-  });
-
-  it('still lets you jump straight to a step', async () => {
-    const user = userEvent.setup();
-    setup(fighter(5));
-    await user.click(screen.getByRole('tab', { name: /^feats/i }));
-    expect(screen.getByText('Feats and ability score improvements')).toBeInTheDocument();
-  });
-});
-
-describe('what the Builder no longer carries', () => {
-  it('has no play tracking on it', () => {
-    setup(fighter(5));
-    expect(screen.queryByText(/^in play$/i)).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /short rest/i })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/current hit points/i)).not.toBeInTheDocument();
+    await goTo(/^feats/i);
+    expect(screen.getByRole('link', { name: /^feats/i })).toHaveAttribute('aria-current', 'true');
+    expect(screen.getByRole('link', { name: /^identity/i })).not.toHaveAttribute('aria-current');
+    // And Identity is still right there, which is the whole point of §33.4.
+    expect(screen.getByText('Character')).toBeInTheDocument();
   });
 });
 
@@ -278,9 +271,10 @@ describe('the build review', () => {
     expect(within(review).getByText(/still unmade/i)).toBeInTheDocument();
 
     // The count agrees with the badges by construction, not by coincidence.
+    // The rail is links since §33.4, and both still read the same counts.
     const badges = screen
-      .getAllByRole('tab')
-      .map((tab) => Number(tab.querySelector('.badge')?.textContent ?? 0));
+      .getAllByRole('link')
+      .map((link) => Number(link.querySelector('.badge')?.textContent ?? 0));
     expect(within(review).getByText(/still unmade/i).textContent).toContain(
       String(badges.reduce((sum, n) => sum + n, 0)),
     );

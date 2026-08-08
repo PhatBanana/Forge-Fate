@@ -70,17 +70,39 @@ const LOADOUT_LABELS: Record<Loadout, string> = {
 };
 
 /**
- * The Builder's sections.
+ * The Builder's sections - all of them, on one page.
  *
- * Seventeen panels, all open at once, made this tab five screens tall - long
+ * ## What was tried, and why it was abandoned
+ *
+ * Seventeen panels all open at once made this tab **five screens tall**, long
  * enough that reaching the feats meant scrolling past sixteen ranked cards for
- * two class options. One section at a time is roughly one screen, and each
- * carries the readouts its own edits move: change armor and the attack, damage
- * and armor class panels are already beside you.
+ * two class options. §31.4 split it into one section at a time, roughly a
+ * screen each.
  *
- * The badge is the point of having a nav at all. It says where a choice is
- * still unmade, so "what have I not finished" is answered by looking at the
- * nav rather than by scrolling the whole tab.
+ * ## Why it came back anyway
+ *
+ * Because five sections are five places, and the ask was for one: *"it should
+ * be just one big window with your character, race, class, all that, and
+ * suggestions and the scaling"*, instead of *"having to go to a different tab
+ * for the lineages and then another tab for the abilities or feats"*.
+ *
+ * ## What makes it fit this time
+ *
+ * Not a diet - a diet is what failed, and four more panels arrived afterwards
+ * with nothing to stop them. A **rule**, in `ChoiceRow`: your character is
+ * always visible, the catalogue of what you have *not* taken is not, and
+ * exactly one catalogue is open at a time. That bounds the page at the closed
+ * rows plus one picker, so the eighteenth panel costs about fifty pixels
+ * rather than a screen.
+ *
+ * Measured at 1360 with every catalogue shut, by section: 0.91, 0.44, 0.81,
+ * 0.6, 0.39 screens - and the tallest single picker takes the section it is in
+ * to 1.5. `scratchpad/run33.mjs` checks it, because a number the design is
+ * built to bound should be measured rather than asserted in a comment.
+ *
+ * The rail down the side is anchors into this page, and the badge is what
+ * makes it worth having: it says where a choice is unmade without making you
+ * scroll to find out.
  */
 type Section = 'identity' | 'abilities' | 'equipment' | 'options' | 'feats';
 
@@ -181,7 +203,6 @@ export function BuilderTab({
     mode to fall into.
   */
   const [picker, setPicker] = useState<string | null>(null);
-  const stepIndex = SECTIONS.findIndex((entry) => entry.id === section);
 
   /*
     Noticing a level-up.
@@ -333,26 +354,37 @@ export function BuilderTab({
   return (
     <>
       {/*
-        §31.4. The same five sections, numbered and walkable.
+        §33.4. One page, and a rail of anchors down its side.
 
-        They were already the steps of making a character - identity, then
-        abilities, then what you carry, then what you know, then what you took
-        with a slot - and the strip above them said so only by their order,
-        which is the one thing a row of tabs does not communicate. Numbering
-        them and putting Back/Next underneath turns a set of places into a
-        route, without taking away the ability to jump: a returning player
-        editing one thing should not have to walk past four screens to reach
-        it, and every step stays a tab.
+        §31.4 made the five sections a numbered route with Back and Next, on
+        the reasoning that they were already the steps of making a character.
+        They still are - the order is unchanged and it was the good idea in
+        that design - but they are no longer five *places*. The ask that
+        overturned it, verbatim: "it should be just one big window with your
+        character, race, class, all that, and suggestions and the scaling",
+        rather than "having to go to a different tab for the lineages and then
+        another tab for the abilities or feats".
+
+        Anchors, not buttons that swap what is rendered. A real `href` gives
+        keyboard behaviour, the back button, and a link you can share, none of
+        which a tab does - and it needs no `scrollIntoView`, which jsdom does
+        not implement. The click also sets `section`, because the right-hand
+        column still shows the readouts belonging to wherever you are; §33.7
+        will drive that from scroll position, and the handler is the seam that
+        makes it testable without a polyfill.
+
+        The badge is still the point of having a rail: it says where a choice
+        is unmade without making you scroll the page to find out.
       */}
-      <nav className="steps" role="tablist" aria-label="Building a character">
+      <nav className="steps" aria-label="Sections of this character">
         {SECTIONS.map((entry, i) => {
           const open = openChoices[entry.id];
           return (
-            <button
+            <a
               key={entry.id}
-              role="tab"
+              href={`#section-${entry.id}`}
               className={`step ${section === entry.id ? 'is-on' : ''} ${open > 0 ? 'is-open' : ''}`}
-              aria-selected={section === entry.id}
+              aria-current={section === entry.id ? 'true' : undefined}
               onClick={() => setSection(entry.id)}
             >
               <span className="step-n" aria-hidden="true">{i + 1}</span>
@@ -362,7 +394,7 @@ export function BuilderTab({
                   {open}
                 </span>
               )}
-            </button>
+            </a>
           );
         })}
       </nav>
@@ -383,7 +415,7 @@ export function BuilderTab({
           />
         )}
 
-        {section === 'identity' && (
+        <section id="section-identity" className="bsec">
         <Panel title="Character">
           <label className="field">
             <span>Name</span>
@@ -572,9 +604,9 @@ export function BuilderTab({
             </button>
           )}
         </Panel>
-        )}
+        </section>
 
-        {section === 'abilities' && (
+        <section id="section-abilities" className="bsec">
         <Panel
           title="Ability scores"
           subtitle="Set your base scores here. Lineage increases, half-feats and spent ASIs are added on top and shown underneath each score."
@@ -655,10 +687,10 @@ export function BuilderTab({
             {build.ruleset === '2024' && ' — a 2024 species grants none'}.
           </p>
         </Panel>
-        )}
+        </section>
 
-        {section === 'equipment' && (
-          <>
+        <section id="section-equipment" className="bsec">
+
         {/* First in the section, because "what do I start with" comes before
             "what am I holding" for anyone who has not answered it yet. It
             hides itself above 1st level. */}
@@ -685,11 +717,11 @@ export function BuilderTab({
         <ItemsPanel build={build} ctx={ctx} patch={patch} picker={picker} onPicker={setPicker} />
 
         <InventoryPanel build={build} ctx={ctx} patch={patch} picker={picker} onPicker={setPicker} />
-          </>
-        )}
 
-        {section === 'options' && (
-          <>
+        </section>
+
+        <section id="section-options" className="bsec">
+
         <ProficienciesPanel build={build} ctx={ctx} patch={patch} picker={picker} onPicker={setPicker} />
 
         <ToolsPanel build={build} ctx={ctx} patch={patch} picker={picker} onPicker={setPicker} />
@@ -699,10 +731,10 @@ export function BuilderTab({
         <CountersPanel build={build} patch={patch} picker={picker} onPicker={setPicker} />
 
         <SpellsPanel build={build} ctx={ctx} patch={patch} picker={picker} onPicker={setPicker} />
-          </>
-        )}
 
-        {section === 'feats' && (
+        </section>
+
+        <section id="section-feats" className="bsec">
         <Panel
           title="Feats and ability score improvements"
           subtitle={`Level ${ctx.totalLevel} unlocks ${ctx.asiSlotsReached} ability score improvement ${ctx.asiSlotsReached === 1 ? 'slot' : 'slots'}, ${ctx.asiSlotsSpent} assigned${ctx.originFeatSlots ? `, plus ${ctx.originFeatSlots} free origin ${ctx.originFeatSlots === 1 ? 'feat' : 'feats'}` : ''}.`}
@@ -788,38 +820,8 @@ export function BuilderTab({
 
           <NextPicks ctx={ctx} build={build} onChange={onChange} picker={picker} onPicker={setPicker} />
         </Panel>
-        )}
+        </section>
 
-        {/*
-          The route, at the bottom of the column where you finish reading.
-          Next names where it goes rather than saying "Next", because a button
-          that only says Next makes you press it to find out - and the last
-          one says the flow is over rather than pretending there is a sixth
-          step. Nothing is submitted at the end: the character has been saved
-          the whole way down, and a "Finish" that implied otherwise would be a
-          lie about how this app works.
-        */}
-        <div className="step-nav">
-          {stepIndex > 0 ? (
-            <button className="btn" onClick={() => setSection(SECTIONS[stepIndex - 1].id)}>
-              ‹ {SECTIONS[stepIndex - 1].label}
-            </button>
-          ) : (
-            <span />
-          )}
-          {stepIndex < SECTIONS.length - 1 ? (
-            <button
-              className="btn btn-primary"
-              onClick={() => setSection(SECTIONS[stepIndex + 1].id)}
-            >
-              {SECTIONS[stepIndex + 1].label} ›
-            </button>
-          ) : (
-            <span className="muted step-done">
-              That is every section. Everything you chose is already saved.
-            </span>
-          )}
-        </div>
       </div>
 
       <div className="stack">

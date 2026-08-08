@@ -684,13 +684,25 @@ export default function App() {
         </span>
       </nav>
 
-      {tab === 'builder' && <BuilderTab build={build} ctx={ctx} onChange={setBuild} />}
       {/*
         Everything above is chrome - the masthead, the tab strip, the share
         banner. This is the content, and naming it lets a screen reader jump
         straight here instead of walking the nav on every tab change.
       */}
       <main id="content">
+      {/*
+        The Builder is inside this, and was not until §33.4 - it sat above
+        `#content`, as a direct child of `.app`, which is `overflow: hidden`.
+        So the Builder simply did not scroll: everything past the first screen
+        was unreachable by wheel, and only an anchor could move it. That went
+        unnoticed while each section was about one screen tall; putting the
+        whole character on one page made it fatal.
+
+        Eager rather than inside the `Suspense` below, which is how it was
+        before: it is the tab most sessions open on, and a loading flash on the
+        thing you came for is worse than the few kilobytes.
+      */}
+      {tab === 'builder' && <BuilderTab build={build} ctx={ctx} onChange={setBuild} />}
       <Suspense fallback={<TabLoading />}>
         {tab === 'sheet' && (
           <SheetTab

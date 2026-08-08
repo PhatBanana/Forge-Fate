@@ -7303,11 +7303,40 @@ dl.detail-list {
   four screens to reach it, and a wizard that forbids that is a wizard people
   work around rather than through.
 */
+ /*
+  §33.4. The rail, sticky, because the page it navigates is one page now.
+
+  A row of anchors that scrolled away with the content would be a table of
+  contents you can only read at the top - the whole reason it exists is to be
+  reachable from the middle of the feats.
+*/
 .steps {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 16px;
+  padding: 6px 0;
+  background: var(--bg);
+}
+
+/* Anchors rather than buttons since §33.4 - so they need to stop looking
+   like body links and start looking like the pills they were. */
+.step {
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/*
+  A section, and the room the sticky rail needs above it. Without this an
+  anchor jump puts the section's heading underneath the rail, which reads as
+  the link having gone one panel too far.
+*/
+.bsec {
+  display: block;
+  scroll-margin-top: 56px;
 }
 
 .step {
@@ -7369,27 +7398,8 @@ dl.detail-list {
   text-align: center;
 }
 
-/*
-  The route's controls, at the foot of the column where you finish reading.
-  Spread apart rather than grouped, because Back and Next are opposite
-  directions and a pair of adjacent buttons invites pressing the wrong one.
-*/
-.step-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 4px;
-}
-
-.step-done {
-  font-size: 12px;
-  text-align: right;
-}
-
 @media print {
-  .steps,
-  .step-nav {
+  .steps {
     display: none !important;
   }
 }
