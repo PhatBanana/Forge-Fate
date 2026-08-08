@@ -178,6 +178,65 @@ describe('the section nav', () => {
   });
 });
 
+/*
+  §31.4 turned the five sections into a numbered route with Back and Next,
+  without taking away the ability to jump between them - a returning player
+  editing one thing must not have to walk past four screens to reach it.
+*/
+describe('the creation route', () => {
+  it('numbers the steps in the order a character is made', () => {
+    setup(fighter(5));
+    const numbers = [...document.querySelectorAll('.step-n')].map((n) => n.textContent);
+    expect(numbers).toEqual(['1', '2', '3', '4', '5']);
+  });
+
+  it('walks forward, and the button says where it is going', async () => {
+    const user = userEvent.setup();
+    setup(fighter(5));
+    await user.click(screen.getByRole('button', { name: /^Abilities ›/ }));
+    expect(screen.getByRole('tab', { name: /^abilities/i })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
+  it('walks back, and the button says where that is too', async () => {
+    const user = userEvent.setup();
+    setup(fighter(5));
+    await user.click(screen.getByRole('button', { name: /^Abilities ›/ }));
+    await user.click(screen.getByRole('button', { name: /^‹ Identity/ }));
+    expect(screen.getByRole('tab', { name: /^identity/i })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
+  it('offers no Back from the first step', () => {
+    setup(fighter(5));
+    expect(screen.queryByRole('button', { name: /^‹/ })).toBeNull();
+  });
+
+  /*
+    Nothing is submitted at the end. The character has been saved the whole way
+    down, and a "Finish" implying otherwise would be a lie about how this app
+    works.
+  */
+  it('says the route is over rather than pretending there is a sixth step', async () => {
+    const user = userEvent.setup();
+    setup(fighter(5));
+    await user.click(screen.getByRole('tab', { name: /^feats/i }));
+    expect(screen.getByText(/already saved/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /›$/ })).toBeNull();
+  });
+
+  it('still lets you jump straight to a step', async () => {
+    const user = userEvent.setup();
+    setup(fighter(5));
+    await user.click(screen.getByRole('tab', { name: /^feats/i }));
+    expect(screen.getByText('Feats and ability score improvements')).toBeInTheDocument();
+  });
+});
+
 describe('what the Builder no longer carries', () => {
   it('has no play tracking on it', () => {
     setup(fighter(5));

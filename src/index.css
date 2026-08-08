@@ -6892,3 +6892,110 @@ dl.detail-list {
     cursor: auto;
   }
 }
+
+/* -------------------------------------------------- the character-creation route */
+
+/*
+  §31.4. The Builder's five sections, numbered and walkable.
+
+  They were already the steps of making a character - who you are, then what
+  you are good at, then what you carry, then what you know, then what you took
+  with a slot. The strip above them said so only by their order, which is the
+  one thing a row of pills does not communicate. Numbering them says it; the
+  Back/Next pair underneath makes it a route.
+
+  Still tabs, though: `role="tablist"` is unchanged and every step remains
+  clickable. A returning player editing one thing must not have to walk past
+  four screens to reach it, and a wizard that forbids that is a wizard people
+  work around rather than through.
+*/
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 6px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.step:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+/* The number, in a disc. Mono because it is a figure rather than a word, and
+   figures in the app's body face do not line up in a column of five. */
+.step-n {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.step[aria-selected='true'] {
+  background: var(--panel);
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+
+.step[aria-selected='true'] .step-n {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+/* A count of choices still unmade, so the route answers "what have I not
+   finished" without walking it. Carried over from the pills it replaced. */
+.step .badge {
+  display: inline-block;
+  min-width: 17px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+}
+
+/*
+  The route's controls, at the foot of the column where you finish reading.
+  Spread apart rather than grouped, because Back and Next are opposite
+  directions and a pair of adjacent buttons invites pressing the wrong one.
+*/
+.step-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.step-done {
+  font-size: 12px;
+  text-align: right;
+}
+
+@media print {
+  .steps,
+  .step-nav {
+    display: none !important;
+  }
+}

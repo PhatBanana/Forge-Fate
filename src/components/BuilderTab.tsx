@@ -164,6 +164,7 @@ export function BuilderTab({
 }) {
   const patch = (partial: Partial<Build>) => onChange({ ...build, ...partial });
   const [section, setSection] = useState<Section>('identity');
+  const stepIndex = SECTIONS.findIndex((entry) => entry.id === section);
 
   /*
     Noticing a level-up.
@@ -314,17 +315,31 @@ export function BuilderTab({
 
   return (
     <>
-      <nav className="subtabs" role="tablist" aria-label="Builder sections">
-        {SECTIONS.map((entry) => {
+      {/*
+        §31.4. The same five sections, numbered and walkable.
+
+        They were already the steps of making a character - identity, then
+        abilities, then what you carry, then what you know, then what you took
+        with a slot - and the strip above them said so only by their order,
+        which is the one thing a row of tabs does not communicate. Numbering
+        them and putting Back/Next underneath turns a set of places into a
+        route, without taking away the ability to jump: a returning player
+        editing one thing should not have to walk past four screens to reach
+        it, and every step stays a tab.
+      */}
+      <nav className="steps" role="tablist" aria-label="Building a character">
+        {SECTIONS.map((entry, i) => {
           const open = openChoices[entry.id];
           return (
             <button
               key={entry.id}
               role="tab"
+              className={`step ${section === entry.id ? 'is-on' : ''} ${open > 0 ? 'is-open' : ''}`}
               aria-selected={section === entry.id}
               onClick={() => setSection(entry.id)}
             >
-              {entry.label}
+              <span className="step-n" aria-hidden="true">{i + 1}</span>
+              <span className="step-label">{entry.label}</span>
               {open > 0 && (
                 <span className="badge" title={`${open} still to choose`}>
                   {open}
@@ -757,6 +772,37 @@ export function BuilderTab({
           <NextPicks ctx={ctx} build={build} onChange={onChange} />
         </Panel>
         )}
+
+        {/*
+          The route, at the bottom of the column where you finish reading.
+          Next names where it goes rather than saying "Next", because a button
+          that only says Next makes you press it to find out - and the last
+          one says the flow is over rather than pretending there is a sixth
+          step. Nothing is submitted at the end: the character has been saved
+          the whole way down, and a "Finish" that implied otherwise would be a
+          lie about how this app works.
+        */}
+        <div className="step-nav">
+          {stepIndex > 0 ? (
+            <button className="btn" onClick={() => setSection(SECTIONS[stepIndex - 1].id)}>
+              ‹ {SECTIONS[stepIndex - 1].label}
+            </button>
+          ) : (
+            <span />
+          )}
+          {stepIndex < SECTIONS.length - 1 ? (
+            <button
+              className="btn btn-primary"
+              onClick={() => setSection(SECTIONS[stepIndex + 1].id)}
+            >
+              {SECTIONS[stepIndex + 1].label} ›
+            </button>
+          ) : (
+            <span className="muted step-done">
+              That is every section. Everything you chose is already saved.
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="stack">
