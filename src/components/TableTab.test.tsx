@@ -1553,8 +1553,14 @@ describe('the pointer’s loop', () => {
     await user.click(document.querySelector('.hud-target') as HTMLElement);
     expect(fighter().hidden).toBeUndefined();
     expect(view.encounter.log?.some((l) => l.text.includes('revealed'))).toBe(true);
+    /*
+      The wording changed in §27.2 and the behaviour changed with it. This used
+      to read "unseen attacker — advantage" on a die that was rolled straight;
+      it now names the mode first because the mode is real - the swing behind
+      this line was rolled with advantage.
+    */
     expect(
-      view.encounter.log?.some((l) => l.text.includes('unseen attacker — advantage')),
+      view.encounter.log?.some((l) => /advantage: [^)]*unseen attacker/.test(l.text)),
     ).toBe(true);
   });
 
@@ -2743,5 +2749,108 @@ describe('ground that helps, and ground that picks a side', () => {
     expect(logOf(view)).toMatch(/Goblin.*Spirit Guardians/);
     // And the fighter, standing in their own circle, is untouched by it.
     expect(logOf(view)).not.toMatch(new RegExp(`${name}[^\\n]*Spirit Guardians`));
+  });
+});
+
+/**
+ * Section 27.2. Conditions have been bookkeeping since they were added: every
+ * read either set one or rendered a list, and not one changed a roll. §26.2
+ * made that visible by creating prone that nothing read.
+ */
+describe('conditions that change the dice', () => {
+  const mapEl7 = () => document.querySelector('.dmap') as SVGSVGElement;
+  const boxMap7 = () => {
+    mapEl7().getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+  };
+
+  const facing = async (user: ReturnType<typeof userEvent.setup>) => {
+    const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
+    await bestiaryReady();
+    const name = view.roster.entries[0].build.name;
+    await user.click(screen.getByRole('button', { name }));
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
+    const entry = [...document.querySelectorAll('.mon-list li')].find(
+      (li) => li.querySelector('b')?.textContent === 'Goblin',
+    ) as HTMLElement;
+    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+
+    boxMap7();
+    const put = (at: { x: number; y: number }) =>
+      fireEvent.pointerDown(mapEl7(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
+    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
+    put({ x: 10, y: 10 });
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
+    put({ x: 11, y: 10 });
+
+    fireEvent.change(within(rowFor(name)).getByLabelText(new RegExp(`${name} initiative`, 'i')), {
+      target: { value: '30' },
+    });
+    fireEvent.change(within(rowFor('Goblin')).getByLabelText(/goblin initiative/i), {
+      target: { value: '1' },
+    });
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+    return { view, name };
+  };
+
+  const logOf = (view: ReturnType<typeof setup>) =>
+    (view.encounter.log ?? []).map((l) => l.text).join('\n');
+
+  it('says nothing about the odds on an ordinary swing', async () => {
+    const user = userEvent.setup();
+    const { view } = await facing(user);
+    boxMap7();
+    await user.click(document.querySelector('.dmap-token.monster') as Element);
+    expect(logOf(view)).toMatch(/vs AC/);
+    // A plain attack stays a plain line.
+    expect(logOf(view)).not.toMatch(/advantage|disadvantage|straight/);
+  });
+
+  it('rolls with advantage against something on the floor', async () => {
+    const user = userEvent.setup();
+    const { view } = await facing(user);
+    // Trip it first, then swing on a later turn.
+    const menu = () => document.querySelector('.pcard .cmd-menu') as HTMLElement;
+    const goblin = () =>
+      view.encounter.combatants.find((c) => c.kind === 'monster') as MonsterCombatant;
+
+    for (let i = 0; i < 40 && !goblin().conditions.includes('prone'); i++) {
+      await user.click(within(menu()).getByRole('button', { name: 'Trip' }));
+      boxMap7();
+      await user.click(document.querySelector('.dmap-token.monster') as Element);
+      if (!goblin().conditions.includes('prone')) {
+        await user.click(screen.getByRole('button', { name: /end turn/i }));
+        await user.click(screen.getByRole('button', { name: /end turn/i }));
+      }
+    }
+    expect(goblin().conditions).toContain('prone');
+
+    await user.click(screen.getByRole('button', { name: /end turn/i }));
+    await user.click(screen.getByRole('button', { name: /end turn/i }));
+    boxMap7();
+    await user.click(document.querySelector('.dmap-token.monster') as Element);
+
+    // The prone the trip created is finally read by something.
+    expect(logOf(view)).toMatch(/advantage: [^)]*prone and within reach/);
+  });
+
+  it('refuses a condition the stat block is immune to, and says why', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+    await bestiaryReady();
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'zombie');
+    const entry = [...document.querySelectorAll('.mon-list li')].find(
+      (li) => li.querySelector('b')?.textContent === 'Zombie',
+    ) as HTMLElement;
+    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await user.click(within(rowFor('Zombie')).getByRole('button', { name: /zombie/i }));
+
+    // Poisoned is not even offered - the stat block says it cannot land.
+    const select = screen.getByLabelText(/add a condition to zombie/i);
+    const offered = [...select.querySelectorAll('option')].map((o) => o.textContent);
+    expect(offered).not.toContain('Poisoned');
+    // And something that can land still can.
+    expect(offered).toContain('Prone');
   });
 });

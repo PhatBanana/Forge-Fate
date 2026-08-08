@@ -64,6 +64,7 @@ import type { EncounterState, Square } from '../encounter';
 import { placeZone } from '../surfaces';
 import { canShove, fallDamage, fallFeet, pushedTo, shoveContest } from '../engine/shove';
 import { applyDefences } from '../engine/defences';
+import { describeOdds, oddsFor } from '../engine/advantage';
 import type { Defences } from '../engine/defences';
 import { HOUSE_RULE_INFO, highGroundBonus, loadHouseRules, saveHouseRules } from '../houseRules';
 import type { HouseRules } from '../houseRules';
@@ -1038,6 +1039,27 @@ export function TableTab({
         ? heightAdvantage(enc.elevation ?? {}, attackerAt, target.at)
         : 0;
     const highGround = highGroundBonus(houseRules, uphill);
+
+    /*
+      Advantage, at last actually rolled. This app has announced "unseen
+      attacker — advantage" since §19.3 and rolled a straight die every time,
+      and §26.2 made it worse by creating prone that nothing read. The odds
+      come from the conditions on both sides plus how far apart they are,
+      since prone helps in reach and hinders beyond it.
+    */
+    const odds = oddsFor({
+      attacker: {
+        conditions: attacker ? conditionsOf(attacker) : [],
+        hidden: attacker?.hidden !== undefined,
+      },
+      target: { conditions: conditionsOf(target) },
+      adjacent:
+        !attackerAt || !target.at
+          ? true
+          : Math.max(Math.abs(attackerAt.x - target.at.x), Math.abs(attackerAt.y - target.at.y)) <= 1,
+    });
+    const oddsNote = describeOdds(odds);
+
     const rulings = [
       cover ? 'half cover' : '',
       attacker && attackerAt && target.at && target.kind !== attacker.kind &&
@@ -1060,7 +1082,10 @@ export function TableTab({
       targetGround.ac ? `+${targetGround.ac} AC from the ground` : '',
       attackerGround.toHit ? `+${attackerGround.toHit} to hit from the ground` : '',
       ...targetGround.notes,
-      attacker?.hidden !== undefined ? 'unseen attacker — advantage' : '',
+      // Replaces a hand-written "unseen attacker — advantage" that was never
+      // rolled. This one names every circumstance, including the ones that
+      // cancelled, and the die that follows is the die it describes.
+      oddsNote,
     ].filter(Boolean);
     const ruling = rulings.length ? ` (${rulings.join(', ')})` : '';
 
@@ -1073,7 +1098,11 @@ export function TableTab({
     const rulingNotes = new Set<string>();
 
     for (const strike of strikes) {
-      const d20 = rollD20(strike.toHit + highGround + attackerGround.toHit, 'normal', defaultRng);
+      const d20 = rollD20(
+        strike.toHit + highGround + attackerGround.toHit,
+        odds.mode,
+        defaultRng,
+      );
       const natural = d20.rolls[d20.kept] ?? d20.rolls[0];
       const crit = natural === 20;
       const hit = natural !== 1 && (crit || d20.total >= effectiveAc);
@@ -1391,6 +1420,12 @@ export function TableTab({
       info.ctx.mods[fallback]
     );
   };
+
+  /** The conditions on somebody, from whichever store holds them. */
+  const conditionsOf = (c: Combatant): string[] =>
+    c.kind === 'monster'
+      ? c.conditions
+      : (roster.entries.find((e) => e.id === c.rosterId)?.play.conditions ?? []);
 
   /**
    * What a creature resists, is immune to, or is vulnerable to.
@@ -3630,21 +3665,46 @@ export function TableTab({
             value=""
             onChange={(e) => {
               if (!e.target.value) return;
+              const id = e.target.value;
+              /*
+                A zombie cannot be poisoned. The stat blocks have carried
+                `conditionImmunities` since §8 and nothing ever read them, so
+                the select would cheerfully hang any condition on anything.
+                Refused with a reason rather than silently ignored - a control
+                that does nothing and says nothing is the worse failure.
+              */
+              const immunities = byId.get(selected.monsterId)?.conditionImmunities ?? [];
+              if (immunities.includes(id)) {
+                setEncounter(
+                  appendLog(
+                    encounter,
+                    `${nameOf(selected)} is immune to ${CONDITIONS_BY_ID[id]?.name ?? id}.`,
+                  ),
+                );
+                setMonsterRounds('');
+                return;
+              }
               setEncounter(
                 monsterRounds
                   ? addTimedMonsterCondition(
                       encounter,
                       selected.id,
-                      e.target.value,
+                      id,
                       Math.max(1, Number(monsterRounds)),
                     )
-                  : toggleMonsterCondition(encounter, selected.id, e.target.value),
+                  : toggleMonsterCondition(encounter, selected.id, id),
               );
               setMonsterRounds('');
             }}
           >
             <option value="">+ condition</option>
-            {CONDITIONS.filter((c) => selected.kind === 'monster' && !selected.conditions.includes(c.id)).map(
+            {CONDITIONS.filter(
+              (c) =>
+                selected.kind === 'monster' &&
+                !selected.conditions.includes(c.id) &&
+                // Not offered at all when the stat block says it cannot land.
+                !(byId.get(selected.monsterId)?.conditionImmunities ?? []).includes(c.id),
+            ).map(
               (c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
