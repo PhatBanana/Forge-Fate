@@ -29,6 +29,7 @@ import { analyze, problemsOnly } from '../engine/analyze';
 import { recommendNext } from '../engine/recommend';
 import type { Suggestion } from '../engine/recommend';
 import { ChoiceRow } from './ChoiceRow';
+import { dprByLevel } from '../engine/scaling';
 import { ProgressionPanel } from './ProgressionPanel';
 import { rowState } from './picker';
 import type { PickerProps } from './picker';
@@ -2498,20 +2499,58 @@ function DamagePanel({
   patch: (partial: Partial<Build>) => void;
 }) {
   const dpr = ctx.dpr;
+  const [against, setAgainst] = useState<'level' | 'ac'>('level');
+  /*
+    Twenty `deriveBuild` calls, so it is memoised on the build and the armor
+    class it is measured at - and computed whichever chart is showing, because
+    the alternative is a stall on every toggle.
+  */
+  const byLevel = useMemo(
+    () => dprByLevel(build, dpr.targetAc),
+    [build, dpr.targetAc],
+  );
+
   // A caster with nothing in hand still has a damage number - it comes from
-  // cantrips rather than swings, so the panel stays.
+  // cantrips rather than swings, so the panel stays. Hooks first: this early
+  // return cannot sit above them.
   if (!ctx.attacks.length && !ctx.spellcasting.casts) return null;
 
   const setAssumption = (partial: Partial<Build['combatAssumptions']>) =>
     patch({ combatAssumptions: { ...build.combatAssumptions, ...partial } });
 
   const peak = Math.max(...dpr.curve.map((p) => p.nova), 1);
+  const levelPeak = Math.max(...byLevel.map((p) => p.nova), 1);
 
   return (
     <Panel
       title="Damage per round"
-      subtitle={`Against AC ${dpr.targetAc}, which is typical for level ${ctx.totalLevel}.`}
+      subtitle={
+        against === 'level'
+          ? `Every level against AC ${dpr.targetAc}, so the rise is the build rather than the target.`
+          : `Against AC ${dpr.targetAc}, which is typical for level ${ctx.totalLevel}.`
+      }
     >
+      {/*
+        Two questions, and they are different ones. Against level: is this
+        build front-loaded, or does it come good at eleven? Against armor
+        class: can I hit this dragon? The level curve is the one people mean by
+        scaling, so it leads - and the other stays, because it is the only one
+        that answers the second question.
+      */}
+      <div className="seg" role="group" aria-label="What to chart damage against">
+        {(['level', 'ac'] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            className={against === mode ? 'is-on' : ''}
+            aria-pressed={against === mode}
+            onClick={() => setAgainst(mode)}
+          >
+            {mode === 'level' ? 'By level' : 'By target AC'}
+          </button>
+        ))}
+      </div>
+
       <div className="statline" style={{ marginBottom: 12 }}>
         <div>
           <div className="k">Sustained</div>
@@ -2523,20 +2562,55 @@ function DamagePanel({
         </div>
       </div>
 
-      <div className="dpr-chart" role="img" aria-label={`Damage per round from AC 10 to 25, ${dpr.curve.map((p) => `AC ${p.ac}: ${p.sustained}`).join(', ')}`}>
-        {dpr.curve.map((point) => (
-          <div className="dpr-bar" key={point.ac} title={`AC ${point.ac}: ${point.sustained} sustained, ${point.nova} nova`}>
-            <span className="nova" style={{ height: `${(point.nova / peak) * 100}%` }} />
-            <span className="sustained" style={{ height: `${(point.sustained / peak) * 100}%` }} />
-            {point.ac === dpr.targetAc && <span className="marker" />}
+      {against === 'ac' ? (
+        <>
+          <div className="dpr-chart" role="img" aria-label={`Damage per round from AC 10 to 25, ${dpr.curve.map((p) => `AC ${p.ac}: ${p.sustained}`).join(', ')}`}>
+            {dpr.curve.map((point) => (
+              <div className="dpr-bar" key={point.ac} title={`AC ${point.ac}: ${point.sustained} sustained, ${point.nova} nova`}>
+                <span className="nova" style={{ height: `${(point.nova / peak) * 100}%` }} />
+                <span className="sustained" style={{ height: `${(point.sustained / peak) * 100}%` }} />
+                {point.ac === dpr.targetAc && <span className="marker" />}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <div className="dpr-axis">
-        <span>AC {dpr.curve[0].ac}</span>
-        <span>AC {dpr.targetAc}</span>
-        <span>AC {dpr.curve.at(-1)!.ac}</span>
-      </div>
+          <div className="dpr-axis">
+            <span>AC {dpr.curve[0].ac}</span>
+            <span>AC {dpr.targetAc}</span>
+            <span>AC {dpr.curve.at(-1)!.ac}</span>
+          </div>
+        </>
+      ) : (
+        <>
+          <div
+            className="dpr-chart"
+            role="img"
+            aria-label={`Damage per round by level against AC ${dpr.targetAc}, ${byLevel.map((p) => `level ${p.level}: ${p.sustained}`).join(', ')}`}
+          >
+            {byLevel.map((point) => (
+              <div
+                className="dpr-bar"
+                key={point.level}
+                title={`Level ${point.level}: ${point.sustained} sustained, ${point.nova} nova`}
+              >
+                <span
+                  className="nova"
+                  style={{ height: `${(point.nova / levelPeak) * 100}%` }}
+                />
+                <span
+                  className="sustained"
+                  style={{ height: `${(point.sustained / levelPeak) * 100}%` }}
+                />
+                {point.level === ctx.totalLevel && <span className="marker" />}
+              </div>
+            ))}
+          </div>
+          <div className="dpr-axis">
+            <span>Level {byLevel[0]?.level ?? 1}</span>
+            <span>Level {ctx.totalLevel}</span>
+            <span>Level {byLevel.at(-1)?.level ?? 20}</span>
+          </div>
+        </>
+      )}
 
       <ul className="reasons" style={{ marginTop: 12 }}>
         {dpr.lines.map((line, i) => (

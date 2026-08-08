@@ -436,6 +436,47 @@ button {
   }
 }
 
+/*
+  A segmented control: two readings of the same panel, not two panels.
+
+  Smaller and quieter than the tab strips elsewhere, because switching between
+  "by level" and "by target AC" is changing what a chart is plotted against
+  rather than going somewhere.
+*/
+.seg {
+  display: inline-flex;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.seg button {
+  border: none;
+  border-radius: 0;
+  background: var(--bg-sunken);
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.seg button + button {
+  border-left: 1px solid var(--border);
+}
+
+.seg button:hover {
+  color: var(--text);
+}
+
+.seg button.is-on {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
 /* Next choices: where the work is left, named rather than counted. */
 .next-list {
   list-style: none;

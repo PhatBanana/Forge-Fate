@@ -324,6 +324,45 @@ describe('next choices', () => {
   });
 });
 
+describe('damage per round', () => {
+  const panel = () => screen.getByText('Damage per round').closest('.panel') as HTMLElement;
+
+  it('charts against level first, and says which armor class it used', () => {
+    /*
+      §33.6. The AC curve answers "can I hit this dragon"; against level
+      answers "is this build front-loaded or does it come good at eleven",
+      which is the one people mean by scaling. So the level chart leads.
+
+      The armor class is stated rather than implied, because one number for
+      every level is a choice: letting it drift with the tier would fold two
+      curves into one and leave a rise that could be either.
+    */
+    setup(fighter(11));
+    expect(within(panel()).getByRole('button', { name: /by level/i })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(within(panel()).getByText(/every level against AC \d+/i)).toBeInTheDocument();
+    expect(within(panel()).getByRole('img').getAttribute('aria-label')).toMatch(
+      /by level against AC \d+/i,
+    );
+  });
+
+  it('has a bar for every level the build has reached', () => {
+    setup(fighter(11));
+    expect(within(panel()).getByRole('img').getAttribute('aria-label')).toMatch(/level 11:/);
+    expect(within(panel()).getByRole('img').getAttribute('aria-label')).toMatch(/level 1:/);
+  });
+
+  it('keeps the AC curve, because it answers the other question', async () => {
+    setup(fighter(11));
+    await userEvent.click(within(panel()).getByRole('button', { name: /by target ac/i }));
+    expect(within(panel()).getByRole('img').getAttribute('aria-label')).toMatch(
+      /from AC 10 to 25/i,
+    );
+  });
+});
+
 describe('the build review', () => {
   /**
    * The regression this fixes: nine findings on a character nobody had
