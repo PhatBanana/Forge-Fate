@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ABILITIES, ABILITY_NAMES, RULESETS, RULESET_LABELS } from '../types';
 import type { Ability, Build, ClassEntry, ClassId, Loadout, Ruleset, WeaponStyle } from '../types';
@@ -191,7 +191,22 @@ export function BuilderTab({
   onChange: (build: Build) => void;
 }) {
   const patch = (partial: Partial<Build>) => onChange({ ...build, ...partial });
+
+  /*
+    Where you are on the page.
+
+    §33.4 kept this as state so the pinned rail could keep showing the readouts
+    belonging to wherever you were, and set it from a rail click. §33.7 gives
+    it its real input: scroll position. The claim §31.4 made - that each
+    section carries "the readouts its own edits move" - is the same claim, and
+    scroll-spy delivers it without the sections having to be separate places.
+
+    A rail click still sets it directly. That is not redundancy: the anchor
+    jump and the observer race, the click is the more certain of the two, and
+    it is the seam that makes the contextual column testable under jsdom.
+  */
   const [section, setSection] = useState<Section>('identity');
+  useSectionSpy(setSection);
 
   /*
     Which catalogue is open. One, for the whole Builder.
@@ -990,6 +1005,70 @@ function FlexibleAsiPickers({
  * One at a time, deliberately: the value of this panel is that it stays short
  * enough to sit above everything else on every section.
  */
+/**
+ * Which section you are looking at, from where the page is scrolled.
+ *
+ * An `IntersectionObserver` over the five `<section id>` landmarks, taking
+ * whichever is nearest the top of the viewport among those on screen. Cheaper
+ * than a scroll handler measuring five boxes on every frame, and it is the
+ * only thing here that touches the browser at all.
+ *
+ * ## Guarded, and what happens without it
+ *
+ * jsdom implements neither `IntersectionObserver` nor `scrollIntoView`, and
+ * `test/setup.ts` stubs neither. So this does nothing there, `section` keeps
+ * whatever the rail last set - which is exactly the behaviour §33.4 shipped -
+ * and the contextual column stays testable through the click rather than
+ * through a polyfill nobody would trust.
+ */
+function useSectionSpy(onSection: (section: Section) => void) {
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return;
+    const seen = new Set<Section>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const id = entry.target.id.replace('section-', '') as Section;
+          if (entry.isIntersecting) seen.add(id);
+          else seen.delete(id);
+        }
+        if (!seen.size) return;
+        /*
+          Whichever of the visible sections starts nearest the band, measured
+          now rather than from the entry - a rect captured when a section
+          crossed the band is stale by the time another one does, and taking
+          the declared order instead reports the section *above* the one being
+          read the moment two are in view at once.
+        */
+        const band = window.innerHeight * 0.1;
+        let best: Section | null = null;
+        let closest = Infinity;
+        for (const entry of SECTIONS) {
+          if (!seen.has(entry.id)) continue;
+          const node = document.getElementById(`section-${entry.id}`);
+          if (!node) continue;
+          const distance = Math.abs(node.getBoundingClientRect().top - band);
+          if (distance < closest) {
+            closest = distance;
+            best = entry.id;
+          }
+        }
+        if (best) onSection(best);
+      },
+      // A band across the upper part of the viewport: "what am I reading",
+      // not "what is anywhere on screen", which on a tall panel is both.
+      { rootMargin: '-10% 0px -70% 0px', threshold: 0 },
+    );
+    for (const entry of SECTIONS) {
+      const node = document.getElementById(`section-${entry.id}`);
+      if (node) observer.observe(node);
+    }
+    return () => observer.disconnect();
+    // `onSection` is a setState function, stable for the component's life.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+}
+
 /**
  * What is still unchosen, named and linked.
  *
