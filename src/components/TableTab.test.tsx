@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TableTab } from './TableTab';
 import { activeEncounter } from '../storage';
@@ -2550,5 +2550,107 @@ describe('shoving, and the ledge behind them', () => {
     expect(goblinOf(view).conditions).toContain('prone');
     expect(goblinOf(view).at).toEqual(where);
     expect(logOf(view)).toMatch(/down they go/);
+  });
+});
+
+/**
+ * Section 26.3. High ground has been computed and announced since 12.4 and
+ * has never changed a number. This is the switch that lets a table say it
+ * should - and the tests that pin it staying off until they do.
+ */
+describe('the optional rules', () => {
+  /*
+    The switch outlives a render on purpose, which means it also outlives a
+    test - the run that found this had one test turning high ground on and the
+    next one toggling it straight back off. Cleared per test so each starts
+    from the book, which is what a fresh table gets.
+  */
+  beforeEach(() => localStorage.removeItem('dnd-forge:house-rules:v1'));
+
+  const mapEl5 = () => document.querySelector('.dmap') as SVGSVGElement;
+  const boxMap5 = () => {
+    mapEl5().getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+  };
+
+  /** The fighter uphill of a goblin, adjacent, fight running. */
+  const uphill = async (user: ReturnType<typeof userEvent.setup>) => {
+    const view = setup({
+      ...party(),
+      encounter: { ...emptyEncounter(), mapRooms: 0, elevation: { '10,10': 2 } },
+    });
+    await bestiaryReady();
+    const name = view.roster.entries[0].build.name;
+    await user.click(screen.getByRole('button', { name }));
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
+    const entry = [...document.querySelectorAll('.mon-list li')].find(
+      (li) => li.querySelector('b')?.textContent === 'Goblin',
+    ) as HTMLElement;
+    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+
+    boxMap5();
+    const put = (at: { x: number; y: number }) =>
+      fireEvent.pointerDown(mapEl5(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
+    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
+    put({ x: 10, y: 10 });
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
+    put({ x: 11, y: 10 });
+
+    fireEvent.change(within(rowFor(name)).getByLabelText(new RegExp(`${name} initiative`, 'i')), {
+      target: { value: '30' },
+    });
+    fireEvent.change(within(rowFor('Goblin')).getByLabelText(/goblin initiative/i), {
+      target: { value: '1' },
+    });
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+    return { view, name };
+  };
+
+  const logOf = (view: ReturnType<typeof setup>) =>
+    (view.encounter.log ?? []).map((l) => l.text).join('\n');
+
+  const strike = async (user: ReturnType<typeof userEvent.setup>) => {
+    boxMap5();
+    await user.click(document.querySelector('.dmap-token.monster') as Element);
+  };
+
+  it('starts off, with the book’s numbers', () => {
+    setup(party());
+    const box = screen.getByLabelText(/high ground grants/i, { selector: 'input' });
+    expect((box as HTMLInputElement).checked).toBe(false);
+  });
+
+  it('notices high ground without applying it, while the switch is off', async () => {
+    const user = userEvent.setup();
+    const { view } = await uphill(user);
+    await strike(user);
+    // Announced, as it has been since 12.4 - and worth nothing.
+    expect(logOf(view)).toMatch(/\(high ground\)/);
+    expect(logOf(view)).not.toMatch(/high ground \+2/);
+  });
+
+  it('applies +2 and says so, once the table switches it on', async () => {
+    const user = userEvent.setup();
+    const { view } = await uphill(user);
+    await user.click(screen.getByLabelText(/high ground grants/i, { selector: 'input' }));
+    await strike(user);
+    // The log distinguishes applied from merely noticed, so a fight can be
+    // read back and understood whichever way the switch was set.
+    expect(logOf(view)).toMatch(/high ground \+2/);
+  });
+
+  it('remembers the choice, because a table does not re-agree every session', async () => {
+    const user = userEvent.setup();
+    setup(party());
+    await user.click(screen.getByLabelText(/high ground grants/i, { selector: 'input' }));
+
+    // Torn down and stood back up, which is what a reload is. The switch is
+    // a table's standing agreement, not a per-fight decision.
+    cleanup();
+    setup(party());
+    expect(
+      (screen.getByLabelText(/high ground grants/i, { selector: 'input' }) as HTMLInputElement)
+        .checked,
+    ).toBe(true);
   });
 });

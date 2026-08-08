@@ -60,6 +60,8 @@ import {
 import type { EncounterState, Square } from '../encounter';
 import { placeZone } from '../surfaces';
 import { canShove, fallDamage, fallFeet, pushedTo, shoveContest } from '../engine/shove';
+import { HOUSE_RULE_INFO, highGroundBonus, loadHouseRules, saveHouseRules } from '../houseRules';
+import type { HouseRules } from '../houseRules';
 import { SURFACE_KINDS } from '../zones';
 import type { SurfaceKind } from '../zones';
 import { deriveBuild } from '../engine/character';
@@ -260,6 +262,9 @@ export function TableTab({
    * asking after the dice.
    */
   const [shoving, setShoving] = useState<{ byId: string; mode: 'push' | 'prone' } | null>(null);
+  /** The optional rules this table has switched on. Off is the book. */
+  const [houseRules, setHouseRules] = useState<HouseRules>(loadHouseRules);
+  useEffect(() => saveHouseRules(houseRules), [houseRules]);
 
   /*
     "Everyone make a DEX save, DC 15" - the call, then the answers, then the
@@ -996,6 +1001,18 @@ export function TableTab({
         ? lineOfSight(sightContext, attackerAt, target.at).cover
         : false;
     const effectiveAc = targetAc + (cover ? 2 : 0);
+    /*
+      High ground, applied only if the table said so. The steps come from the
+      one function that decides who is uphill; whether they are worth anything
+      is `houseRules`. The log says which - "(high ground +2)" when it counts,
+      "(high ground)" when it is merely noticed - so a player reading back can
+      always tell what the dice actually faced.
+    */
+    const uphill =
+      attackerAt && target.at
+        ? heightAdvantage(enc.elevation ?? {}, attackerAt, target.at)
+        : 0;
+    const highGround = highGroundBonus(houseRules, uphill);
     const rulings = [
       cover ? 'half cover' : '',
       attacker && attackerAt && target.at && target.kind !== attacker.kind &&
@@ -1014,10 +1031,7 @@ export function TableTab({
       )
         ? 'flanked'
         : '',
-      attackerAt && target.at &&
-      heightAdvantage(enc.elevation ?? {}, attackerAt, target.at) > 0
-        ? 'high ground'
-        : '',
+      uphill > 0 ? (highGround ? `high ground +${highGround}` : 'high ground') : '',
       attacker?.hidden !== undefined ? 'unseen attacker — advantage' : '',
     ].filter(Boolean);
     const ruling = rulings.length ? ` (${rulings.join(', ')})` : '';
@@ -1026,7 +1040,7 @@ export function TableTab({
     const lines: string[] = [];
 
     for (const strike of strikes) {
-      const d20 = rollD20(strike.toHit, 'normal', defaultRng);
+      const d20 = rollD20(strike.toHit + highGround, 'normal', defaultRng);
       const natural = d20.rolls[d20.kept] ?? d20.rolls[0];
       const crit = natural === 20;
       const hit = natural !== 1 && (crit || d20.total >= effectiveAc);
@@ -1569,9 +1583,18 @@ export function TableTab({
         const los = attacker?.at && c.at ? lineOfSight(sightContext, attacker.at, c.at) : null;
         const cover = los?.cover ?? false;
         const effectiveAc = ac + (cover ? 2 : 0);
+        /*
+          The same +2 the dice will get, or the percentage under the crosshair
+          is a promise the roll does not keep.
+        */
+        const uphill =
+          attacker?.at && c.at ? heightAdvantage(encounter.elevation ?? {}, attacker.at, c.at) : 0;
+        const uphillBonus = highGroundBonus(houseRules, uphill);
         const chance = aim.strikes.length
-          ? aim.strikes.reduce((sum, s) => sum + hitChance(s.toHit, effectiveAc), 0) /
-            aim.strikes.length
+          ? aim.strikes.reduce(
+              (sum, s) => sum + hitChance(s.toHit + uphillBonus, effectiveAc),
+              0,
+            ) / aim.strikes.length
           : 0;
         // Hit-weighted average damage across the whole routine - the number
         // X-COM prints under the percentage.
@@ -2731,6 +2754,26 @@ export function TableTab({
         title="The battlefield"
         subtitle="Play is for playing. Build and edit maps in the Dungeons tab; load one here and fight on it."
       >
+        {/*
+          The optional rules, where the rule applies. Off is the book: the
+          app's claim is that it plays fifth edition, and a number quietly
+          disagreeing with it would make every other number harder to trust.
+          The log names each one either way, so a fight can be read back and
+          understood whichever way the switch was set.
+        */}
+        <div className="row" style={{ gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
+          {HOUSE_RULE_INFO.map((rule) => (
+            <label className="checkbox" key={rule.id} title={rule.hint}>
+              <input
+                type="checkbox"
+                checked={houseRules[rule.id]}
+                onChange={(e) => setHouseRules({ ...houseRules, [rule.id]: e.target.checked })}
+              />
+              <span>{rule.label}</span>
+            </label>
+          ))}
+        </div>
+
         {/*
           The picker: the Dungeons tab's drawer, read-only from here. Loading
           copies the saved map's fields onto the live encounter in one write -
