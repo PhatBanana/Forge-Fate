@@ -257,6 +257,7 @@ button {
   .app:not(.battle) > #content > * {
     max-width: none;
   }
+
 }
 
 .masthead {
@@ -7058,6 +7059,70 @@ dl.detail-list {
     bottom: 54px;
     width: auto;
     height: 52%;
+  }
+}
+
+@media print {
+  /*
+    `.app.battle > #content` outranks the general print rule on specificity -
+    two classes and an id against one class and an id - so releasing the
+    battle screen's clip has to be said here, where it can be said as
+    specifically.
+  */
+  .app.battle > #content {
+    overflow: visible;
+    height: auto;
+  }
+
+  /*
+    The battle screen on paper: the board, and nothing else.
+
+    A dungeon map is a thing a DM prints - it is the whole argument for drawing
+    it in SVG rather than canvas (`DungeonMap`'s header says so). But the
+    screen it lives on is built out of a viewport: `.btl` is `height: 100%` of
+    a page that has no height in print, and everything inside it is positioned
+    against that. So it collapsed. Measured at §31.6 the drawing printed 988 by
+    **2 pixels**, and §32.2's `overflow: hidden` and absolute stage took the
+    width with it - two by two.
+
+    Undoing the positioning is the fix, in the same order the screen builds it
+    up: the frame stops being a viewport, the stage stops being absolute, the
+    drawing goes back to the ordinary `width: 100%` every other map uses, and
+    the HUD is not printed at all. A timeline and a command bar are things you
+    click; on paper they are ink.
+  */
+  .btl {
+    position: static;
+    height: auto;
+    overflow: visible;
+  }
+
+  .btl-stage {
+    position: static;
+    background: none;
+  }
+
+  .btl-stage .map-stage {
+    position: static;
+    display: block;
+    /* Not a size container any more - there is no rectangle to fit into. */
+    container-type: normal;
+  }
+
+  .btl-stage .dmap {
+    width: 100%;
+    height: auto;
+    max-height: none;
+    aspect-ratio: auto;
+    box-shadow: none;
+  }
+
+  .btl-timeline,
+  .btl-right,
+  .btl-tail,
+  .btl-drawer,
+  .btl-bar {
+    display: none !important;
   }
 }
 
