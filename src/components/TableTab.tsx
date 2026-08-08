@@ -72,6 +72,14 @@ import { describeOdds, mayApproach, mayAttack, oddsFor, speedUnderExhaustion } f
 import { ammunitionCarried } from '../engine/inventory';
 import { heldResources, rechargeFor } from '../engine/resources';
 import { describeSpoils, spoilsFor } from '../engine/spoils';
+import {
+  activeCampaign,
+  loadCampaigns,
+  remember,
+  saveCampaigns,
+  updateCampaign,
+} from '../campaign';
+import type { CampaignFile } from '../campaign';
 import type { Defences } from '../engine/defences';
 import { HOUSE_RULE_INFO, highGroundBonus, loadHouseRules, saveHouseRules } from '../houseRules';
 import type { HouseRules } from '../houseRules';
@@ -279,6 +287,19 @@ export function TableTab({
   /** The optional rules this table has switched on. Off is the book. */
   const [houseRules, setHouseRules] = useState<HouseRules>(loadHouseRules);
   useEffect(() => saveHouseRules(houseRules), [houseRules]);
+
+  /*
+    The campaign being played, if there is one.
+
+    Read here rather than passed in, the way the house rules are: this store is
+    the battle screen's business and nobody else's on this page. Written back
+    only when the debrief pays out, so a session with no campaign behaves
+    exactly as it did before §30 - which is the test of whether an added layer
+    is optional or merely claims to be.
+  */
+  const [campaigns, setCampaigns] = useState<CampaignFile>(loadCampaigns);
+  useEffect(() => saveCampaigns(campaigns), [campaigns]);
+  const campaign = activeCampaign(campaigns);
 
   /*
     "Everyone make a DEX save, DC 15" - the call, then the answers, then the
@@ -2723,6 +2744,35 @@ export function TableTab({
             </button>
           ))}
         </div>
+        {/*
+          The campaign's party, seated in one press.
+
+          The roster is everybody you have ever built - your friend's Paladin,
+          the Barbarian you were trying out, three drafts of the same Wizard.
+          The campaign knows which four are actually at the table, so this is
+          the difference between one click and four every Saturday. Only shown
+          when a campaign says something the chips do not already.
+        */}
+        {campaign && campaign.partyIds.length > 0 && (
+          <p style={{ marginTop: 8 }}>
+            <button
+              className="btn btn-sm"
+              onClick={() => {
+                let enc = encounter;
+                for (const id of campaign.partyIds) {
+                  if (!roster.entries.some((e) => e.id === id)) continue;
+                  if (enc.combatants.some((c) => c.kind === 'character' && c.rosterId === id)) {
+                    continue;
+                  }
+                  enc = addCharacter(enc, id, { dex: derived.get(id)?.ctx.mods.dex ?? 0 });
+                }
+                setEncounter(enc);
+              }}
+            >
+              Seat the {campaign.name} party
+            </button>
+          </p>
+        )}
       </Panel>
   );
 
@@ -3103,13 +3153,6 @@ export function TableTab({
   );
 
   /*
-    The debrief, when the dust settles: X-COM's post-mission screen as a DM's
-    recap. Shown once a fight has ended and something was scored - rounds
-    taken, then a row per combatant with what they dealt, took, dropped and
-    suffered, MVP first. Printable on purpose: it is the recap you read to
-    the table.
-  */
-  /*
     What the fight was worth, and the two things a table does with it.
 
     The halves of this app have never spoken after a fight. Hit points carry,
@@ -3137,6 +3180,15 @@ export function TableTab({
     return spoilsFor(fallen, inTheFight);
   }, [encounter.combatants, byId]);
 
+  /** Who did the most, for the debrief's headline and the chronicle's line. */
+  const mvpName = (): string | undefined => {
+    const best = encounter.combatants
+      .filter((c) => c.kind === 'character')
+      .map((c) => ({ name: nameOf(c), dealt: encounter.tally?.[c.id]?.dealt ?? 0 }))
+      .sort((a, b) => b.dealt - a.dealt)[0];
+    return best?.dealt ? best.name : undefined;
+  };
+
   /** Hand out the share, once, and say so. */
   const payOut = () => {
     if (!spoils.each || encounter.paidOut) return;
@@ -3153,6 +3205,28 @@ export function TableTab({
         `The party earns ${spoils.each} XP each. ${describeSpoils(spoils)}`,
       ),
     );
+    /*
+      And into the campaign, if one is being played. This is the whole of §30's
+      claim on the battle screen: the chronicle is written by the app at the
+      one moment it knows everything it needs to - what was beaten, how long it
+      took, who did the most, what it was worth - rather than by a DM who is
+      busy running the next scene. A record nobody has to keep is the only kind
+      that gets kept.
+    */
+    if (campaign) {
+      setCampaigns(
+        updateCampaign(campaigns, campaign.id, (c) =>
+          remember(c, {
+            defeated: spoils.defeated
+              .map((d) => (d.count > 1 ? `${d.count}× ${d.name}` : d.name))
+              .join(', '),
+            xp: spoils.total,
+            ...(encounter.endedAfter ? { rounds: encounter.endedAfter } : {}),
+            ...(mvpName() ? { mvp: mvpName()! } : {}),
+          }),
+        ),
+      );
+    }
     onChange(updated);
   };
 
@@ -3233,6 +3307,13 @@ export function TableTab({
     </div>
   );
 
+  /*
+    The debrief, when the dust settles: X-COM's post-mission screen as a DM's
+    recap. Shown once a fight has ended and something was scored - rounds
+    taken, then a row per combatant with what they dealt, took, dropped and
+    suffered, MVP first. Printable on purpose: it is the recap you read to
+    the table.
+  */
   const debriefPanel = (() => {
     if (isRunning(encounter) || !encounter.tally) return null;
     const rows = encounter.combatants

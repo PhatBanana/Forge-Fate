@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TableTab } from './TableTab';
@@ -12,6 +12,13 @@ import { fighter, rosterOf, wizard } from '../test/factories';
 import type { Monster } from '../data/monsters';
 import { hydrateMonster } from '../bestiary';
 import { emptyEncounter } from '../encounter';
+import {
+  activeCampaign,
+  addCampaign,
+  emptyCampaigns,
+  loadCampaigns,
+  saveCampaigns,
+} from '../campaign';
 import type { MonsterCombatant } from '../encounter';
 import { DEFAULT_SEED, MAP_SIZES, generateDungeon } from '../engine/dungeon';
 
@@ -1621,6 +1628,33 @@ describe('the pointer’s loop', () => {
     expect(view.roster.entries.map((e) => e.play.xp)).toEqual([25, 25]);
   });
 
+  it('writes the fight into the campaign being played', async () => {
+    const user = userEvent.setup();
+    // Saved before the battle screen mounts, because that is when it reads -
+    // the same as the house rules.
+    saveCampaigns(addCampaign(emptyCampaigns(), 'The Sunless Citadel'));
+    const view = setup(party());
+    await bestiaryReady();
+    for (const e of view.roster.entries) {
+      await user.click(screen.getByRole('button', { name: e.build.name }));
+    }
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
+    const entry = [...document.querySelectorAll('.mon-list li')].find(
+      (li) => li.querySelector('b')?.textContent === 'Goblin',
+    ) as HTMLElement;
+    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
+    await user.click(screen.getByRole('button', { name: /end the fight/i }));
+    await user.click(screen.getByRole('button', { name: /Award 25 XP each/ }));
+
+    const [chapter] = activeCampaign(loadCampaigns())!.chronicle;
+    expect(chapter.defeated).toBe('Goblin');
+    expect(chapter.xp).toBe(50);
+    expect(chapter.rounds).toBe(1);
+  });
+
   it('rests the whole party from the debrief, in one write', async () => {
     const user = userEvent.setup();
     const start = party();
@@ -3089,6 +3123,13 @@ describe('frightened, of something in particular', () => {
  * death saves that only ever failed by taking a hit.
  */
 describe('the trackers that were only ever watched', () => {
+  /*
+    Two of these pin the dice, and a leaked spy would quietly pin every test
+    that ran after them - which is the same class of leak the house-rules
+    switch caused in §26.5. Restored per test rather than trusted to config.
+  */
+  afterEach(() => vi.restoreAllMocks());
+
   const logOf = (view: ReturnType<typeof setup>) =>
     (view.encounter.log ?? []).map((l) => l.text).join('\n');
 
@@ -3119,6 +3160,14 @@ describe('the trackers that were only ever watched', () => {
 
   it('rolls the concentration save instead of only naming the DC', async () => {
     const user = userEvent.setup();
+    /*
+      Pinned, because this one is about a rule rather than about luck. Burning
+      ground saves for half, and half of a rolled 1 is nought - so on roughly
+      one run in twelve the bite dealt no damage, no concentration save fired,
+      and this test failed for being right. High rolls throughout: the damage
+      lands, the save happens, and which way it goes is still checked below.
+    */
+    vi.spyOn(Math, 'random').mockReturnValue(0.95);
     const { view, name } = await inFight(user, (r) => ({
       ...r,
       entries: r.entries.map((e, i) =>
@@ -3157,6 +3206,12 @@ describe('the trackers that were only ever watched', () => {
 
   it('rolls a death save when a downed character’s turn comes round', async () => {
     const user = userEvent.setup();
+    /*
+      Pinned away from the natural 20, which stands you up on one hit point
+      and clears the tally - correct behaviour, and a one-in-twenty failure
+      of an assertion that counts saves made. 0.5 of a d20 is an 11.
+    */
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
     const { view, name } = await inFight(user, (r) => ({
       ...r,
       // Down but not dead: exactly the state the rule fires in.

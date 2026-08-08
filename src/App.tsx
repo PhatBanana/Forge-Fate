@@ -58,6 +58,10 @@ const CharactersTab = lazy(async () => ({
   blocks fetched on first use. A player who never runs a game pays for neither.
 */
 const TableTab = lazy(async () => ({ default: (await import('./components/TableTab')).TableTab }));
+const CampaignTab = lazy(async () => ({
+  default: (await import('./components/CampaignTab')).CampaignTab,
+}));
+
 const DungeonsTab = lazy(async () => ({
   default: (await import('./components/DungeonsTab')).DungeonsTab,
 }));
@@ -80,7 +84,7 @@ const RULESET_CHOSEN_KEY = 'dnd-forge:ruleset-chosen';
  * answer the same question; import and export moved onto Characters, because
  * both produce or consume a whole character rather than a part of one.
  */
-type Tab = 'builder' | 'sheet' | 'optimizer' | 'characters' | 'dungeons' | 'table';
+type Tab = 'builder' | 'sheet' | 'optimizer' | 'characters' | 'dungeons' | 'campaign' | 'table';
 
 /*
   Two modes, one app.
@@ -102,6 +106,9 @@ const CREATE_TABS: { id: Tab; label: string }[] = [
   // The map workshop: building a place is desk work, not table work. The
   // battle screen loads what this tab saves.
   { id: 'dungeons', label: 'Dungeons' },
+  // The party and the record of what it did - the one thing here that
+  // outlives a single afternoon.
+  { id: 'campaign', label: 'Campaign' },
 ];
 
 const TABS: { id: Tab; label: string }[] = [
@@ -645,6 +652,7 @@ export default function App() {
           />
         )}
         {tab === 'dungeons' && <DungeonsTab />}
+        {tab === 'campaign' && <CampaignTab roster={roster} />}
       </Suspense>
       </main>
     </div>

@@ -2159,11 +2159,12 @@ grant them**; **condition immunities**; zone damage, saves and grants;
 **concentration saves, rolled**; **death saves, rolled**; **ammunition**;
 **exhaustion on attacks and speed**; **shove, falling and prone**; surface
 reactions; stealth, fog and activation; monster recharge and per-day uses;
-opportunity-attack provocation (logged).
+**opportunity attacks, taken** (§28); **Disengage and Dodge** (§28).
 
-*Noted, never applied* — flanking (the obvious next row on §26.3's switch),
-the opportunity-attack swing itself (that is §28), and the resistance
-qualifiers only a table can settle.
+*Noted, never applied* — flanking (the obvious next row on §26.3's switch)
+and the resistance qualifiers only a table can settle. The
+opportunity-attack swing left this list in §28, along with Disengage and
+Dodge.
 
 *Deliberately absent* — grappling, mounted combat, readied-action triggers,
 spell components. Frightened left this list in §27.2; shoving left it in
@@ -2173,6 +2174,127 @@ spell components. Frightened left this list in §27.2; shoving left it in
 model's `Defenses` is AC and hit points, so a raging Barbarian or a
 Dragonborn's ancestry is still applied by hand. Named in `defencesOf` so it
 is visible rather than implied.
+
+---
+
+## 28. Reactions become real
+
+§22.5 made movement deliberate and, in the same breath, wrote the note this
+section replaces: *"leaves the reach of X — opportunity attack, unless they
+Disengaged."* That sentence has been printed on every walk out of melee
+since, and no die has ever followed it. It was the last large entry in the
+noted-never-applied register and the most consequential one left, because
+the whole reason to spend an action on Disengage is a swing that never
+happened.
+
+The dice were never what was missing — `strikesInto` has resolved a full
+exchange since §13.2. Three pieces of **state** were.
+
+- `[x]` **Disengage as a fact.** Both trays offered it and both only wrote a
+  line in the log, so the app could not tell the creature that spent its
+  action from the one that did not. Dodge came with it for the same reason
+  and the same price: it is per-turn state that comes back when your turn
+  *starts*, which is exactly when a dodge stops protecting you. Dodging now
+  costs the attacker advantage through the same circumstance fold everything
+  else goes through, and lapses the moment the dodger is stunned or paralysed
+  — the SRD suspends it when you are incapacitated.
+- `[x]` **A reaction the monsters own.** Characters have had a reaction pip
+  since §7; the monster side of the table had legendary actions, recharge
+  dice and movement and no reaction at all. It resets when the creature's own
+  turn begins — the direction tables get wrong most often is the other one,
+  handing it back at the end of the turn it was spent on.
+- `[x]` **Reach in feet.** The old note fired on Chebyshev adjacency, so an
+  ogre watched people walk out of its ten-foot reach unremarked. Characters
+  had no reach at all: the monsters have carried it since §25.1 and nothing
+  had ever asked the sheet.
+
+**The swing is one melee attack, never a Multiattack.** A dragon reacting
+with its whole routine would be the largest damage bug this app could ship,
+so `opportunityStrike` returns at most one and the tests assert that across
+all 334 stat blocks. It resolves *before* the step, which is when the rule
+fires and the only order in which cover, prone and the ground read from the
+square the mover is still standing on. Dropped on the way out means the step
+does not happen. A walk past three guards is three swings and one write.
+
+Hiding still works: a rogue who vanished leaves unremarked, which is what
+the Hide action buys.
+
+---
+
+## 29. The fight pays out
+
+The two halves of this app had never spoken after a fight. Hit points carry,
+because the battle screen writes the same `PlayState` the sheet reads — and
+then the fight ends and *nothing else does*. Every stat block has carried an
+`xp` since the bestiary landed and the only thing that ever read it was the
+forecast, to say how hard a fight looked *before* it happened. Afterwards the
+number was thrown away and somebody did the arithmetic on paper.
+
+The debrief now has two buttons, because after a fight a party does exactly
+two things: they take what they earned, and they sit down.
+
+- `[x]` **Award.** Every monster at nought hit points, grouped by stat block
+  name so "Goblin A" and "Goblin B" read as two goblins, summed, and split
+  between everyone who was **in** the fight rather than everyone still
+  standing — a party that gained by losing someone would be a rule nobody
+  plays. Rounded down with the remainder going nowhere, because distributing
+  it would mean picking a character to favour over a rounding error. The
+  encounter records what it paid, so the button becomes a receipt: one that
+  can be pressed twice and pays twice is a bug.
+- `[x]` **Rest.** The sheet has had both rest buttons since §7 and pressing
+  them five times over is the DM's least favourite part of the evening. The
+  party rests together, each character's short-recharge keys and hit dice
+  derived exactly as their own sheet derives them, all in one composed write.
+
+**Two things this deliberately does not do.** It does not say when you level
+up: the XP-per-level table is not in the data this project ships, and a
+threshold nothing here can source has no business on a character sheet —
+milestone tables ignore it anyway. And it does not roll treasure, for the
+same reason the encounter-difficulty thresholds stay out.
+
+---
+
+## 30. The campaign layer
+
+Everything else in this app is about one afternoon. A roster of everyone you
+have ever built, a drawer of prepped encounters, a library of dungeons, and a
+battle screen that runs exactly one fight and forgets it when the next
+starts. §29 made the fight pay out; this is where the payments accumulate.
+
+A campaign is two things and no more, because a campaign manager that tries
+to be a wiki ends up being neither.
+
+- `[x]` **A party.** Which of the roster's characters are the ones playing.
+  The roster is everybody — your friend's Paladin, the Barbarian you were
+  trying out, three drafts of the same Wizard. The party is who is at the
+  table on Saturday, and the battle screen seats them in one press. A
+  character deleted between sessions is *named* rather than silently dropped:
+  tidying the roster must not quietly rewrite who was playing.
+- `[x]` **A chronicle.** One line per fight, written when the debrief pays
+  out — what was beaten, how long it took, who did the most, what it was
+  worth. Written by the app rather than by the DM, because the DM is busy,
+  and a record nobody has to keep is the only kind that gets kept. Capped at
+  fifty, because `localStorage` is not a database.
+
+Its own store key, for the reason the bestiary and the dungeons have theirs:
+a campaign outlives any particular character, and clearing the roster must
+not clear the record of what the party did. The Campaign tab **reads** the
+roster and never writes it — choosing who is at the table is not editing a
+character, and the one thing this page must not be able to do is lose one.
+
+A session with no campaign behaves exactly as it did before, which is the
+test of whether an added layer is optional or merely claims to be.
+
+**What the probe found.** Two of my own mistakes again, both mine and neither
+the app's. The probe clicked at coordinates measured while the map was still
+below the fold — the §26 stale-geometry trap, in a new costume — and then
+picked a destination by arithmetic (*"four squares east"*) in a dungeon that
+has walls there. Both fixed by asking the app instead of guessing: scroll,
+re-measure, and walk to the farthest tile the map has actually lit. A third:
+the probe dropped the goblin with the −5 button and then wondered why the
+debrief was empty. Manual hit-point edits write no tally, correctly — so the
+fighter now swings for real, one attack per turn because that is the rule
+the app enforces.
 
 ---
 
