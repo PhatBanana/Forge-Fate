@@ -1996,6 +1996,92 @@ stand.
 
 ---
 
+## 26. The battlefield borrows from the video games
+
+Asked for by name: the parts of Baldur's Gate 3 and Disgaea that a grid
+can actually hold. All four turned out to be small, because §23 and
+§12.3 had already built the machinery and then not used it.
+
+- `[x]` **26.1 Surfaces react to each other.** §23 made a wall of fire
+  different from a drawing of one, and still left every zone alone in
+  the world: fireball a slick of grease and the grease sat there being
+  slippery. A zone effect gains a **material** — separate from its label,
+  because "Wall of Fire", "Flaming Sphere" and a patch of ignited grease
+  are three labels and one material. `surfaces.ts` holds the table: fire
+  catches grease, fire flashes a web away, water douses fire, ice freezes
+  water, lightning conducts through a pool, acid dissolves web. Each row
+  is something a table would rule the same way unasked — the bar is
+  remembering the obvious, not inventing house rules — and the ones
+  needing a ruling (what a fireball does to a cloudkill) are absent on
+  purpose.
+
+  A reaction may **consume**, **become**, or **jolt** — bite everyone
+  standing in it once, which is what makes lightning-into-water
+  frightening rather than decorative. A jolt is shaped like the surface
+  it happened to, not the thing that set it off: lightning into a lake
+  catches everyone in the lake, not everyone in the bolt.
+- `[x]` **26.2 Shove, and the drop.** §23 filed shoving under
+  "deliberately absent" beside grappling. That was right about grappling
+  and wrong here, for a reason the register missed: **this map has
+  height**, and had never once let it change a number. A ledge nobody
+  can be pushed off is scenery. Shoving also fits in a function — one
+  contested roll, two outcomes, no ongoing state — where grappling does
+  not, and grappling stays absent.
+
+  **Shove** pushes five feet; **Trip** puts them down. Two entries rather
+  than a submenu, because the SRD leaves the choice to the shover. The
+  defender resists with their better skill rather than being asked, since
+  the choice has one right answer. A tie goes to the defender. Both cost
+  the action pip whether or not the contest was won — a shove replaces
+  one attack of the Attack action, so the *attempt* is what is spent —
+  while a mis-click across the room costs nothing.
+
+  Pushed into a wall is a shove that went nowhere; pushed off a ledge is
+  1d6 per ten feet, capped at 20d6, landing prone. `terrain.ts` keeps
+  height in abstract steps on purpose, so this reads a step as ten feet
+  and **prints the feet in the log** — a table calling it five can halve
+  the dice, and can only know to if it can see the number.
+- `[x]` **26.3 High ground applies, if you say so.** Computed since
+  §12.4 and only ever announced. Now an opt-in +2, **off by default and
+  staying off**: the app's claim is that it plays the rules as written,
+  and a number quietly disagreeing with the book would make every other
+  number harder to trust. The log distinguishes the two either way —
+  "(high ground +2)" against "(high ground)" — so a fight can be read
+  back and understood whichever way the switch was set, and the shot HUD
+  gets the same bonus the dice will.
+
+  Two rather than advantage, because advantage stacks strangely with
+  everything else the map grants. Stored rules are read field by field,
+  so a file from a version that knows about flanking cannot switch
+  flanking on in a version with no idea how to apply it.
+- `[x]` **26.4 Ground that helps, and ground that picks a side.** The
+  zone model could say "this hurts" and nothing else, which left every
+  beneficial area a drawing with a label — and left Spirit Guardians,
+  which burns your enemies and spares your cleric, impossible to state
+  correctly. `affects` names a side, gating damage, difficult ground and
+  grants together. `grants` is the other sign: numbers where the app can
+  apply them, a note where it cannot — a fog cloud's obscurement is a
+  paragraph of rulings, a paladin's aura is plainly +3 to saves.
+
+  The grants land in five places, which is what "applied" means: the
+  target's AC, the roll made from inside, a zone's own save, the room
+  save, and healing at the end of a turn. The difficult overlay became
+  per-walker, so Spirit Guardians is deep going for the goblins and open
+  floor for the party.
+
+**Two rulings made on purpose.** Overlapping auras stack — the SRD's
+non-stacking rule is about the same spell cast twice, and a table that
+disagrees can move a token five feet, which is what a map is for. And
+healing ground does not raise the dropped: that is a ruling, and a loud
+one, not a side effect of standing somewhere.
+
+**What the tests found.** A test-isolation defect the house-rules switch
+introduces by existing: it outlives a render, so it outlives a test, and
+one test turning high ground on had the next toggling it back off.
+Cleared per test now.
+
+---
+
 ## Recently completed
 
 The SRD audit pass, in order. Each was a real defect, not a tidy-up.
