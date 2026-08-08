@@ -1262,6 +1262,18 @@ export function CharacterSheet({
             <span className="muted">
               {isFresh(play, max) ? 'Nothing spent.' : 'Spent this session.'}
             </span>
+            {/*
+              What the fights added up to. Shown only once there is something
+              to show, and without a level next to it: the XP-per-level table
+              is not in the data this project ships, and a threshold nothing
+              here can source has no business on a character sheet. Most tables
+              level on milestones anyway.
+            */}
+            {!!play.xp && (
+              <span className="muted" title="Earned in play. When it is enough is the table's call.">
+                {play.xp.toLocaleString()} XP
+              </span>
+            )}
           </div>
 
           {/*

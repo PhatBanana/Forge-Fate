@@ -106,6 +106,23 @@ export interface PlayState {
   /** 0 to 6. Six is death, and the app says so rather than hiding it. */
   exhaustion: number;
   /**
+   * Experience earned, total.
+   *
+   * Here rather than on the build because it is a record of what happened at
+   * the table, like hit points and spent slots, rather than a description of
+   * the character - and because the battle screen is what writes it. No rest
+   * touches it: nobody unlearns a fight.
+   *
+   * The app deliberately does not say what level this makes you. The
+   * XP-per-level table is not in the data this project ships, and a number on
+   * a character sheet that nothing in this repository can source is exactly
+   * what the provenance discipline exists to prevent. Milestone tables ignore
+   * the threshold anyway.
+   *
+   * Optional, and absent on every character who has not been in a fight.
+   */
+  xp?: number;
+  /**
    * The last few dice rolls, newest first, capped at `ROLL_LOG_LIMIT`.
    *
    * This is history rather than state: no rest clears it, and `isFresh` does
@@ -259,6 +276,18 @@ export function dash(play: PlayState): PlayState {
  */
 export function newTurn(play: PlayState): PlayState {
   return { ...play, turn: emptyTurn() };
+}
+
+/**
+ * Hand somebody their share of a fight.
+ *
+ * Additive rather than assigning, because two fights in an evening is two
+ * awards - and because the debrief that calls this has no idea what came
+ * before it.
+ */
+export function awardXp(play: PlayState, amount: number): PlayState {
+  if (amount <= 0) return play;
+  return { ...play, xp: (play.xp ?? 0) + amount };
 }
 
 /**
@@ -573,6 +602,10 @@ export function longRest(
     exhaustion: Math.max(0, play.exhaustion - 1),
     // The log is a record of what happened, and resting does not unhappen it.
     rolls: play.rolls,
+    // Neither does experience. This object is built field by field rather than
+    // spread on purpose - so anything new has to be thought about - and a
+    // night's sleep does not make you forget a fight.
+    xp: play.xp,
     turn: emptyTurn(),
     // A counter set to `none` is one no rest touches - a piety score is not
     // something you sleep off.

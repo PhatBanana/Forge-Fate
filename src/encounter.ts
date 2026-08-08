@@ -199,6 +199,14 @@ export interface EncounterState {
   /** How many rounds the last fight ran, stamped by `endEncounter` - the
       round counter itself resets to 0. */
   endedAfter?: number;
+  /**
+   * Experience already handed out for this fight.
+   *
+   * A button that can be pressed twice and pays twice is a bug, and the
+   * debrief stays on screen after the fight is over. Cleared when a new fight
+   * starts, because that is a different fight and it has not paid yet.
+   */
+  paidOut?: number;
 }
 
 export function emptyEncounter(): EncounterState {
@@ -817,6 +825,8 @@ export function startEncounter(encounter: EncounterState): EncounterState {
     turnIndex: 0,
     tally: undefined,
     endedAfter: undefined,
+    // A new fight has not paid out yet, whatever the last one did.
+    paidOut: undefined,
     combatants: encounter.combatants.map((c) =>
       c.kind === 'monster' && (c.moved || c.reactionSpent || c.stance)
         ? { ...c, moved: 0, reactionSpent: undefined, stance: undefined }

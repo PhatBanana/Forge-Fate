@@ -6018,6 +6018,24 @@ dl.detail-list {
   color: var(--text-faint);
 }
 
+/* What the fight was worth, under the table that says how it went. */
+.debrief-payout {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.debrief-payout .hint {
+  margin: 0 0 6px;
+}
+
+/* The receipt state: a paid-out fight is not a disabled button that failed,
+   it is a button whose job is done, so it reads as a fact rather than a loss. */
+.debrief-payout .btn:disabled {
+  opacity: 0.75;
+  cursor: default;
+}
+
 .battle-log {
   list-style: none;
   margin: 0;

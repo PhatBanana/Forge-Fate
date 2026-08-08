@@ -70,6 +70,8 @@ import { canShove, fallDamage, fallFeet, pushedTo, shoveContest } from '../engin
 import { applyDefences } from '../engine/defences';
 import { describeOdds, mayApproach, mayAttack, oddsFor, speedUnderExhaustion } from '../engine/advantage';
 import { ammunitionCarried } from '../engine/inventory';
+import { heldResources, rechargeFor } from '../engine/resources';
+import { describeSpoils, spoilsFor } from '../engine/spoils';
 import type { Defences } from '../engine/defences';
 import { HOUSE_RULE_INFO, highGroundBonus, loadHouseRules, saveHouseRules } from '../houseRules';
 import type { HouseRules } from '../houseRules';
@@ -77,7 +79,7 @@ import { SURFACE_KINDS } from '../zones';
 import type { SurfaceKind } from '../zones';
 import { deriveBuild } from '../engine/character';
 import { forecast } from '../engine/forecast';
-import { concentrationDc, damage, dash, emptyPlay, heal, hpNow, moveBy, movementLeft, newTurn, setTurnSlot, tickConditions, toggleCondition, spendAmmo, applyDeathSaveRoll } from '../play';
+import { concentrationDc, damage, dash, emptyPlay, heal, hpNow, moveBy, movementLeft, awardXp, longRest, newTurn, setTurnSlot, shortRest, tickConditions, toggleCondition, spendAmmo, applyDeathSaveRoll } from '../play';
 import { defaultRng, expectedTotal, parseNotation, rollD20, rollDamage, rollNotation } from '../engine/dice';
 import { CONDITIONS, CONDITIONS_BY_ID } from '../data/conditions';
 import { damageDice } from '../data/weapons';
@@ -3107,6 +3109,130 @@ export function TableTab({
     suffered, MVP first. Printable on purpose: it is the recap you read to
     the table.
   */
+  /*
+    What the fight was worth, and the two things a table does with it.
+
+    The halves of this app have never spoken after a fight. Hit points carry,
+    because the battle screen writes the same `PlayState` the sheet reads - and
+    then the fight ends and nothing else does. Every stat block has carried an
+    `xp` since the bestiary landed and only the *forecast* ever read it, to say
+    how hard the fight looked beforehand. Afterwards the number was thrown away
+    and somebody did the arithmetic on paper.
+
+    Two buttons, because after a fight a party does exactly two things: they
+    take what they earned, and they sit down. Both write every character in one
+    composed `onChange` - a loop of writes would have each build from this
+    render's roster and only the last would survive.
+  */
+  const spoils = useMemo(() => {
+    const fallen = encounter.combatants
+      .filter((c) => c.kind === 'monster' && c.hp <= 0)
+      .map((c) => {
+        // The stat block's name, not the combatant's label: "Goblin A" and
+        // "Goblin B" are two of the same thing, and the payout says so.
+        const monster = c.kind === 'monster' ? byId.get(c.monsterId) : undefined;
+        return { name: monster?.name ?? 'Unknown', xp: monster?.xp ?? 0 };
+      });
+    const inTheFight = encounter.combatants.filter((c) => c.kind === 'character').length;
+    return spoilsFor(fallen, inTheFight);
+  }, [encounter.combatants, byId]);
+
+  /** Hand out the share, once, and say so. */
+  const payOut = () => {
+    if (!spoils.each || encounter.paidOut) return;
+    let updated = roster;
+    for (const c of encounter.combatants) {
+      if (c.kind !== 'character') continue;
+      const entry = updated.entries.find((e) => e.id === c.rosterId);
+      if (entry) updated = updatePlay(updated, entry.id, awardXp(entry.play, spoils.each));
+    }
+    updated = updateEncounter(
+      updated,
+      appendLog(
+        { ...activeEncounter(updated), paidOut: spoils.total },
+        `The party earns ${spoils.each} XP each. ${describeSpoils(spoils)}`,
+      ),
+    );
+    onChange(updated);
+  };
+
+  /**
+   * Everyone rests at once.
+   *
+   * The sheet has had both buttons since §7 and pressing them five times over
+   * is the DM's least favourite part of the evening. The class-resource lists
+   * each rest needs are per character, so they are gathered per character -
+   * this is the same call the sheet makes, made in a loop and written once.
+   */
+  const partyRests = (kind: 'short' | 'long') => {
+    let updated = roster;
+    for (const c of encounter.combatants) {
+      if (c.kind !== 'character') continue;
+      const entry = updated.entries.find((e) => e.id === c.rosterId);
+      const info = derived.get(c.rosterId);
+      if (!entry || !info) continue;
+      const custom = entry.build.customResources ?? [];
+      /*
+        The two lists each rest needs, derived exactly as the sheet derives
+        them - a Warlock's pact slots come back on a short rest, a Fighter's
+        Second Wind does, and which is which depends on the class level.
+      */
+      const levelOf = (classId: string) =>
+        info.ctx.slices.find((sl) => sl.klass.id === classId)?.entry.level ?? 0;
+      const shortKeys = heldResources(info.ctx.slices, entry.build.ruleset, info.ctx.mods)
+        .filter((held) => rechargeFor(held, levelOf(held.classId)) === 'short')
+        .map((held) => held.key);
+      const hitDice = Object.fromEntries(
+        info.ctx.slices.map((sl) => [sl.klass.id, sl.entry.level]),
+      );
+      const rested =
+        kind === 'short'
+          ? shortRest(entry.play, shortKeys, custom)
+          : longRest(entry.play, hitDice, custom);
+      updated = updatePlay(updated, entry.id, rested);
+    }
+    onChange(
+      updateEncounter(
+        updated,
+        appendLog(
+          activeEncounter(updated),
+          kind === 'short' ? 'The party takes a short rest.' : 'The party takes a long rest.',
+        ),
+      ),
+    );
+  };
+
+  const payout = (
+    <div className="debrief-payout">
+      {spoils.defeated.length > 0 && (
+        <p className="hint" style={{ marginTop: 8 }}>
+          {describeSpoils(spoils)}
+        </p>
+      )}
+      <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="btn btn-sm btn-primary"
+          onClick={payOut}
+          disabled={!spoils.each || !!encounter.paidOut}
+          title={
+            encounter.paidOut
+              ? 'Already paid — a button that pays twice is a bug'
+              : 'Adds the share to every character who was in the fight'
+          }
+        >
+          {encounter.paidOut ? `Paid ${encounter.paidOut} XP` : `Award ${spoils.each} XP each`}
+        </button>
+        <button type="button" className="btn btn-sm" onClick={() => partyRests('short')}>
+          Short rest
+        </button>
+        <button type="button" className="btn btn-sm" onClick={() => partyRests('long')}>
+          Long rest
+        </button>
+      </div>
+    </div>
+  );
+
   const debriefPanel = (() => {
     if (isRunning(encounter) || !encounter.tally) return null;
     const rows = encounter.combatants
@@ -3148,6 +3274,7 @@ export function TableTab({
             ))}
           </tbody>
         </table>
+        {payout}
       </Panel>
     );
   })();

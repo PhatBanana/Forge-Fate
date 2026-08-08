@@ -1591,6 +1591,70 @@ describe('the pointer’s loop', () => {
     expect(view.encounter.log?.[0].text).toMatch(/^The fight ends — 1 round\./);
   });
 
+  it('pays the fight out once, and only once', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+    await bestiaryReady();
+    // Both of them, because the point of a share is that it is divided.
+    for (const e of view.roster.entries) {
+      await user.click(screen.getByRole('button', { name: e.build.name }));
+    }
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
+    const entry = [...document.querySelectorAll('.mon-list li')].find(
+      (li) => li.querySelector('b')?.textContent === 'Goblin',
+    ) as HTMLElement;
+    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
+    await user.click(screen.getByRole('button', { name: /end the fight/i }));
+
+    // A goblin is 50 XP, split between the two characters in the fight.
+    const award = screen.getByRole('button', { name: /Award 25 XP each/ });
+    await user.click(award);
+    expect(view.roster.entries.map((e) => e.play.xp)).toEqual([25, 25]);
+    expect(view.encounter.log?.some((l) => /earns 25 XP each/.test(l.text))).toBe(true);
+
+    // The button becomes a receipt, and pressing it again pays nobody.
+    const paid = screen.getByRole('button', { name: /Paid 50 XP/ });
+    expect(paid).toBeDisabled();
+    expect(view.roster.entries.map((e) => e.play.xp)).toEqual([25, 25]);
+  });
+
+  it('rests the whole party from the debrief, in one write', async () => {
+    const user = userEvent.setup();
+    const start = party();
+    const wounded = {
+      ...start,
+      entries: start.entries.map((e) => ({
+        ...e,
+        play: { ...e.play, currentHp: 1, slotsSpent: [1] },
+      })),
+    };
+    const view = setup(wounded);
+    await bestiaryReady();
+    for (const e of view.roster.entries) {
+      await user.click(screen.getByRole('button', { name: e.build.name }));
+    }
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
+    const entry = [...document.querySelectorAll('.mon-list li')].find(
+      (li) => li.querySelector('b')?.textContent === 'Goblin',
+    ) as HTMLElement;
+    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
+    await user.click(screen.getByRole('button', { name: /end the fight/i }));
+
+    const debrief = screen.getByText('The debrief').closest('.panel') as HTMLElement;
+    await user.click(within(debrief).getByRole('button', { name: /Long rest/ }));
+
+    // Every character, not just the selected one - the whole point.
+    expect(view.roster.entries.every((e) => e.play.currentHp === null)).toBe(true);
+    expect(view.roster.entries.every((e) => e.play.slotsSpent.length === 0)).toBe(true);
+    expect(view.encounter.log?.some((l) => /party takes a long rest/.test(l.text))).toBe(true);
+  });
+
   it('forecasts the clocks on the timeline: conditions, concentration, the wrap', async () => {
     const user = userEvent.setup();
     const start = party();
