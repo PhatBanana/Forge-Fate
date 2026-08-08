@@ -27,6 +27,7 @@ import {
 import { analyze, problemsOnly } from '../engine/analyze';
 import { recommendNext } from '../engine/recommend';
 import type { Suggestion } from '../engine/recommend';
+import { ChoiceRow } from './ChoiceRow';
 import { optionGroups, reconcileClassOptions } from '../engine/classOptions';
 import type { OptionSuggestion } from '../engine/classOptions';
 import { describeSpell, recommendSpells, spellGroups } from '../engine/spellRecommend';
@@ -164,6 +165,19 @@ export function BuilderTab({
 }) {
   const patch = (partial: Partial<Build>) => onChange({ ...build, ...partial });
   const [section, setSection] = useState<Section>('identity');
+
+  /*
+    Which catalogue is open. One, for the whole Builder.
+
+    This single piece of state *is* §33's height bound. Each `ChoiceRow` is
+    closed by default and shows only what you have taken; opening one closes
+    whatever was open before, so the page is the sum of the closed rows plus
+    one picker however many catalogues there are. Per-row state would be more
+    convenient and would quietly bring back the five-screen page this whole
+    section exists to avoid - which is why `ChoiceRow` has no uncontrolled
+    mode to fall into.
+  */
+  const [picker, setPicker] = useState<string | null>(null);
   const stepIndex = SECTIONS.findIndex((entry) => entry.id === section);
 
   /*
@@ -677,7 +691,7 @@ export function BuilderTab({
 
         <ToolsPanel build={build} ctx={ctx} patch={patch} />
 
-        <ClassOptionsPanel build={build} ctx={ctx} patch={patch} />
+        <ClassOptionsPanel build={build} ctx={ctx} patch={patch} picker={picker} onPicker={setPicker} />
 
         <CountersPanel build={build} patch={patch} />
 
@@ -1500,14 +1514,24 @@ function ClassOptionsPanel({
   build,
   ctx,
   patch,
+  picker,
+  onPicker,
 }: {
   build: Build;
   ctx: BuildContext;
   patch: (partial: Partial<Build>) => void;
+  /* Which catalogue is open, across the whole Builder. See `ChoiceRow`. */
+  picker: string | null;
+  onPicker: (id: string | null) => void;
 }) {
   const groups = optionGroups(ctx);
-  // Each group remembers whether it has been opened out. Hooks cannot live
-  // behind the early return below, so this is declared before it.
+  /*
+    Which group is showing its whole list rather than the top three. Separate
+    from `picker`, which is *which catalogue is open at all* - one is "show me
+    the rest of the maneuvers", the other is "show me maneuvers".
+
+    Hooks cannot live behind the early return below, so it is declared first.
+  */
   const [expanded, setExpanded] = useState<string[]>([]);
   if (!groups.length) return null;
 
@@ -1549,13 +1573,31 @@ function ClassOptionsPanel({
         */
         const shown = group.open > 0 ? (isExpanded ? available : available.slice(0, 3)) : [];
         const hidden = available.length - shown.length;
+        const rowId = `class-option-${group.kind}`;
 
         return (
-          <div key={group.kind} style={{ marginBottom: 18 }}>
-            <div className="field-label" style={{ marginBottom: 6 }}>
-              {group.label} — {group.open > 0 ? `${group.open} to choose` : 'all chosen'}
-            </div>
-
+          <ChoiceRow
+            key={group.kind}
+            id={rowId}
+            title={group.label}
+            summary={
+              group.open > 0
+                ? `${group.slots - group.open} of ${group.slots} chosen · ${group.open} to choose`
+                : `all ${group.slots} chosen`
+            }
+            /*
+              The chips are the taken options, and each removes itself. This is
+              the row's whole claim to being closeable: the catalogue of what
+              you have not taken can be hidden, but what you *have* cannot.
+            */
+            taken={taken.map((suggestion) => ({
+              id: suggestion.id,
+              label: suggestion.option.name,
+              onRemove: () => toggle(suggestion.id, group.kind),
+            }))}
+            open={picker === rowId}
+            onOpen={(next) => onPicker(next ? rowId : null)}
+          >
             {[...taken, ...shown].map((suggestion, index) => (
               <OptionCard
                 key={suggestion.id}
@@ -1588,7 +1630,7 @@ function ClassOptionsPanel({
                 Ranked against this build, so the order changes with your combat profile and pact.
               </p>
             )}
-          </div>
+          </ChoiceRow>
         );
       })}
     </Panel>

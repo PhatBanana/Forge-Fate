@@ -328,6 +328,13 @@ describe('at a glance', () => {
 describe('class options', () => {
   const optionsPanel = () => screen.getByText('Class options').closest('.panel') as HTMLElement;
   const cards = () => within(optionsPanel()).getAllByRole('group');
+  /*
+    §33.2: each group is a `ChoiceRow`, closed until asked for, so every test
+    below that wants cards has to open one first. The row's own button carries
+    the group name and its state, which is what `openRow` aims at.
+  */
+  const openRow = async (name: RegExp) =>
+    userEvent.click(within(optionsPanel()).getByRole('button', { name }));
 
   /** Two groups at once - a fighting style and three maneuvers. */
   const battleMaster = () =>
@@ -344,15 +351,17 @@ describe('class options', () => {
   it('shows the best three of each group, not all of them', async () => {
     setup(battleMaster());
     await goTo(/^skills/i);
-    // Two groups of three, and nothing taken yet.
-    expect(cards()).toHaveLength(6);
-    // One "show more" per group, since both have more than three to offer.
-    expect(within(optionsPanel()).getAllByRole('button', { name: /show \d+ more/i })).toHaveLength(2);
+    await openRow(/^maneuvers/i);
+    // Three, and nothing taken yet.
+    expect(cards()).toHaveLength(3);
+    // One "show more", since there are more than three to offer.
+    expect(within(optionsPanel()).getAllByRole('button', { name: /show \d+ more/i })).toHaveLength(1);
   });
 
   it('opens the full list and folds it back', async () => {
     setup(battleMaster());
     await goTo(/^skills/i);
+    await openRow(/^maneuvers/i);
     const before = cards().length;
 
     await userEvent.click(
@@ -368,6 +377,7 @@ describe('class options', () => {
   it('never truncates what is already taken', async () => {
     setup(battleMaster());
     await goTo(/^skills/i);
+    await openRow(/^maneuvers/i);
 
     // Fill all three maneuver slots, so what is taken outnumbers the window
     // that would be left for suggestions.
@@ -378,6 +388,56 @@ describe('class options', () => {
 
     const removable = within(optionsPanel()).getAllByRole('button', { name: /^remove /i });
     expect(removable).toHaveLength(3);
+  });
+
+  /*
+    §33.2, and the reason the whole Builder can become one page: a catalogue
+    of things you have not taken costs nothing while closed.
+  */
+  it('costs no cards at all while closed', async () => {
+    setup(battleMaster());
+    await goTo(/^skills/i);
+    expect(within(optionsPanel()).queryAllByRole('group')).toHaveLength(0);
+    // But it still says what there is to decide.
+    expect(
+      within(optionsPanel()).getByRole('button', { name: /^maneuvers .*3 to choose/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('closes the group that was open when another is opened', async () => {
+    // The height bound is exactly one open picker. Two would be two.
+    setup(battleMaster());
+    await goTo(/^skills/i);
+    await openRow(/^maneuvers/i);
+    const withManeuvers = cards().length;
+
+    await openRow(/^fighting style/i);
+    expect(cards().length).toBeLessThan(withManeuvers + 3);
+    expect(
+      within(optionsPanel()).getByRole('button', { name: /^maneuvers/i }),
+    ).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('keeps what is taken on the closed row, where it can still be removed', async () => {
+    /*
+      Stronger than the truncation rule above, and the same argument: an option
+      you cannot see is an option you cannot remove. Compaction has to
+      strengthen that rather than weaken it, so the chips are on the *closed*
+      row - shut the catalogue and your maneuvers are still there to drop.
+    */
+    setup(battleMaster());
+    await goTo(/^skills/i);
+    await openRow(/^maneuvers/i);
+    const takeable = within(optionsPanel()).getAllByRole('button', { name: /^take /i });
+    await userEvent.click(takeable[takeable.length - 1]);
+
+    await openRow(/^maneuvers/i); // shut again
+    expect(within(optionsPanel()).queryAllByRole('group')).toHaveLength(0);
+    const chip = within(optionsPanel()).getAllByRole('button', { name: /^Remove / });
+    expect(chip).toHaveLength(1);
+
+    await userEvent.click(chip[0]);
+    expect(within(optionsPanel()).queryAllByRole('button', { name: /^Remove / })).toHaveLength(0);
   });
 });
 

@@ -798,6 +798,99 @@ select option {
   margin-top: 2px;
 }
 
+/* ------------------------------------------------------------- choice rows */
+
+/*
+  §33.2. A catalogue, closed.
+
+  Closed this is a header line and a row of chips - what you have taken, each
+  removable - and nothing else. That is the whole of §33's height bound: the
+  Builder becomes one page, and the page is the sum of these plus whichever
+  single picker is open.
+
+  Deliberately quieter than `.panel`: a row is a line in a list of decisions,
+  not a box of its own. The left rule is what makes a run of them read as one
+  list rather than several unrelated things.
+*/
+.crow {
+  border-left: 2px solid var(--border-soft);
+  padding-left: 10px;
+  margin-bottom: 12px;
+}
+
+.crow.is-open {
+  border-left-color: var(--accent);
+}
+
+.crow-toggle {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 0;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.crow-caret {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.crow-title {
+  font-weight: 600;
+}
+
+.crow-summary {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.crow-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 0 19px;
+}
+
+.crow-empty {
+  font-size: 12px;
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.crow-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  padding: 2px 4px 2px 8px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.crow-chip button {
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  padding: 0 3px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.crow-chip button:hover {
+  color: var(--red);
+}
+
+.crow-body {
+  margin-top: 10px;
+}
+
 /* ------------------------------------------------------------ suggestions */
 
 /*
