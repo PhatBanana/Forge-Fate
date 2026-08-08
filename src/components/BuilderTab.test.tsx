@@ -45,8 +45,9 @@ function setup(build: Build) {
  * link now rather than a tab. Kept under the old name because most call sites
  * only ever meant "go and look at this bit".
  */
+const rail = () => document.querySelector('.steps') as HTMLElement;
 const goTo = (label: string | RegExp) =>
-  userEvent.click(screen.getByRole('link', { name: label }));
+  userEvent.click(within(rail()).getByRole('link', { name: label }));
 
 const panelTitles = () =>
   [...document.querySelectorAll('.panel > h2')].map((h) => h.textContent);
@@ -123,11 +124,27 @@ describe('the section nav', () => {
     setup(fighter(5));
 
     await goTo(/^equipment/i);
-    expect(screen.getByText('Attacks')).toBeInTheDocument();
-    expect(screen.getByText('Damage per round')).toBeInTheDocument();
+    expect(panelTitles()).toContain('Attacks');
 
     await goTo(/^abilities/i);
-    expect(panelTitles()).not.toContain('Damage per round');
+    // Attacks is about what you are holding, so it goes when you leave.
+    expect(panelTitles()).not.toContain('Attacks');
+  });
+
+  it('pins the two readouts every edit moves', async () => {
+    /*
+      §33.5. Damage per round was tied to the equipment section and the
+      progression plan was on another tab entirely - but a feat, an ability
+      score and a weapon all move damage, and "where is this build going" is a
+      question you ask while making any part of it.
+    */
+    setup(fighter(5));
+    for (const label of [/^identity/i, /^abilities/i, /^equipment/i, /^skills/i, /^feats/i]) {
+      await goTo(label);
+      expect(panelTitles(), String(label)).toContain('Damage per round');
+      expect(panelTitles(), String(label)).toContain('Progression plan');
+      expect(panelTitles(), String(label)).toContain('Next choices');
+    }
   });
 
   it('keeps At a glance and the build review on every section', async () => {
@@ -147,14 +164,14 @@ describe('the section nav', () => {
     setup(fighter(5));
     // One unspent improvement, reached at Fighter 4. A plain Human grants no
     // free origin feat, so that is the whole count.
-    expect(within(screen.getByRole('link', { name: /^feats/i })).getByText('1')).toBeInTheDocument();
+    expect(within(within(rail()).getByRole('link', { name: /^feats/i })).getByText('1')).toBeInTheDocument();
     // Skill picks and the Battle Master's style and maneuvers.
     expect(
-      Number(within(screen.getByRole('link', { name: /^skills/i })).getByTitle(/still to choose/i).textContent),
+      Number(within(within(rail()).getByRole('link', { name: /^skills/i })).getByTitle(/still to choose/i).textContent),
     ).toBeGreaterThan(0);
     // Nothing is outstanding on abilities.
     expect(
-      within(screen.getByRole('link', { name: /^abilities/i })).queryByTitle(/still to choose/i),
+      within(within(rail()).getByRole('link', { name: /^abilities/i })).queryByTitle(/still to choose/i),
     ).not.toBeInTheDocument();
   });
 
@@ -166,7 +183,7 @@ describe('the section nav', () => {
   it('counts the two things only a 2024 character has', () => {
     const badge = (section: RegExp) =>
       Number(
-        within(screen.getByRole('link', { name: section })).queryByTitle(/still to choose/i)
+        within(within(rail()).getByRole('link', { name: section })).queryByTitle(/still to choose/i)
           ?.textContent ?? 0,
       );
 
@@ -198,14 +215,14 @@ describe('the section nav', () => {
       }),
     );
     expect(
-      within(screen.getByRole('link', { name: /^identity/i })).queryByTitle(/still to choose/i),
+      within(within(rail()).getByRole('link', { name: /^identity/i })).queryByTitle(/still to choose/i),
     ).not.toBeInTheDocument();
   });
 
   /** A 2014 character has neither feature, so neither can inflate their nav. */
   it('counts neither of them for a 2014 character', () => {
     setup(fighter(9));
-    const equipment = within(screen.getByRole('link', { name: /^equipment/i })).queryByTitle(
+    const equipment = within(within(rail()).getByRole('link', { name: /^equipment/i })).queryByTitle(
       /still to choose/i,
     );
     expect(equipment).not.toBeInTheDocument();
@@ -245,10 +262,65 @@ describe('the section rail', () => {
   it('marks where you are without hiding anywhere else', async () => {
     setup(fighter(5));
     await goTo(/^feats/i);
-    expect(screen.getByRole('link', { name: /^feats/i })).toHaveAttribute('aria-current', 'true');
-    expect(screen.getByRole('link', { name: /^identity/i })).not.toHaveAttribute('aria-current');
+    expect(within(rail()).getByRole('link', { name: /^feats/i })).toHaveAttribute('aria-current', 'true');
+    expect(within(rail()).getByRole('link', { name: /^identity/i })).not.toHaveAttribute('aria-current');
     // And Identity is still right there, which is the whole point of §33.4.
     expect(screen.getByText('Character')).toBeInTheDocument();
+  });
+});
+
+describe('next choices', () => {
+  const panel = () => screen.getByText('Next choices').closest('.panel') as HTMLElement;
+
+  it('names what is left and where, not just how many', () => {
+    /*
+      §33.5, and the reason it earns space a badge already had: a badge says
+      "7", this says which seven and where to go for them. Pinned, so it keeps
+      saying it from the middle of a page that is nearly three screens long.
+    */
+    setup(fighter(5));
+    const rows = within(panel()).getAllByRole('link');
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.textContent).toMatch(/\d+ to choose/);
+      // And every one points at a section that exists.
+      expect(document.getElementById(row.getAttribute('href')!.slice(1))).not.toBeNull();
+    }
+  });
+
+  it('reads the same counts as the rail badges', () => {
+    // Same source, `openChoicesBySection` - so they cannot disagree, and this
+    // is what says so.
+    setup(fighter(5));
+    const fromRail = Object.fromEntries(
+      within(rail())
+        .getAllByRole('link')
+        .map((link) => [
+          link.querySelector('.step-label')!.textContent,
+          Number(link.querySelector('.badge')?.textContent ?? 0),
+        ]),
+    );
+    for (const row of within(panel()).getAllByRole('link')) {
+      const where = row.querySelector('.next-where')!.textContent!;
+      const count = Number(row.querySelector('.next-count')!.textContent!.match(/\d+/)![0]);
+      expect(count, where).toBe(fromRail[where]);
+    }
+  });
+
+  it('says so plainly when there is nothing left to choose', () => {
+    setup(
+      buildOf({
+        ...fighter(4),
+        // Everything a 2014 Fighter 4 is asked for: a background, scores,
+        // gear, skills, the style, and the level-4 improvement. Three skills,
+        // because Soldier grants two of its own and the Fighter picks two.
+        backgroundId: 'soldier',
+        skillIds: ['athletics', 'perception', 'survival'],
+        classOptionIds: ['defense'],
+        asiPicks: [['str', 'str']],
+      }),
+    );
+    expect(within(panel()).getByText(/every choice is made/i)).toBeInTheDocument();
   });
 });
 
@@ -271,8 +343,9 @@ describe('the build review', () => {
     expect(within(review).getByText(/still unmade/i)).toBeInTheDocument();
 
     // The count agrees with the badges by construction, not by coincidence.
-    // The rail is links since §33.4, and both still read the same counts.
-    const badges = screen
+    // Scoped to the rail: Next choices reads the same numbers and would double
+    // every one of them.
+    const badges = within(rail())
       .getAllByRole('link')
       .map((link) => Number(link.querySelector('.badge')?.textContent ?? 0));
     expect(within(review).getByText(/still unmade/i).textContent).toContain(

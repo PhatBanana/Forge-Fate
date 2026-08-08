@@ -29,6 +29,7 @@ import { analyze, problemsOnly } from '../engine/analyze';
 import { recommendNext } from '../engine/recommend';
 import type { Suggestion } from '../engine/recommend';
 import { ChoiceRow } from './ChoiceRow';
+import { ProgressionPanel } from './ProgressionPanel';
 import { rowState } from './picker';
 import type { PickerProps } from './picker';
 import { optionGroups, reconcileClassOptions } from '../engine/classOptions';
@@ -824,14 +825,22 @@ export function BuilderTab({
 
       </div>
 
-      <div className="stack">
+      <div className="stack rail">
         <GlancePanel ctx={ctx} />
+
+        {/*
+          Where the work is left, by name.
+
+          Better than the badge it reads from: a badge says "7" and a rail says
+          which seven and where. It is also on screen permanently, which a badge
+          you have scrolled past is not - and on a page this long that is the
+          difference between the count being useful and being decoration.
+        */}
+        <NextChoicesPanel open={openChoices} onGoTo={setSection} />
 
         {section === 'equipment' && (
           <>
         <AttacksPanel ctx={ctx} />
-
-        <DamagePanel build={build} ctx={ctx} patch={patch} />
 
         <HealingPanel ctx={ctx} />
 
@@ -882,6 +891,18 @@ export function BuilderTab({
         )}
 
         {section === 'options' && <ClassFeaturesPanel ctx={ctx} />}
+
+        {/*
+          The two scalings, pinned rather than shown on one section.
+
+          Both answer "where is this build going", which is a question you ask
+          while making any part of it - the progression plan was on a different
+          *tab* until §33.1, and damage per round was tied to the equipment
+          section although a feat or an ability score moves it just as much.
+        */}
+        <ProgressionPanel build={build} ctx={ctx} onChange={onChange} />
+
+        <DamagePanel build={build} ctx={ctx} patch={patch} />
 
         {/* The review is the one readout that belongs to every section: a
             choice made here is often flagged by something over there. */}
@@ -968,6 +989,53 @@ function FlexibleAsiPickers({
  * One at a time, deliberately: the value of this panel is that it stays short
  * enough to sit above everything else on every section.
  */
+/**
+ * What is still unchosen, named and linked.
+ *
+ * The same counts the rail badges show - `openChoicesBySection`, unchanged -
+ * with a different consumer. A badge answers "how many"; this answers "which,
+ * and where", which is the question you actually have. It is pinned, so it
+ * keeps answering it from the middle of the page, where a badge scrolled off
+ * the top does not.
+ *
+ * Nothing here is a *mistake*. Unmade choices are counted; the build review
+ * beneath reports what is wrong. Keeping those apart is what stopped the
+ * review crying wolf with nine findings on an untouched sheet.
+ */
+function NextChoicesPanel({
+  open,
+  onGoTo,
+}: {
+  open: Record<Section, number>;
+  onGoTo: (section: Section) => void;
+}) {
+  const left = SECTIONS.filter((entry) => open[entry.id] > 0);
+
+  return (
+    <Panel
+      title="Next choices"
+      subtitle={left.length ? 'What is still unchosen, and where.' : undefined}
+    >
+      {left.length === 0 ? (
+        <p className="muted">Every choice is made. What is left is taste.</p>
+      ) : (
+        <ul className="next-list">
+          {left.map((entry) => (
+            <li key={entry.id}>
+              <a href={`#section-${entry.id}`} onClick={() => onGoTo(entry.id)}>
+                <span className="next-where">{entry.label}</span>
+                <span className="next-count">
+                  {open[entry.id]} to choose
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
 function GlancePanel({ ctx }: { ctx: BuildContext }) {
   const [open, setOpen] = useState<string | null>(null);
   const { build } = ctx;

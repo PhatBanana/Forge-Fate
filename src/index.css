@@ -392,7 +392,85 @@ button {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 330px;
   gap: 22px;
+  /* What a sticky grid child needs: `stretch` would make the column as tall as
+     the row, and a box already the height of its container cannot stick. */
   align-items: start;
+}
+
+/*
+  §33.5. The readouts, pinned.
+
+  The left column is nearly three screens now that the whole character is on
+  one page, and a right column that scrolled away with it would put At a glance
+  and the damage curve off screen for two of those - which is exactly backwards,
+  since their whole job is to answer "what did that change" while you are
+  changing it.
+
+  Its own scroll, because pinning something taller than the window would
+  otherwise cut the bottom off with no way to reach it.
+*/
+.rail {
+  position: sticky;
+  top: 56px;
+  max-height: calc(100vh - 72px);
+  overflow-y: auto;
+  /* Room for the scrollbar so it does not sit on the panel borders. */
+  padding-right: 4px;
+}
+
+/* One column below this width: there is no second column to pin, and a sticky
+   block in a single flow is a panel that follows you down the page. */
+@media (max-width: 940px) {
+  .rail {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+}
+
+@media print {
+  .rail {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+}
+
+/* Next choices: where the work is left, named rather than counted. */
+.next-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.next-list a {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border-soft);
+  color: inherit;
+  text-decoration: none;
+}
+
+.next-list li:last-child a {
+  border-bottom: none;
+}
+
+.next-list a:hover .next-where {
+  color: var(--accent);
+}
+
+.next-where {
+  font-weight: 600;
+}
+
+.next-count {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
 }
 
 .columns-wide {
