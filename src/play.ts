@@ -89,6 +89,9 @@ export interface PlayState {
    * survive JSON, and small enough that membership is a filter.
    */
   conditions: string[];
+  /** Who caused a condition, by combatant id - see `MonsterCombatant`. Only
+      the conditions that turn on a source ever appear here. */
+  conditionSources?: Record<string, string>;
   /** 0 to 6. Six is death, and the app says so rather than hiding it. */
   exhaustion: number;
   /**

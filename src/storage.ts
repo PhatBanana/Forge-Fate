@@ -186,10 +186,26 @@ function hydrateEncounter(
   const terrain = hydrateTerrain(parsed.terrain);
   const elevation = hydrateElevation(parsed.elevation);
   if (!combatants.length && !terrain && !elevation && !parsed.mapSeed) return undefined;
+  /*
+    A condition's source points at another combatant, and that combatant may
+    have been deleted between sessions - the same stale-reference problem this
+    function already solves for the roster. A dangling source would leave a
+    creature frightened of nothing, which reads as a bug and cannot be cleared
+    from the UI, so it is dropped on the way in.
+  */
+  const present = new Set(combatants.map((c) => c.id));
+  const cleaned = combatants.map((c) => {
+    if (c.kind !== 'monster' || !c.conditionSources) return c;
+    const kept = Object.fromEntries(
+      Object.entries(c.conditionSources).filter(([, sourceId]) => present.has(sourceId)),
+    );
+    return { ...c, conditionSources: Object.keys(kept).length ? kept : undefined };
+  });
+
   return {
     ...emptyEncounter(),
     ...parsed,
-    combatants,
+    combatants: cleaned,
     // Losing a combatant can leave the pointer past the end of the order.
     turnIndex: Math.min(parsed.turnIndex ?? -1, combatants.length - 1),
     // Painted squares, validated key by key - a corrupt kind must not crash

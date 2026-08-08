@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { circumstances, describeOdds, oddsFor } from './advantage';
+import { circumstances, describeOdds, mayApproach, oddsFor } from './advantage';
 import type { Exchange } from './advantage';
 
 const exchange = (
@@ -71,10 +71,10 @@ describe('the rest of what the app can see', () => {
     expect(modeOf(exchange([], ['invisible']))).toBe('disadvantage');
   });
 
-  it('leaves frightened alone, because it cannot be applied correctly', () => {
-    // Frightened costs advantage only while the *source* of the fear is in
-    // sight, and nothing records what frightened you. A rule this app cannot
-    // apply right is one it should not apply at all.
+  it('leaves frightened alone when neither half of the rule can be checked', () => {
+    // Frightened needs a recorded source *and* a way to ask about sight. This
+    // exchange has neither, so it stays quiet - see the frightened describe
+    // below for the cases where it does apply.
     expect(circumstances(exchange(['frightened'], ['frightened']))).toEqual([]);
   });
 
@@ -114,5 +114,78 @@ describe('what the log says', () => {
     expect(said).toContain('restrained');
     expect(said).toContain('floor');
     expect(said).toMatch(/cancel$/);
+  });
+});
+
+describe('frightened, which needed conditions to grow a source', () => {
+  const scared = (sourceId?: string, canSee?: (id: string) => boolean): Exchange => ({
+    attacker: {
+      conditions: ['frightened'],
+      ...(sourceId ? { conditionSources: { frightened: sourceId } } : {}),
+    },
+    target: { conditions: [] },
+    adjacent: true,
+    ...(canSee ? { canSee } : {}),
+  });
+
+  it('costs advantage while the thing that scared you is watching', () => {
+    const odds = oddsFor(scared('dragon', (id) => id === 'dragon'));
+    expect(odds.mode).toBe('disadvantage');
+    expect(odds.reasons[0].label).toBe('frightened, and it is watching');
+  });
+
+  it('costs nothing once you break line of sight', () => {
+    // The half that makes frightened a positioning problem rather than a
+    // flat penalty: get the pillar between you and it.
+    expect(oddsFor(scared('dragon', () => false)).mode).toBe('normal');
+  });
+
+  it('stays quiet when nobody recorded what frightened them', () => {
+    expect(oddsFor(scared(undefined, () => true)).reasons).toEqual([]);
+  });
+
+  it('stays quiet when the caller has no way to ask about sight', () => {
+    // Better silent than wrong: a rule applied often is not a rule applied
+    // correctly.
+    expect(oddsFor(scared('dragon')).reasons).toEqual([]);
+  });
+
+  it('cancels against advantage like anything else', () => {
+    const odds = oddsFor({
+      ...scared('dragon', (id) => id === 'dragon'),
+      attacker: {
+        conditions: ['frightened'],
+        conditionSources: { frightened: 'dragon' },
+        hidden: true,
+      },
+    });
+    expect(odds.mode).toBe('normal');
+    expect(odds.cancelled).toBe(true);
+  });
+});
+
+describe('frightened on the move', () => {
+  const at = (id: string) => (id === 'dragon' ? { x: 10, y: 10 } : undefined);
+  const scaredMover = {
+    conditions: ['frightened'],
+    conditionSources: { frightened: 'dragon' },
+  };
+
+  it('refuses a step toward the thing you are afraid of', () => {
+    expect(mayApproach(scaredMover, { x: 5, y: 10 }, { x: 6, y: 10 }, at)).toBe(false);
+  });
+
+  it('allows retreat, and allows staying the same distance', () => {
+    expect(mayApproach(scaredMover, { x: 5, y: 10 }, { x: 4, y: 10 }, at)).toBe(true);
+    // Circling at range is not approaching.
+    expect(mayApproach(scaredMover, { x: 5, y: 10 }, { x: 5, y: 9 }, at)).toBe(true);
+  });
+
+  it('does not restrain somebody who is not frightened', () => {
+    expect(mayApproach({ conditions: [] }, { x: 5, y: 10 }, { x: 6, y: 10 }, at)).toBe(true);
+  });
+
+  it('does not restrain when the source is not on the map', () => {
+    expect(mayApproach(scaredMover, { x: 5, y: 10 }, { x: 6, y: 10 }, () => undefined)).toBe(true);
   });
 });

@@ -73,6 +73,17 @@ export interface MonsterCombatant {
   conditions: string[];
   /** Rounds left per condition; absent means until removed. Same clock as zones. */
   conditionTimers?: Record<string, number>;
+  /**
+   * Who caused a condition, by combatant id, for the ones that turn on it.
+   *
+   * Frightened is the reason this exists. It costs advantage and forbids
+   * approach *only while the source of the fear is in sight*, so a rule this
+   * app could not apply was simply skipped - the honest choice at the time and
+   * a poor ceiling. Charmed carries a source too and can use the same field.
+   *
+   * Sparse on purpose: most conditions have nobody to blame.
+   */
+  conditionSources?: Record<string, string>;
   /** Anything the stat block does not say: "bloodied", "up the stairs". */
   note?: string;
   at?: Square;
@@ -618,6 +629,36 @@ export function setHidden(
 }
 
 /** Put a condition on a monster with a clock: gone after this many rounds. */
+/**
+ * Record who caused a condition, or clear the record.
+ *
+ * Separate from applying the condition itself because the two arrive at
+ * different moments: the DM ticks "frightened" and only then says what of.
+ */
+export function setConditionSource(
+  encounter: EncounterState,
+  id: string,
+  conditionId: string,
+  sourceId: string | undefined,
+): EncounterState {
+  return {
+    ...encounter,
+    combatants: encounter.combatants.map((c) => {
+      if (c.id !== id || c.kind !== 'monster') return c;
+      const conditionSources = { ...c.conditionSources };
+      if (sourceId) conditionSources[conditionId] = sourceId;
+      else delete conditionSources[conditionId];
+      return {
+        ...c,
+        conditionSources: Object.keys(conditionSources).length ? conditionSources : undefined,
+      };
+    }),
+  };
+}
+
+/** Conditions whose rules turn on who caused them, so the UI knows to ask. */
+export const CONDITIONS_WITH_A_SOURCE = ['frightened', 'charmed'];
+
 export function addTimedMonsterCondition(
   encounter: EncounterState,
   id: string,

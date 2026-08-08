@@ -50,6 +50,8 @@ import {
   recordDamage,
   setDormant,
   setHidden,
+  setConditionSource,
+  CONDITIONS_WITH_A_SOURCE,
   toggleMonsterCondition,
   addTimedMonsterCondition,
   appendLog,
@@ -64,7 +66,7 @@ import type { EncounterState, Square } from '../encounter';
 import { placeZone } from '../surfaces';
 import { canShove, fallDamage, fallFeet, pushedTo, shoveContest } from '../engine/shove';
 import { applyDefences } from '../engine/defences';
-import { describeOdds, oddsFor } from '../engine/advantage';
+import { describeOdds, mayApproach, oddsFor } from '../engine/advantage';
 import type { Defences } from '../engine/defences';
 import { HOUSE_RULE_INFO, highGroundBonus, loadHouseRules, saveHouseRules } from '../houseRules';
 import type { HouseRules } from '../houseRules';
@@ -431,6 +433,24 @@ export function TableTab({
       return null;
     }
     if (!walkable(sightContext, to)) return null;
+
+    /*
+      The other half of frightened, and the more tactical one: a frightened
+      creature cannot willingly move closer to what frightened it. Refused as a
+      destination rather than logged as a ruling, because unlike the flanking
+      note this one has a clear answer - measured in a straight line, since the
+      rule is about approaching the thing, not about the route taken.
+    */
+    if (
+      !mayApproach(
+        { conditions: conditionsOf(self), conditionSources: sourcesOf(self) },
+        self.at,
+        to,
+        (id) => encNow.combatants.find((c) => c.id === id)?.at,
+      )
+    ) {
+      return null;
+    }
 
     /*
       Charged what the walk costs, not what the crow flies - and the walk
@@ -1051,8 +1071,10 @@ export function TableTab({
       attacker: {
         conditions: attacker ? conditionsOf(attacker) : [],
         hidden: attacker?.hidden !== undefined,
+        ...(attacker ? { conditionSources: sourcesOf(attacker) } : {}),
       },
       target: { conditions: conditionsOf(target) },
+      ...(attacker ? { canSee: canSeeFrom(attacker) } : {}),
       adjacent:
         !attackerAt || !target.at
           ? true
@@ -1426,6 +1448,25 @@ export function TableTab({
     c.kind === 'monster'
       ? c.conditions
       : (roster.entries.find((e) => e.id === c.rosterId)?.play.conditions ?? []);
+
+  /** And who caused them, for the conditions that turn on it. */
+  const sourcesOf = (c: Combatant): Record<string, string> =>
+    (c.kind === 'monster'
+      ? c.conditionSources
+      : roster.entries.find((e) => e.id === c.rosterId)?.play.conditionSources) ?? {};
+
+  /**
+   * Whether one combatant can see another, for the rules that ask.
+   *
+   * The same `lineOfSight` the cover calculation uses, so "in sight" means one
+   * thing across the whole app. Somebody off the map is not visible, which is
+   * the safe answer: it leaves a rule unapplied rather than applying it wrong.
+   */
+  const canSeeFrom = (watcher: Combatant) => (id: string): boolean => {
+    const other = encounter.combatants.find((c) => c.id === id);
+    if (!watcher.at || !other?.at) return false;
+    return lineOfSight(sightContext, watcher.at, other.at).visible;
+  };
 
   /**
    * What a creature resists, is immune to, or is vulnerable to.
@@ -3649,6 +3690,35 @@ export function TableTab({
               {CONDITIONS_BY_ID[id]?.name ?? id} ×
             </button>
           ))}
+          {/*
+            Of what? Frightened and charmed both turn on who caused them, and
+            without the answer neither rule can be applied - so it is asked
+            right where the condition was set rather than buried in a dialog.
+          */}
+          {selected.conditions
+            .filter((id) => CONDITIONS_WITH_A_SOURCE.includes(id))
+            .map((id) => (
+              <select
+                key={`src-${id}`}
+                className="hud-add-condition"
+                aria-label={`What ${nameOf(selected)} is ${CONDITIONS_BY_ID[id]?.name.toLowerCase() ?? id} of`}
+                value={selected.conditionSources?.[id] ?? ''}
+                onChange={(e) =>
+                  setEncounter(
+                    setConditionSource(encounter, selected.id, id, e.target.value || undefined),
+                  )
+                }
+              >
+                <option value="">{CONDITIONS_BY_ID[id]?.name ?? id} of…</option>
+                {encounter.combatants
+                  .filter((c) => c.id !== selected.id)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {nameOf(c)}
+                    </option>
+                  ))}
+              </select>
+            ))}
           <input
             type="number"
             min={1}

@@ -2854,3 +2854,123 @@ describe('conditions that change the dice', () => {
     expect(offered).toContain('Prone');
   });
 });
+
+/**
+ * Frightened, made usable. It was skipped in 27.2 because the rule turns on
+ * who caused it and nothing recorded that; conditions grew a source so it
+ * could be applied properly rather than often.
+ */
+describe('frightened, of something in particular', () => {
+  const mapEl8 = () => document.querySelector('.dmap') as SVGSVGElement;
+  const boxMap8 = () => {
+    mapEl8().getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+  };
+
+  const twoGoblins = async (user: ReturnType<typeof userEvent.setup>) => {
+    const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
+    await bestiaryReady();
+    const name = view.roster.entries[0].build.name;
+    await user.click(screen.getByRole('button', { name }));
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
+    const entry = () =>
+      [...document.querySelectorAll('.mon-list li')].find(
+        (li) => li.querySelector('b')?.textContent === 'Goblin',
+      ) as HTMLElement;
+    await user.click(within(entry()).getByRole('button', { name: 'Add' }));
+    await user.click(within(entry()).getByRole('button', { name: 'Add' }));
+    return { view, name };
+  };
+
+  const goblins = (view: ReturnType<typeof setup>) =>
+    view.encounter.combatants.filter((c) => c.kind === 'monster') as MonsterCombatant[];
+
+  it('asks what the fear is of, and only for the conditions that need it', async () => {
+    const user = userEvent.setup();
+    const { view } = await twoGoblins(user);
+    const first = goblins(view)[0];
+    await user.click(within(rowFor(first.label)).getByRole('button', { name: `Show ${first.label} in the rail` }));
+
+    // Poisoned needs no source, so no picker appears for it.
+    await user.selectOptions(
+      screen.getByLabelText(new RegExp(`add a condition to ${first.label}`, 'i')),
+      'poisoned',
+    );
+    expect(screen.queryByLabelText(/is poisoned of/i)).toBeNull();
+
+    await user.selectOptions(
+      screen.getByLabelText(new RegExp(`add a condition to ${first.label}`, 'i')),
+      'frightened',
+    );
+    expect(screen.getByLabelText(new RegExp(`${first.label} is frightened of`, 'i'))).toBeTruthy();
+  });
+
+  it('records the source, and it survives on the combatant', async () => {
+    const user = userEvent.setup();
+    const { view, name } = await twoGoblins(user);
+    const [first] = goblins(view);
+    await user.click(within(rowFor(first.label)).getByRole('button', { name: `Show ${first.label} in the rail` }));
+    await user.selectOptions(
+      screen.getByLabelText(new RegExp(`add a condition to ${first.label}`, 'i')),
+      'frightened',
+    );
+    await user.selectOptions(
+      screen.getByLabelText(new RegExp(`${first.label} is frightened of`, 'i')),
+      within(screen.getByLabelText(new RegExp(`${first.label} is frightened of`, 'i')))
+        .getByRole('option', { name })
+        .getAttribute('value')!,
+    );
+
+    const fighter = view.encounter.combatants.find((c) => c.kind === 'character')!;
+    expect(goblins(view)[0].conditionSources?.frightened).toBe(fighter.id);
+  });
+
+  it('will not let the frightened walk toward what scares them', async () => {
+    const user = userEvent.setup();
+    const { view, name } = await twoGoblins(user);
+    const [first] = goblins(view);
+
+    // Place the fighter west and the goblin east of them.
+    boxMap8();
+    const put = (at: { x: number; y: number }) =>
+      fireEvent.pointerDown(mapEl8(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
+    await user.click(within(rowFor(name)).getByRole('button', { name: `Show ${name} in the rail` }));
+    put({ x: 10, y: 10 });
+    await user.click(within(rowFor(first.label)).getByRole('button', { name: `Show ${first.label} in the rail` }));
+    put({ x: 20, y: 10 });
+
+    // Frightened of the fighter.
+    await user.selectOptions(
+      screen.getByLabelText(new RegExp(`add a condition to ${first.label}`, 'i')),
+      'frightened',
+    );
+    const fighter = view.encounter.combatants.find((c) => c.kind === 'character')!;
+    await user.selectOptions(
+      screen.getByLabelText(new RegExp(`${first.label} is frightened of`, 'i')),
+      fighter.id,
+    );
+
+    fireEvent.change(within(rowFor(first.label)).getByLabelText(/goblin.*initiative/i), {
+      target: { value: '30' },
+    });
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+
+    const armMove = async () => {
+      const menu = document.querySelector('.rail-monster .cmd-menu') as HTMLElement;
+      await user.click(within(menu).getByRole('button', { name: /^Move/ }));
+    };
+    const whereIsIt = () => goblins(view).find((g) => g.id === first.id)!.at;
+
+    // West is toward the fighter: refused, and the token does not move.
+    await armMove();
+    boxMap8();
+    put({ x: 19, y: 10 });
+    expect(whereIsIt()).toEqual({ x: 20, y: 10 });
+
+    // East is away: allowed.
+    await armMove();
+    boxMap8();
+    put({ x: 21, y: 10 });
+    expect(whereIsIt()).toEqual({ x: 21, y: 10 });
+  });
+});

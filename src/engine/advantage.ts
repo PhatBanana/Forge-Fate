@@ -34,6 +34,11 @@ export interface Combatant {
   conditions: string[];
   /** Set when this creature is successfully hidden. */
   hidden?: boolean;
+  /**
+   * Who caused a condition, by combatant id, for the ones that turn on it.
+   * Frightened is the one that needs it.
+   */
+  conditionSources?: Record<string, string>;
 }
 
 export interface Exchange {
@@ -41,6 +46,15 @@ export interface Exchange {
   target: Combatant;
   /** True when the attacker is within five feet — prone cuts both ways on it. */
   adjacent: boolean;
+  /**
+   * Whether the attacker can currently see a given combatant, by id.
+   *
+   * Frightened costs advantage only *while the source of the fear is in
+   * sight*, so the rule cannot be applied without asking. Absent means the
+   * caller has no line-of-sight model, and frightened is then left alone
+   * rather than guessed at.
+   */
+  canSee?: (id: string) => boolean;
 }
 
 const has = (c: Combatant, id: string) => c.conditions.includes(id);
@@ -48,10 +62,10 @@ const has = (c: Combatant, id: string) => c.conditions.includes(id);
 /**
  * Every circumstance the app can see, in the order a DM would read them out.
  *
- * Only conditions this app actually tracks appear here. Frightened is
- * deliberately absent: it costs advantage only while the *source of the fear*
- * is in sight, and the app does not record what frightened you. A rule it
- * cannot apply correctly is one it should not apply at all.
+ * Only conditions this app actually tracks appear here. Frightened needs to
+ * know two things the others do not - who caused it, and whether they are
+ * currently in sight - which is why conditions grew a source. Without either,
+ * it is left alone rather than guessed at.
  */
 export function circumstances(exchange: Exchange): Circumstance[] {
   const { attacker, target, adjacent } = exchange;
@@ -77,8 +91,52 @@ export function circumstances(exchange: Exchange): Circumstance[] {
   if (has(attacker, 'restrained')) out.push({ label: 'attacker is restrained', gives: 'disadvantage' });
   if (has(attacker, 'blinded')) out.push({ label: 'attacker cannot see', gives: 'disadvantage' });
   if (has(attacker, 'poisoned')) out.push({ label: 'attacker is poisoned', gives: 'disadvantage' });
+  if (frightenedInSight(exchange)) {
+    out.push({ label: 'frightened, and it is watching', gives: 'disadvantage' });
+  }
 
   return out;
+}
+
+/**
+ * Whether the attacker is frightened *and* the thing that frightened them can
+ * be seen from here.
+ *
+ * Both halves are required by the rule and both are refusable: no source
+ * recorded, or no way to ask about sight, and this stays quiet. That is the
+ * difference between a rule applied correctly and a rule applied often.
+ */
+export function frightenedInSight(exchange: Exchange): boolean {
+  const { attacker, canSee } = exchange;
+  if (!has(attacker, 'frightened') || !canSee) return false;
+  const source = attacker.conditionSources?.frightened;
+  return source !== undefined && canSee(source);
+}
+
+/**
+ * Whether a frightened creature is allowed to walk here.
+ *
+ * The other half of the condition, and the more tactical one: "the creature
+ * can't willingly move closer to the source of its fear". Measured in straight
+ * line rather than by walking, because the rule is about approaching the thing
+ * you are afraid of, not about the route - stepping behind a pillar to break
+ * line of sight is allowed even though it may pass nearer for a moment.
+ *
+ * Returns true when the move is fine, so the caller reads as a permission.
+ */
+export function mayApproach(
+  mover: Combatant,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  sourceAt: (id: string) => { x: number; y: number } | undefined,
+): boolean {
+  if (!has(mover, 'frightened')) return true;
+  const source = mover.conditionSources?.frightened;
+  const at = source ? sourceAt(source) : undefined;
+  if (!at) return true;
+  const gap = (p: { x: number; y: number }) =>
+    Math.max(Math.abs(p.x - at.x), Math.abs(p.y - at.y));
+  return gap(to) >= gap(from);
 }
 
 export interface Odds {
