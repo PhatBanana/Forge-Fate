@@ -340,6 +340,81 @@ describe('the ground the caller priced', () => {
     expect(plan.move!.to.y).not.toBe(5);
   });
 
+  it('runs for the door rather than standing still, when a wall is in the way', () => {
+    /*
+      The bug a browser probe found, in miniature.
+
+      A goblin against the west wall of its room, with the party far to the
+      west. Every square inside the room is the same straight-line distance
+      from them - the wall is what is in the way, not the distance - so a
+      planner measuring in straight lines concludes it cannot get closer and
+      stands there for the entire fight. It has to measure by walking.
+    */
+    const self = goblin({ x: 43, y: 21 });
+    const room: { x: number; y: number }[] = [];
+    for (let x = 43; x <= 47; x++) for (let y = 19; y <= 23; y++) room.push({ x, y });
+
+    // Walking distance to the party: out of the room's door at (47,21), then
+    // the long way round. Inside the room, nearer the door is nearer them.
+    const approach = (at: { x: number; y: number }) => 400 - (at.x - 43) * 5;
+
+    const straightLine = planTurn({
+      self,
+      actors: [hero('a', 'Thorin', { x: 3, y: 14 })],
+      options: [[scimitar]],
+      budget: { base: 30, dash: 60 },
+      priceOf: (at) => feetBetween(self.at!, at),
+      candidates: room,
+    });
+    // Without the walk it gives up, which is the defect.
+    expect(straightLine.move).toBeUndefined();
+    expect(straightLine.reason).toMatch(/holds/);
+
+    const walked = planTurn({
+      self,
+      actors: [hero('a', 'Thorin', { x: 3, y: 14 })],
+      options: [[scimitar]],
+      budget: { base: 30, dash: 60 },
+      priceOf: (at) => feetBetween(self.at!, at),
+      candidates: room,
+      approach,
+    });
+    // With it, the goblin heads for the door.
+    expect(walked.move).toBeDefined();
+    expect(walked.move!.to.x).toBeGreaterThan(43);
+    expect(walked.reason).toMatch(/toward Thorin/);
+  });
+
+  it('never treats an unreachable square as the best place to stand', () => {
+    /*
+      A square the party has no route to is infinitely far, not zero -
+      otherwise a sealed alcove would look like the ideal place to stand.
+
+      Here the party is east, but the square directly east is a dead end: the
+      road round to them runs west. The walk knows; a straight line would not,
+      and would march the goblin into the alcove.
+    */
+    const self = goblin({ x: 5, y: 5 });
+    const distances: Record<string, number | null> = {
+      '5,5': 100, // where it stands
+      '6,5': null, // the sealed alcove, toward the party but going nowhere
+      '4,5': 95, // the long way round, and genuinely closer
+    };
+    const plan = planTurn({
+      self,
+      actors: [hero('a', 'Thorin', { x: 40, y: 5 })],
+      options: [[scimitar]],
+      budget: { base: 30, dash: 60 },
+      priceOf: () => 5,
+      candidates: [
+        { x: 6, y: 5 },
+        { x: 4, y: 5 },
+      ],
+      approach: (at) => distances[`${at.x},${at.y}`] ?? null,
+    });
+    expect(plan.move!.to).toEqual({ x: 4, y: 5 });
+  });
+
   it('cannot stand somewhere the walk never offered', () => {
     const self = goblin({ x: 5, y: 5 });
     const plan = planTurn({

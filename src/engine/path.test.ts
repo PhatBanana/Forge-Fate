@@ -141,3 +141,42 @@ describe('the zones underfoot', () => {
     expect(walk.cost.get('6,5')).toBe(10);
   });
 });
+
+describe('a walk from several places at once', () => {
+  /**
+   * Seeded from every one of them, so each square holds its distance to the
+   * *nearest*. One sweep answers "how far is this square from the party",
+   * which is the question a monster deciding which way to run has to ask
+   * about every square it could stand on.
+   */
+  it('gives each square its distance to the nearest source', () => {
+    const walk = walkMap(open(), [{ x: 2, y: 2 }, { x: 12, y: 2 }], Infinity);
+    // Between the two, nearer the second.
+    expect(walk.cost.get('10,2')).toBe(10);
+    expect(walk.cost.get('4,2')).toBe(10);
+    // Dead centre is the same either way.
+    expect(walk.cost.get('7,2')).toBe(25);
+  });
+
+  it('leaves every source itself out, the way one source is left out', () => {
+    const walk = walkMap(open(), [{ x: 2, y: 2 }, { x: 12, y: 2 }], Infinity);
+    expect(walk.cost.has('2,2')).toBe(false);
+    expect(walk.cost.has('12,2')).toBe(false);
+  });
+
+  it('agrees with the single-source walk when there is only one', () => {
+    const one = walkMap(open(), { x: 4, y: 5 }, 30);
+    const asList = walkMap(open(), [{ x: 4, y: 5 }], 30);
+    expect([...asList.cost.entries()].sort()).toEqual([...one.cost.entries()].sort());
+  });
+
+  it('still refuses to cross a wall, from any of them', () => {
+    let terrain: TerrainMap = {};
+    // `paint` returns a new map rather than mutating one.
+    for (let y = 0; y < 20; y++) terrain = paint(terrain, { x: 5, y }, 'wall');
+    const walk = walkMap(open(terrain), [{ x: 2, y: 2 }, { x: 2, y: 15 }], Infinity);
+    // Two sources, both west of an unbroken wall: nothing east is reachable.
+    expect(walk.cost.has('6,2')).toBe(false);
+    expect(walk.cost.get('3,8')).toBeDefined();
+  });
+});

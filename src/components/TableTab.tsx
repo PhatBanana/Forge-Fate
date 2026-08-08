@@ -76,6 +76,9 @@ import { PlayCard } from './PlayCard';
 import { InitiativeStrip } from './InitiativeStrip';
 import { MonsterCommandMenu } from './MonsterTray';
 import type { Strike } from './MonsterTray';
+import { routineOptions } from '../engine/strikes';
+import { planTurn } from '../engine/enemyTurn';
+import type { Actor } from '../engine/enemyTurn';
 import { DungeonMap } from './DungeonMap';
 import type { Token } from './DungeonMap';
 import { IsoMap } from './IsoMap';
@@ -820,6 +823,33 @@ export function TableTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walk, selected, sightContext, zoneOverlays]);
 
+  /**
+   * How far every square is from the party, by walking.
+   *
+   * One sweep seeded from every living character at once, so each square
+   * holds its distance to the nearest of them. This is what a monster with
+   * nobody in reach uses to decide which way to run, and it has to be a walk:
+   * a goblin against the west wall of its room is the same straight-line
+   * distance from a party to the west wherever inside the room it steps, so a
+   * straight-line answer would have it stand there for the whole fight. The
+   * door is the way out and only a walk knows where the door is.
+   *
+   * Hazards are not avoided here - this is "which way is the fight", not
+   * "which way should I step". The step itself is still priced by
+   * `routeChoice`, which does prefer the unburned route.
+   */
+  const partyApproach = useMemo(() => {
+    const sources = encounter.combatants
+      .filter((c) => c.kind === 'character' && c.at && (hpOf(c)?.now ?? 0) > 0)
+      .map((c) => c.at!);
+    if (!sources.length) return null;
+    return walkMap(sightContext, sources, Infinity, {
+      blocked: zoneOverlays.blocked,
+      difficult: zoneOverlays.difficult,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [encounter.combatants, roster.entries, sightContext, zoneOverlays]);
+
   /** The price to a square - the unburned route when the budget allows it,
       the short one otherwise - and which walk that price came from. */
   const routeChoice = (key: string): { cost: number; via: Walk } | null => {
@@ -847,6 +877,64 @@ export function TableTab({
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walk, walkSafe, walkBudget, encounter, moveArmed, selected, active]);
+
+  /**
+   * What the monster whose turn it is would do, if it were driving itself.
+   *
+   * Only ever computed for the *active* monster while the cockpit is showing
+   * it - which after End turn it always is, since the pane follows the turn.
+   * That is not a shortcut so much as the correct scope: the walk, the budget
+   * and the route pricing on this render all belong to `selected`, so a plan
+   * for anybody else would be priced from the wrong feet. Click away to
+   * inspect a goblin and the proposal steps aside; click back and it returns.
+   *
+   * It is a proposal and nothing more. Nothing here writes.
+   */
+  const enemyPlan = useMemo(() => {
+    if (!isRunning(encounter) || aim || placing || moveArmed) return null;
+    if (active?.kind !== 'monster' || selected?.id !== active.id || !active.at) return null;
+    if ((hpOf(active)?.now ?? 0) <= 0 || active.dormant) return null;
+    const monster = byId.get(active.monsterId);
+    if (!monster || !walk) return null;
+
+    const actors: Actor[] = encounter.combatants.map((c) => ({
+      id: c.id,
+      name: nameOf(c),
+      side: c.kind === 'monster' ? 'foe' : 'party',
+      at: c.at,
+      hp: hpOf(c)?.now ?? 0,
+      ac:
+        (c.kind === 'monster' ? byId.get(c.monsterId)?.ac : derived.get(c.rosterId)?.ctx.ac.total) ??
+        10,
+      /*
+        Out of the reckoning: a monster still asleep is not in the fight, and
+        somebody who has successfully hidden is not somewhere a plan gets to
+        know about. Both are already true of the turn order and the fog; this
+        just stops the planner from being cleverer than the goblin.
+      */
+      out: (c.kind === 'monster' && c.dormant) || c.hidden !== undefined,
+    }));
+
+    const candidates: Square[] = [];
+    for (const key of walk.cost.keys()) {
+      const [x, y] = key.split(',').map(Number);
+      candidates.push({ x, y });
+    }
+
+    return planTurn({
+      self: actors.find((a) => a.id === active.id)!,
+      actors,
+      options: routineOptions(monster),
+      budget: walkBudget,
+      // The caller's own pricing, hazards and all: a plan can never route
+      // through a wall of fire that the DM's own click would have gone round.
+      priceOf: (at) => routeChoice(keyOf(at))?.cost ?? null,
+      candidates,
+      // Which way the fight is, measured by walking rather than by looking.
+      approach: partyApproach ? (at) => partyApproach.cost.get(keyOf(at)) ?? null : undefined,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [encounter, aim, placing, moveArmed, active, selected, byId, derived, walk, walkSafe, walkBudget, partyApproach]);
 
   /**
    * An exchange of blows, composed onto the given roster and RETURNED.
@@ -1009,6 +1097,56 @@ export function TableTab({
     target: Combatant,
     opts?: { spendAction?: boolean },
   ) => onChange(strikesInto(roster, who, strikes, target, opts));
+
+  /**
+   * The DM presses the button and the plan happens - walk first, then swing,
+   * in ONE write.
+   *
+   * The composition is the whole point. Two writes here would each build from
+   * this render's roster and the second would discard the first, so the
+   * monster would attack from the square it had already left. Instead the
+   * walk returns a roster, the routine is composed onto *that*, and only then
+   * does anything reach the store.
+   *
+   * The walk is still allowed to refuse - somebody may have moved since the
+   * plan was drawn - and a refused walk abandons the whole turn rather than
+   * attacking from the wrong place. Better to hand it back to the DM than to
+   * do half of something.
+   */
+  const runPlan = () => {
+    if (!enemyPlan || !active) return;
+    let updated = roster;
+
+    if (enemyPlan.move) {
+      const walked = walkInto(updated, active, enemyPlan.move.to);
+      if (!walked) return;
+      updated = walked;
+    }
+
+    if (enemyPlan.targetId && enemyPlan.strikes.length) {
+      const target = activeEncounter(updated).combatants.find((c) => c.id === enemyPlan.targetId);
+      // Dropped by the hazard it just walked through, or already gone: the
+      // walk still stands, the swing does not.
+      if (target && (hpOf(target)?.now ?? 0) > 0) {
+        updated = strikesInto(
+          updated,
+          { name: nameOf(active), id: active.id },
+          enemyPlan.strikes,
+          target,
+        );
+      }
+    }
+
+    if (!enemyPlan.move && !enemyPlan.strikes.length) {
+      updated = updateEncounter(
+        updated,
+        appendLog(activeEncounter(updated), `${nameOf(active)} holds.`),
+      );
+    }
+
+    setMoveArmed(false);
+    onChange(updated);
+  };
 
   const resolveAim = (target: Combatant) => {
     if (!aim) return;
@@ -2977,6 +3115,26 @@ export function TableTab({
             </div>
           );
         })()}
+
+      {/*
+        The turn it would take, if it were driving itself.
+
+        Above the command menu rather than instead of it: this is a proposal,
+        and the menu underneath is how the DM disagrees. The reasoning is
+        shown because a plan you cannot argue with is one you cannot sensibly
+        override, and the DM is the one who knows these goblins are cowards.
+      */}
+      {enemyPlan && (
+        <div className="rail-plan">
+          <div className="rail-plan-head">
+            <span className="hud-k">Its turn</span>
+            <button className="btn btn-sm btn-primary" onClick={runPlan}>
+              Run it
+            </button>
+          </div>
+          <p className="rail-plan-why">{enemyPlan.reason}</p>
+        </div>
+      )}
 
       {/* The monster's command menu, standing open - Attack drills into the
           stat block's aimable rows, the rest are the table's own commands. */}

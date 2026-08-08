@@ -2188,3 +2188,136 @@ describe('the ruler walks', () => {
     expect(view.roster.entries[0].play.turn.moved).toBe(0);
   });
 });
+
+/**
+ * The monster proposes; the DM disposes.
+ *
+ * The decision itself is `engine/enemyTurn.ts`, tested against battlefields
+ * drawn on paper. What is worth a component test is the wiring either side of
+ * it: that the proposal appears only for whoever's turn it actually is, that
+ * pressing the button walks AND swings in ONE roster write, and that the
+ * command menu underneath it still works - because the plan is a suggestion,
+ * and a suggestion you cannot overrule is an instruction.
+ */
+describe('the enemy turn', () => {
+  const goblinFight = async (
+    user: ReturnType<typeof userEvent.setup>,
+    view: ReturnType<typeof setup>,
+    { goblinFirst }: { goblinFirst: boolean },
+  ) => {
+    await bestiaryReady();
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
+    const entry = [...document.querySelectorAll('.mon-list li')].find(
+      (li) => li.querySelector('b')?.textContent === 'Goblin',
+    ) as HTMLElement;
+    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
+
+    const name = view.roster.entries[0].build.name;
+    fireEvent.change(within(rowFor(name)).getByLabelText(new RegExp(`${name} initiative`, 'i')), {
+      target: { value: goblinFirst ? '1' : '30' },
+    });
+    fireEvent.change(within(rowFor('Goblin')).getByLabelText(/goblin initiative/i), {
+      target: { value: goblinFirst ? '30' : '1' },
+    });
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+  };
+
+  const plan = () => document.querySelector('.rail-plan');
+  const goblinOf = (view: ReturnType<typeof setup>) =>
+    view.encounter.combatants.find((c) => c.kind === 'monster') as MonsterCombatant;
+
+  it('offers nothing on a character’s turn', async () => {
+    const user = userEvent.setup();
+    const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
+    await goblinFight(user, view, { goblinFirst: false });
+    // The fighter is up. Nobody proposes a turn for the party.
+    expect(plan()).toBeNull();
+  });
+
+  it('proposes the goblin’s turn, with its reasoning, once the goblin is up', async () => {
+    const user = userEvent.setup();
+    const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
+    await goblinFight(user, view, { goblinFirst: true });
+
+    expect(plan()).not.toBeNull();
+    // The sentence is the point: a plan you cannot argue with is one you
+    // cannot sensibly override.
+    expect(plan()!.querySelector('.rail-plan-why')!.textContent).toMatch(/\w/);
+    expect(within(plan() as HTMLElement).getByRole('button', { name: 'Run it' })).toBeTruthy();
+  });
+
+  it('walks and swings in one write when the DM runs it', async () => {
+    const user = userEvent.setup();
+    const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
+    await goblinFight(user, view, { goblinFirst: true });
+
+    const before = goblinOf(view).at!;
+    const writes = view.onChange.mock.calls.length;
+    await user.click(within(plan() as HTMLElement).getByRole('button', { name: 'Run it' }));
+
+    // ONE write for the whole turn. Two would each build from the same
+    // render's roster and the second would discard the first - the goblin
+    // would swing from the square it had already left.
+    expect(view.onChange.mock.calls.length).toBe(writes + 1);
+
+    const after = goblinOf(view);
+    const log = (view.encounter.log ?? []).map((l) => l.text).join('\n');
+    // It either closed the distance or it attacked; on a blank grid with the
+    // party deployed opposite, it is the walk that happens first.
+    const movedOrSwung = after.at!.x !== before.x || after.at!.y !== before.y || /vs AC/.test(log);
+    expect(movedOrSwung).toBe(true);
+    // Whatever it did, the movement it spent was charged against its budget.
+    if (after.at!.x !== before.x || after.at!.y !== before.y) {
+      expect(after.moved ?? 0).toBeGreaterThan(0);
+    }
+  });
+
+  it('charges the walk and the swing to the same turn, and lands the damage', async () => {
+    const user = userEvent.setup();
+    const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
+    await goblinFight(user, view, { goblinFirst: true });
+
+    // Run turns until the goblin has closed and swung: on a blank grid it
+    // needs a round or two of walking first.
+    for (let i = 0; i < 8; i++) {
+      const box = plan();
+      if (box) await user.click(within(box as HTMLElement).getByRole('button', { name: 'Run it' }));
+      if (/vs AC/.test((view.encounter.log ?? []).map((l) => l.text).join('\n'))) break;
+      await user.click(screen.getByRole('button', { name: /end turn/i }));
+      await user.click(screen.getByRole('button', { name: /end turn/i }));
+    }
+
+    const log = (view.encounter.log ?? []).map((l) => l.text).join('\n');
+    expect(log).toMatch(/vs AC/);
+    // The goblin's own name is on the swing - it attacked as itself, through
+    // the same dice every hand-driven attack uses.
+    expect(log).toMatch(/Goblin[^\n]*(Scimitar|Shortbow)/);
+  });
+
+  it('steps aside when the DM clicks away to inspect somebody', async () => {
+    const user = userEvent.setup();
+    const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
+    await goblinFight(user, view, { goblinFirst: true });
+    expect(plan()).not.toBeNull();
+
+    // The cockpit follows the turn until the DM looks at somebody else.
+    const name = view.roster.entries[0].build.name;
+    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
+    expect(plan()).toBeNull();
+  });
+
+  it('leaves the monster’s own command menu in charge', async () => {
+    const user = userEvent.setup();
+    const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
+    await goblinFight(user, view, { goblinFirst: true });
+
+    // The proposal sits above the menu rather than replacing it: overruling
+    // it is how a DM says these particular goblins are cowards.
+    expect(plan()).not.toBeNull();
+    const menu = document.querySelector('.rail-monster .cmd-menu');
+    expect(menu).not.toBeNull();
+    expect(within(menu as HTMLElement).getByRole('button', { name: /^Move/ })).toBeTruthy();
+  });
+});

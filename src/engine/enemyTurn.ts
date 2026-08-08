@@ -87,6 +87,22 @@ export interface TurnInput {
   priceOf: (at: Square) => number | null;
   /** Every square the walk can reach, which is the search space. */
   candidates: Square[];
+  /**
+   * How far a square is from the nearest enemy **by walking**, or null when
+   * there is no route at all.
+   *
+   * Only used to decide which way to run when nothing can be attacked, and it
+   * has to be a walk rather than a straight line. A goblin standing against
+   * the west wall of its room, with the party a long way west, is exactly the
+   * same crow-flies distance from them wherever inside the room it steps - so
+   * a planner measuring in straight lines concludes it cannot get closer and
+   * stands there for the whole fight. The door is the way out and only a walk
+   * knows that. `walkMap` takes several sources at once for precisely this.
+   *
+   * Absent falls back to the straight line, which is right for open ground and
+   * is what the tests on open ground assume.
+   */
+  approach?: (at: Square) => number | null;
 }
 
 /** Feet between two squares, on the one rule every distance here runs on:
@@ -226,9 +242,19 @@ export function planTurn(input: TurnInput): TurnPlan {
     the turn is a walk: whichever reachable square leaves it closest to the
     nearest enemy. The Dash is allowed here precisely because there is no
     attack to protect.
+
+    "Closest" is measured by walking when the caller can say - see `approach`.
+    The straight line is only the fallback, and only right on open ground.
   */
-  const distanceFromNearest = (at: Square): number =>
-    Math.min(...foes.map((f) => feetBetween(at, f.at!)));
+  const distanceFromNearest = (at: Square): number => {
+    if (input.approach) {
+      const walked = input.approach(at);
+      // No route at all is infinitely far, not zero: a square the party
+      // cannot be reached from must never look like the best place to stand.
+      return walked === null ? Infinity : walked;
+    }
+    return Math.min(...foes.map((f) => feetBetween(at, f.at!)));
+  };
 
   let closest: { at: Square; cost: number; gap: number } | null = null;
   for (const spot of spots) {

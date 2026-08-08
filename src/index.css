@@ -4057,6 +4057,37 @@ dl.detail-list {
   font-size: 11px;
 }
 
+/*
+  The turn the monster proposes for itself.
+
+  Set off from the command menu below it by a left rule rather than a box,
+  because it is a suggestion sitting above the controls rather than a fourth
+  panel competing with them. Both palettes get the accent from a token, so
+  the stripe stays legible when the theme flips.
+*/
+.rail-plan {
+  margin: 8px 0;
+  padding: 6px 0 6px 8px;
+  border-left: 2px solid var(--accent);
+}
+
+.rail-plan-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rail-plan-head .btn {
+  margin-left: auto;
+}
+
+.rail-plan-why {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-faint);
+}
+
 /* -------------------------------------------------------- the monster workshop */
 
 .mon-list li.is-selected {

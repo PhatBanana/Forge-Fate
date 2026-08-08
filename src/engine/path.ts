@@ -65,26 +65,39 @@ export interface Walk {
 }
 
 /**
- * The full walk from a square: every square reachable within `feet`, its
- * cheapest cost, and the step it was reached by - which is what lets a ruler
- * bend around the wall instead of pretending to pass through it.
+ * The full walk from a square, or from several at once: every square reachable
+ * within `feet`, its cheapest cost, and the step it was reached by - which is
+ * what lets a ruler bend around the wall instead of pretending to pass through
+ * it.
+ *
+ * ## Several sources
+ *
+ * Pass an array and every one of them starts at zero, so each square ends up
+ * holding its distance to the *nearest* of them. One sweep, not one per
+ * source. That is what answers "how far is this square from the party", which
+ * is a question a monster deciding where to walk has to ask about every square
+ * it could stand on - and answering it with a crow-flies distance is the exact
+ * mistake this module exists to stop. A goblin at the west wall of its room is
+ * no nearer the party in a straight line wherever it steps; the door is still
+ * the way out, and only a walk knows that.
  */
 export function walkMap(
   ctx: SightContext,
-  from: Square,
+  from: Square | Square[],
   feet: number,
   overlays?: WalkOverlays,
 ): Walk {
+  const sources = Array.isArray(from) ? from : [from];
   const best = new Map<string, number>();
   const prev = new Map<string, string>();
-  best.set(keyOf(from), 0);
+  for (const source of sources) best.set(keyOf(source), 0);
 
   /*
     A sorted-array frontier rather than a heap: a battle map caps at 64×48 and
     a speed at a few dozen squares, so the frontier stays small and the
     simplest correct structure wins.
   */
-  const frontier: { at: Square; cost: number }[] = [{ at: from, cost: 0 }];
+  const frontier: { at: Square; cost: number }[] = sources.map((at) => ({ at, cost: 0 }));
   while (frontier.length) {
     frontier.sort((a, b) => a.cost - b.cost);
     const current = frontier.shift()!;
@@ -112,7 +125,7 @@ export function walkMap(
     }
   }
 
-  best.delete(keyOf(from));
+  for (const source of sources) best.delete(keyOf(source));
   return { cost: best, prev };
 }
 
