@@ -43,6 +43,7 @@ export function MonsterCommandMenu({
   onLog,
   onMove,
   onHide,
+  onShove,
 }: {
   monster: Monster;
   combatant: MonsterCombatant;
@@ -59,6 +60,8 @@ export function MonsterCommandMenu({
   onMove?: () => void;
   /** Roll Stealth and hide, through the battlefield's own machinery. */
   onHide?: () => void;
+  /** Arm a shove; the next click on a combatant resolves the contest. */
+  onShove?: (mode: 'push' | 'prone') => void;
 }) {
   const [sub, setSub] = useState<null | 'attack' | 'abilities'>(null);
 
@@ -125,6 +128,14 @@ export function MonsterCommandMenu({
           {onLog &&
             item('Dash', () => onLog('Dashes.'), "The map's amber tier charges the feet; this says it out loud")}
           {onHide && item('Hide', () => onHide(), 'Roll the stat block Stealth and vanish from the fog')}
+          {onShove &&
+            item(
+              'Shove',
+              () => onShove('push'),
+              'Athletics against their Athletics or Acrobatics — five feet back, and off a ledge if one is behind them',
+            )}
+          {onShove &&
+            item('Trip', () => onShove('prone'), 'The same contest, spent on putting them on the floor')}
           {onLog && item('Disengage', () => onLog('takes the Disengage action.'), 'No opportunity attacks this turn')}
           {onLog && item('Dodge', () => onLog('takes the Dodge action.'), 'Attacks against it have disadvantage')}
           {onLog && item('Help', () => onLog('takes the Help action.'), 'An ally gets advantage')}

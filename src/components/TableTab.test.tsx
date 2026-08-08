@@ -2403,3 +2403,152 @@ describe('the enemy turn', () => {
     expect(within(menu as HTMLElement).getByRole('button', { name: /^Move/ })).toBeTruthy();
   });
 });
+
+/**
+ * Section 26.2. The contest itself is `engine/shove.test.ts`; what needs a
+ * component test is the part that only exists here - that a shove reaches the
+ * map, that the ledge under somebody finally does something, and that the
+ * whole of it lands in one write.
+ */
+describe('shoving, and the ledge behind them', () => {
+  const mapEl4 = () => document.querySelector('.dmap') as SVGSVGElement;
+  const boxMap4 = () => {
+    mapEl4().getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+  };
+
+  /** The fighter adjacent to a goblin, on a flat blank grid unless told otherwise. */
+  const brawl = async (
+    user: ReturnType<typeof userEvent.setup>,
+    elevation: Record<string, number> = {},
+  ) => {
+    const view = setup({
+      ...party(),
+      encounter: { ...emptyEncounter(), mapRooms: 0, elevation },
+    });
+    await bestiaryReady();
+    const name = view.roster.entries[0].build.name;
+    await user.click(screen.getByRole('button', { name }));
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
+    const entry = [...document.querySelectorAll('.mon-list li')].find(
+      (li) => li.querySelector('b')?.textContent === 'Goblin',
+    ) as HTMLElement;
+    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+
+    // Placed by hand, adjacent, before the fight - placement is free then.
+    boxMap4();
+    const put = (at: { x: number; y: number }) =>
+      fireEvent.pointerDown(mapEl4(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
+    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
+    put({ x: 10, y: 10 });
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
+    put({ x: 11, y: 10 });
+
+    fireEvent.change(within(rowFor(name)).getByLabelText(new RegExp(`${name} initiative`, 'i')), {
+      target: { value: '30' },
+    });
+    fireEvent.change(within(rowFor('Goblin')).getByLabelText(/goblin initiative/i), {
+      target: { value: '1' },
+    });
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+    return { view, name };
+  };
+
+  const armShove = async (user: ReturnType<typeof userEvent.setup>, which: 'Shove' | 'Trip') => {
+    const menu = document.querySelector('.pcard .cmd-menu') as HTMLElement;
+    await user.click(within(menu).getByRole('button', { name: which }));
+  };
+
+  const goblinOf = (view: ReturnType<typeof setup>) =>
+    view.encounter.combatants.find((c) => c.kind === 'monster') as MonsterCombatant;
+
+  const logOf = (view: ReturnType<typeof setup>) =>
+    (view.encounter.log ?? []).map((l) => l.text).join('\n');
+
+  it('offers both a push and a trip, since the choice is the shover’s', async () => {
+    const user = userEvent.setup();
+    await brawl(user);
+    const menu = document.querySelector('.pcard .cmd-menu') as HTMLElement;
+    expect(within(menu).getByRole('button', { name: 'Shove' })).toBeTruthy();
+    expect(within(menu).getByRole('button', { name: 'Trip' })).toBeTruthy();
+  });
+
+  it('resolves the contest on the token that was clicked, and spends the action', async () => {
+    const user = userEvent.setup();
+    const { view } = await brawl(user);
+    await armShove(user, 'Shove');
+    boxMap4();
+    await user.click(document.querySelector('.dmap-token.monster') as Element);
+
+    // Whichever way the dice went, the contest happened and was written down.
+    expect(logOf(view)).toMatch(/Athletics \d+ vs (Athletics|Acrobatics) \d+/);
+    // A shove replaces one attack of the Attack action, so it costs the pip
+    // whether or not it worked.
+    expect(view.roster.entries[0].play.turn.action).toBe(true);
+  });
+
+  it('will not shove across the room, and charges nothing for the mis-click', async () => {
+    const user = userEvent.setup();
+    const { view } = await brawl(user);
+    // Walk the goblin far away first, by placing it before the fight? Simpler:
+    // end the fight so placement is free again, then move it out of reach.
+    await user.click(screen.getByRole('button', { name: /end the fight/i }));
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
+    boxMap4();
+    fireEvent.pointerDown(mapEl4(), { clientX: 30.5 * 10, clientY: 10.5 * 10 });
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+
+    await armShove(user, 'Shove');
+    await user.click(document.querySelector('.dmap-token.monster') as Element);
+    expect(logOf(view)).toMatch(/not close enough/);
+    expect(view.roster.entries[0].play.turn.action).toBeFalsy();
+  });
+
+  it('drops them off the ledge and hurts them for it', async () => {
+    const user = userEvent.setup();
+    // The fighter stands on a two-step ledge with the goblin beside them, and
+    // the square beyond the goblin is the floor. Pushed east, it falls 20 ft.
+    const { view } = await brawl(user, { '10,10': 2, '11,10': 2 });
+    const hpBefore = goblinOf(view).hp;
+
+    // Keep shoving until the contest lands - the dice are real, so this
+    // pins the consequence rather than a single roll.
+    for (let i = 0; i < 40 && goblinOf(view).at!.x === 11; i++) {
+      await armShove(user, 'Shove');
+      await user.click(document.querySelector('.dmap-token.monster') as Element);
+      if (goblinOf(view).at!.x === 11) {
+        // Failed the contest; give the action back and try again.
+        await user.click(screen.getByRole('button', { name: /end turn/i }));
+        await user.click(screen.getByRole('button', { name: /end turn/i }));
+      }
+    }
+
+    expect(goblinOf(view).at).toEqual({ x: 12, y: 10 });
+    // Two steps down is twenty feet, said out loud so a table calling a step
+    // five feet knows to halve it.
+    expect(logOf(view)).toMatch(/20 ft drop/);
+    expect(goblinOf(view).hp).toBeLessThan(hpBefore);
+    // The SRD lands a falling creature prone, and it is the part everyone
+    // forgets.
+    expect(goblinOf(view).conditions).toContain('prone');
+  });
+
+  it('trips them where they stand, with no fall and no move', async () => {
+    const user = userEvent.setup();
+    const { view } = await brawl(user);
+    const where = goblinOf(view).at;
+
+    for (let i = 0; i < 40 && !goblinOf(view).conditions.includes('prone'); i++) {
+      await armShove(user, 'Trip');
+      await user.click(document.querySelector('.dmap-token.monster') as Element);
+      if (!goblinOf(view).conditions.includes('prone')) {
+        await user.click(screen.getByRole('button', { name: /end turn/i }));
+        await user.click(screen.getByRole('button', { name: /end turn/i }));
+      }
+    }
+
+    expect(goblinOf(view).conditions).toContain('prone');
+    expect(goblinOf(view).at).toEqual(where);
+    expect(logOf(view)).toMatch(/down they go/);
+  });
+});

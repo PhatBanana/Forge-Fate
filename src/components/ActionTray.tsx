@@ -47,6 +47,7 @@ export function CommandMenu({
   onAct,
   onAim,
   onMoveCommand,
+  onShove,
   onHide,
   standing,
   onClose,
@@ -67,6 +68,12 @@ export function CommandMenu({
   onAim?: (strikes: { label: string; toHit: number; damage: { dice: string; type: string }[] }[]) => void;
   /** Arm move mode - walking is its own budget, so this spends no pip. */
   onMoveCommand?: () => void;
+  /**
+   * Arm a shove. Two entries rather than a submenu, because the SRD leaves
+   * the choice to the shover and "Shove" versus "Trip" says which at a glance
+   * - a table does not need a menu level to tell a push from a leg sweep.
+   */
+  onShove?: (mode: 'push' | 'prone') => void;
   /** Roll Stealth and hide, through the battlefield's own machinery. The
       owner spends the action in the same write as the roll. */
   onHide?: () => void;
@@ -392,6 +399,24 @@ export function CommandMenu({
                   done();
                 },
                 'Roll Stealth for real and vanish from the fog',
+              )}
+            {slot === 'action' && onShove &&
+              item(
+                'Shove',
+                () => {
+                  onShove('push');
+                  done();
+                },
+                'Athletics against their Athletics or Acrobatics — five feet back, and off a ledge if one is behind them',
+              )}
+            {slot === 'action' && onShove &&
+              item(
+                'Trip',
+                () => {
+                  onShove('prone');
+                  done();
+                },
+                'The same contest, spent on putting them on the floor instead',
               )}
             {slot === 'action' && item('Disengage', () => generic('Disengage'), 'No opportunity attacks this turn')}
             {slot === 'action' && item('Dodge', () => generic('Dodge'), 'Attacks against you have disadvantage')}

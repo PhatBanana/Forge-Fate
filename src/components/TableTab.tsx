@@ -3,7 +3,7 @@ import type { Monster } from '../data/monsters';
 import { formatCr, legendaryCost, monsterMod, monsterSummary, parseUsage, searchMonsters } from '../data/monsters';
 import { isCustom, mergeBestiary } from '../bestiary';
 import { useMonsters } from './useMonsters';
-import { keyOf } from '../terrain';
+import { elevationAt, keyOf } from '../terrain';
 import { lineOfSight, walkable } from '../engine/sight';
 import { routeTo, walkMap } from '../engine/path';
 import type { Walk } from '../engine/path';
@@ -59,11 +59,12 @@ import {
 } from '../encounter';
 import type { EncounterState, Square } from '../encounter';
 import { placeZone } from '../surfaces';
+import { canShove, fallDamage, fallFeet, pushedTo, shoveContest } from '../engine/shove';
 import { SURFACE_KINDS } from '../zones';
 import type { SurfaceKind } from '../zones';
 import { deriveBuild } from '../engine/character';
 import { forecast } from '../engine/forecast';
-import { concentrationDc, damage, dash, emptyPlay, heal, hpNow, moveBy, movementLeft, newTurn, setTurnSlot, tickConditions } from '../play';
+import { concentrationDc, damage, dash, emptyPlay, heal, hpNow, moveBy, movementLeft, newTurn, setTurnSlot, tickConditions, toggleCondition } from '../play';
 import { defaultRng, expectedTotal, parseNotation, rollD20, rollDamage, rollNotation } from '../engine/dice';
 import { CONDITIONS, CONDITIONS_BY_ID } from '../data/conditions';
 import { damageDice } from '../data/weapons';
@@ -252,6 +253,13 @@ export function TableTab({
     and need no arming - setup is setup.
   */
   const [moveArmed, setMoveArmed] = useState(false);
+  /**
+   * A shove waiting for a target: the next click on a combatant resolves the
+   * contest. The mode was chosen when it was armed, because the SRD leaves
+   * the push-or-floor choice to the shover and asking afterwards would be
+   * asking after the dice.
+   */
+  const [shoving, setShoving] = useState<{ byId: string; mode: 'push' | 'prone' } | null>(null);
 
   /*
     "Everyone make a DEX save, DC 15" - the call, then the answers, then the
@@ -1267,6 +1275,160 @@ export function TableTab({
     onChange(updated);
   };
 
+  /** A skill's real bonus from whichever side owns it, monster or sheet. */
+  const skillBonusFor = (c: Combatant, skill: string, fallback: 'str' | 'dex'): number => {
+    if (c.kind === 'monster') {
+      const monster = byId.get(c.monsterId);
+      if (!monster) return 0;
+      return monster.skills?.[skill] ?? monsterMod(monster.scores[fallback]);
+    }
+    const info = derived.get(c.rosterId);
+    if (!info) return 0;
+    return (
+      info.ctx.proficiencies.skills.find((s) => s.skill === skill)?.modifier ??
+      info.ctx.mods[fallback]
+    );
+  };
+
+  /** A creature's size, for the rule that nobody shoves what towers over them. */
+  const sizeOf = (c: Combatant): string =>
+    c.kind === 'monster' ? (byId.get(c.monsterId)?.size ?? 'Medium') : 'Medium';
+
+  /**
+   * A shove: one contested roll, and whatever the ground does next.
+   *
+   * Section 23 ruled shoving out as a ruling richer than a grid should model.
+   * That was right about grappling and wrong about this, for a reason the
+   * register did not account for: **this map has height**, and had never once
+   * let it change a number. A ledge nobody can be pushed off is scenery.
+   *
+   * Everything composes into ONE write - the contest, the move, the fall, the
+   * damage, the prone condition, the log. A push that damaged somebody across
+   * two `onChange` calls would have the second build from a roster the first
+   * had already replaced.
+   */
+  const resolveShove = (targetId: string) => {
+    if (!shoving) return;
+    const shover = encounter.combatants.find((c) => c.id === shoving.byId);
+    const target = encounter.combatants.find((c) => c.id === targetId);
+    setShoving(null);
+    if (!shover?.at || !target?.at || shover.id === target.id) return;
+
+    const name = nameOf(shover);
+    const them = nameOf(target);
+
+    /*
+      Every ending goes through here, because a shove costs the same whether
+      it worked: it replaces one attack of the Attack action, so the pip is
+      spent on the attempt. Composed into the same write as everything else,
+      since a second onChange would build from a roster this one replaced.
+    */
+    const finish = (enc: EncounterState, then?: (r: Roster) => Roster) => {
+      let updated = updateEncounter(roster, enc);
+      if (then) updated = then(updated);
+      if (shover.kind === 'character') {
+        const entry = updated.entries.find((e) => e.id === shover.rosterId);
+        if (entry) updated = updatePlay(updated, entry.id, setTurnSlot(entry.play, 'action', true));
+      }
+      onChange(updated);
+    };
+
+    if (Math.max(Math.abs(shover.at.x - target.at.x), Math.abs(shover.at.y - target.at.y)) > 1) {
+      // Nothing was attempted, so nothing is spent: this is a mis-click.
+      setEncounter(appendLog(encounter, `${name} is not close enough to shove ${them}.`));
+      return;
+    }
+    if (!canShove(sizeOf(shover), sizeOf(target))) {
+      setEncounter(
+        appendLog(encounter, `${them} is too big for ${name} to shove — more than one size larger.`),
+      );
+      return;
+    }
+
+    const contest = shoveContest(
+      skillBonusFor(shover, 'athletics', 'str'),
+      skillBonusFor(target, 'athletics', 'str'),
+      skillBonusFor(target, 'acrobatics', 'dex'),
+      defaultRng,
+    );
+    const roll = `Athletics ${contest.shoverRoll} vs ${contest.targetUsed} ${contest.targetRoll}`;
+
+    if (!contest.success) {
+      finish(appendLog(encounter, `${name} shoves ${them} — ${roll}: holds firm.`));
+      return;
+    }
+
+    if (shoving.mode === 'prone') {
+      finish(appendLog(encounter, `${name} trips ${them} — ${roll}: down they go.`), (r) =>
+        knockProne(r, target.id),
+      );
+      return;
+    }
+
+    // Pushed five feet directly away. Somewhere solid to land, or they simply
+    // stay where they are - a shove into a wall is a shove that went nowhere.
+    const to = pushedTo(shover.at, target.at);
+    const blocked =
+      !walkable(sightContext, to) ||
+      encounter.combatants.some((c) => c.id !== target.id && c.at && c.at.x === to.x && c.at.y === to.y);
+    if (blocked) {
+      finish(appendLog(encounter, `${name} shoves ${them} — ${roll}: nowhere to go, they stay put.`));
+      return;
+    }
+
+    const drop = fallFeet(
+      elevationAt(encounter.elevation ?? {}, target.at),
+      elevationAt(encounter.elevation ?? {}, to),
+    );
+    let enc = placeCombatant(encounter, target.id, to);
+    enc = appendLog(enc, `${name} shoves ${them} five feet back — ${roll}.`);
+
+    /*
+      The drop, if there was one. The feet are said out loud because
+      `terrain.ts` keeps height in abstract steps on purpose - a table that
+      calls a step five feet rather than ten can halve this, and can only do
+      that if it can see the number.
+    */
+    const dice = fallDamage(drop);
+    finish(enc, (r) => {
+      if (!dice) return r;
+      let out = biteZone(
+        r,
+        target.id,
+        {
+          id: `fall-${target.id}`,
+          label: `the ${drop} ft drop`,
+          shape: 'sphere',
+          at: to,
+          feet: 5,
+          angle: 0,
+          tint: 0,
+          effect: { damage: { dice, type: 'bludgeoning' } },
+        },
+        'is caught by',
+      );
+      // The SRD lands a falling creature prone, and it is the part everyone
+      // forgets - which is exactly the kind of thing a tool should remember.
+      out = knockProne(out, target.id);
+      return out;
+    });
+  };
+
+  /** Prone, added rather than toggled: shoving somebody already down must not
+      stand them back up. */
+  const knockProne = (updated: Roster, id: string): Roster => {
+    const encNow = activeEncounter(updated);
+    const c = encNow.combatants.find((x) => x.id === id);
+    if (!c) return updated;
+    if (c.kind === 'monster') {
+      if (c.conditions.includes('prone')) return updated;
+      return updateEncounter(updated, toggleMonsterCondition(encNow, id, 'prone'));
+    }
+    const entry = updated.entries.find((e) => e.id === c.rosterId);
+    if (!entry || entry.play.conditions.includes('prone')) return updated;
+    return updatePlay(updated, entry.id, toggleCondition(entry.play, 'prone'));
+  };
+
   /*
     Roll Stealth and hide, from either home: the row's Hide button or the
     command menu's Hide entry. The real bonus from whichever side owns it -
@@ -1341,6 +1503,12 @@ export function TableTab({
     goblin from the rail must never be an assault.
   */
   const tokenClick = (id: string) => {
+    // An armed shove takes the click before anything else: the tool in hand
+    // is the tool that answers, same as an armed aim.
+    if (shoving) {
+      resolveShove(id);
+      return;
+    }
     const target = encounter.combatants.find((c) => c.id === id);
     if (
       target &&
@@ -3129,6 +3297,15 @@ export function TableTab({
             }
           : undefined
       }
+      onShove={
+        !isRunning(encounter) || selected.id === active?.id
+          ? (mode) => {
+              setAim(null);
+              setMoveArmed(false);
+              setShoving({ byId: selected.id, mode });
+            }
+          : undefined
+      }
       onAct={({ play, build, log }) => {
         /*
           One command, one write. A potion is a build write, a play write and
@@ -3222,6 +3399,17 @@ export function TableTab({
               ? () => {
                   setAim(null);
                   setMoveArmed(true);
+                }
+              : undefined
+          }
+          onShove={
+            !isRunning(encounter) || selected.id === active?.id
+              ? (mode) => {
+                  // One tool in hand: arming a shove puts the walk and the
+                  // aim down, the way arming either of those does.
+                  setAim(null);
+                  setMoveArmed(false);
+                  setShoving({ byId: selected.id, mode });
                 }
               : undefined
           }
@@ -3449,6 +3637,7 @@ export function TableTab({
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
       if (e.key === 'Escape') {
         if (aim) setAim(null);
+        else if (shoving) setShoving(null);
         else if (moveArmed) setMoveArmed(false);
         else if (placing) {
           setPlacing(null);

@@ -52,6 +52,7 @@ export function PlayCard({
   onAim,
   onAct,
   onMoveCommand,
+  onShove,
   onHide,
   standing,
 }: {
@@ -69,6 +70,8 @@ export function PlayCard({
   /** Arm move mode on the battlefield. Movement is its own budget, not the
       action, so this spends nothing. */
   onMoveCommand?: () => void;
+  /** Arm a shove or a trip; the next click on a combatant resolves it. */
+  onShove?: (mode: 'push' | 'prone') => void;
   onHide?: () => void;
   /** The battle cockpit keeps the command box open the way the monster rail
       does - one glance answers "what can they do". Elsewhere the box still
@@ -249,6 +252,7 @@ export function PlayCard({
           onAct={onAct ?? (({ play: next }) => next && onPlayChange(next))}
           onAim={onAim}
           onMoveCommand={onMoveCommand}
+          onShove={onShove}
           onHide={onHide}
           standing={standing}
           onClose={() => {
