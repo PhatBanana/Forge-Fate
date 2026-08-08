@@ -2163,7 +2163,7 @@ describe('the ground bites back', () => {
     ).toBe(true);
   });
 
-  it('notes the opportunity attack when a walk leaves an enemy’s reach', async () => {
+  it('takes the opportunity attack when a walk leaves an enemy’s reach', async () => {
     const user = userEvent.setup();
     const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
     await bestiaryReady();
@@ -2193,11 +2193,55 @@ describe('the ground bites back', () => {
     );
     fireEvent.pointerDown(mapEl4(), { clientX: (6 + 0.5) * 10, clientY: (5 + 0.5) * 10 });
 
+    // The note that used to be the whole feature...
     expect(
-      view.encounter.log!.some((l) =>
-        /leaves the reach of Goblin — opportunity attack/.test(l.text),
-      ),
+      view.encounter.log!.some((l) => /leaves Goblin's reach — opportunity attack/.test(l.text)),
     ).toBe(true);
+    // ...and the swing that now follows it, with the goblin's reaction gone.
+    expect(view.encounter.log!.some((l) => /Goblin — Scimitar \d+ vs AC/.test(l.text))).toBe(true);
+    expect(
+      view.encounter.combatants.find(
+        (c): c is Extract<typeof c, { kind: 'monster' }> =>
+          c.kind === 'monster' && c.label === 'Goblin',
+      )?.reactionSpent,
+    ).toBe(true);
+  });
+
+  it('Disengage buys exactly what it costs: the walk goes unpunished', async () => {
+    const user = userEvent.setup();
+    const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
+    await bestiaryReady();
+    const name = view.roster.entries[0].build.name;
+    await user.click(screen.getByRole('button', { name }));
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
+    const entry = [...document.querySelectorAll('.mon-list li')].find(
+      (li) => li.querySelector('b')?.textContent === 'Goblin',
+    ) as HTMLElement;
+    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
+
+    boxMap4();
+    await user.click(
+      within(rowFor('Goblin')).getByRole('button', { name: /show goblin in the rail/i }),
+    );
+    fireEvent.pointerDown(mapEl4(), { clientX: (2 + 0.5) * 10, clientY: (1 + 0.5) * 10 });
+    fireEvent.change(within(rowFor(name)).getByLabelText(new RegExp(`${name} initiative`, 'i')), {
+      target: { value: '30' },
+    });
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+
+    const cockpit = () => document.querySelector('.pcard .cmd-menu') as HTMLElement;
+    await user.click(within(cockpit()).getByRole('button', { name: /^Disengage/ }));
+    await user.click(within(cockpit()).getByRole('button', { name: /^Move/ }));
+    fireEvent.pointerDown(mapEl4(), { clientX: (6 + 0.5) * 10, clientY: (5 + 0.5) * 10 });
+
+    expect(view.encounter.log!.some((l) => /opportunity attack/.test(l.text))).toBe(false);
+    expect(
+      view.encounter.combatants.find(
+        (c): c is Extract<typeof c, { kind: 'monster' }> =>
+          c.kind === 'monster' && c.label === 'Goblin',
+      )?.reactionSpent,
+    ).toBeFalsy();
   });
 });
 

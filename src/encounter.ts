@@ -101,6 +101,23 @@ export interface MonsterCombatant {
   /** Feet of movement spent this turn. Reset when its turn begins. */
   moved?: number;
   /**
+   * Its one reaction, spent. The monster side of the table had legendary
+   * actions, recharges and movement and no reaction at all until §28 made
+   * opportunity attacks real - which is the moment a goblin's reaction became
+   * a resource somebody could run out of.
+   *
+   * Reset when its turn begins, with the movement, because that is when a
+   * reaction comes back. Getting this wrong in the other direction - clearing
+   * it at the *end* of the turn - is the mistake tables make most often.
+   */
+  reactionSpent?: boolean;
+  /**
+   * Disengage or Dodge, taken. Same per-turn life as the movement above, and
+   * the same reset. Monsters take the same actions characters do, and the
+   * monster tray has offered Disengage since §13.1 while nothing read it.
+   */
+  stance?: 'disengage' | 'dodge';
+  /**
    * Not yet part of the fight: skipped in the turn order, woken when the
    * party first sees it or when it takes damage - the squad-game pod,
    * translated. Meaningful mostly under fog of war.
@@ -604,6 +621,40 @@ export function spendMonsterMovement(
   };
 }
 
+/**
+ * Mark a monster's reaction spent, or hand it back.
+ *
+ * Separate from `spendMonsterMovement` despite the family resemblance, because
+ * a reaction is spent on somebody *else's* turn - it is the one resource in
+ * the fight that leaves while the creature is not acting.
+ */
+export function spendMonsterReaction(
+  encounter: EncounterState,
+  id: string,
+  spent = true,
+): EncounterState {
+  return {
+    ...encounter,
+    combatants: encounter.combatants.map((c) =>
+      c.id === id && c.kind === 'monster' ? { ...c, reactionSpent: spent || undefined } : c,
+    ),
+  };
+}
+
+/** Take the Disengage or the Dodge, on the monster's side of the table. */
+export function setMonsterStance(
+  encounter: EncounterState,
+  id: string,
+  stance: 'disengage' | 'dodge' | undefined,
+): EncounterState {
+  return {
+    ...encounter,
+    combatants: encounter.combatants.map((c) =>
+      c.id === id && c.kind === 'monster' ? { ...c, stance } : c,
+    ),
+  };
+}
+
 /** Wake a monster into the fight, or stand it down. Monsters only - a
     character is always in the fight. */
 export function setDormant(encounter: EncounterState, id: string, dormant: boolean): EncounterState {
@@ -767,7 +818,9 @@ export function startEncounter(encounter: EncounterState): EncounterState {
     tally: undefined,
     endedAfter: undefined,
     combatants: encounter.combatants.map((c) =>
-      c.kind === 'monster' && c.moved ? { ...c, moved: 0 } : c,
+      c.kind === 'monster' && (c.moved || c.reactionSpent || c.stance)
+        ? { ...c, moved: 0, reactionSpent: undefined, stance: undefined }
+        : c,
     ),
   };
 }
@@ -816,13 +869,18 @@ export function nextTurn(encounter: EncounterState): {
     ...encounter,
     turnIndex: index,
     round,
-    // Legendary actions and movement refresh at the start of the creature's
-    // own turn - the same moment a character's action economy comes back,
-    // handled the same way: by the thing that knows a turn began.
+    // Legendary actions, movement, the reaction and the stance all refresh at
+    // the start of the creature's own turn - the same moment a character's
+    // action economy comes back, handled the same way: by the thing that knows
+    // a turn began. The reaction in particular: it comes back when your turn
+    // *starts*, not when the turn you spent it on ends.
     combatants:
-      began?.kind === 'monster' && (began.legendarySpent || began.moved)
+      began?.kind === 'monster' &&
+      (began.legendarySpent || began.moved || began.reactionSpent || began.stance)
         ? encounter.combatants.map((c) =>
-            c.id === began.id ? { ...c, legendarySpent: 0, moved: 0 } : c,
+            c.id === began.id
+              ? { ...c, legendarySpent: 0, moved: 0, reactionSpent: undefined, stance: undefined }
+              : c,
           )
         : encounter.combatants,
   };

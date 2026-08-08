@@ -42,6 +42,13 @@ export interface Combatant {
   /** Set when this creature is successfully hidden. */
   hidden?: boolean;
   /**
+   * Set when this creature took the Dodge action and its next turn has not
+   * come round yet. On the *target* it costs the attacker advantage, which is
+   * the whole of what an action buys - and until §28 recorded the stance, an
+   * action bought nothing at all.
+   */
+  dodging?: boolean;
+  /**
    * Who caused a condition, by combatant id, for the ones that turn on it.
    * Frightened is the one that needs it.
    */
@@ -65,6 +72,10 @@ export interface Exchange {
 }
 
 const has = (c: Combatant, id: string) => c.conditions.includes(id);
+
+/** "You lose this benefit if you are incapacitated or if your speed drops to
+    0" - the incapacitated half, which is the half this app tracks. */
+const STOPS_A_DODGE = ['incapacitated', 'paralyzed', 'petrified', 'stunned', 'unconscious'];
 
 /**
  * Every circumstance the app can see, in the order a DM would read them out.
@@ -94,6 +105,15 @@ export function circumstances(exchange: Exchange): Circumstance[] {
     out.push({ label: 'target is prone and beyond reach', gives: 'disadvantage' });
   }
   if (has(target, 'invisible')) out.push({ label: 'target is unseen', gives: 'disadvantage' });
+  /*
+    Dodge, which the SRD suspends the moment you are incapacitated or your
+    speed drops to nought - so a dodging creature that has been paralysed gets
+    nothing for the action it spent, and the conditions that say so are the
+    same ones that stop a reaction.
+  */
+  if (target.dodging && !target.conditions.some((c) => STOPS_A_DODGE.includes(c))) {
+    out.push({ label: 'target is dodging', gives: 'disadvantage' });
+  }
   if (has(attacker, 'prone')) out.push({ label: 'attacking from the floor', gives: 'disadvantage' });
   if (has(attacker, 'restrained')) out.push({ label: 'attacker is restrained', gives: 'disadvantage' });
   if (has(attacker, 'blinded')) out.push({ label: 'attacker cannot see', gives: 'disadvantage' });

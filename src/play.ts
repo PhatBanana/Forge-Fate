@@ -48,6 +48,17 @@ export interface TurnState {
    * after you have already moved 20 of 30 feet gives you 40 feet left, not 20.
    */
   dashes: number;
+  /**
+   * The action spent on how you are standing rather than on what you did.
+   *
+   * Disengage and Dodge were both offered from the very first command menu and
+   * both only ever wrote a line in the log, which made Disengage the most
+   * expensive no-op in the app: an entire action bought against a rule nothing
+   * enforced. Recorded here because it is per-turn state that comes back with
+   * everything else - `newTurn` clears it, and that is exactly right, since
+   * dodging protects you until *your* next turn begins.
+   */
+  stance?: 'disengage' | 'dodge';
 }
 
 export function emptyTurn(): TurnState {
@@ -248,6 +259,16 @@ export function dash(play: PlayState): PlayState {
  */
 export function newTurn(play: PlayState): PlayState {
   return { ...play, turn: emptyTurn() };
+}
+
+/**
+ * Take the Disengage or the Dodge, which is a thing you *are* until your next
+ * turn rather than a thing you did. The action itself is spent by the caller,
+ * because the two facts come from different places: the tray knows a pip went,
+ * this knows what it bought.
+ */
+export function setStance(play: PlayState, stance: 'disengage' | 'dodge'): PlayState {
+  return { ...play, turn: { ...play.turn, stance } };
 }
 
 /** Whether anything of this turn has been used. */

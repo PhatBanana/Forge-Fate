@@ -6,6 +6,7 @@ import {
   dash,
   heal,
   recordRoll,
+  setStance,
   setTurnSlot,
   slotsLeft,
   spendPact,
@@ -325,6 +326,20 @@ export function CommandMenu({
     done();
   };
 
+  /*
+    Disengage and Dodge, which are the same shape as `generic` plus the one
+    thing that makes them worth an action: a fact recorded rather than a
+    sentence logged. Both were narrated only until §28, so Disengage was an
+    entire action bought against a rule nothing enforced.
+  */
+  const stance = (kind: 'disengage' | 'dodge', name: string) => {
+    onAct({
+      play: setStance(setTurnSlot(play, slotKey, true), kind),
+      log: `takes the ${name} action.`,
+    });
+    done();
+  };
+
   const slotSummary = casting.casts
     ? casting.bySpellLevel
         .map((total, i) => ({ level: i + 1, left: slotsLeft(play, i + 1, total), total }))
@@ -418,8 +433,18 @@ export function CommandMenu({
                 },
                 'The same contest, spent on putting them on the floor instead',
               )}
-            {slot === 'action' && item('Disengage', () => generic('Disengage'), 'No opportunity attacks this turn')}
-            {slot === 'action' && item('Dodge', () => generic('Dodge'), 'Attacks against you have disadvantage')}
+            {slot === 'action' &&
+              item(
+                'Disengage',
+                () => stance('disengage', 'Disengage'),
+                'Nobody gets an opportunity attack as you leave — recorded, and enforced',
+              )}
+            {slot === 'action' &&
+              item(
+                'Dodge',
+                () => stance('dodge', 'Dodge'),
+                'Attacks against you have disadvantage until your next turn',
+              )}
             {slot === 'action' && item('Help', () => generic('Help'), 'An ally gets advantage')}
             {slot === 'action' && item('Ready', () => generic('Ready'), 'Hold the action for a trigger — the reaction spends when it fires')}
             {slot === 'bonus' &&

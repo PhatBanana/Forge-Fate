@@ -44,6 +44,7 @@ export function MonsterCommandMenu({
   onMove,
   onHide,
   onShove,
+  onStance,
 }: {
   monster: Monster;
   combatant: MonsterCombatant;
@@ -62,6 +63,12 @@ export function MonsterCommandMenu({
   onHide?: () => void;
   /** Arm a shove; the next click on a combatant resolves the contest. */
   onShove?: (mode: 'push' | 'prone') => void;
+  /**
+   * Take the Disengage or the Dodge. Not `onLog`, which is what these two were
+   * before §28: both are rules the app now enforces, so both have to be
+   * recorded rather than narrated.
+   */
+  onStance?: (stance: 'disengage' | 'dodge') => void;
 }) {
   const [sub, setSub] = useState<null | 'attack' | 'abilities'>(null);
 
@@ -136,8 +143,18 @@ export function MonsterCommandMenu({
             )}
           {onShove &&
             item('Trip', () => onShove('prone'), 'The same contest, spent on putting them on the floor')}
-          {onLog && item('Disengage', () => onLog('takes the Disengage action.'), 'No opportunity attacks this turn')}
-          {onLog && item('Dodge', () => onLog('takes the Dodge action.'), 'Attacks against it have disadvantage')}
+          {onStance &&
+            item(
+              'Disengage',
+              () => onStance('disengage'),
+              'No opportunity attacks this turn — recorded, and the rule is enforced',
+            )}
+          {onStance &&
+            item(
+              'Dodge',
+              () => onStance('dodge'),
+              'Attacks against it have disadvantage until its next turn',
+            )}
           {onLog && item('Help', () => onLog('takes the Help action.'), 'An ally gets advantage')}
         </div>
       )}

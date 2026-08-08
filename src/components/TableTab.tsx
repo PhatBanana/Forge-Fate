@@ -59,6 +59,8 @@ import {
   setMonsterRecharge,
   spendLegendary,
   spendMonsterMovement,
+  spendMonsterReaction,
+  setMonsterStance,
   spendMonsterUse,
   tickMonsterConditions,
 } from '../encounter';
@@ -90,7 +92,8 @@ import { PlayCard } from './PlayCard';
 import { InitiativeStrip } from './InitiativeStrip';
 import { MonsterCommandMenu } from './MonsterTray';
 import type { Strike } from './MonsterTray';
-import { routineOptions } from '../engine/strikes';
+import { isMelee, routineOptions, singleStrikes } from '../engine/strikes';
+import { meleeReach, opportunityStrike, provokedBy } from '../engine/reactions';
 import { planTurn } from '../engine/enemyTurn';
 import type { Actor } from '../engine/enemyTurn';
 import { DungeonMap } from './DungeonMap';
@@ -467,28 +470,77 @@ export function TableTab({
     const needsDash = cost > walkBudget.base;
     const route = routeTo(choice.via, self.at, to) ?? [self.at, to];
 
-    let enc = placeCombatant(encNow, self.id, to);
-    if (needsDash) enc = appendLog(enc, `${nameOf(self)} Dashes.`);
+    /*
+      The opportunity attack, taken rather than mentioned.
+
+      Resolved BEFORE the step, because that is when the rule fires - "right
+      before the creature leaves your reach" - and because it is the only order
+      in which the swing is priced from the square the mover is actually still
+      standing on. Prone, cover and the ground all read from there.
+
+      Each swing composes onto the roster the last one returned, so a walk past
+      three guards is still one write. The announcement goes in before the dice
+      because `appendLog` puts the newest line on top.
+    */
+    let afterReactions = updated;
+    for (const taker of provokedBy(
+      {
+        id: self.id,
+        at: self.at,
+        disengaged: stanceOf(self) === 'disengage',
+      },
+      to,
+      encNow.combatants
+        .filter((c) => c.kind !== self.kind)
+        .map((c) => ({
+          id: c.id,
+          conditions: conditionsOf(c),
+          reactionSpent: reactionSpentOf(c),
+          at: c.at,
+          hp: hpOf(c)?.now ?? 0,
+          reach: meleeReach(allStrikesFor(c)),
+        })),
+      // Hiding is the other half of not being seen: a rogue who vanished
+      // walks out of reach unremarked, which is what the Hide action buys.
+      (watcherId) => {
+        if (self.hidden !== undefined) return false;
+        const watcher = encNow.combatants.find((c) => c.id === watcherId);
+        if (!watcher?.at || !self.at) return false;
+        return lineOfSight(sightContext, watcher.at, self.at).visible;
+      },
+    )) {
+      const swinger = activeEncounter(afterReactions).combatants.find((c) => c.id === taker.id);
+      if (!swinger) continue;
+      const strikes = opportunitySwing(swinger);
+      if (!strikes.length) continue;
+      afterReactions = updateEncounter(
+        afterReactions,
+        appendLog(
+          activeEncounter(afterReactions),
+          `${nameOf(self)} leaves ${nameOf(swinger)}'s reach — opportunity attack.`,
+        ),
+      );
+      afterReactions = strikesInto(
+        afterReactions,
+        { name: nameOf(swinger), id: swinger.id },
+        strikes,
+        self,
+      );
+      afterReactions = spendReactionOf(afterReactions, swinger);
+    }
 
     /*
-      The opportunity-attack ruling, in the noted-never-applied register the
-      cover and flanking notes use: leaving a living enemy's reach provokes,
-      and whether they take the swing is the table's business.
+      Dropped on the way out. The step does not happen: a creature at nought
+      hit points falls where it stood, and the reactions that put it there are
+      already in the write we are about to return.
     */
-    const provoked = encNow.combatants.filter(
-      (c) =>
-        c.kind !== self.kind &&
-        c.at &&
-        (hpOf(c)?.now ?? 0) > 0 &&
-        Math.max(Math.abs(c.at.x - self.at!.x), Math.abs(c.at.y - self.at!.y)) === 1 &&
-        Math.max(Math.abs(c.at.x - to.x), Math.abs(c.at.y - to.y)) > 1,
-    );
-    if (provoked.length) {
-      enc = appendLog(
-        enc,
-        `${nameOf(self)} leaves the reach of ${provoked.map(nameOf).join(', ')} — opportunity attack, unless they Disengaged.`,
-      );
-    }
+    const encAfter = activeEncounter(afterReactions);
+    const stillUp = encAfter.combatants.find((c) => c.id === self.id);
+    if (!stillUp || (hpOf(stillUp)?.now ?? 0) <= 0) return afterReactions;
+
+    updated = afterReactions;
+    let enc = placeCombatant(encAfter, self.id, to);
+    if (needsDash) enc = appendLog(enc, `${nameOf(self)} Dashes.`);
 
     let next: Roster;
     if (self.kind === 'character') {
@@ -1086,7 +1138,9 @@ export function TableTab({
         ...(attacker ? { conditionSources: sourcesOf(attacker) } : {}),
         ...(attacker ? { exhaustion: exhaustionOf(attacker) } : {}),
       },
-      target: { conditions: conditionsOf(target) },
+      // Dodging is the target's own doing rather than something done to them,
+      // which is why it rides beside the conditions instead of inside them.
+      target: { conditions: conditionsOf(target), dodging: stanceOf(target) === 'dodge' },
       ...(attacker ? { canSee: canSeeFrom(attacker) } : {}),
       adjacent:
         !attackerAt || !target.at
@@ -1513,6 +1567,60 @@ export function TableTab({
       ? c.conditions
       : (roster.entries.find((e) => e.id === c.rosterId)?.play.conditions ?? []);
 
+  /**
+   * Disengage or Dodge, from whichever store holds it.
+   *
+   * Both trays have offered both actions since the command menu existed and
+   * neither ever wrote anything down, which made Disengage an action spent on
+   * a rule nothing enforced. The two halves live in different places for the
+   * same reason every other fact does - a character's turn is on their sheet,
+   * a monster's is on the combatant - so this is the one place that asks.
+   */
+  const stanceOf = (c: Combatant): 'disengage' | 'dodge' | undefined =>
+    c.kind === 'monster'
+      ? c.stance
+      : roster.entries.find((e) => e.id === c.rosterId)?.play.turn.stance;
+
+  /** Whether their one reaction is already gone. */
+  const reactionSpentOf = (c: Combatant): boolean =>
+    c.kind === 'monster'
+      ? !!c.reactionSpent
+      : !!roster.entries.find((e) => e.id === c.rosterId)?.play.turn.reaction;
+
+  /** Spend it, composed onto the given roster rather than written. */
+  const spendReactionOf = (target: Roster, c: Combatant): Roster => {
+    if (c.kind === 'monster') {
+      return updateEncounter(target, spendMonsterReaction(activeEncounter(target), c.id));
+    }
+    const entry = target.entries.find((e) => e.id === c.rosterId);
+    return entry ? updatePlay(target, entry.id, setTurnSlot(entry.play, 'reaction', true)) : target;
+  };
+
+  /** Everything they can swing, either side of the table, for the questions
+      that are about reach rather than about choosing. */
+  const allStrikesFor = (c: Combatant): Strike[] => {
+    if (c.kind !== 'monster') return strikesFor(c);
+    const monster = byId.get(c.monsterId);
+    return monster ? singleStrikes(monster) : [];
+  };
+
+  /**
+   * The one attack they get for reacting.
+   *
+   * One, and melee - an opportunity attack is a single melee attack, never a
+   * Multiattack, and a dragon reacting with its whole routine would be the
+   * biggest damage bug this app could ship. A character takes their main hand,
+   * which is the first line the sheet lists.
+   */
+  const opportunitySwing = (c: Combatant): Strike[] => {
+    if (c.kind === 'monster') {
+      const monster = byId.get(c.monsterId);
+      return monster ? opportunityStrike(monster) : [];
+    }
+    const melee = strikesFor(c).filter(isMelee);
+    return melee.length ? [melee[0]] : [];
+  };
+
   /** And who caused them, for the conditions that turn on it. */
   const sourcesOf = (c: Combatant): Record<string, string> =>
     (c.kind === 'monster'
@@ -1742,6 +1850,16 @@ export function TableTab({
           toHit: line.toHit,
           magical: line.magical,
           ...(line.weapon.ammo ? { ammo: line.weapon.ammo } : {}),
+          /*
+            Reach, which the monsters have carried since §25.1 and the
+            characters never did - nothing asked until an opportunity attack
+            needed to know whether a glaive reaches the man walking away. A
+            thrown melee weapon counts as melee here on purpose: a dagger in
+            the hand is a dagger in the hand.
+          */
+          range: line.weapon.melee
+            ? { reach: line.weapon.properties.includes('reach') ? 10 : 5 }
+            : { ranged: line.weapon.range ?? { normal: 20, long: 60 } },
           damage: [
             {
               dice: `${dice}${line.damage.bonus ? sign(line.damage.bonus) : ''}`,
@@ -3707,6 +3825,25 @@ export function TableTab({
         })()}
 
       {/*
+        Its reaction and its stance, which are per-turn facts the DM has to be
+        able to see: a goblin that already swung at somebody walking past gets
+        nothing when the next person does, and there is no other way to tell.
+        Silent when neither has happened, so an ordinary turn stays quiet.
+      */}
+      {selected.kind === 'monster' && (selected.reactionSpent || selected.stance) && (
+        <p className="hint" style={{ marginTop: 0 }}>
+          {[
+            selected.reactionSpent ? 'Reaction spent' : '',
+            selected.stance === 'disengage' ? 'Disengaging' : '',
+            selected.stance === 'dodge' ? 'Dodging' : '',
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+          {' — back at the start of its next turn.'}
+        </p>
+      )}
+
+      {/*
         The turn it would take, if it were driving itself.
 
         Above the command menu rather than instead of it: this is a proposal,
@@ -3752,6 +3889,22 @@ export function TableTab({
                   setAim(null);
                   setMoveArmed(false);
                   setShoving({ byId: selected.id, mode });
+                }
+              : undefined
+          }
+          onStance={
+            !isRunning(encounter) || selected.id === active?.id
+              ? (stance) => {
+                  // The state and the line in one write: two would each build
+                  // from this render's encounter and the second would win.
+                  setEncounter(
+                    appendLog(
+                      setMonsterStance(encounter, selected.id, stance),
+                      `${nameOf(selected)} takes the ${
+                        stance === 'disengage' ? 'Disengage' : 'Dodge'
+                      } action.`,
+                    ),
+                  );
                 }
               : undefined
           }

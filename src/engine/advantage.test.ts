@@ -241,3 +241,38 @@ describe('charmed, which the source field also answers', () => {
     expect(mayAttack({ conditions: ['charmed'] }, 'bard')).toBe(true);
   });
 });
+
+describe('the Dodge action, at last worth an action', () => {
+  const plain = { conditions: [] as string[] };
+
+  it('costs the attacker advantage', () => {
+    const odds = oddsFor({
+      attacker: plain,
+      target: { conditions: [], dodging: true },
+      adjacent: true,
+    });
+    expect(odds.mode).toBe('disadvantage');
+    expect(describeOdds(odds)).toContain('target is dodging');
+  });
+
+  it('cancels against a reason to be glad, like every other pair', () => {
+    expect(
+      oddsFor({
+        attacker: { conditions: [], hidden: true },
+        target: { conditions: [], dodging: true },
+        adjacent: true,
+      }).mode,
+    ).toBe('normal');
+  });
+
+  it('is worth nothing once the dodger is stunned', () => {
+    expect(
+      oddsFor({
+        attacker: plain,
+        target: { conditions: ['stunned'], dodging: true },
+        adjacent: true,
+      }).mode,
+      // Stunned already hands out advantage; the dodge does not claw it back.
+    ).toBe('advantage');
+  });
+});
