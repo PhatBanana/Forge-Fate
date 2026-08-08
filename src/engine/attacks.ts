@@ -211,6 +211,14 @@ export interface Attack {
   notes: string[];
   problems: string[];
   proficient: boolean;
+  /**
+   * True when this swing counts as magical.
+   *
+   * Computed here all along and thrown away; §27.1 needs it, because half the
+   * bestiary resists "bludgeoning, piercing and slashing from nonmagical
+   * weapons" and whether the mace is enchanted is the whole question.
+   */
+  magical: boolean;
 }
 
 export interface AttackInput {
@@ -421,6 +429,10 @@ function oneAttack(weapon: Weapon, hand: 'main' | 'off', input: AttackInput): At
     notes,
     problems,
     proficient,
+    // Any magic bonus at all - from the weapon, an attuned item or the
+    // ammunition - makes the blow magical for the purposes of a stat block
+    // that resists nonmagical weapons.
+    magical: magic > 0,
   };
 }
 

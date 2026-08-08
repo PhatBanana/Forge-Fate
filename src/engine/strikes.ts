@@ -35,6 +35,13 @@ export interface Strike {
   toHit: number;
   damage: { dice: string; type: string }[];
   /**
+   * True when the blow counts as magical, which decides every "from
+   * nonmagical weapons" clause in the bestiary. Absent reads as mundane,
+   * which is right for a monster's claws unless its stat block says otherwise
+   * in prose this app does not parse.
+   */
+  magical?: boolean;
+  /**
    * How far it reaches. Absent when the prose did not say - a homebrew
    * monster written in the bestiary workshop has no SRD sentence to read -
    * and callers treat that as ordinary melee rather than as unlimited.

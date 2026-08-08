@@ -63,6 +63,8 @@ import {
 import type { EncounterState, Square } from '../encounter';
 import { placeZone } from '../surfaces';
 import { canShove, fallDamage, fallFeet, pushedTo, shoveContest } from '../engine/shove';
+import { applyDefences } from '../engine/defences';
+import type { Defences } from '../engine/defences';
 import { HOUSE_RULE_INFO, highGroundBonus, loadHouseRules, saveHouseRules } from '../houseRules';
 import type { HouseRules } from '../houseRules';
 import { SURFACE_KINDS } from '../zones';
@@ -1064,6 +1066,11 @@ export function TableTab({
 
     let totalDamage = 0;
     const lines: string[] = [];
+    /*
+      What the defences had to say, gathered once rather than repeated per
+      swing - a dragon's three claws against one resistance is one sentence.
+    */
+    const rulingNotes = new Set<string>();
 
     for (const strike of strikes) {
       const d20 = rollD20(strike.toHit + highGround + attackerGround.toHit, 'normal', defaultRng);
@@ -1083,8 +1090,24 @@ export function TableTab({
         const parsed = parseNotation(part.dice);
         if (!parsed) continue;
         const rolled = rollDamage(parsed, crit, defaultRng);
-        dealt += rolled.total;
-        parts.push(`${rolled.total} ${part.type}`);
+        /*
+          Through the target's defences, per damage part - a strike that deals
+          slashing and fire against something that only resists fire has to
+          split, which is why this is inside the loop rather than applied to
+          the total.
+        */
+        const through = applyDefences(
+          rolled.total,
+          { type: part.type.toLowerCase(), magical: strike.magical },
+          defencesOf(target),
+        );
+        dealt += through.dealt;
+        parts.push(
+          through.dealt === rolled.total
+            ? `${rolled.total} ${part.type}`
+            : `${rolled.total} → ${through.dealt} ${part.type}`,
+        );
+        for (const note of through.notes) rulingNotes.add(note);
       }
       totalDamage += dealt;
       lines.push(
@@ -1117,6 +1140,9 @@ export function TableTab({
     }
     if (target.kind === 'monster' && target.dormant) {
       enc = appendLog(setDormant(enc, target.id, false), `${targetName} activates!`);
+    }
+    if (rulingNotes.size) {
+      enc = appendLog(enc, `${targetName} — ${[...rulingNotes].join('; ')}.`);
     }
     for (const line of lines.reverse()) enc = appendLog(enc, line);
     // The concentration reminder rides with the damage, because that is the
@@ -1234,16 +1260,24 @@ export function TableTab({
     if (!parsed) return updated;
     const rolled = rollNotation(parsed, defaultRng).total;
 
-    let dealt = rolled;
-    let saveNote = '';
+    // A fire elemental standing in a wall of fire is the case this fixes.
+    const through = applyDefences(
+      rolled,
+      { type: effect.damage.type.toLowerCase() },
+      defencesOf(combatant),
+    );
+    let dealt = through.dealt;
+    let saveNote = through.notes.length ? ` (${through.notes.join('; ')})` : '';
     if (effect.save) {
       const bonus =
         (saveBonusFor(combatant, effect.save.ability as 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha') ??
           0) + grantsUnder(encNow.zones, combatant.at, sideOf(combatant.kind)).saves;
       const total = rollD20(bonus, 'normal', defaultRng).total;
       const pass = total >= effect.save.dc;
-      if (pass) dealt = effect.save.half ? Math.floor(rolled / 2) : 0;
-      saveNote = ` — ${effect.save.ability.toUpperCase()} save ${total} vs DC ${effect.save.dc}: ${pass ? 'pass' : 'FAIL'}`;
+      // Halving the post-defence figure, not the raw roll: resistance and a
+      // successful save both apply, and each halves what is left.
+      if (pass) dealt = effect.save.half ? Math.floor(dealt / 2) : 0;
+      saveNote += ` — ${effect.save.ability.toUpperCase()} save ${total} vs DC ${effect.save.dc}: ${pass ? 'pass' : 'FAIL'}`;
     }
 
     const name = nameOf(combatant);
@@ -1356,6 +1390,22 @@ export function TableTab({
       info.ctx.proficiencies.skills.find((s) => s.skill === skill)?.modifier ??
       info.ctx.mods[fallback]
     );
+  };
+
+  /**
+   * What a creature resists, is immune to, or is vulnerable to.
+   *
+   * Monsters carry all three on the stat block; characters carry none - the
+   * build model has an AC/HP `Defenses` and no damage-type resistances at all,
+   * so a raging Barbarian or a Dragonborn's ancestry is still the DM's to
+   * apply by hand. Named here so the gap is visible rather than implied.
+   */
+  const defencesOf = (c: Combatant): Defences => {
+    if (c.kind !== 'monster') return {};
+    const monster = byId.get(c.monsterId);
+    return monster
+      ? { resist: monster.resist, immune: monster.immune, vulnerable: monster.vulnerable }
+      : {};
   };
 
   /** A creature's size, for the rule that nobody shoves what towers over them. */
@@ -1550,6 +1600,7 @@ export function TableTab({
         return {
           label: line.weapon.name,
           toHit: line.toHit,
+          magical: line.magical,
           damage: [
             {
               dice: `${dice}${line.damage.bonus ? sign(line.damage.bonus) : ''}`,
