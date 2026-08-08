@@ -2298,6 +2298,81 @@ the app enforces.
 
 ---
 
+## 31. The UI makeover: a game rather than a page
+
+Asked for in a sentence — *"the UI should feel more like a full screen game
+with buttons and menus to pull up characters, monsters, terrain"* — and the
+defect behind it was measurable rather than a matter of taste. On a 1360×900
+screen the battlefield began **460 pixels down a scrolling page** and ran off
+the bottom. A DM had to scroll to see their own map, and every panel opened
+underneath pushed it further away. Thirty sections of building a very good
+*document*.
+
+- `[x]` **31.1 The frame.** The shell is a screen: exactly the height of the
+  window, chrome pinned at the top, one region below it that fills whatever is
+  left, and nothing scrolls but the insides of things. A tab that really is a
+  document — the Builder, the character sheet — scrolls within the frame and
+  puts its 1240px measure back on, because 74 characters of prose on a 27-inch
+  monitor is not an improvement.
+
+  `100dvh` rather than `100vh`: on a tablet with a retracting browser bar those
+  differ by the height of the bar, and the version that guesses wrong hides a
+  command bar behind chrome. Paper has no viewport, so print undoes all of it.
+- `[x]` **31.2 The title screen.** The app opens on a menu that says what it
+  knows: which character is loaded, which campaign is being played, and whether
+  a fight is still on the table. That last one is why it earns its place — a DM
+  who closed the laptop mid-combat gets **"Resume the fight — Round 1 is still
+  on the table"**, where before they got a Builder and a hunt.
+
+  No animation and no splash. This is in front of somebody every launch, and a
+  screen you sit through is one you resent by the fourth time. A share link
+  still lands straight on the character: a menu in front of it is a question
+  the link already answered.
+- `[x]` **31.3 The battle HUD.** The map *is* the screen. Initiative along the
+  top, the cockpit docked right, the last three log lines bottom-left, and
+  seven command-bar buttons — Party, Bestiary, Field, Areas, Order, Prep,
+  After — that slide over the map and go away. One at a time, Escape closes.
+
+  The cockpit **reserves** its width rather than floating, which is a
+  correction to the first draft: deploy puts monsters in the rooms farthest
+  from the party, those are often on the right, and the probe caught a goblin
+  standing behind the cockpit where nobody could click it. A drawer may cover
+  the map, because a drawer is something you opened on purpose.
+- `[x]` **31.4 The Builder becomes a route.** The five sections were already
+  the steps of making a character; the strip above them said so only by their
+  order, which is the one thing a row of pills does not communicate. Numbered,
+  with Back and Next that name where they go. The last step says everything is
+  already saved rather than offering a Finish — nothing is submitted at the
+  end, and a Finish button would be a lie about how this app works. Still tabs:
+  a returning player editing one thing must not walk past four screens.
+- `[x]` **31.5 Chrome.** Three moves and no more. The cut corner the mode
+  switch has had since §12.1 goes onto everything you press to go somewhere; a
+  bevel — a hairline of light on top, a shadow under, reversed when held — which
+  is the whole trick behind why a game's buttons look pressable; and weight on
+  the selected tab, because an underline is a table of contents and a fill is a
+  menu.
+
+**The Workspace is deleted.** §10.1 built it as a shell "so a second surface
+can adopt it if it earns it, rather than because every screen should look the
+same". No second surface ever did, and the one that had it moved on — a battle
+screen with a resizable left rail is a tool for reading about a fight rather
+than for running one. Unused code carrying its own tests reads as
+load-bearing, so it goes.
+
+**A correction to §§27, 29 and 30.** Every "verified in both themes" claim
+before this section was false. The probes set the theme by writing
+`localStorage`, but the theme goes through `persist`, which is IndexedDB-backed
+in a browser — so that key was never read and both runs rendered parchment. The
+behaviour those probes checked was real; the theme coverage was not. They click
+the toggle now.
+
+**What the test migration found.** The 122 battle-screen tests open the drawer
+a control lives in, which is what a DM does. One of them caught the trap that
+creates: a node captured before a drawer closes is detached by the time it is
+clicked, and clicking a detached node does nothing at all.
+
+---
+
 ## Recently completed
 
 The SRD audit pass, in order. Each was a real defect, not a tidy-up.
