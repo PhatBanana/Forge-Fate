@@ -4,10 +4,13 @@ import {
   addZone,
   bitesOnEnter,
   combatantsIn,
+  grantsUnder,
   hazardsCrossed,
   hydrateZones,
   removeZone,
+  sideOf,
   tickZones,
+  zoneReaches,
   zoneSquareKeys,
   zoneSquares,
 } from './zones';
@@ -211,5 +214,114 @@ describe('what a zone does', () => {
     const force = ZONE_PRESETS.find((p) => p.id === 'wall-of-force')!;
     expect(force.effect?.blocks).toBe(true);
     expect(force.effect?.damage).toBeUndefined();
+  });
+});
+
+describe('whose side the ground is on', () => {
+  const zone = (effect: Partial<import('./zones').ZoneEffect>): Zone => ({
+    id: 'z1',
+    label: 'Spirit Guardians',
+    shape: 'sphere',
+    at: { x: 5, y: 5 },
+    feet: 15,
+    angle: 0,
+    tint: 0,
+    effect,
+  });
+
+  it('reaches everyone when it does not say', () => {
+    // Fire does not check sides, and that stays the default.
+    const fire = zone({ damage: { dice: '5d8', type: 'fire' }, onEnter: true });
+    expect(zoneReaches(fire, 'party')).toBe(true);
+    expect(zoneReaches(fire, 'monsters')).toBe(true);
+  });
+
+  it('reaches only the side it names', () => {
+    // The whole shape of Spirit Guardians: it burns what is coming for you
+    // and leaves your own cleric alone.
+    const guardians = zone({ damage: { dice: '3d8', type: 'radiant' }, affects: 'monsters' });
+    expect(zoneReaches(guardians, 'monsters')).toBe(true);
+    expect(zoneReaches(guardians, 'party')).toBe(false);
+  });
+
+  it('names a side for each kind of combatant', () => {
+    expect(sideOf('character')).toBe('party');
+    expect(sideOf('monster')).toBe('monsters');
+  });
+});
+
+describe('what standing somewhere is worth', () => {
+  const aura = (at: { x: number; y: number }, grants: import('./zones').ZoneGrant): Zone => ({
+    id: `a${at.x}${at.y}`,
+    label: 'Aura of Protection',
+    shape: 'sphere',
+    at,
+    feet: 10,
+    angle: 0,
+    tint: 0,
+    effect: { grants, affects: 'party' },
+  });
+
+  it('is nothing at all when standing nowhere in particular', () => {
+    expect(grantsUnder([aura({ x: 5, y: 5 }, { saves: 3 })], { x: 40, y: 40 }, 'party')).toMatchObject({
+      ac: 0,
+      saves: 0,
+      toHit: 0,
+    });
+    expect(grantsUnder(undefined, { x: 5, y: 5 }, 'party').saves).toBe(0);
+    expect(grantsUnder([aura({ x: 5, y: 5 }, { saves: 3 })], undefined, 'party').saves).toBe(0);
+  });
+
+  it('adds up what the ground gives, for the side it gives it to', () => {
+    const zones = [aura({ x: 5, y: 5 }, { saves: 3, ac: 1 })];
+    expect(grantsUnder(zones, { x: 6, y: 5 }, 'party')).toMatchObject({ saves: 3, ac: 1 });
+    // The paladin's aura does nothing for the goblin standing in it.
+    expect(grantsUnder(zones, { x: 6, y: 5 }, 'monsters')).toMatchObject({ saves: 0, ac: 0 });
+  });
+
+  it('stacks two overlapping auras, which is a ruling made on purpose', () => {
+    // The SRD's non-stacking rule is about the same spell cast twice; two
+    // different beneficial areas are two different effects. A table that
+    // disagrees can move a token five feet, which is what a map is for.
+    const zones = [aura({ x: 5, y: 5 }, { saves: 3 }), aura({ x: 6, y: 5 }, { saves: 2 })];
+    expect(grantsUnder(zones, { x: 5, y: 5 }, 'party').saves).toBe(5);
+  });
+
+  it('collects the notes it cannot apply rather than dropping them', () => {
+    const fog: Zone = {
+      id: 'f',
+      label: 'Fog Cloud',
+      shape: 'sphere',
+      at: { x: 5, y: 5 },
+      feet: 20,
+      angle: 0,
+      tint: 0,
+      effect: { grants: { note: 'Heavily obscured.' } },
+    };
+    expect(grantsUnder([fog], { x: 5, y: 5 }, 'monsters').notes).toEqual([
+      'Fog Cloud: Heavily obscured.',
+    ]);
+  });
+});
+
+describe('grants that come back off the disk', () => {
+  const stored = (effect: unknown) => [
+    { id: 'z', label: 'X', shape: 'sphere', at: { x: 1, y: 1 }, feet: 10, angle: 0, tint: 0, effect },
+  ];
+
+  it('keeps a grant it understands', () => {
+    const zones = hydrateZones(stored({ grants: { saves: 3, note: 'hi' }, affects: 'party' }))!;
+    expect(zones[0].effect?.grants).toEqual({ saves: 3, note: 'hi' });
+    expect(zones[0].effect?.affects).toBe('party');
+  });
+
+  it('drops a number that is not one, rather than poisoning an AC with NaN', () => {
+    const zones = hydrateZones(stored({ grants: { ac: 'lots', saves: null } }))!;
+    expect(zones[0].effect?.grants).toBeUndefined();
+  });
+
+  it('ignores a side it does not recognise', () => {
+    const zones = hydrateZones(stored({ damage: { dice: '1d6', type: 'fire' }, affects: 'nobody' }))!;
+    expect(zones[0].effect?.affects).toBeUndefined();
   });
 });

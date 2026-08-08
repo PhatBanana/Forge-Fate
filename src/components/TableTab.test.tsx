@@ -2654,3 +2654,94 @@ describe('the optional rules', () => {
     ).toBe(true);
   });
 });
+
+/**
+ * Section 26.4. The zone model could say "this ground hurts" and nothing
+ * else, which left every beneficial area a drawing with a label - and left
+ * Spirit Guardians, which hurts only one side, impossible to state correctly.
+ */
+describe('ground that helps, and ground that picks a side', () => {
+  const mapEl6 = () => document.querySelector('.dmap') as SVGSVGElement;
+  const boxMap6 = () => {
+    mapEl6().getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+  };
+
+  const dropAt6 = async (
+    user: ReturnType<typeof userEvent.setup>,
+    preset: string,
+    at: { x: number; y: number },
+  ) => {
+    await user.selectOptions(screen.getByLabelText(/load a hazard from the shelf/i), preset);
+    await user.click(screen.getByRole('button', { name: /place on map/i }));
+    boxMap6();
+    fireEvent.pointerDown(mapEl6(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
+    if (screen.queryByText(/click the way it points/i)) {
+      fireEvent.pointerDown(mapEl6(), { clientX: (at.x + 3.5) * 10, clientY: (at.y + 0.5) * 10 });
+    }
+  };
+
+  const logOf = (view: ReturnType<typeof setup>) =>
+    (view.encounter.log ?? []).map((l) => l.text).join('\n');
+
+  it('carries the shelf’s beneficial areas, not only its hazards', async () => {
+    const user = userEvent.setup();
+    setup(party());
+    const shelf = screen.getByLabelText(/load a hazard from the shelf/i);
+    const labels = [...shelf.querySelectorAll('option')].map((o) => o.textContent);
+    expect(labels).toContain('Aura of Protection');
+    expect(labels).toContain('Spirit Guardians');
+    await user.selectOptions(shelf, 'aura-of-protection');
+  });
+
+  it('adds the aura to a saving throw rolled inside it', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
+    const standing = view.encounter.combatants[0].at!;
+
+    // Roll the room once with no aura, then again standing in one: the same
+    // character's bonus is three higher, which is the whole feature.
+    await user.click(screen.getByRole('button', { name: /roll the room/i }));
+    const before = [...document.querySelectorAll('.reasons li')][0]?.textContent ?? '';
+
+    await dropAt6(user, 'aura-of-protection', standing);
+    await user.click(screen.getByRole('button', { name: /roll the room/i }));
+    const after = [...document.querySelectorAll('.reasons li')][0]?.textContent ?? '';
+
+    const bonusIn = (text: string) => Number(/([+-]\d+)/.exec(text)?.[1] ?? '0');
+    expect(bonusIn(after) - bonusIn(before)).toBe(3);
+  });
+
+  it('burns the goblin standing in Spirit Guardians and not the fighter', async () => {
+    const user = userEvent.setup();
+    const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
+    await bestiaryReady();
+    const name = view.roster.entries[0].build.name;
+    await user.click(screen.getByRole('button', { name }));
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
+    const entry = [...document.querySelectorAll('.mon-list li')].find(
+      (li) => li.querySelector('b')?.textContent === 'Goblin',
+    ) as HTMLElement;
+    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
+
+    const goblin = () => view.encounter.combatants.find((c) => c.kind === 'monster') as MonsterCombatant;
+    // The circle lands on the goblin.
+    await dropAt6(user, 'spirit-guardians', goblin().at!);
+
+    fireEvent.change(within(rowFor('Goblin')).getByLabelText(/goblin initiative/i), {
+      target: { value: '30' },
+    });
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+    const hpBefore = goblin().hp;
+    await user.click(screen.getByRole('button', { name: /end turn/i }));
+
+    // Ending a turn inside it costs the goblin.
+    expect(goblin().hp).toBeLessThanOrEqual(hpBefore);
+    expect(logOf(view)).toMatch(/Goblin.*Spirit Guardians/);
+    // And the fighter, standing in their own circle, is untouched by it.
+    expect(logOf(view)).not.toMatch(new RegExp(`${name}[^\\n]*Spirit Guardians`));
+  });
+});

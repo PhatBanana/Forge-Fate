@@ -13,10 +13,13 @@ import {
   bitesOnEndTurn,
   bitesOnEnter,
   combatantsIn,
+  grantsUnder,
   hazardsCrossed,
   inZone,
   removeZone,
+  sideOf,
   tickZones,
+  zoneReaches,
   zoneSquareKeys,
   zoneSquares,
 } from '../zones';
@@ -482,6 +485,8 @@ export function TableTab({
 
     // The ground settles up: every biting zone the route entered, once each.
     for (const zone of hazardsCrossed(encNow.zones, route)) {
+      // Spirit Guardians does not burn the cleric who cast it.
+      if (!zoneReaches(zone, sideOf(self.kind))) continue;
       next = biteZone(next, self.id, zone, 'walks into');
     }
     return next;
@@ -810,6 +815,13 @@ export function TableTab({
     () => ({
       blocked: zoneSquareKeys(encounter.zones, (z) => Boolean(z.effect?.blocks)),
       difficult: zoneSquareKeys(encounter.zones, (z) => Boolean(z.effect?.difficult)),
+      // The same ground, filtered to the side it actually slows - Spirit
+      // Guardians is deep going for the goblins and open floor for the party.
+      difficultFor: (side: 'party' | 'monsters') =>
+        zoneSquareKeys(
+          encounter.zones,
+          (z) => Boolean(z.effect?.difficult) && zoneReaches(z, side),
+        ),
       hazard: zoneSquareKeys(encounter.zones, bitesOnEnter),
     }),
     [encounter.zones],
@@ -822,7 +834,7 @@ export function TableTab({
     // Uncapped, so the ruler can measure the long way round the whole map.
     return walkMap(sightContext, selected.at, Infinity, {
       blocked: zoneOverlays.blocked,
-      difficult: zoneOverlays.difficult,
+      difficult: zoneOverlays.difficultFor(sideOf(selected.kind)),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, encounter.combatants, roster.entries, sightContext, zoneOverlays]);
@@ -837,7 +849,7 @@ export function TableTab({
     if (!walk || !selected?.at || zoneOverlays.hazard.size === 0) return walk;
     return walkMap(sightContext, selected.at, Infinity, {
       blocked: zoneOverlays.blocked,
-      difficult: zoneOverlays.difficult,
+      difficult: zoneOverlays.difficultFor(sideOf(selected.kind)),
       avoid: zoneOverlays.hazard,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -865,7 +877,9 @@ export function TableTab({
     if (!sources.length) return null;
     return walkMap(sightContext, sources, Infinity, {
       blocked: zoneOverlays.blocked,
-      difficult: zoneOverlays.difficult,
+      // Seeded from the party but walked by a monster, so the ground is
+      // priced the way the monster will experience it.
+      difficult: zoneOverlays.difficultFor('monsters'),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [encounter.combatants, roster.entries, sightContext, zoneOverlays]);
@@ -1000,7 +1014,16 @@ export function TableTab({
       attackerAt && target.at
         ? lineOfSight(sightContext, attackerAt, target.at).cover
         : false;
-    const effectiveAc = targetAc + (cover ? 2 : 0);
+    /*
+      The ground both of them are standing on. A paladin's aura raises the
+      target's AC; standing somewhere that steadies your hand raises the
+      roll. Both are the same `grants` field read from two squares.
+    */
+    const targetGround = grantsUnder(enc.zones, target.at, sideOf(target.kind));
+    const attackerGround = attacker
+      ? grantsUnder(enc.zones, attackerAt, sideOf(attacker.kind))
+      : { toHit: 0, notes: [] as string[] };
+    const effectiveAc = targetAc + (cover ? 2 : 0) + targetGround.ac;
     /*
       High ground, applied only if the table said so. The steps come from the
       one function that decides who is uphill; whether they are worth anything
@@ -1032,6 +1055,9 @@ export function TableTab({
         ? 'flanked'
         : '',
       uphill > 0 ? (highGround ? `high ground +${highGround}` : 'high ground') : '',
+      targetGround.ac ? `+${targetGround.ac} AC from the ground` : '',
+      attackerGround.toHit ? `+${attackerGround.toHit} to hit from the ground` : '',
+      ...targetGround.notes,
       attacker?.hidden !== undefined ? 'unseen attacker — advantage' : '',
     ].filter(Boolean);
     const ruling = rulings.length ? ` (${rulings.join(', ')})` : '';
@@ -1040,7 +1066,7 @@ export function TableTab({
     const lines: string[] = [];
 
     for (const strike of strikes) {
-      const d20 = rollD20(strike.toHit + highGround, 'normal', defaultRng);
+      const d20 = rollD20(strike.toHit + highGround + attackerGround.toHit, 'normal', defaultRng);
       const natural = d20.rolls[d20.kept] ?? d20.rolls[0];
       const crit = natural === 20;
       const hit = natural !== 1 && (crit || d20.total >= effectiveAc);
@@ -1212,7 +1238,8 @@ export function TableTab({
     let saveNote = '';
     if (effect.save) {
       const bonus =
-        saveBonusFor(combatant, effect.save.ability as 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha') ?? 0;
+        (saveBonusFor(combatant, effect.save.ability as 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha') ??
+          0) + grantsUnder(encNow.zones, combatant.at, sideOf(combatant.kind)).saves;
       const total = rollD20(bonus, 'normal', defaultRng).total;
       const pass = total >= effect.save.dc;
       if (pass) dealt = effect.save.half ? Math.floor(rolled / 2) : 0;
@@ -1255,6 +1282,33 @@ export function TableTab({
       }
       out = updatePlay(out, entry.id, damage(entry.play, dealt, max));
     }
+    return out;
+  };
+
+  /**
+   * Ground that mends rather than bites: rolled and applied like a bite, with
+   * the sign turned round. Returns the roster so it composes with everything
+   * else a turn's end settles.
+   */
+  const healFromZone = (updated: Roster, combatantId: string, dice: string): Roster => {
+    const encNow = activeEncounter(updated);
+    const c = encNow.combatants.find((x) => x.id === combatantId);
+    const parsed = parseNotation(dice);
+    if (!c || !parsed) return updated;
+    const hp = hpOf(c);
+    // Nothing to mend on somebody at full, and nothing at all for the dead:
+    // healing the dropped is a ruling, and a loud one, not a side effect of
+    // standing somewhere.
+    if (!hp || hp.now <= 0 || hp.now >= hp.max) return updated;
+    const rolled = rollNotation(parsed, defaultRng).total;
+    const enc = appendLog(encNow, `${nameOf(c)} ends their turn on healing ground — ${rolled} back.`);
+    // Negative damage, which is how the rail's own +5 button already heals a
+    // monster - `damageMonster` clamps at both ends.
+    if (c.kind === 'monster') return updateEncounter(updated, damageMonster(enc, c.id, -rolled));
+    let out = updateEncounter(updated, enc);
+    const entry = out.entries.find((e) => e.id === c.rosterId);
+    const max = derived.get(c.rosterId)?.ctx.hp.total ?? 0;
+    if (entry) out = updatePlay(out, entry.id, heal(entry.play, rolled, max));
     return out;
   };
 
@@ -1678,8 +1732,11 @@ export function TableTab({
       .map((c) => {
         const hp = hpOf(c);
         if (!hp || hp.now === 0) return null;
-        const bonus = saveBonusFor(c, ability);
-        if (bonus === null) return null;
+        const base = saveBonusFor(c, ability);
+        if (base === null) return null;
+        // The ground counts: a paladin's aura is a saving throw bonus and
+        // nothing else, and the room save is where it earns its keep.
+        const bonus = base + grantsUnder(encounter.zones, c.at, sideOf(c.kind)).saves;
         const total = rollD20(bonus, 'normal', defaultRng).total;
         return { id: c.id, name: nameOf(c), bonus, total, pass: total >= saveForm.dc };
       })
@@ -1762,8 +1819,16 @@ export function TableTab({
     let base = roster;
     if (isRunning(encounter) && active?.at) {
       for (const zone of (encounter.zones ?? []).filter(bitesOnEndTurn)) {
+        if (!zoneReaches(zone, sideOf(active.kind))) continue;
         if (inZone(zone, active.at)) base = biteZone(base, active.id, zone, 'ends their turn in');
       }
+      /*
+        And the ground that heals rather than bites, on the same beat: a turn
+        ended inside a helpful area is worth something, composed into the same
+        write as everything else the turn's end settles.
+      */
+      const under = grantsUnder(encounter.zones, active.at, sideOf(active.kind));
+      for (const dice of under.heals) base = healFromZone(base, active.id, dice);
     }
     const encNow = activeEncounter(base);
 

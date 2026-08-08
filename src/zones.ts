@@ -58,6 +58,37 @@ export const SURFACE_KINDS: { kind: SurfaceKind; label: string }[] = [
   { kind: 'lightning', label: 'Lightning' },
 ];
 
+/**
+ * Which side a zone's effect reaches. Absent is everyone.
+ *
+ * "party" and "monsters" rather than "allies" and "enemies" because the map
+ * has exactly two sides and naming them after what they are avoids asking
+ * whose point of view the word is from.
+ */
+export type ZoneSide = 'party' | 'monsters';
+
+/**
+ * What standing in a zone is worth.
+ *
+ * Numbers where the app can apply them and a note where it cannot, which is
+ * the same division the rest of this app uses: a fog cloud's obscurement is a
+ * paragraph of rulings about who can see whom, and belongs in a sentence the
+ * DM reads, while a paladin's aura is plainly +3 to saves and belongs in the
+ * arithmetic.
+ */
+export interface ZoneGrant {
+  /** Added to the AC of whoever is standing in it. */
+  ac?: number;
+  /** Added to attack rolls made *from* inside it. */
+  toHit?: number;
+  /** Added to saving throws made inside it. */
+  saves?: number;
+  /** Rolled at the end of a turn spent inside it, as healing. */
+  heal?: string;
+  /** Anything richer, said rather than applied. */
+  note?: string;
+}
+
 /** The battlefield-enforced part of what a zone does. All optional - a zone
     with no effect is the old kind, drawn and counted and nothing more. */
 export interface ZoneEffect {
@@ -73,6 +104,26 @@ export interface ZoneEffect {
   blocks?: boolean;
   /** Web, grease: its ground costs double to cross. */
   difficult?: boolean;
+  /**
+   * Who this zone's effect reaches.
+   *
+   * Absent means everyone, which is right for a wall of fire - fire does not
+   * check sides. Spirit Guardians does: it burns your enemies and leaves your
+   * cleric alone, and until this field existed the app could not express that
+   * at all, so the spell was either wrong or absent. It gates the damage, the
+   * difficult ground and the grants alike, because a spell that helps one side
+   * usually hinders the other by the same token.
+   */
+  affects?: ZoneSide;
+  /**
+   * What standing in it is worth, for the zones that help rather than hurt.
+   *
+   * The whole zone model has been able to say "this ground hurts" since 23.1
+   * and nothing else, which left every beneficial area - a paladin's aura, a
+   * fog cloud somebody is hiding in - as a drawing with a label. This is the
+   * other sign.
+   */
+  grants?: ZoneGrant;
   /**
    * What the ground is made of, when it is made of anything.
    *
@@ -216,6 +267,48 @@ export const ZONE_PRESETS: {
     which is the reaction everyone reaches for first.
   */
   {
+    id: 'spirit-guardians',
+    label: 'Spirit Guardians',
+    shape: 'sphere',
+    feet: 15,
+    rounds: 100,
+    effect: {
+      damage: { dice: '3d8', type: 'radiant' },
+      save: { ability: 'wis', dc: 15, half: true },
+      onEnter: true,
+      onEndTurn: true,
+      difficult: true,
+      // The spell's whole shape: it burns what is coming for you and lets
+      // your own side walk through it. Before `affects` the app could only
+      // have this spell wrong.
+      affects: 'monsters',
+    },
+  },
+  {
+    id: 'aura-of-protection',
+    label: 'Aura of Protection',
+    shape: 'sphere',
+    feet: 10,
+    effect: {
+      // The paladin's Charisma, typed in as the DC field the form already
+      // has; a level 6 paladin is usually +3 and often more later.
+      grants: { saves: 3 },
+      affects: 'party',
+    },
+  },
+  {
+    id: 'fog-cloud',
+    label: 'Fog Cloud',
+    shape: 'sphere',
+    feet: 20,
+    rounds: 100,
+    effect: {
+      grants: {
+        note: 'Heavily obscured — anyone inside is effectively blinded, so attacks in or out are made blind.',
+      },
+    },
+  },
+  {
     id: 'water',
     label: 'Water',
     shape: 'sphere',
@@ -317,6 +410,21 @@ export function zoneSquareKeys(
   return keys;
 }
 
+/**
+ * Whether a zone's effect reaches a given side.
+ *
+ * The default is everyone, because that is what fire does. A zone that names
+ * a side reaches only that side - which gates its damage, its difficult
+ * ground and its grants together, since a spell that helps one side usually
+ * hinders the other by the same token.
+ */
+export const zoneReaches = (zone: Zone, side: ZoneSide): boolean =>
+  zone.effect?.affects === undefined || zone.effect.affects === side;
+
+/** Which side a combatant is on, in the terms a zone is written in. */
+export const sideOf = (kind: 'character' | 'monster'): ZoneSide =>
+  kind === 'character' ? 'party' : 'monsters';
+
 /** A zone that damages whoever walks into it. */
 export const bitesOnEnter = (zone: Zone): boolean =>
   Boolean(zone.effect?.onEnter && zone.effect.damage);
@@ -324,6 +432,33 @@ export const bitesOnEnter = (zone: Zone): boolean =>
 /** A zone that damages whoever ends a turn inside it. */
 export const bitesOnEndTurn = (zone: Zone): boolean =>
   Boolean(zone.effect?.onEndTurn && zone.effect.damage);
+
+/**
+ * Everything the ground under somebody is worth, added up.
+ *
+ * Two auras overlapping stack, which is a ruling this makes on purpose: the
+ * SRD's non-stacking rule is about the *same* spell cast twice, and two
+ * different beneficial areas are two different effects. A table that
+ * disagrees can move a token five feet, which is the whole point of a map.
+ */
+export function grantsUnder(
+  zones: Zone[] | undefined,
+  at: Square | undefined,
+  side: ZoneSide,
+): Required<Pick<ZoneGrant, 'ac' | 'toHit' | 'saves'>> & { notes: string[]; heals: string[] } {
+  const out = { ac: 0, toHit: 0, saves: 0, notes: [] as string[], heals: [] as string[] };
+  if (!at) return out;
+  for (const zone of zones ?? []) {
+    const grant = zone.effect?.grants;
+    if (!grant || !zoneReaches(zone, side) || !inZone(zone, at)) continue;
+    out.ac += grant.ac ?? 0;
+    out.toHit += grant.toHit ?? 0;
+    out.saves += grant.saves ?? 0;
+    if (grant.note) out.notes.push(`${zone.label}: ${grant.note}`);
+    if (grant.heal) out.heals.push(grant.heal);
+  }
+  return out;
+}
 
 /**
  * Which biting zones a walked route enters - each zone once, however many of
@@ -395,6 +530,19 @@ function hydrateEffect(parsed: unknown): ZoneEffect | undefined {
   if (raw.onEndTurn) out.onEndTurn = true;
   if (raw.blocks) out.blocks = true;
   if (raw.difficult) out.difficult = true;
+  if (raw.affects === 'party' || raw.affects === 'monsters') out.affects = raw.affects;
+  if (raw.grants && typeof raw.grants === 'object') {
+    const g = raw.grants as Partial<ZoneGrant>;
+    const grant: ZoneGrant = {};
+    // Field by field and finite-checked: a stored NaN would poison every AC
+    // it touched, and silently.
+    if (Number.isFinite(g.ac)) grant.ac = g.ac;
+    if (Number.isFinite(g.toHit)) grant.toHit = g.toHit;
+    if (Number.isFinite(g.saves)) grant.saves = g.saves;
+    if (typeof g.heal === 'string') grant.heal = g.heal;
+    if (typeof g.note === 'string') grant.note = g.note;
+    if (Object.keys(grant).length) out.grants = grant;
+  }
   // Checked against the list rather than taken on trust: a saved surface of
   // "banana" would otherwise reach the reaction table as a material.
   if (typeof raw.surface === 'string' && SURFACE_KINDS.some((s) => s.kind === raw.surface)) {
