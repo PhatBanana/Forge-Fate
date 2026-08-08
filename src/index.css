@@ -6516,12 +6516,36 @@ dl.detail-list {
   bottom: 0;
   left: 0;
   right: calc(var(--cockpit) + 8px);
+  /* Centres the drawing in whatever the safe rectangle turns out to be. The
+     floated readouts are absolutely positioned, so they are out of this
+     flow and unaffected. */
+  display: grid;
+  place-items: center;
 }
 
-.btl-stage .dmap,
-.btl-stage .iso {
+/*
+  The drawing fills its element, and this is load-bearing rather than
+  cosmetic.
+
+  §31.3 wrote `height: 100%` here to make the map fill the stage, and an SVG
+  with a `viewBox` letterboxes inside a box of a different aspect - so the
+  drawing stopped filling its own element while `squareAt`
+  (`DungeonMap.tsx:234`) went on dividing clicks through that element's box.
+  On the real 988x662 stage against a 672x504 grid the bars were 52px each
+  side and a click at the drawing's right edge resolved **six squares out**.
+  Token clicks were unaffected, which is why every probe missed it: they all
+  clicked token and tile elements, whose own boxes were right.
+
+  `height: auto` with `max-height: 100%` is the fix and it is the ordinary
+  replaced-element rule: an intrinsic ratio plus a max constraint shrinks the
+  other axis to match, which is `object-fit: contain` without needing it. The
+  element box becomes the drawing box again, `squareAt` becomes exact, and the
+  margins left over are precisely where the floating HUD wants to sit.
+*/
+.btl-stage .dmap {
   width: 100%;
-  height: 100%;
+  height: auto;
+  max-height: 100%;
 }
 
 /*

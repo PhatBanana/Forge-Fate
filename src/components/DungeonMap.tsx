@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { corridorSquares } from '../engine/dungeon';
 import type { Dungeon } from '../engine/dungeon';
 import type { Square } from '../encounter';
+import { toUserSpace } from '../engine/letterbox';
 import { squareOf } from '../terrain';
 import type { ElevationMap, TerrainKind, TerrainMap } from '../terrain';
 
@@ -226,16 +227,26 @@ export function DungeonMap({
   /*
     Client coordinates to a grid square.
 
-    Through the element's own box rather than `getScreenCTM`, because the SVG is
-    laid out with `width: 100%` and a `viewBox`, so the drawing's units and the
-    screen's are never the same scale and the ratio changes with the panel. The
-    box is the one thing that is always current.
+    Through the element's own box rather than `getScreenCTM`, because the SVG
+    is laid out with `width: 100%` and a `viewBox`, so the drawing's units and
+    the screen's are never the same scale and the ratio changes with the panel.
+    The box is the one thing that is always current.
+
+    `toUserSpace` does the division, and it accounts for the letterbox - the
+    drawing is centred inside its element whenever the two aspects disagree,
+    and dividing straight through the box was six squares wrong at the edges
+    of a wide stage. See `engine/letterbox.ts`.
   */
   const squareAt = (clientX: number, clientY: number): Square | null => {
-    const box = svg.current?.getBoundingClientRect();
-    if (!box || !box.width) return null;
-    const x = Math.floor(((clientX - box.left) / box.width) * dungeon.width);
-    const y = Math.floor(((clientY - box.top) / box.height) * dungeon.height);
+    const at = toUserSpace(
+      svg.current?.getBoundingClientRect(),
+      { x: 0, y: 0, width: w, height: h },
+      clientX,
+      clientY,
+    );
+    if (!at) return null;
+    const x = Math.floor(at.x / CELL);
+    const y = Math.floor(at.y / CELL);
     if (x < 0 || y < 0 || x >= dungeon.width || y >= dungeon.height) return null;
     return { x, y };
   };

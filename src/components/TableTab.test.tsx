@@ -1184,6 +1184,59 @@ describe('the fight’s clocks and the drawer', () => {
   });
 });
 
+/*
+  Where a click on empty ground actually lands.
+
+  §31.3 made the map fill the stage with `width:100%; height:100%`, and an SVG
+  with a viewBox letterboxes inside a box of a different aspect - so the
+  drawing stopped filling its own element. `squareAt` maps a click by dividing
+  through the element's box, which silently became the wrong rectangle.
+
+  Every test before this one handed the map a 4:3 box, matching the 48x36 grid
+  exactly, so none of them could see it; and every browser probe clicked token
+  and tile *elements*, whose own boxes were right. A real stage is not 4:3.
+*/
+describe('a click lands on the square you clicked', () => {
+  const mapEl = () => document.querySelector('.dmap') as SVGSVGElement;
+
+  /*
+    16:9, against a 4:3 grid. The drawing is 360 x (672/504) = 480 wide and
+    centred, so there are 80px bars either side - which is exactly the space
+    the floating HUD wants, and exactly what the old maths spent.
+  */
+  const wideBox = () => {
+    mapEl().getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 640, height: 360, right: 640, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+  };
+
+  it('puts a token where the pointer was, on a stage that is not 4:3', async () => {
+    const user = userEvent.setup();
+    // A blank grid, so every square is walkable and a refused click cannot be
+    // mistaken for a mis-aimed one.
+    const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Field');
+    await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
+
+    // Before the fight, placement is free: select the token, click a square.
+    await user.click(
+      within(rowFor(view.roster.entries[0].build.name)).getByRole('button', {
+        name: /show .* in the rail/i,
+      }),
+    );
+    wideBox();
+
+    /*
+      The drawing occupies x 80..560 of the 640-wide box, so its 48 columns are
+      10px each. A click at 555 is inside column 47 - the last one. Dividing by
+      the whole box instead gives floor(555/640*48) = 41, six squares out.
+    */
+    fireEvent.pointerDown(mapEl(), { clientX: 555, clientY: 185 });
+    expect(view.encounter.combatants[0].at?.x).toBe(47);
+  });
+});
+
 /**
  * Section 16: the pointer's loop.
  *
@@ -1997,15 +2050,23 @@ describe('the pointer’s loop', () => {
     expect(iso()).toBeTruthy();
     expect(document.querySelectorAll('.isomap .iso-top').length).toBeGreaterThan(100);
 
+    /*
+      The stubbed box is the drawing's own shape at half size. Shape, because
+      that is what the page gives it - the stage sizes a map to its aspect so
+      it never letterboxes - and a box of some other shape would be testing
+      `toUserSpace`, which has its own tests. Half size, so the scaling is
+      exercised rather than being an identity that would hide a factor.
+    */
     const vb = iso().getAttribute('viewBox')!.split(' ').map(Number);
+    const [bw, bh] = [vb[2] / 2, vb[3] / 2];
     iso().getBoundingClientRect = () =>
-      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+      ({ left: 0, top: 0, width: bw, height: bh, right: bw, bottom: bh, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
     const clientAt = (at: { x: number; y: number }) => {
       const poly = document.querySelector(`.isomap .iso-top[data-at="${at.x},${at.y}"]`)!;
       const pts = poly.getAttribute('points')!.split(' ').map((p) => p.split(',').map(Number));
       const cx = pts.reduce((n, p) => n + p[0], 0) / pts.length;
       const cy = pts.reduce((n, p) => n + p[1], 0) / pts.length;
-      return { clientX: ((cx - vb[0]) / vb[2]) * 480, clientY: ((cy - vb[1]) / vb[3]) * 360 };
+      return { clientX: ((cx - vb[0]) / vb[2]) * bw, clientY: ((cy - vb[1]) / vb[3]) * bh };
     };
 
     // Place the fighter pre-fight (free), then arm Move and walk them two
@@ -2049,14 +2110,15 @@ describe('the pointer’s loop', () => {
 
     const iso = () => document.querySelector('.isomap') as SVGSVGElement;
     const vb = iso().getAttribute('viewBox')!.split(' ').map(Number);
+    const [bw, bh] = [vb[2] / 2, vb[3] / 2];
     iso().getBoundingClientRect = () =>
-      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+      ({ left: 0, top: 0, width: bw, height: bh, right: bw, bottom: bh, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
     const clientAt = (at: { x: number; y: number }) => {
       const poly = document.querySelector(`.isomap .iso-top[data-at="${at.x},${at.y}"]`)!;
       const pts = poly.getAttribute('points')!.split(' ').map((p) => p.split(',').map(Number));
       const cx = pts.reduce((n, p) => n + p[0], 0) / pts.length;
       const cy = pts.reduce((n, p) => n + p[1], 0) / pts.length;
-      return { clientX: ((cx - vb[0]) / vb[2]) * 480, clientY: ((cy - vb[1]) / vb[3]) * 360 };
+      return { clientX: ((cx - vb[0]) / vb[2]) * bw, clientY: ((cy - vb[1]) / vb[3]) * bh };
     };
 
     fireEvent.pointerDown(iso(), clientAt({ x: 20, y: 15 }));

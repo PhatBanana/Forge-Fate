@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { toUserSpace } from '../engine/letterbox';
 import { corridorSquares } from '../engine/dungeon';
 import type { Dungeon } from '../engine/dungeon';
 import type { Square } from '../encounter';
@@ -177,11 +178,27 @@ export function IsoMap({
     as it does visually. The z = 0 plane is the fallback.
   */
   const squareAt = (clientX: number, clientY: number): Square | null => {
-    const box = svg.current?.getBoundingClientRect();
-    if (!box || !box.width) return null;
-    // Same shift the drawing makes: x runs from minX, y starts at -pad.
-    const sx = ((clientX - box.left) / box.width) * w + minX;
-    const sy = ((clientY - box.top) / box.height) * h - pad;
+    /*
+      Through `toUserSpace`, which accounts for the letterbox: the drawing is
+      centred inside its element whenever the two aspects disagree, and
+      dividing straight through the box was wrong at the edges. The viewBox
+      origin is `(0, -pad)` - the headroom above the drawing is real space,
+      which is why y is not zero, and the helper takes the origin as an
+      argument for exactly that reason. See `engine/letterbox.ts`.
+
+      `minX` is added back afterwards rather than passed as the origin: the
+      polygons are drawn already shifted by it (`facePoints`), so the viewBox
+      starts at zero, while the inverse below wants an unshifted vertex.
+    */
+    const at = toUserSpace(
+      svg.current?.getBoundingClientRect(),
+      { x: 0, y: -pad, width: w, height: h },
+      clientX,
+      clientY,
+    );
+    if (!at) return null;
+    const sx = at.x + minX;
+    const sy = at.y;
     const levels = [...new Set([...Object.values(elevation), 0])].sort((a, b) => b - a);
     let flat: Square | null = null;
     for (const z of levels) {
