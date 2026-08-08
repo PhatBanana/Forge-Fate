@@ -6592,6 +6592,21 @@ dl.detail-list {
   With that the element box is the drawing box, `squareAt` is exact, and the
   margins left over are precisely where the floating HUD wants to sit.
 */
+/*
+  Hold H: every float fades to a ghost of itself and stops taking clicks.
+
+  The honest answer to "let me see the whole board for a second". Fading rather
+  than hiding, because a panel that vanished would take its layout with it and
+  the board would jump; and the safe area is deliberately *not* released - the
+  drawing must not resize under a held key, or letting go would move every
+  square out from under the pointer.
+*/
+.btl-stage.is-bare > :not(.map-stage) {
+  opacity: 0.15;
+  pointer-events: none;
+  transition: opacity 120ms ease-out;
+}
+
 .btl-stage .dmap {
   aspect-ratio: var(--map-ratio);
   width: min(100cqw, calc(100cqh * var(--map-ratio)));

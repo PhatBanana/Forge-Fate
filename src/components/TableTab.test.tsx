@@ -362,9 +362,16 @@ describe('the mini window', () => {
     expect(within(panel).getByText(/Nimble Escape/)).toBeInTheDocument();
   });
 
-  it('keeps one open at a time', async () => {
-    // A DM juggling six floating panels has recreated the problem the tracker
-    // was there to solve.
+  it('keeps as many open as were asked for, and closes them one at a time', async () => {
+    /*
+      This used to assert one at a time, on the argument that a DM juggling six
+      floating panels had recreated the problem the tracker was there to solve.
+      §32.4 overturns it: the tracker is a HUD over a full-screen board now,
+      and the whole reason to tear a panel off is that it is *not* on this
+      screen - a second monitor, or a sheet beside the stat block it is
+      fighting. Closing the window you wanted to compare against is not a
+      design.
+    */
     const user = userEvent.setup();
     const view = setup(party());
     for (const entry of view.roster.entries) {
@@ -372,13 +379,15 @@ describe('the mini window', () => {
       await user.click(screen.getByRole('button', { name: entry.build.name }));
     }
 
-    await user.click(
-      within(rowFor(view.roster.entries[0].build.name)).getByRole('button', { name: /pop out/i }),
-    );
-    await user.click(
-      within(rowFor(view.roster.entries[1].build.name)).getByRole('button', { name: /pop out/i }),
-    );
+    const [first, second] = view.roster.entries.map((e) => e.build.name);
+    await user.click(within(rowFor(first)).getByRole('button', { name: /pop out/i }));
+    await user.click(within(rowFor(second)).getByRole('button', { name: /pop out/i }));
+    expect(screen.getAllByRole('dialog')).toHaveLength(2);
+
+    // And each row still speaks only for its own window.
+    await user.click(within(rowFor(first)).getByRole('button', { name: /close window/i }));
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(within(rowFor(second)).getByRole('button', { name: /close window/i })).toBeInTheDocument();
   });
 });
 
@@ -695,6 +704,54 @@ describe('the battle screen', () => {
 
     await user.click(screen.getByRole('button', { name: /^Collapse / }));
     expect(document.querySelector('.btl-cockpit.is-loose')).toBeNull();
+  });
+
+  it('fades the HUD while H is held, and only while it is held', async () => {
+    /*
+      Held rather than toggled: a HUD you can switch off is one somebody
+      leaves off and then wonders where the controls went. The safe area is
+      deliberately untouched - the drawing must not resize under a held key,
+      or letting go would move every square out from under the pointer.
+    */
+    const user = userEvent.setup();
+    const view = setup(party());
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    const stage = document.querySelector('.btl-stage') as HTMLElement;
+    const reserved = stage.style.getPropertyValue('--hud-right');
+
+    fireEvent.keyDown(window, { key: 'h' });
+    expect(stage.classList.contains('is-bare')).toBe(true);
+    expect(stage.style.getPropertyValue('--hud-right')).toBe(reserved);
+
+    fireEvent.keyUp(window, { key: 'h' });
+    expect(stage.classList.contains('is-bare')).toBe(false);
+  });
+
+  it('un-fades the HUD if the window is taken away mid-hold', async () => {
+    // No keyup ever arrives when focus leaves, and a HUD stuck at 15% is
+    // worse than one that never faded.
+    const user = userEvent.setup();
+    const view = setup(party());
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    const stage = document.querySelector('.btl-stage') as HTMLElement;
+
+    fireEvent.keyDown(window, { key: 'h' });
+    expect(stage.classList.contains('is-bare')).toBe(true);
+    fireEvent.blur(window);
+    expect(stage.classList.contains('is-bare')).toBe(false);
+  });
+
+  it('does not fade when H is typed into a field', async () => {
+    // The bestiary search is a text box, and "hobgoblin" starts with an h.
+    const user = userEvent.setup();
+    setup(party());
+    await open(user, 'Bestiary');
+    const box = screen.getByLabelText(/search the bestiary/i);
+    await user.type(box, 'hob');
+
+    expect(document.querySelector('.btl-stage')!.classList.contains('is-bare')).toBe(false);
   });
 
   it('gives the timeline no room before anybody has rolled', () => {

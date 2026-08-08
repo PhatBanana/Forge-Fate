@@ -194,13 +194,22 @@ export function TableTab({
   const [query, setQuery] = useState('');
   const [rollHp, setRollHp] = useState(false);
   /*
-    Which combatant is popped out, by combatant id.
+    Which combatants are popped out, by combatant id.
 
-    One at a time. A DM juggling six floating windows has recreated the problem
-    the tracker was meant to solve, and the row they want is always the one
-    whose turn it is.
+    A list since §32.4, having been one at a time since the mini window was
+    built. The old argument was that a DM juggling six floating windows had
+    recreated the problem the tracker was meant to solve - but the tracker is
+    now a HUD floating over a full-screen board, and the reason to tear a panel
+    off is precisely that it is *not* on this screen: a second monitor, or a
+    stat block beside a sheet. One at a time made that impossible, and closing
+    the window you wanted to compare against is not a design.
+
+    Still component state and still not remembered: a fight reopened should not
+    reopen four windows.
   */
-  const [popped, setPopped] = useState<string | null>(null);
+  const [popped, setPopped] = useState<string[]>([]);
+  const popOut = (id: string) => setPopped((open) => (open.includes(id) ? open : [...open, id]));
+  const unpop = (id: string) => setPopped((open) => open.filter((x) => x !== id));
   /*
     Which combatant the right rail is showing.
 
@@ -305,6 +314,9 @@ export function TableTab({
   */
   const [cockpitShut, setCockpitShut] = useState(false);
   const [cockpitDocked, setCockpitDocked] = useState(true);
+
+  /* Held down, not toggled - see the keyboard handler. */
+  const [hudFaded, setHudFaded] = useState(false);
 
   const [houseRules, setHouseRules] = useState<HouseRules>(loadHouseRules);
   useEffect(() => saveHouseRules(houseRules), [houseRules]);
@@ -639,11 +651,11 @@ export function TableTab({
   const selected =
     (selectedId ? encounter.combatants.find((c) => c.id === selectedId) : null) ?? active;
 
-  const poppedOut = popped ? encounter.combatants.find((c) => c.id === popped) ?? null : null;
-  const poppedEntry =
-    poppedOut?.kind === 'character'
-      ? roster.entries.find((e) => e.id === poppedOut.rosterId) ?? null
-      : null;
+  /* Resolved in the order they were opened, and quietly dropping any whose
+     combatant has left the fight since. */
+  const poppedOut = popped
+    .map((id) => encounter.combatants.find((c) => c.id === id))
+    .filter((c): c is NonNullable<typeof c> => !!c);
 
   /*
     What this fight will actually do.
@@ -2558,11 +2570,13 @@ export function TableTab({
                     </button>
                     <button
                       className="btn btn-sm"
-                      aria-pressed={popped === combatant.id}
+                      aria-pressed={popped.includes(combatant.id)}
                       title={`Open ${nameOf(combatant)} in its own window`}
-                      onClick={() => setPopped(popped === combatant.id ? null : combatant.id)}
+                      onClick={() =>
+                        popped.includes(combatant.id) ? unpop(combatant.id) : popOut(combatant.id)
+                      }
                     >
-                      {popped === combatant.id ? 'Close window' : 'Pop out'}
+                      {popped.includes(combatant.id) ? 'Close window' : 'Pop out'}
                     </button>
                     {isRunning(encounter) && (
                       <button
@@ -3522,7 +3536,7 @@ export function TableTab({
             onPaint: paintAt,
             onHover: setHover,
             onTokenClick: tokenClick,
-            onTokenOpen: (id: string) => setPopped(id),
+            onTokenOpen: (id: string) => popOut(id),
           };
           return view === 'tactical' ? (
             <IsoMap {...mapProps} orientation={facing} />
@@ -3531,7 +3545,8 @@ export function TableTab({
           );
         })()}
         <div className="hud-legend" aria-hidden="true">
-          Space ends the turn · Esc cancels · double-click a token opens the sheet
+          Space ends the turn · Esc cancels · hold H to see the board · double-click a token
+          opens the sheet
         </div>
       </div>
   );
@@ -3986,7 +4001,7 @@ export function TableTab({
       // answers "what can they do", no pip press first.
       standing
       onPlayChange={(next) => onChange(updatePlay(roster, selectedEntry.id, next))}
-      onPopOut={() => setPopped(selected.id)}
+      onPopOut={() => popOut(selected.id)}
       onAim={(strikes) => {
         // One tool in hand at a time: aiming puts the walk down.
         setMoveArmed(false);
@@ -4042,7 +4057,7 @@ export function TableTab({
         <button className="btn btn-sm" onClick={() => applyHp(selected, -5)}>
           +5
         </button>
-        <button className="btn btn-sm" onClick={() => setPopped(selected.id)}>
+        <button className="btn btn-sm" onClick={() => popOut(selected.id)}>
           Pop out
         </button>
       </div>
@@ -4335,40 +4350,46 @@ export function TableTab({
 
   const poppedPanel = (
     <>
-      {poppedOut && (
-        <PopOut title={nameOf(poppedOut)} onClose={() => setPopped(null)}>
-          {poppedOut.kind === 'monster' ? (
-            byId.get(poppedOut.monsterId) ? (
-              <MonsterCard monster={byId.get(poppedOut.monsterId)!} />
+      {poppedOut.map((combatant) => {
+        const entry =
+          combatant.kind === 'character'
+            ? roster.entries.find((e) => e.id === combatant.rosterId) ?? null
+            : null;
+        return (
+          <PopOut key={combatant.id} title={nameOf(combatant)} onClose={() => unpop(combatant.id)}>
+            {combatant.kind === 'monster' ? (
+              byId.get(combatant.monsterId) ? (
+                <MonsterCard monster={byId.get(combatant.monsterId)!} />
+              ) : (
+                <p className="muted">{missingBlock(loading)}</p>
+              )
             ) : (
-              <p className="muted">{missingBlock(loading)}</p>
-            )
-          ) : (
-            /*
-              The character's real sheet, not a summary of it. It is the same
-              component the Character sheet tab renders and it is wired to the
-              same roster entry, so a hit point changed here is changed there
-              and on the DM's own row - which is the point of portalling rather
-              than copying.
-            */
-            poppedEntry && (
-              <CharacterSheet
-                ctx={derived.get(poppedEntry.id)!.ctx}
-                play={poppedEntry.play}
-                onPlayChange={(next) => onChange(updatePlay(roster, poppedEntry.id, next))}
-                onBuildChange={(build) =>
-                  onChange({
-                    ...roster,
-                    entries: roster.entries.map((e) =>
-                      e.id === poppedEntry.id ? { ...e, build, updatedAt: Date.now() } : e,
-                    ),
-                  })
-                }
-              />
-            )
-          )}
-        </PopOut>
-      )}
+              /*
+                The character's real sheet, not a summary of it. It is the same
+                component the Character sheet tab renders and it is wired to the
+                same roster entry, so a hit point changed here is changed there
+                and on the DM's own row - which is the point of portalling rather
+                than copying.
+              */
+              entry && (
+                <CharacterSheet
+                  ctx={derived.get(entry.id)!.ctx}
+                  play={entry.play}
+                  onPlayChange={(next) => onChange(updatePlay(roster, entry.id, next))}
+                  onBuildChange={(build) =>
+                    onChange({
+                      ...roster,
+                      entries: roster.entries.map((e) =>
+                        e.id === entry.id ? { ...e, build, updatedAt: Date.now() } : e,
+                      ),
+                    })
+                  }
+                />
+              )
+            )}
+          </PopOut>
+        );
+      })}
     </>
   );
 
@@ -4445,9 +4466,25 @@ export function TableTab({
         e.preventDefault();
         advance();
       }
+      // Hold H to see the whole board. Held rather than toggled: a HUD you can
+      // turn off is a HUD somebody leaves off and then wonders where the
+      // controls went, and what this actually answers is "move for a second".
+      if (e.key.toLowerCase() === 'h' && !e.repeat) setHudFaded(true);
     };
+    const onUp = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'h') setHudFaded(false);
+    };
+    /* A window that loses focus mid-hold never sees the keyup, and a HUD
+       stuck at 15% is worse than one that never faded. */
+    const clear = () => setHudFaded(false);
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keyup', onUp);
+    window.addEventListener('blur', clear);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onUp);
+      window.removeEventListener('blur', clear);
+    };
   });
 
   /*
@@ -4569,7 +4606,7 @@ export function TableTab({
 
   return (
     <div className="btl">
-      <div className="btl-stage" style={safeArea}>
+      <div className={`btl-stage ${hudFaded ? 'is-bare' : ''}`} style={safeArea}>
         {mapStage}
 
         {/*
