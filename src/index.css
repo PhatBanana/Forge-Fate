@@ -126,10 +126,13 @@
 
 body {
   margin: 0;
+  /* The shell owns the height now; a body that can scroll would give the
+     window a second scrollbar beside the one inside #content. */
+  height: 100dvh;
+  overflow: hidden;
   background:
     radial-gradient(ellipse 80% 50% at 50% -10%, var(--page-glow), transparent),
     var(--bg);
-  min-height: 100vh;
   font-size: 15px;
   line-height: 1.55;
 }
@@ -151,14 +154,113 @@ button {
 
 /* ------------------------------------------------------------------ layout */
 
+/*
+  The frame.
+
+  This app spent thirty sections being a very good document: a masthead, a tab
+  strip, and a column of panels that scrolled. It reads as an article about a
+  battle rather than as a battle - and the proof was measurable, not a matter
+  of taste. On a 1360x900 screen the battlefield began 460 pixels down the page
+  and ran off the bottom, so a DM had to scroll to see their own map, and every
+  panel opened underneath pushed it further away.
+
+  So the shell becomes a **screen**: exactly the height of the window, chrome
+  pinned at the top, and one region below it that fills whatever is left.
+  Nothing scrolls but the insides of things. A tab that really is a document -
+  the Builder, the character sheet - scrolls within `#content` and puts its own
+  column width back on, so the reading measure is unchanged where reading is
+  the point.
+
+  `100dvh` rather than `100vh`: on a tablet with a retracting browser bar those
+  differ by the height of the bar, and the version that guesses wrong leaves a
+  command bar hidden behind chrome.
+*/
 .app {
-  max-width: 1240px;
-  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* The chrome above the content: masthead and tabs, never scrolled away. */
+.app > .masthead,
+.app > .tabs {
+  flex: 0 0 auto;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+/*
+  The one region that fills the window. `min-height: 0` is load-bearing - a
+  flex child defaults to its content's height and would push the page taller
+  rather than scrolling inside, which is the single most common way a layout
+  like this fails.
+*/
+.app > #content {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+  A tab that is a document gets its measure back, and scrolls inside the
+  frame rather than moving it. 74ch of prose on a 27-inch monitor is not an
+  improvement, which is why the column existed in the first place.
+*/
+.app:not(.battle) > #content {
+  overflow-y: auto;
   padding: 0 20px 80px;
 }
 
+.app:not(.battle) > #content > * {
+  width: 100%;
+  max-width: 1240px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Anything the app puts above the content but below the tabs - a share
+   banner, a link error - keeps the old column. */
+.app > .callout,
+.app > .panel {
+  width: 100%;
+  max-width: 1240px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/*
+  Paper has no viewport. Everything above is undone for the printer, or the
+  character sheet prints one window's worth and stops.
+*/
+@media print {
+  body {
+    height: auto;
+    overflow: visible;
+  }
+
+  .app {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+
+  .app > #content,
+  .app:not(.battle) > #content {
+    display: block;
+    overflow: visible;
+    padding: 0;
+  }
+
+  .app:not(.battle) > #content > * {
+    max-width: none;
+  }
+}
+
 .masthead {
-  padding: 28px 0 18px;
+  padding: 14px 0 12px;
   border-bottom: 1px solid var(--border-soft);
   display: flex;
   align-items: baseline;
@@ -214,7 +316,7 @@ button {
 .tabs {
   display: flex;
   gap: 4px;
-  margin: 18px 0 24px;
+  margin: 0 0 12px;
   flex-wrap: wrap;
   border-bottom: 1px solid var(--border-soft);
 }
@@ -5063,6 +5165,12 @@ dl.detail-list {
 */
 .app.is-wide {
   max-width: none;
+}
+
+/* The battle screen takes the whole region and manages its own insides. */
+.app.battle > #content {
+  overflow: hidden;
+  padding: 0;
 }
 
 /* ------------------------------------------------------------ the battle HUD */
