@@ -56,6 +56,14 @@ describe('where to start', () => {
   const answerRuleset = async () =>
     userEvent.click(screen.getAllByRole('button', { name: /use these rules/i })[0]);
 
+  /*
+    §31.2 put a main menu where the Builder used to be. Answering the setup
+    questions now lands you on it rather than in a form, so a test that wants
+    the Builder presses the Builder - which is what a person does.
+  */
+  const fromMenu = async (label: RegExp) =>
+    userEvent.click(screen.getByRole('button', { name: label }));
+
   it('asks after the ruleset, and not before', async () => {
     render(<App />);
     expect(screen.queryByText(/where would you like to start/i)).not.toBeInTheDocument();
@@ -68,6 +76,7 @@ describe('where to start', () => {
     render(<App />);
     await answerRuleset();
     await userEvent.click(screen.getByRole('button', { name: /start blank/i }));
+    await fromMenu(/build a character/i);
 
     // Level 1, unnamed, and nothing in hand.
     expect(screen.getByRole('tab', { name: 'Builder' })).toHaveAttribute('aria-selected', 'true');
@@ -80,6 +89,7 @@ describe('where to start', () => {
     render(<App />);
     await answerRuleset();
     await userEvent.click(screen.getByRole('button', { name: /show me an example/i }));
+    await fromMenu(/build a character/i);
 
     expect((screen.getByLabelText(/^name$/i) as HTMLInputElement).value).toBe('Example Fighter');
   });
@@ -173,9 +183,12 @@ describe('arriving on a share link', () => {
 });
 
 describe('undo', () => {
-  it('is offered but disabled until something is edited', () => {
+  it('is offered but disabled until something is edited', async () => {
     localStorage.setItem(RULESET_KEY, '2014');
     render(<App />);
+    // Undo lives on the chrome above a tab, and §31.2 put the menu in front
+    // of that - so this walks through it the way a person would.
+    await userEvent.click(screen.getByRole('button', { name: /build a character/i }));
     expect(screen.getByRole('button', { name: /undo/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /redo/i })).toBeDisabled();
   });
@@ -191,6 +204,7 @@ describe('undo', () => {
     render(<App />);
     await userEvent.click(screen.getAllByRole('button', { name: /use these rules/i })[0]);
     await userEvent.click(screen.getByRole('button', { name: /show me an example/i }));
+    await userEvent.click(screen.getByRole('button', { name: /build a character/i }));
 
     expect(screen.getByRole('button', { name: /undo/i })).toBeDisabled();
   });
@@ -207,6 +221,7 @@ describe('the two modes', () => {
     render(<App />);
     await userEvent.click(screen.getAllByRole('button', { name: /use these rules/i })[0]);
     await userEvent.click(screen.getByRole('button', { name: /show me an example/i }));
+    await userEvent.click(screen.getByRole('button', { name: /build a character/i }));
 
     await userEvent.click(screen.getByRole('tab', { name: 'Characters' }));
     await userEvent.click(screen.getByRole('tab', { name: /play/i }));

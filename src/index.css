@@ -6745,3 +6745,150 @@ dl.detail-list {
     height: 52%;
   }
 }
+
+/* ------------------------------------------------------------ the main menu */
+
+/*
+  §31.2. The app opens on a menu rather than a form.
+
+  Centred in the window with no chrome around it, because chrome around a main
+  menu is a menu inside an app rather than a menu that *is* the app for the
+  half-second you are on it. No animation and no splash: this is in front of
+  somebody every time they open the thing, and a screen you sit through is one
+  you resent by the fourth time.
+*/
+.app.is-title {
+  display: block;
+  overflow: hidden;
+}
+
+.title {
+  position: relative;
+  height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.title-corner {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+}
+
+.title-inner {
+  width: 100%;
+  max-width: 560px;
+  text-align: center;
+}
+
+.title-mark {
+  font-size: clamp(38px, 7vw, 62px);
+  letter-spacing: 0.01em;
+  margin-bottom: 4px;
+}
+
+.title-mark span {
+  color: var(--accent);
+}
+
+.title-sub {
+  margin: 0 0 28px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+.title-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+
+/*
+  A menu item is a whole row, not a word: the label says where it goes and the
+  line under it says what that place is for. Two lines rather than a tooltip,
+  because a tooltip is for a mouse and this screen is the one most likely to be
+  poked at on a tablet.
+*/
+.title-item {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  /* The cut corner the battle chrome uses, so the whole app is one idea. */
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+  text-align: left;
+}
+
+.title-item:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-raised);
+}
+
+.title-item-label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.title-item-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* The one the menu wants you to press - the fight, always. */
+.title-item.is-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.title-item.is-primary:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent-dim);
+}
+
+.title-item.is-primary .title-item-label {
+  color: var(--on-accent);
+}
+
+.title-item.is-primary .title-item-hint {
+  color: color-mix(in srgb, var(--on-accent) 78%, transparent);
+}
+
+.title-foot {
+  margin: 26px 0 0;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* The wordmark goes home. A button that has to look exactly like the heading
+   it replaced, so it inherits everything and adds nothing. */
+.mast-home {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.mast-home:hover span {
+  color: var(--accent-dim);
+}
+
+@media print {
+  .mast-home {
+    cursor: auto;
+  }
+}

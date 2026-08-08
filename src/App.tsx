@@ -10,6 +10,7 @@ import {
   LEGACY_BUILD_KEY,
   ROSTER_KEY,
   activeBuild,
+  activeEncounter,
   activePlay,
   addCharacter,
   loadRoster,
@@ -32,6 +33,10 @@ import {
 import type { ThemeChoice } from './theme';
 import type { Histories } from './undo';
 import { BuilderTab } from './components/BuilderTab';
+import { TitleScreen } from './components/TitleScreen';
+import type { TitleEntry } from './components/TitleScreen';
+import { activeCampaign, loadCampaigns } from './campaign';
+import { isRunning } from './encounter';
 import { Panel } from './components/shared';
 
 /*
@@ -84,7 +89,20 @@ const RULESET_CHOSEN_KEY = 'dnd-forge:ruleset-chosen';
  * answer the same question; import and export moved onto Characters, because
  * both produce or consume a whole character rather than a part of one.
  */
-type Tab = 'builder' | 'sheet' | 'optimizer' | 'characters' | 'dungeons' | 'campaign' | 'table';
+type Tab =
+  /*
+    §31.2. The app opens here rather than on a form: a table has several jobs
+    and a tab strip above the Builder answers "which part of the Builder"
+    rather than "what are we doing tonight".
+  */
+  | 'title'
+  | 'builder'
+  | 'sheet'
+  | 'optimizer'
+  | 'characters'
+  | 'dungeons'
+  | 'campaign'
+  | 'table';
 
 /*
   Two modes, one app.
@@ -177,7 +195,12 @@ function ThemeToggle({
 }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('builder');
+  /*
+    The menu is the landing, except for somebody arriving on a share link -
+    they came to look at a character, and a menu between them and it is a
+    question the link already answered.
+  */
+  const [tab, setTab] = useState<Tab>(() => (tokenFromLocation() ? 'builder' : 'title'));
   /*
     Where "Create" goes back to. A DM flipping to the battle and back should
     land on the desk they left, not on the Builder every time - that would turn
@@ -185,7 +208,7 @@ export default function App() {
   */
   const [createTab, setCreateTab] = useState<Tab>('builder');
   useEffect(() => {
-    if (tab !== 'table') setCreateTab(tab);
+    if (tab !== 'table' && tab !== 'title') setCreateTab(tab);
   }, [tab]);
   const [roster, setRoster] = useState<Roster>(loadRoster);
   /*
@@ -499,6 +522,47 @@ export default function App() {
   }
 
   /*
+    What the menu offers, and what it says about each. Built here rather than
+    inside the screen because every line of it is a fact this component owns:
+    whose fight is on the table, which campaign is being played, how many
+    characters there are.
+  */
+  const fightOn = isRunning(activeEncounter(roster));
+  const playing = activeCampaign(loadCampaigns());
+  const menu: TitleEntry[] = [
+    ...(fightOn
+      ? [
+          {
+            id: 'table',
+            label: 'Resume the fight',
+            hint: `Round ${activeEncounter(roster).round} is still on the table`,
+            primary: true,
+          },
+        ]
+      : [{ id: 'table', label: 'Run a battle', hint: 'The map, the initiative, the dice', primary: true }]),
+    { id: 'builder', label: 'Build a character', hint: 'Species, class, feats, equipment, spells' },
+    { id: 'sheet', label: 'The character sheet', hint: 'The paper one, and the dice that go with it' },
+    { id: 'optimizer', label: 'Weigh a choice', hint: 'What this feat, species or class is worth' },
+    { id: 'characters', label: 'Characters & bestiary', hint: 'The roster, monsters you made, import and export' },
+    { id: 'dungeons', label: 'Dungeons', hint: 'Draw the places you will fight in' },
+    { id: 'campaign', label: 'Campaign', hint: 'The party, and the record of what it did' },
+  ];
+
+  if (tab === 'title') {
+    return (
+      <div className="app is-title">
+        <TitleScreen
+          character={roster.entries.length ? build.name || 'Unnamed character' : null}
+          campaign={playing ? playing.name : null}
+          entries={menu}
+          onPick={(id) => setTab(id as Tab)}
+          aside={<ThemeToggle choice={themeChoice} onChange={chooseTheme} />}
+        />
+      </div>
+    );
+  }
+
+  /*
     The Table is a workspace rather than a document, so it gets the whole
     window. Everything else is reading matter - a form, a sheet, a matrix - and
     a 1240px column is what makes those readable; a paragraph stretched across
@@ -507,8 +571,15 @@ export default function App() {
   return (
     <div className={`app ${tab === 'table' ? 'is-wide battle' : ''}`}>
       <header className="masthead">
+        {/*
+          The wordmark is the way back to the menu. A game's title in the
+          corner goes home when pressed, and it saves this screen a button
+          that would otherwise sit in the tab strip pretending to be a tab.
+        */}
         <h1>
-          Forge<span>&</span>Fate
+          <button type="button" className="mast-home" onClick={() => setTab('title')}>
+            Forge<span>&</span>Fate
+          </button>
         </h1>
         <span className="tagline">
           D&amp;D 5e character builder &amp; optimizer — {build.name || 'unnamed'}
