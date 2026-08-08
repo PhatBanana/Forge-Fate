@@ -2467,6 +2467,99 @@ this screen, which is exactly why it is not in the same section as the HUD.
 
 ---
 
+## 33. The Builder becomes one window
+
+The ask, verbatim: *"The actual builder, like the suggestions and stuff. It
+should be just one big wizard to walk you through it as opposed to having to go
+to a different tab for the lineages and then another tab for the abilities or
+feats. It should be just one big window with your character, what your race,
+you know, class, all that, and like suggestions and the scaling."*
+
+### The constraint, and the rule that answered it
+
+`BuilderTab`'s own header recorded that this had been tried and abandoned:
+seventeen panels open at once ran **five screens tall**, and the pain named was
+scrolling past sixteen ranked cards to reach the feats. §31.4 split it into one
+section at a time. Four more panels arrived afterwards with nothing to stop
+them, so a naive merge would have been worse than the design already rejected.
+
+What made it fit was a rule rather than a diet:
+
+> Your character is always visible. The catalogue of things you have **not**
+> taken is not. Exactly one catalogue is open at a time.
+
+That bounds the page at the closed rows plus one picker, so the eighteenth
+panel costs about fifty pixels instead of a screen. `ChoiceRow` has no
+uncontrolled mode for exactly that reason - per-row state would be more
+convenient and would quietly delete the bound.
+
+- `[x]` **33.1 Progression leaves the Optimizer**, and its pure half goes to
+  `engine/plan.ts` - which is what let it be tested. It had none, and it does
+  two things at once: raises class levels *and* spends ASI slots. Twelve tests,
+  including the invariant that every choice applied is paid for by a slot the
+  build now owns.
+- `[x]` **33.2 `ChoiceRow`**, proven on Class options alone: most of a screen
+  down to two rows. What you have taken stays on the closed row as removable
+  chips, because class options already ruled that *"an option you cannot see is
+  an option you cannot remove"*.
+- `[x]` **33.3 The other eight catalogues.** Chips are hidden while a row is
+  open, since the catalogue shows the same removals - which makes one thing a
+  contract: an open body **must** show what is taken. Omitting `taken` entirely
+  differs from passing an empty array; the feats row is the one whose taken
+  list is already on screen above it.
+- `[x]` **33.4 The merge.** Every section renders at once as a real
+  `<section id>`, with a sticky rail of anchors. §31.4's Back/Next route is
+  deleted and so are the six tests that walked it.
+- `[x]` **33.5 The readouts get pinned**, with **Next choices** naming what is
+  left and where rather than counting it. Damage per round and the progression
+  plan stop being contextual: a feat and an ability score move damage as much
+  as a weapon does.
+- `[x]` **33.6 Damage against level**, which is what scaling means. The whole
+  build is re-derived at each level rather than extrapolated, so the Fighter's
+  step at five is Extra Attack and not a trend line. Two judgements stated out
+  loud: one armor class for the whole curve, and feats trimmed to the slots
+  that level had reached.
+- `[x]` **33.7 The rail follows the page.** `section` state did not die with
+  the tabs - its input changed from a click to scroll position. Guarded on
+  `typeof IntersectionObserver`, which jsdom does not implement.
+- `[x]` **33.8 The Optimizer is retired.** The feat browser is deleted outright
+  - it ranked the same feats through the same card as the panel where you take
+  one. `RacesTab` survives as its own tab and is deliberately not inlined:
+  picking a pairing resets scores, defenses, feats and weapons, and a button
+  that wipes the build does not belong in the page where you are editing it.
+
+**The honest number.** The plan estimated 2.2 screens with every catalogue
+closed. Measured at 1360 it is **3.34**, and the estimate was optimistic about
+one panel: `Character` is 754px by itself and is deliberately the one thing
+never compacted. What the design actually claims is that the page does not grow
+with the *number* of catalogues, and that holds - nine cost nine rows, and the
+closed page sits well under the tallest single open picker. `run33.mjs` asserts
+both, at the measured thresholds rather than the hoped-for ones.
+
+### Four bugs found while building it, three of them older than this section
+
+- **`.title` collided with every ranked suggestion card.** §31.2 named the
+  title screen's root `.title`, which also matches the `<span class="title">`
+  inside every feat, class-option and spell card. They inherited
+  `height: 100dvh; display: grid`, so each **collapsed** card rendered 926px
+  tall - a near-blank box with the feat's name floating in the middle. Live for
+  two sections on the app's most-used screen. 926px to 47px.
+- **The Builder did not scroll.** It rendered above `<main id="content">`, as a
+  direct child of `.app { overflow: hidden }`. Everything past the first screen
+  was unreachable by wheel; only an anchor could move it. Harmless while each
+  section was about a screen tall, fatal the moment §33.4 landed.
+- **The battle screen printed a 2x2 map.** Broken since §31.3 - confirmed
+  against a build of 31.6, where it printed 988 by 2 - and §32.2's absolute
+  stage took the width with it. A dungeon map is the whole argument for drawing
+  in SVG rather than canvas.
+- **`PopOut`'s drag never worked.** The listeners were attached in an effect
+  guarded on a ref, and pressing a title bar changes a ref without causing a
+  render. It shipped unnoticed because that panel only appears under 900px.
+
+None of the four had a test or a probe looking at them. Both probes do now.
+
+---
+
 ## Recently completed
 
 The SRD audit pass, in order. Each was a real defect, not a tidy-up.

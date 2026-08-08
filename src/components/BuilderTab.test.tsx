@@ -8,14 +8,15 @@ import type { Build } from '../types';
 import { buildOf, fighter } from '../test/factories';
 
 /**
- * The Builder offers every choice where the choice is made, one section at a
- * time.
+ * The Builder offers every choice where the choice is made, on one page.
  *
  * Skills, class options and spells already ranked themselves in place; feats
- * and ability score improvements were ranked on another tab, so taking one and
- * seeing which ones you had taken were two different screens. These pin that
- * they are now one panel, that the sections show only their own panels, and
- * that nothing about playing leaked back in.
+ * and ability score improvements were ranked on a different tab, so taking one
+ * and seeing which ones you had taken were two different screens. §33 finished
+ * the job: every section renders at once, the catalogues fold so that costs
+ * something bounded, and the readouts are pinned beside them.
+ *
+ * These pin all three, and that nothing about *playing* leaked back in.
  */
 
 function setup(build: Build) {
