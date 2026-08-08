@@ -6999,3 +6999,119 @@ dl.detail-list {
     display: none !important;
   }
 }
+
+/* -------------------------------------------------------------- the chrome */
+
+/*
+  §31.5. What is left after the layouts: making the controls read as a game's
+  rather than a form's.
+
+  Three moves, and no more, because the palette and the type are already doing
+  most of the work and a fourth idea would be decoration rather than design.
+
+  1. **The cut corner** the mode switch has had since §12.1 goes onto the
+     things you press to go somewhere - the tab strip and the primary buttons.
+     One shape, used consistently, is what makes chrome feel authored.
+  2. **A bevel**: a hairline of light along a control's top edge and a shadow
+     under it. This is the whole trick behind why a game's buttons look
+     pressable and a web form's look printed, and it costs one inset shadow.
+  3. **Weight on the selected thing.** A tab strip that marks the current tab
+     with a two-pixel underline is a document's table of contents; one that
+     fills it is a menu.
+*/
+
+/* --- the tab strip */
+
+.tabs {
+  border-bottom: none;
+  padding: 2px 0 0;
+}
+
+.tabs > [role='tab'] {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding: 7px 15px;
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+}
+
+.tabs > [role='tab']:hover {
+  background: var(--bg-sunken);
+}
+
+.tabs > [role='tab'][aria-selected='true'] {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  box-shadow: inset 0 1px 0 var(--bevel);
+}
+
+/* --- buttons
+
+  The bevel is a variable so the two themes can disagree about it, which they
+  must: on parchment a white hairline reads as a highlight, and on near-black
+  the same hairline at the same strength reads as a scratch.
+*/
+:root {
+  --bevel: rgba(255, 255, 255, 0.55);
+  --press: rgba(74, 56, 24, 0.14);
+}
+
+:root[data-theme='dark'] {
+  --bevel: rgba(255, 255, 255, 0.07);
+  --press: rgba(0, 0, 0, 0.4);
+}
+
+.btn {
+  box-shadow: inset 0 1px 0 var(--bevel), 0 1px 2px var(--press);
+}
+
+.btn:active:not(:disabled) {
+  /* Pressed: the highlight goes, the shadow moves inside. A control that does
+     not move under the finger is one you are never sure you hit. */
+  box-shadow: inset 0 2px 3px var(--press);
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  box-shadow: none;
+}
+
+.btn-primary {
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+}
+
+/* The command bar and the menu get the press too, since they are the two
+   places most obviously being pressed. */
+.btl-cmd:active,
+.title-item:active {
+  transform: translateY(1px);
+}
+
+.btl-cmd,
+.title-item {
+  box-shadow: inset 0 1px 0 var(--bevel);
+}
+
+/* --- panels
+
+  A hairline of light along the top edge, which is what stops a panel on a dark
+  theme reading as a hole cut in the page. Parchment gets it too, quieter.
+*/
+.panel {
+  box-shadow: var(--panel-shadow), inset 0 1px 0 var(--bevel);
+}
+
+@media print {
+  /* None of this survives contact with paper, which has no light source. */
+  .btn,
+  .panel,
+  .tabs > [role='tab'] {
+    box-shadow: none !important;
+    clip-path: none !important;
+  }
+}
