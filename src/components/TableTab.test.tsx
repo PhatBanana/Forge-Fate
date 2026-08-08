@@ -796,6 +796,88 @@ describe('areas of effect', () => {
     await user.click(screen.getByRole('button', { name: /remove effect/i }));
     expect(view.encounter.zones).toBeUndefined();
   });
+
+  /**
+   * Section 26. The reaction table itself is `surfaces.test.ts`; what needs a
+   * component test is the wiring - that a placed area actually consults the
+   * ground, and that everything it sets off reaches the store in one write.
+   */
+  const dropAt = async (
+    user: ReturnType<typeof userEvent.setup>,
+    preset: string,
+    at: { x: number; y: number },
+  ) => {
+    await user.selectOptions(screen.getByLabelText(/load a hazard from the shelf/i), preset);
+    await user.click(screen.getByRole('button', { name: /place on map/i }));
+    giveBox();
+    const click = (x: number, y: number) =>
+      fireEvent.pointerDown(mapSvg2(), { clientX: (x + 0.5) * 10, clientY: (y + 0.5) * 10 });
+    click(at.x, at.y);
+    // A line or a cone is aimed: the first click is where it starts and the
+    // second is the way it points. Aim east, along the ground it was put on.
+    if (screen.queryByText(/click the way it points/i)) click(at.x + 3, at.y);
+  };
+
+  it('sets the grease alight when fire lands on it', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+
+    await dropAt(user, 'grease', { x: 20, y: 15 });
+    expect(view.encounter.zones![0].label).toBe('Grease');
+
+    await dropAt(user, 'wall-of-fire', { x: 20, y: 15 });
+
+    // The slick is burning ground now, where it lay.
+    const burning = view.encounter.zones!.find((z) => z.label === 'Burning ground');
+    expect(burning).toBeDefined();
+    expect(burning!.at).toEqual({ x: 20, y: 15 });
+    expect((view.encounter.log ?? []).some((l) => /catches and burns/.test(l.text))).toBe(true);
+  });
+
+  it('leaves the ground alone when the areas do not touch', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+    await dropAt(user, 'grease', { x: 5, y: 5 });
+    await dropAt(user, 'wall-of-fire', { x: 40, y: 30 });
+    expect(view.encounter.zones!.some((z) => z.label === 'Grease')).toBe(true);
+    expect(view.encounter.zones!.some((z) => z.label === 'Burning ground')).toBe(false);
+  });
+
+  it('charges the jolt and the placement to a single write', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
+    const standing = view.encounter.combatants[0].at!;
+
+    await dropAt(user, 'water', standing);
+    const hpBefore = hpNow(view.roster.entries[0].play, 999);
+    const writes = view.onChange.mock.calls.length;
+
+    await dropAt(user, 'ice', standing);
+    // Ice onto water freezes it - no jolt, so nobody is hurt.
+    expect(hpNow(view.roster.entries[0].play, 999)).toBe(hpBefore);
+    expect(view.encounter.zones!.some((z) => z.label === 'Ice')).toBe(true);
+
+    // One write for the placement plus everything it set off. Two would each
+    // build from the same render's roster and the second would win.
+    expect(view.onChange.mock.calls.length).toBe(writes + 1);
+  });
+
+  it('lets a custom area be declared flammable, and then burns it', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+
+    await user.type(screen.getByPlaceholderText('Wall of fire'), 'Oil slick');
+    await user.selectOptions(screen.getByLabelText(/what this area is made of/i), 'grease');
+    await user.click(screen.getByRole('button', { name: /place on map/i }));
+    giveBox();
+    fireEvent.pointerDown(mapSvg2(), { clientX: 205, clientY: 155 });
+    expect(view.encounter.zones![0].effect?.surface).toBe('grease');
+
+    await dropAt(user, 'wall-of-fire', { x: 20, y: 15 });
+    expect(view.encounter.zones!.some((z) => z.label === 'Burning ground')).toBe(true);
+  });
 });
 
 describe('the simulation', () => {

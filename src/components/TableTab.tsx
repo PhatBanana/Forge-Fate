@@ -10,7 +10,6 @@ import type { Walk } from '../engine/path';
 import {
   ZONE_PRESETS,
   ZONE_SHAPES,
-  addZone,
   bitesOnEndTurn,
   bitesOnEnter,
   combatantsIn,
@@ -58,7 +57,10 @@ import {
   spendMonsterUse,
   tickMonsterConditions,
 } from '../encounter';
-import type { Square } from '../encounter';
+import type { EncounterState, Square } from '../encounter';
+import { placeZone } from '../surfaces';
+import { SURFACE_KINDS } from '../zones';
+import type { SurfaceKind } from '../zones';
 import { deriveBuild } from '../engine/character';
 import { forecast } from '../engine/forecast';
 import { concentrationDc, damage, dash, emptyPlay, heal, hpNow, moveBy, movementLeft, newTurn, setTurnSlot, tickConditions } from '../play';
@@ -219,6 +221,12 @@ export function TableTab({
     preset: 'custom',
     /** The save DC typed for a preset that saves; empty takes its default. */
     dc: '',
+    /**
+     * What the ground is made of, for a custom area. A preset brings its own;
+     * this is how somebody drawing "Oil slick" gets it to catch fire like the
+     * shelf's grease does. Empty means it reacts to nothing.
+     */
+    surface: '' as SurfaceKind | '',
   });
 
   /*
@@ -323,18 +331,17 @@ export function TableTab({
       }
       const origin = aimed ? aimFrom! : at;
       const angle = aimed ? Math.atan2(at.y - origin.y, at.x - origin.x) : 0;
-      setEncounter(
-        addZone(encounter, {
-          label: placing.label || 'Effect',
-          shape: placing.shape,
-          at: origin,
-          feet: placing.feet,
-          angle,
-          rounds: placing.rounds,
-          tint: (encounter.zones?.length ?? 0) % 4,
-          effect: placing.effect,
-        }),
-      );
+      dropZone({
+        id: `z${encounter.nextSeq}`,
+        label: placing.label || 'Effect',
+        shape: placing.shape,
+        at: origin,
+        feet: placing.feet,
+        angle,
+        rounds: placing.rounds,
+        tint: (encounter.zones?.length ?? 0) % 4,
+        effect: placing.effect,
+      });
       setPlacing(null);
       setAimFrom(null);
       return;
@@ -1166,7 +1173,9 @@ export function TableTab({
     updated: Roster,
     combatantId: string,
     zone: Zone,
-    how: 'walks into' | 'ends their turn in',
+    // "is caught by" is section 26's: a surface reacting under somebody's feet
+    // is a third way to be bitten, and it costs exactly like the other two.
+    how: 'walks into' | 'ends their turn in' | 'is caught by',
   ): Roster => {
     const effect = zone.effect;
     if (!effect?.damage) return updated;
@@ -1225,6 +1234,37 @@ export function TableTab({
       out = updatePlay(out, entry.id, damage(entry.play, dealt, max));
     }
     return out;
+  };
+
+  /**
+   * Put an area down, and let the ground answer.
+   *
+   * Section 23 made a wall of fire different from a drawing of one; this makes
+   * it different from a wall of fire in an empty room. `placeZone` decides what
+   * the surfaces do to each other - the grease catches, the web burns off, the
+   * lake conducts - and hands back the new ground, the lines to say, and any
+   * jolt that has to bite right now.
+   *
+   * All of it composes into ONE write. A reaction that damaged three people
+   * across three `onChange` calls would have two of them build from a roster
+   * that no longer existed, and the last one would win.
+   */
+  const dropZone = (incoming: Zone) => {
+    const { zones, log, jolts } = placeZone(encounter.zones ?? [], incoming);
+
+    let enc: EncounterState = { ...encounter, zones, nextSeq: encounter.nextSeq + 1 };
+    for (const line of log) enc = appendLog(enc, line);
+    let updated = updateEncounter(roster, enc);
+
+    // A jolt is a zone that bites once: everyone standing in it pays, through
+    // the same dice, saves and stores a wall of fire already uses.
+    for (const jolt of jolts) {
+      for (const victim of combatantsIn(jolt, activeEncounter(updated).combatants)) {
+        if ((hpOf(victim)?.now ?? 0) <= 0) continue;
+        updated = biteZone(updated, victim.id, jolt, 'is caught by');
+      }
+    }
+    onChange(updated);
   };
 
   /*
@@ -2805,6 +2845,7 @@ export function TableTab({
                     feet: preset.feet,
                     rounds: preset.rounds ? String(preset.rounds) : '',
                     dc: preset.effect?.save ? String(preset.effect.save.dc) : '',
+                    surface: preset.effect?.surface ?? '',
                   });
                 }}
               >
@@ -2823,6 +2864,25 @@ export function TableTab({
                 value={zoneForm.label}
                 onChange={(e) => setZoneForm({ ...zoneForm, label: e.target.value })}
               />
+            </label>
+            {/* What the ground is made of, which is what reacts. A preset
+                fills this in; a custom area is whatever you say it is. */}
+            <label className="field field-sm">
+              <span>Made of</span>
+              <select
+                aria-label="What this area is made of"
+                value={zoneForm.surface}
+                onChange={(e) =>
+                  setZoneForm({ ...zoneForm, surface: e.target.value as SurfaceKind | '' })
+                }
+              >
+                <option value="">Nothing that reacts</option>
+                {SURFACE_KINDS.map((s) => (
+                  <option key={s.kind} value={s.kind}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="field field-sm">
               <span>Shape</span>
@@ -2896,7 +2956,7 @@ export function TableTab({
                 }
                 // The shelf's recipe, with this casting's DC typed over it.
                 const preset = ZONE_PRESETS.find((p) => p.id === zoneForm.preset);
-                const effect: ZoneEffect | undefined = preset?.effect
+                const base: ZoneEffect | undefined = preset?.effect
                   ? {
                       ...preset.effect,
                       save: preset.effect.save
@@ -2907,6 +2967,17 @@ export function TableTab({
                         : undefined,
                     }
                   : undefined;
+                /*
+                  The chosen material wins over the preset's, so a DM can draw
+                  a plain area and declare it oil - and clearing it back to
+                  none means the area reacts to nothing, which is the right
+                  answer for a drawn-only marker.
+                */
+                const effect: ZoneEffect | undefined = zoneForm.surface
+                  ? { ...(base ?? {}), surface: zoneForm.surface }
+                  : base && base.surface
+                    ? { ...base, surface: undefined }
+                    : base;
                 setPlacing({
                   label: zoneForm.label,
                   shape: zoneForm.shape,

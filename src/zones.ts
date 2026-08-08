@@ -1,6 +1,7 @@
 import type { Combatant, EncounterState, Square } from './encounter';
 import type { Ability } from './types';
 
+
 /**
  * Areas of effect that persist on the map.
  *
@@ -37,6 +38,26 @@ import type { Ability } from './types';
 
 export type ZoneShape = 'sphere' | 'cube' | 'cone' | 'line';
 
+/**
+ * What a patch of ground is made of.
+ *
+ * Distinct from a zone's label, which is whatever the DM typed: "Wall of
+ * Fire", "Flaming Sphere" and a patch of ignited grease are three labels and
+ * one material, and it is the material that reacts. `surfaces.ts` holds the
+ * table of what happens when one lands on another.
+ */
+export type SurfaceKind = 'fire' | 'grease' | 'water' | 'ice' | 'web' | 'acid' | 'lightning';
+
+export const SURFACE_KINDS: { kind: SurfaceKind; label: string }[] = [
+  { kind: 'fire', label: 'Fire' },
+  { kind: 'grease', label: 'Grease' },
+  { kind: 'water', label: 'Water' },
+  { kind: 'ice', label: 'Ice' },
+  { kind: 'web', label: 'Web' },
+  { kind: 'acid', label: 'Acid' },
+  { kind: 'lightning', label: 'Lightning' },
+];
+
 /** The battlefield-enforced part of what a zone does. All optional - a zone
     with no effect is the old kind, drawn and counted and nothing more. */
 export interface ZoneEffect {
@@ -52,6 +73,17 @@ export interface ZoneEffect {
   blocks?: boolean;
   /** Web, grease: its ground costs double to cross. */
   difficult?: boolean;
+  /**
+   * What the ground is made of, when it is made of anything.
+   *
+   * Separate from `label`, which is whatever the DM typed: "Wall of Fire",
+   * "Flaming Sphere" and a patch of ignited grease are three labels and one
+   * material. Section 26 reacts on the material - fire finds the grease,
+   * lightning finds the water - and `surfaces.ts` holds the table. Absent
+   * means the zone is not a surface and nothing reacts to it, which is right
+   * for a wall of force and for spike growth.
+   */
+  surface?: SurfaceKind;
 }
 
 export interface Zone {
@@ -98,6 +130,7 @@ export const ZONE_PRESETS: {
       save: { ability: 'dex', dc: 15, half: true },
       onEnter: true,
       onEndTurn: true,
+      surface: 'fire',
     },
   },
   {
@@ -165,7 +198,7 @@ export const ZONE_PRESETS: {
     shape: 'cube',
     feet: 20,
     rounds: 10,
-    effect: { difficult: true },
+    effect: { difficult: true, surface: 'web' },
   },
   {
     id: 'grease',
@@ -173,7 +206,44 @@ export const ZONE_PRESETS: {
     shape: 'cube',
     feet: 10,
     rounds: 10,
-    effect: { difficult: true },
+    effect: { difficult: true, surface: 'grease' },
+  },
+  /*
+    The three below are ground rather than spells - what a spell leaves
+    behind, and what section 26 turns one into another. Water is what an ice
+    storm melts to and what a lightning bolt makes lethal; ice is difficult
+    and slick; burning ground is what grease becomes when fire finds it,
+    which is the reaction everyone reaches for first.
+  */
+  {
+    id: 'water',
+    label: 'Water',
+    shape: 'sphere',
+    feet: 15,
+    rounds: 10,
+    effect: { surface: 'water' },
+  },
+  {
+    id: 'ice',
+    label: 'Ice',
+    shape: 'sphere',
+    feet: 15,
+    rounds: 10,
+    effect: { difficult: true, surface: 'ice' },
+  },
+  {
+    id: 'burning-ground',
+    label: 'Burning ground',
+    shape: 'sphere',
+    feet: 10,
+    rounds: 3,
+    effect: {
+      damage: { dice: '1d6', type: 'fire' },
+      save: { ability: 'dex', dc: 10, half: true },
+      onEnter: true,
+      onEndTurn: true,
+      surface: 'fire',
+    },
   },
 ];
 
@@ -325,6 +395,11 @@ function hydrateEffect(parsed: unknown): ZoneEffect | undefined {
   if (raw.onEndTurn) out.onEndTurn = true;
   if (raw.blocks) out.blocks = true;
   if (raw.difficult) out.difficult = true;
+  // Checked against the list rather than taken on trust: a saved surface of
+  // "banana" would otherwise reach the reaction table as a material.
+  if (typeof raw.surface === 'string' && SURFACE_KINDS.some((s) => s.kind === raw.surface)) {
+    out.surface = raw.surface as SurfaceKind;
+  }
   return Object.keys(out).length ? out : undefined;
 }
 
