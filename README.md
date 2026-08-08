@@ -20,22 +20,28 @@ and whether to start from a blank sheet or a worked example. The example is a
 level 5 Battle Master with every panel full, so you can see what the rankings do
 before choosing anything.
 
-Four tabs: **Builder**, **Character sheet**, **Optimizer**, **Characters**. The
-Builder is five sections — Identity, Abilities, Equipment, Skills & options,
-Feats — and each carries a count of the choices it is still waiting on, so
-"what have I not finished?" is answered without scrolling.
+Four tabs: **Builder**, **Character sheet**, **Species × Class**, **Characters**.
+The Builder is one page — Identity, Abilities, Equipment, Skills & options,
+Feats — with a rail of anchors down the top carrying a count of the choices each
+is still waiting on, so "what have I not finished?" is answered without
+scrolling. The catalogues fold: what you have taken is always visible, and
+exactly one list of what you have not is open at a time.
 
 **Every choice is ranked where you make it**, with the reasons that moved the
 number: skills, class options, spells, feats and ability score improvements, all
 scored against your actual character and applied with one click.
 
-**Optimizer.** What your character should *become*, rather than what to do with
-the slot open right now: a level-by-level plan to 20, each step re-checked
-against the one before it. Beside it the **species × class**
-matrix — 43 lineages × 13 classes, every pairing rated
-Excellent / Solid / Situational / Avoid with the reasoning attached and clickable
-to load that pairing — and a **feat browser** scored against the character you
-have.
+**Pinned beside the character**, on every part of it: what your character is
+right now, what is still unchosen and where, a level-by-level plan to 20 with
+each step re-checked against the one before it, and damage per round charted
+against **level** — is this build front-loaded or does it come good at eleven —
+with the against-armor-class curve a click away.
+
+**Species × Class.** The matrix — 43 lineages × 13 classes, every pairing rated
+Excellent / Solid / Situational / Avoid with the reasoning attached and
+clickable to load that pairing. Its own tab rather than part of the Builder,
+because loading a pairing resets scores, defenses, feats and weapons — not
+something to put inside the page where you are editing them.
 
 **Proficiencies.** All 18 skills with their modifiers, what granted each one,
 and both passive scores. It knows expertise, Jack of All Trades, Remarkable
@@ -160,7 +166,7 @@ the fourth circle means you are on four and every effect at and below it is
 listed. On paper, only what is actually on you prints.
 
 **Running a game.** The app has two modes: **Create** — the Builder, the sheet,
-the Optimizer, your characters and bestiary — and **Play**, the battle screen,
+Species × Class, your characters and bestiary — and **Play**, the battle screen,
 which owns the whole window. Put your party in from the roster and whatever
 they have run into from **334 SRD monster stat blocks**, roll initiative, and
 work down the order. Click any monster for its full stat block, laid out the

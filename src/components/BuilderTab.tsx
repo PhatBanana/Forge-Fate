@@ -2748,12 +2748,15 @@ function DamagePanel({
 /**
  * What to spend an ability score improvement on, offered where it is spent.
  *
- * Every other choice on this tab already ranks itself in place - skills, class
+ * Every other choice on this page already ranks itself in place - skills, class
  * options, spells - and this was the one that did not, because the ranking
  * lived on the Optimizer. That meant taking a feat and seeing which feats you
- * had taken were two different screens. The forward plan to level 20 is still
- * the Optimizer's: that answers "what should this character become", which is a
- * different question from "I have a slot open right now".
+ * had taken were two different screens.
+ *
+ * The forward plan to level 20 answers a different question - "what should this
+ * character become", against "I have a slot open right now" - so it is a
+ * separate panel, pinned in the rail since §33.5 rather than on a tab of its
+ * own.
  */
 function NextPicks({
   ctx,
@@ -2802,7 +2805,7 @@ function NextPicks({
       <p className="muted" style={{ marginTop: 0 }}>
         {unspent > 0
           ? 'Ranked for the build exactly as it stands. Click Take to apply one.'
-          : 'Nothing is unspent, so this is a preview of your next level-up. The full plan to level 20 is on the Optimizer tab.'}
+          : 'Nothing is unspent, so this is a preview of your next level-up. The full plan to level 20 is in the Progression panel beside this one.'}
       </p>
       {suggestions.map((suggestion, index) => (
         <SuggestionCard

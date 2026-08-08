@@ -52,8 +52,24 @@ import { Panel } from './components/shared';
   says which tab grew.
 */
 const SheetTab = lazy(async () => ({ default: (await import('./components/SheetTab')).SheetTab }));
-const OptimizerTab = lazy(async () => ({
-  default: (await import('./components/OptimizerTab')).OptimizerTab,
+/*
+  §33.8. The Optimizer is retired and this is what is left of it.
+
+  It was three sections behind a sub-tab - the progression plan, the feat
+  browser and the species/class matrix - on the reasoning that they were one
+  question, "what should I take?". They are, and the Builder is now where that
+  question gets asked: the plan is pinned in its rail (§33.1, §33.5) and the
+  feats rank themselves in the panel where you take them, through the same
+  `recommendFeats` and the same card.
+
+  The matrix is the one piece that could not move, and not for want of room.
+  Picking a pairing calls `loadPairing`, which resets ability scores, defenses,
+  feats, improvements and weapons - so it belongs on a screen you visit *before*
+  building, not inlined into the page where you are editing the build it would
+  wipe.
+*/
+const RacesTab = lazy(async () => ({
+  default: (await import('./components/RacesTab')).RacesTab,
 }));
 const CharactersTab = lazy(async () => ({
   default: (await import('./components/CharactersTab')).CharactersTab,
@@ -98,7 +114,7 @@ type Tab =
   | 'title'
   | 'builder'
   | 'sheet'
-  | 'optimizer'
+  | 'pairings'
   | 'characters'
   | 'dungeons'
   | 'campaign'
@@ -119,7 +135,7 @@ type Tab =
 const CREATE_TABS: { id: Tab; label: string }[] = [
   { id: 'builder', label: 'Builder' },
   { id: 'sheet', label: 'Character sheet' },
-  { id: 'optimizer', label: 'Optimizer' },
+  { id: 'pairings', label: 'Species × Class' },
   { id: 'characters', label: 'Characters' },
   // The map workshop: building a place is desk work, not table work. The
   // battle screen loads what this tab saves.
@@ -542,7 +558,7 @@ export default function App() {
       : [{ id: 'table', label: 'Run a battle', hint: 'The map, the initiative, the dice', primary: true }]),
     { id: 'builder', label: 'Build a character', hint: 'Species, class, feats, equipment, spells' },
     { id: 'sheet', label: 'The character sheet', hint: 'The paper one, and the dice that go with it' },
-    { id: 'optimizer', label: 'Weigh a choice', hint: 'What this feat, species or class is worth' },
+    { id: 'pairings', label: 'Species × Class', hint: 'What each pairing is worth, before you commit to one' },
     { id: 'characters', label: 'Characters & bestiary', hint: 'The roster, monsters you made, import and export' },
     { id: 'dungeons', label: 'Dungeons', hint: 'Draw the places you will fight in' },
     { id: 'campaign', label: 'Campaign', hint: 'The party, and the record of what it did' },
@@ -712,8 +728,13 @@ export default function App() {
             onBuildChange={setBuild}
           />
         )}
-        {tab === 'optimizer' && (
-          <OptimizerTab build={build} ctx={ctx} onChange={setBuild} onPickPairing={loadPairing} />
+        {tab === 'pairings' && (
+          <RacesTab
+            raceId={build.raceId}
+            classId={ctx.primary.klass.id}
+            ruleset={build.ruleset}
+            onPick={loadPairing}
+          />
         )}
         {tab === 'table' && (
           <TableTab

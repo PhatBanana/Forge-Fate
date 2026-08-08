@@ -142,9 +142,12 @@ export function Select<T extends string>({
 }
 
 /**
- * One ranked suggestion, open to its reasons. Shared rather than owned by the
- * Optimizer because the feat browser renders the same card, and having it
- * import from a sibling tab made the two modules depend on each other.
+ * One ranked suggestion, open to its reasons.
+ *
+ * Shared rather than owned by one tab because several render it - and it
+ * outlived the Optimizer, which is where it started. When §33.8 deleted that
+ * tab and its feat browser, this needed no change at all, which is the whole
+ * argument for it living here.
  */
 export function SuggestionCard({
   suggestion,
