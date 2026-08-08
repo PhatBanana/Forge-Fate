@@ -1919,6 +1919,83 @@ a few hundred kilobytes against a budget that could not spare them.
 
 ---
 
+## 25. The enemy phase
+
+Every monster turn was hand-driven: pick the token, arm Move, click a
+square, open the menu, pick the attack, click the target. Fine for one
+ogre, miserable for eight goblins, and the biggest single reason the
+battle screen was slower to run than a sheet of paper.
+
+- `[x]` **25.1 Reach and range become data.** The stat blocks state them
+  only in prose — "reach 5 ft.", "range 80/320 ft." — which was fine
+  while a human read the line and decided where to stand. Three patterns
+  cover all 514 attacks across the 334 stat blocks, and the test asserts
+  that count rather than spot-checking, because the failure mode is a
+  data refresh rewording the sentence and silently making every monster
+  melee-only. Eleven attacks carry both a reach and a range; a bandit
+  captain with a dagger really can either stab or throw.
+
+  It found something on its first run: nine swarms say *"reach 0 ft.,
+  one creature in the swarm's space"*, which is true to the book and
+  unusable on a grid where nobody shares a square. The parser still
+  reports the 0 — a parser should say what the page says — and the reach
+  helpers floor it at adjacent, with the ruling written beside the
+  functions whose job is deciding where to stand.
+- `[x]` **25.2 A routine leaves the menu.** The `Strike` shape and the
+  Multiattack expansion move to `engine/strikes.ts`, so a planner can
+  ask what a dragon does in a round without rendering a tray to find
+  out. `routineOptions` replaced a first-action-wins helper that would
+  have marched every archer into melee: each single attack is its own
+  option, while a Multiattack stays one indivisible round priced by its
+  *shortest* reach.
+- `[x]` **25.3 The turn gets decided.** `engine/enemyTurn.ts` returns a
+  plan and never acts. Attack if you can, taking a kill over more damage
+  and more damage over a shorter walk; never Dash into an attack, since
+  the Dash **is** the action; otherwise close on the nearest enemy with
+  everything you have; otherwise hold, and say so. Pure, deterministic,
+  and ignorant of the roster — it takes a flat view of the field and the
+  caller's own price function, so a plan can never route through a wall
+  of fire the DM's own click would have gone around. It rolls no dice:
+  the odds it weighs are `hitChance` against real AC and averages off
+  the same notation, so the plan does not change when you look twice.
+
+  Writing its tests found a hole: the walk maps the *ground*, not the
+  *crowd*, so the planner would plan to stand on top of the fighter —
+  and `moveSelected` would then refuse to run its own plan. It subtracts
+  occupied squares now, the fallen included.
+- `[x]` **25.4 The cockpit proposes; the DM runs it.** Move and attack
+  grew cores that take a roster and return one, landed first with **no
+  test edits at all** — 88 TableTab tests passing untouched was the
+  whole claim. That is what lets a walk and a routine reach the store in
+  one write; two would each build from the same render's roster and the
+  second would discard the first, so the monster would swing from the
+  square it had already left. It is also what makes §27 cheap.
+
+  On top of that, a panel: the turn it would take, the reasoning that
+  produced it, and **Run it**. The command menu stays underneath rather
+  than being replaced, because a proposal you cannot overrule is an
+  instruction, and the DM is the one who knows these goblins are
+  cowards.
+
+**What the probe caught that no unit test would have.** In jsdom every
+test passed. On a real generated dungeon the goblin announced *"can
+reach nobody and get no closer"* and stood still for the whole fight: it
+was against the west wall of its room with the party 200 ft west, and
+"closer" was measured in straight lines, so every square in the room
+scored the same and none looked like progress. The door was the way out
+and only a walk knows that.
+
+This is the exact trap `path.ts` documents in its own header — the first
+reach wash was a Chebyshev radius that offered a square five feet away
+on the far side of a wall — reintroduced one layer up. `walkMap` now
+takes several sources at once, seeded at zero, so one sweep from the
+whole party gives every square its true walking distance to the nearest
+character. A square the party cannot reach at all is *infinitely* far
+rather than zero, so a sealed alcove never looks like the ideal place to
+stand.
+
+---
+
 ## Recently completed
 
 The SRD audit pass, in order. Each was a real defect, not a tidy-up.
