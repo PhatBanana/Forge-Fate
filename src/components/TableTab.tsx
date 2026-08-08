@@ -98,6 +98,7 @@ import { visibleFrom } from '../engine/fog';
 import { Panel } from './shared';
 import { MonsterCard } from './MonsterCard';
 import { PopOut } from './PopOut';
+import { HudPanel } from './HudPanel';
 import { PlayCard } from './PlayCard';
 import { InitiativeStrip } from './InitiativeStrip';
 import { MonsterCommandMenu } from './MonsterTray';
@@ -293,6 +294,17 @@ export function TableTab({
     hide the map on arrival - which is the exact defect §31.3 exists to fix.
   */
   const [drawer, setDrawer] = useState<string | null>(null);
+
+  /*
+    Whether the cockpit is still taking width from the board.
+
+    Two ways it stops: collapsed to its title bar on purpose, or dragged off
+    its edge, which un-docks it. Both are the same answer to the safe area -
+    give the space back - and neither is remembered between sessions, for the
+    reason above: what you had shut last Tuesday is not the state to open on.
+  */
+  const [cockpitShut, setCockpitShut] = useState(false);
+  const [cockpitDocked, setCockpitDocked] = useState(true);
 
   const [houseRules, setHouseRules] = useState<HouseRules>(loadHouseRules);
   useEffect(() => saveHouseRules(houseRules), [houseRules]);
@@ -4552,6 +4564,7 @@ export function TableTab({
   */
   const safeArea = {
     '--hud-top': stripTiles.length ? undefined : '0px',
+    '--hud-right': cockpitShut || !cockpitDocked ? '0px' : undefined,
   } as CSSProperties;
 
   return (
@@ -4567,14 +4580,33 @@ export function TableTab({
         <div className="btl-timeline">{strip}</div>
 
         {/*
-          The cockpit, docked rather than railed. Whoever is selected, in
-          whatever form suits them - and it follows the turn, so after End turn
-          this is the active combatant without anybody clicking anything.
+          The right edge: the turn above, the cockpit below it.
+
+          One column rather than two floats at the same corner, so the turn
+          keeps its place when the cockpit collapses and the cockpit takes
+          whatever height is left without either knowing the other's size.
+
+          The turn is out of the cockpit deliberately. It used to be a header
+          on it, which made whose turn it is and End turn disappear together
+          with a panel somebody shut to see the board - and those are the two
+          things on this screen that must never be more than a glance away.
+
+          Collapsing or dragging the cockpit hands `--hud-right` back to the
+          board; see the safe area above.
         */}
-        <aside className="btl-cockpit" aria-label={selectedTitle}>
-          {turnPanel}
-          <div className="btl-cockpit-body">{selectedPanel}</div>
-        </aside>
+        <div className="btl-right">
+          <div className="btl-turn">{turnPanel}</div>
+          <HudPanel
+            id="cockpit"
+            title={selectedTitle}
+            className="btl-cockpit"
+            collapsed={cockpitShut}
+            onCollapse={setCockpitShut}
+            onDockChange={setCockpitDocked}
+          >
+            {selectedPanel}
+          </HudPanel>
+        </div>
 
         {/*
           The last few lines of the fight, where a DM can read them without
@@ -4594,20 +4626,17 @@ export function TableTab({
           two open would be the scrolling column again with extra steps.
         */}
         {openDrawer && (
-          <section className="btl-drawer" aria-label={openDrawer.label}>
-            <header className="btl-drawer-head">
-              <span className="btl-drawer-title">{openDrawer.label}</span>
-              <button
-                type="button"
-                className="btl-drawer-close"
-                onClick={() => setDrawer(null)}
-                aria-label={`Close ${openDrawer.label}`}
-              >
-                ✕
-              </button>
-            </header>
-            <div className="btl-drawer-body">{openDrawer.content}</div>
-          </section>
+          <HudPanel
+            id={`drawer-${openDrawer.id}`}
+            /* Keyed by which drawer, so switching drawers builds a new frame
+               rather than carrying the last one's drag offset over. */
+            key={openDrawer.id}
+            title={openDrawer.label}
+            className="btl-drawer"
+            onClose={() => setDrawer(null)}
+          >
+            {openDrawer.content}
+          </HudPanel>
         )}
 
         {/*

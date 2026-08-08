@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useDragPosition } from './useDragPosition';
 
 /**
  * A panel that leaves the page.
@@ -166,25 +167,10 @@ function Floating({
   onClose: () => void;
   children: React.ReactNode;
 }) {
-  const [at, setAt] = useState({ x: 0, y: 0 });
-  const from = useRef<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    if (!from.current) return;
-    const move = (e: PointerEvent) => {
-      if (!from.current) return;
-      setAt({ x: e.clientX - from.current.x, y: e.clientY - from.current.y });
-    };
-    const drop = () => {
-      from.current = null;
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', drop);
-    return () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', drop);
-    };
-  });
+  // §32.3 moved the dragging into `useDragPosition`, which every HUD panel
+  // now uses too. This was where it was written; it is no longer where it
+  // lives.
+  const { at, handle } = useDragPosition();
 
   return (
     <div
@@ -193,12 +179,7 @@ function Floating({
       role="dialog"
       aria-label={title}
     >
-      <div
-        className="popout-bar"
-        onPointerDown={(e) => {
-          from.current = { x: e.clientX - at.x, y: e.clientY - at.y };
-        }}
-      >
+      <div className="popout-bar" {...handle}>
         <span>{title}</span>
         <button type="button" onClick={onClose} aria-label={`Close ${title}`}>
           ✕

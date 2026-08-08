@@ -590,7 +590,9 @@ describe('the battlefield loads, it does not build', () => {
   the map fills the stage, and the cockpit is docked right.
 */
 describe('the battle screen', () => {
-  const cockpit = () => document.querySelector('.btl-cockpit') as HTMLElement;
+  /* The body rather than the frame: §32.3 gave the cockpit a title bar that
+     names whoever is in it, so the whole panel says the name twice. */
+  const cockpit = () => document.querySelector('.btl-cockpit .hudp-body') as HTMLElement;
 
   it('pins the turn order in the left rail and the map in the centre', async () => {
     const user = userEvent.setup();
@@ -632,6 +634,67 @@ describe('the battle screen', () => {
     }
     // And nothing is left outside it but the pop-out, which is a window.
     expect(document.querySelectorAll('.btl > *').length).toBe(1);
+  });
+
+  it('hands the board back its width when the cockpit is shut', async () => {
+    /*
+      §32.3's bargain. The cockpit reserves a third of the screen because it
+      is always there; collapse it and it is not, so the reservation goes with
+      it. The body stays mounted underneath - a half-typed damage number
+      should survive somebody glancing at the board.
+    */
+    const user = userEvent.setup();
+    const view = setup(party());
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    const stage = document.querySelector('.btl-stage') as HTMLElement;
+    expect(stage.style.getPropertyValue('--hud-right')).toBe('');
+
+    await user.click(screen.getByRole('button', { name: /^Collapse / }));
+    expect(stage.style.getPropertyValue('--hud-right')).toBe('0px');
+    expect(document.querySelector('.btl-cockpit.is-collapsed')).toBeTruthy();
+    expect(document.querySelector('.btl-cockpit .hudp-body')).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: /^Expand / }));
+    expect(stage.style.getPropertyValue('--hud-right')).toBe('');
+  });
+
+  it('stops reserving board once the cockpit has been dragged off its edge', async () => {
+    /*
+      The distinction the safe area rests on: a panel *docked* to a known edge
+      can honestly claim a rectangle, and one the DM has dragged somewhere of
+      their own choosing cannot. So dragging un-docks, and the Dock button
+      puts it back - both ways round, because a one-way door here would mean
+      the board never got its width back.
+    */
+    const user = userEvent.setup();
+    const view = setup(party());
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    const stage = document.querySelector('.btl-stage') as HTMLElement;
+    const bar = document.querySelector('.btl-cockpit .hudp-bar') as HTMLElement;
+
+    fireEvent.pointerDown(bar, { clientX: 200, clientY: 100 });
+    fireEvent.pointerMove(window, { clientX: 60, clientY: 300 });
+    fireEvent.pointerUp(window);
+    expect(stage.style.getPropertyValue('--hud-right')).toBe('0px');
+    expect(document.querySelector('.btl-cockpit.is-loose')).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: /^Dock / }));
+    expect(stage.style.getPropertyValue('--hud-right')).toBe('');
+    expect(document.querySelector('.btl-cockpit.is-loose')).toBeNull();
+  });
+
+  it('does not un-dock a panel because somebody pressed a button on its bar', async () => {
+    // A press that goes nowhere is a click. Collapse lives on the drag
+    // handle, so without this it would move the panel out from under itself.
+    const user = userEvent.setup();
+    const view = setup(party());
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+
+    await user.click(screen.getByRole('button', { name: /^Collapse / }));
+    expect(document.querySelector('.btl-cockpit.is-loose')).toBeNull();
   });
 
   it('gives the timeline no room before anybody has rolled', () => {

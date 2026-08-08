@@ -6604,15 +6604,121 @@ dl.detail-list {
 }
 
 /*
-  The cockpit, docked to the right edge of the board.
+  §32.3. One floating frame, shared.
 
-  Not a rail: a rail takes width from the window permanently, and this takes it
-  from the *drawing* through `--hud-right`, which a collapse can hand straight
-  back. Its own scroll, because a monster's stat block is longer than any
-  screen. It stops above the command bar rather than running to the floor, so
-  the two docked floats tile rather than stack.
+  Before this the cockpit and the drawer were two different frames doing nearly
+  the same job with their own header markup, and neither could be collapsed,
+  dragged or torn off. `HudPanel` is the one frame; `.btl-cockpit` and
+  `.btl-drawer` below say only where it sits and how big it is.
 */
-.btl-cockpit {
+.hudp {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--menu-shadow);
+  overflow: hidden;
+}
+
+/* Dragged off its edge: it keeps its size but stops claiming a rectangle of
+   the board, so it needs to read as loose rather than docked. */
+.hudp.is-loose {
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  border-color: var(--border-strong);
+}
+
+/*
+  Collapsed: the title bar and nothing else.
+
+  `display: none` on the body rather than not rendering it, so a half-typed
+  damage number and a scroll position survive somebody shutting the panel to
+  look at the board. `height: auto` lets the frame shrink out of whatever
+  top/bottom pair docked it.
+*/
+.hudp.is-collapsed {
+  bottom: auto;
+  height: auto;
+}
+
+.hudp.is-collapsed .hudp-body {
+  display: none;
+}
+
+.hudp-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-sunken);
+  /* The whole bar is the drag handle, so say so - and stop a drag from
+     selecting the title text on the way past. */
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.hudp-bar:active {
+  cursor: grabbing;
+}
+
+.hudp-title {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hudp-badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.hudp-tools {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.hudp-tools button {
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text-dim);
+  border-radius: var(--radius);
+  padding: 1px 7px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.hudp-tools button:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.hudp-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+/*
+  The right edge of the board: the turn on top, the cockpit under it.
+
+  A column rather than two floats at the same corner, so neither has to know
+  the other's height. The column takes no pointer events itself - the gap
+  between the two panels is board, and a click there should reach it.
+*/
+.btl-right {
   position: absolute;
   top: var(--hud-top);
   right: 8px;
@@ -6621,21 +6727,62 @@ dl.detail-list {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 8px;
-  /* Opaque. A cockpit you can read the map through is a cockpit you cannot
-     read, and the numbers on it are the ones being argued about. */
+  z-index: 11;
+  pointer-events: none;
+}
+
+.btl-right > * {
+  pointer-events: auto;
+}
+
+/*
+  The turn. One line and one button, kept out of the cockpit deliberately:
+  collapsing the cockpit must not take End turn with it.
+
+  It brings its own opaque frame now that it is over the board rather than
+  inside a panel - whose turn it is has to be legible against grid lines and
+  tokens, not tinted by them - and drops the rule the cockpit's header used to
+  sit above, since there is nothing below it any more.
+*/
+.btl-turn {
+  flex: 0 0 auto;
+  padding: 8px 10px;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--menu-shadow);
-  z-index: 11;
-  overflow: hidden;
 }
 
-.btl-cockpit-body {
+.btl-turn .turn-panel {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/*
+  The cockpit, docked to the right edge rather than railed.
+
+  Not a rail: a rail takes width from the window permanently, and this takes it
+  from the *drawing* through `--hud-right`, which a collapse hands straight
+  back. In flow inside the column rather than absolutely positioned, so it
+  takes whatever height the turn leaves; `position: relative` still carries the
+  drag transform.
+*/
+.btl-cockpit {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
-  overflow-y: auto;
+}
+
+.btl-cockpit.is-collapsed {
+  flex: 0 0 auto;
+}
+
+/* Dragged loose it stops filling the column: a panel the DM has moved is a
+   window, and a window as tall as the screen cannot be put anywhere useful. */
+.btl-cockpit.is-loose {
+  flex: 0 0 auto;
+  max-height: 66%;
 }
 
 /* The panels inside the cockpit are already framed by the cockpit itself. */
@@ -6688,68 +6835,21 @@ dl.detail-list {
 
   Left side rather than right, so it never fights the cockpit, and capped so
   the map is still visible beside it - a drawer that covers the board is a
-  page with extra steps.
+  page with extra steps. The frame itself is `HudPanel`; this is only where it
+  sits.
 */
 .btl-drawer {
-  position: absolute;
   top: var(--hud-top);
   left: 8px;
   bottom: var(--hud-bottom);
   width: min(480px, 52vw);
-  display: flex;
-  flex-direction: column;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--menu-shadow);
   /* Above every docked float: a drawer is the thing you are looking at right
      now, and it is the one panel that closes. */
   z-index: 14;
-  overflow: hidden;
-}
-
-.btl-drawer-head {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border-soft);
-  background: var(--bg-sunken);
-}
-
-.btl-drawer-title {
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-
-.btl-drawer-close {
-  margin-left: auto;
-  border: 1px solid var(--border);
-  background: var(--bg-raised);
-  color: var(--text-dim);
-  border-radius: var(--radius);
-  padding: 2px 8px;
-  line-height: 1.2;
-}
-
-.btl-drawer-close:hover {
-  color: var(--text);
-  border-color: var(--border-strong);
-}
-
-.btl-drawer-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 10px;
 }
 
 /* Inside a drawer the panel frame is redundant - the drawer is the frame. */
-.btl-drawer-body .panel {
+.btl-drawer .panel {
   border: none;
   background: none;
   box-shadow: none;
@@ -6757,7 +6857,7 @@ dl.detail-list {
   margin: 0 0 14px;
 }
 
-.btl-drawer-body .panel:last-child {
+.btl-drawer .panel:last-child {
   margin-bottom: 0;
 }
 
@@ -6834,7 +6934,15 @@ dl.detail-list {
     --hud-bottom: calc(52% + 54px);
   }
 
-  .btl-cockpit,
+  .btl-right {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 54px;
+    width: auto;
+    height: 52%;
+  }
+
   .btl-drawer {
     top: auto;
     left: 0;
