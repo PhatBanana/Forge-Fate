@@ -608,6 +608,44 @@ describe('the battle screen', () => {
     expect(document.querySelector('.btl-stage .dmap')).toBeTruthy();
   });
 
+  it('puts every piece of the HUD inside the game window, not around it', async () => {
+    /*
+      §32.2, and the whole of the ask that opened the section: the screen is
+      one stage with things floating in it, rather than a map with chrome
+      stacked above and below.
+
+      Structural rather than visual because jsdom does no layout - but the
+      structure is the part that can regress. §31.3 had the timeline and the
+      command bar as siblings *of* the stage, and no amount of CSS makes a
+      sibling float over its neighbour.
+    */
+    const user = userEvent.setup();
+    const view = setup(party());
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+
+    for (const sel of ['.btl-timeline', '.btl-bar', '.btl-cockpit', '.map-stage']) {
+      const el = document.querySelector(sel);
+      expect(el, sel).toBeTruthy();
+      expect(el!.closest('.btl-stage'), sel).toBeTruthy();
+    }
+    // And nothing is left outside it but the pop-out, which is a window.
+    expect(document.querySelectorAll('.btl > *').length).toBe(1);
+  });
+
+  it('gives the timeline no room before anybody has rolled', () => {
+    /*
+      The safe area is only worth reserving while there is something to
+      reserve it for. `InitiativeStrip` renders nothing with no tiles, so the
+      inset goes to zero and the drawing takes the space - which matters most
+      before a fight, when the board is being laid out.
+    */
+    setup(party());
+    const stage = document.querySelector('.btl-stage') as HTMLElement;
+    expect(stage.style.getPropertyValue('--hud-top')).toBe('0px');
+  });
+
   it('says nothing is selected before there is anybody', () => {
     setup(party());
     expect(screen.getByText(/pick somebody in the turn order/i)).toBeInTheDocument();

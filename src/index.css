@@ -6457,70 +6457,110 @@ dl.detail-list {
 /* --------------------------------------------------------- the battle screen */
 
 /*
-  §31.3. The map is the screen.
+  §31.3, rebuilt in §32.2. The map is the screen, and the HUD is inside it.
 
   For thirty sections the battlefield was the fifth thing down a scrolling
-  column, and every panel opened underneath pushed it further away. Now it
-  fills whatever the window has left, and everything that used to sit above or
-  below it either floats over it or is a drawer that slides in and goes away.
+  column, and every panel opened underneath pushed it further away. §31.3 gave
+  it the window but left two pieces of chrome *around* it - a timeline row on
+  top and a command bar underneath - so the screen was still three stacked
+  regions with a map in the middle one.
 
-  Three regions: the timeline across the top, the stage, and the command bar
-  along the bottom. Only the stage flexes; the other two are exactly as tall as
-  their contents. `min-height: 0` on the stage is what makes that true - a flex
-  child sizes to its content by default and would push the bar off screen.
+  Now there is one region. `.btl-stage` is the whole window, and the timeline,
+  the cockpit, the log tail, the drawers and the command bar are all floats
+  positioned inside it. Nothing is beside the game; everything is in it.
+
+  The board keeps its shape because of the safe area below, not because the
+  floats are polite.
 */
 .btl {
-  display: flex;
-  flex-direction: column;
+  position: relative;
   height: 100%;
   min-height: 0;
-  gap: 0;
-}
-
-.btl-top {
-  flex: 0 0 auto;
-  padding: 6px 12px 0;
   overflow: hidden;
 }
 
-.btl-top .init-strip {
-  margin-bottom: 6px;
-}
+/*
+  The stage, and the four numbers that make floating survivable.
 
+  `--hud-top/right/bottom/left` are how much of the stage the *docked* floats
+  have taken. The drawing is inset by them, so a token can never end up
+  underneath the timeline or the cockpit; when a float is not on screen, its
+  number is zero and the drawing grows into the space.
+
+  Only docked floats reserve. A drawer may cover the map - you opened it on
+  purpose and can close it - and so may the log tail, which does not take
+  clicks. The timeline, cockpit and command bar are always there, so they may
+  not. §31.3 has the scar that taught this: `deploy` puts monsters in the rooms
+  farthest from the party, `engine/dungeon.ts` numbers rooms left to right, so
+  monsters cluster right, every time - and the first draft floated the cockpit
+  over exactly those squares.
+*/
 .btl-stage {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 0;
-  margin: 0 12px;
-  /* One number, used by the cockpit and by the space the map leaves for it. */
+  position: absolute;
+  inset: 0;
+  /*
+    The board: a surface, edge to edge, under every float. Without it the
+    margins around the drawing are page, and a HUD floating over page is the
+    old layout with the boxes moved - the thing being fixed. Sunken and
+    vignetted so the drawing sits *in* something.
+  */
+  background:
+    radial-gradient(120% 90% at 50% 40%, transparent 40%, rgba(0, 0, 0, 0.28) 100%),
+    var(--bg-sunken);
+  /* One number, used by the cockpit and by the width it reserves. */
   --cockpit: min(340px, 34vw);
+  --hud-top: 62px;
+  --hud-right: calc(var(--cockpit) + 16px);
+  --hud-bottom: 54px;
+  --hud-left: 0px;
 }
 
 /*
-  The map fills the stage, *beside* the cockpit rather than under it.
-
-  Reserving the width rather than floating over it is a correction to the first
-  draft of this screen, which floated: deploy puts monsters in the rooms
-  farthest from the party, those are often on the right, and a goblin standing
-  behind the cockpit is a goblin nobody can click. A drawer may cover the map,
-  because a drawer is something you opened on purpose and can close; the
-  cockpit is always there.
+  The board: the full stage, edge to edge and under everything. The *drawing*
+  sits inside the safe rectangle, centred in it.
 
   `preserveAspectRatio` on the SVG means a wide map letterboxes rather than
   stretching - a battle grid whose squares are not square would be worse than
-  a small one.
+  a small one - and §32.1 made the hit-test agree with that either way.
 */
 .btl-stage .map-stage {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: calc(var(--cockpit) + 8px);
+  top: var(--hud-top);
+  right: var(--hud-right);
+  bottom: var(--hud-bottom);
+  left: var(--hud-left);
   /* Centres the drawing in whatever the safe rectangle turns out to be. The
      floated readouts are absolutely positioned, so they are out of this
      flow and unaffected. */
   display: grid;
   place-items: center;
+  /* A size container, so the drawing below can compare the rectangle's two
+     axes and fit itself to the smaller one. */
+  container-type: size;
+}
+
+/*
+  The timeline, floating across the top of the board.
+
+  Full width rather than inset to the safe area: it is the one float that may
+  run behind the cockpit, because it scrolls horizontally and the tiles it
+  would hide are the ones furthest down the order. Its height is `--hud-top`,
+  and it is absent entirely before initiative is rolled - which is when the
+  board is being laid out and wants every pixel.
+*/
+.btl-timeline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  padding: 6px 10px 0;
+  pointer-events: none;
+}
+
+.btl-timeline .init-strip {
+  margin-bottom: 0;
+  pointer-events: auto;
 }
 
 /*
@@ -6536,30 +6576,47 @@ dl.detail-list {
   Token clicks were unaffected, which is why every probe missed it: they all
   clicked token and tile elements, whose own boxes were right.
 
-  `height: auto` with `max-height: 100%` is the fix and it is the ordinary
-  replaced-element rule: an intrinsic ratio plus a max constraint shrinks the
-  other axis to match, which is `object-fit: contain` without needing it. The
-  element box becomes the drawing box again, `squareAt` becomes exact, and the
+  `width: 100%` with only `max-height` is *not* the fix, which cost a rebuild
+  to learn: width still resolves to the whole safe rectangle and only height
+  gets clamped, so the box is the wrong shape again. Nor is the photograph
+  recipe (`width/height: auto` plus both maxima) - that fits, but it never
+  grows past the drawing's intrinsic size, and on a 1360 window it left a
+  672-wide map floating in a 1004-wide space.
+
+  What is needed is `contain` in both directions, which is a *comparison* of
+  the two axes, so the rule has to be able to see both. Container query units
+  are how CSS says that: take the full width, unless the height runs out
+  first. `--map-ratio` comes from the viewBox, set by the map itself, because
+  the stylesheet cannot know how many squares this dungeon is.
+
+  With that the element box is the drawing box, `squareAt` is exact, and the
   margins left over are precisely where the floating HUD wants to sit.
 */
 .btl-stage .dmap {
-  width: 100%;
+  aspect-ratio: var(--map-ratio);
+  width: min(100cqw, calc(100cqh * var(--map-ratio)));
   height: auto;
+  max-width: 100%;
   max-height: 100%;
+  /* Lifted off the board, so the drawing is an object on a surface rather
+     than a lighter patch of the same one. */
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.35);
 }
 
 /*
-  The cockpit, docked to the right edge over the map.
+  The cockpit, docked to the right edge of the board.
 
-  Not a rail: a rail takes width from the map permanently, and the map is the
-  thing. This floats, so on a narrow window it overlaps rather than squeezing.
-  Its own scroll, because a monster's stat block is longer than any screen.
+  Not a rail: a rail takes width from the window permanently, and this takes it
+  from the *drawing* through `--hud-right`, which a collapse can hand straight
+  back. Its own scroll, because a monster's stat block is longer than any
+  screen. It stops above the command bar rather than running to the floor, so
+  the two docked floats tile rather than stack.
 */
 .btl-cockpit {
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
+  top: var(--hud-top);
+  right: 8px;
+  bottom: var(--hud-bottom);
   width: var(--cockpit);
   display: flex;
   flex-direction: column;
@@ -6571,7 +6628,7 @@ dl.detail-list {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--menu-shadow);
-  z-index: 4;
+  z-index: 11;
   overflow: hidden;
 }
 
@@ -6595,13 +6652,14 @@ dl.detail-list {
 
   Three lines, because three is what a DM glances at. The whole log is behind
   the After drawer. Pointer-events off: this is a readout, and a readout that
-  eats clicks meant for the map is a bug.
+  eats clicks meant for the map is a bug - which is also why it reserves no
+  safe area. A token under it is still a token you can click.
 */
 .btl-tail {
   position: absolute;
   left: 8px;
-  bottom: 8px;
-  z-index: 3;
+  bottom: calc(var(--hud-bottom) + 8px);
+  z-index: 9;
   max-width: min(46ch, 40%);
   padding: 8px 10px;
   pointer-events: none;
@@ -6634,9 +6692,9 @@ dl.detail-list {
 */
 .btl-drawer {
   position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
+  top: var(--hud-top);
+  left: 8px;
+  bottom: var(--hud-bottom);
   width: min(480px, 52vw);
   display: flex;
   flex-direction: column;
@@ -6644,7 +6702,9 @@ dl.detail-list {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--menu-shadow);
-  z-index: 6;
+  /* Above every docked float: a drawer is the thing you are looking at right
+     now, and it is the one panel that closes. */
+  z-index: 14;
   overflow: hidden;
 }
 
@@ -6702,24 +6762,37 @@ dl.detail-list {
 }
 
 /*
-  The command bar.
+  The command bar, along the bottom edge of the board.
 
   Every one of these used to be a panel you scrolled past. Chunky, evenly
   weighted, and wrapping rather than scrolling, because a menu button that has
   moved since last time is one you have to read instead of aim at.
+
+  `--hud-bottom` is the height it reserves. Not `flex-wrap` any more: a bar
+  that grows a second row would silently start covering the squares the safe
+  area promised, and seven buttons at 88px fit any window this app supports.
+  They shrink instead.
 */
 .btl-bar {
-  flex: 0 0 auto;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 12;
+  height: var(--hud-bottom);
   display: flex;
+  align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
-  padding: 8px 12px;
+  padding: 0 10px 8px;
 }
 
 .btl-cmd {
-  flex: 1 1 auto;
-  min-width: 88px;
-  padding: 10px 14px;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 10px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--mono);
   font-size: 12px;
   letter-spacing: 0.12em;
@@ -6749,15 +6822,16 @@ dl.detail-list {
   Narrow windows: the cockpit and drawer stop floating and take the bottom
   half, because at that width overlapping them onto a map leaves neither
   readable. Tablets in portrait land here.
+
+  The safe area follows: the cockpit stops taking width and starts taking
+  height, so the board keeps its promise in this branch too rather than only in
+  the wide one.
 */
 @media (max-width: 900px) {
   .btl-stage {
     --cockpit: 0px;
-  }
-
-  .btl-stage .map-stage {
-    right: 0;
-    bottom: 52%;
+    --hud-right: 0px;
+    --hud-bottom: calc(52% + 54px);
   }
 
   .btl-cockpit,
@@ -6765,6 +6839,7 @@ dl.detail-list {
     top: auto;
     left: 0;
     right: 0;
+    bottom: 54px;
     width: auto;
     height: 52%;
   }

@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import type { CSSProperties } from 'react';
 import { toUserSpace } from '../engine/letterbox';
 import { corridorSquares } from '../engine/dungeon';
 import type { Dungeon } from '../engine/dungeon';
@@ -313,6 +314,11 @@ export function IsoMap({
       ref={svg}
       className="dmap isomap"
       viewBox={`0 ${-pad} ${w} ${h}`}
+      /* An intrinsic size and the shape it implies, so the element can be
+         fitted rather than stretched - see `DungeonMap.tsx`. */
+      width={w}
+      height={h}
+      style={{ '--map-ratio': `${w} / ${h}` } as CSSProperties}
       role="img"
       aria-label={`Tactical view of the map from seed ${dungeon.seed}`}
       onPointerDown={(e) => {

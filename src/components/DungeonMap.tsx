@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import type { CSSProperties } from 'react';
 import { corridorSquares } from '../engine/dungeon';
 import type { Dungeon } from '../engine/dungeon';
 import type { Square } from '../encounter';
@@ -265,6 +266,16 @@ export function DungeonMap({
       ref={svg}
       className="dmap"
       viewBox={`0 0 ${w} ${h}`}
+      /*
+        An intrinsic size and the shape it implies. The stylesheet cannot know
+        how many squares this dungeon is, and the battle stage needs the shape
+        to fit the drawing to its safe rectangle rather than stretch it -
+        which is what keeps the element box equal to the drawing box, and
+        `squareAt` exact. See `engine/letterbox.ts`.
+      */
+      width={w}
+      height={h}
+      style={{ '--map-ratio': `${w} / ${h}` } as CSSProperties}
       role="img"
       aria-label={`Dungeon map from seed ${dungeon.seed}: ${dungeon.rooms.length} rooms`}
       onPointerDown={(e) => {

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import type { Monster } from '../data/monsters';
 import { formatCr, legendaryCost, monsterMod, monsterSummary, parseUsage, searchMonsters } from '../data/monsters';
 import { isCustom, mergeBestiary } from '../bestiary';
@@ -4533,12 +4534,37 @@ export function TableTab({
   ] as const;
   const openDrawer = drawers.find((d) => d.id === drawer);
 
+  /*
+    The safe area: how much of the stage the docked floats have taken.
+
+    Every float sits *inside* the stage now, so without this the board would
+    be a rectangle with a timeline over its top squares and a command bar over
+    its bottom ones. The map draws inside these insets instead, which means the
+    floats have somewhere to be that is not on top of the board - and when a
+    float is not there, its inset is zero and the drawing grows into the space.
+
+    Only *docked* floats reserve. A drawer is something you opened on purpose
+    and can close, so it may cover the map; the timeline, the cockpit and the
+    command bar are always there, so they may not. That distinction is the
+    whole rule, and §31.3 learnt it the hard way: deploy puts monsters in the
+    rooms farthest from the party, reliably the rightmost, and the first draft
+    of this screen floated the cockpit over exactly those squares.
+  */
+  const safeArea = {
+    '--hud-top': stripTiles.length ? undefined : '0px',
+  } as CSSProperties;
+
   return (
     <div className="btl">
-      <div className="btl-top">{strip}</div>
-
-      <div className="btl-stage">
+      <div className="btl-stage" style={safeArea}>
         {mapStage}
+
+        {/*
+          The timeline, floating across the top of the board rather than sitting
+          above it. It reserves `--hud-top`, so nothing on the map hides under
+          it, and it disappears entirely before anybody has rolled initiative.
+        */}
+        <div className="btl-timeline">{strip}</div>
 
         {/*
           The cockpit, docked rather than railed. Whoever is selected, in
@@ -4583,27 +4609,28 @@ export function TableTab({
             <div className="btl-drawer-body">{openDrawer.content}</div>
           </section>
         )}
-      </div>
 
-      {/*
-        The command bar. Every one of these used to be a panel you scrolled
-        past; each is now a button that puts the thing on screen and takes it
-        away again, which is the difference between a page and a game.
-      */}
-      <nav className="btl-bar" aria-label="Battle menus">
-        {drawers.map((d) => (
-          <button
-            key={d.id}
-            type="button"
-            className={`btl-cmd ${drawer === d.id ? 'is-on' : ''}`}
-            aria-pressed={drawer === d.id}
-            title={d.hint}
-            onClick={() => setDrawer(drawer === d.id ? null : d.id)}
-          >
-            {d.label}
-          </button>
-        ))}
-      </nav>
+        {/*
+          The command bar, along the bottom edge *of the board* rather than
+          under it. Every one of these used to be a panel you scrolled past;
+          each is now a button that puts the thing on screen and takes it away
+          again, which is the difference between a page and a game.
+        */}
+        <nav className="btl-bar" aria-label="Battle menus">
+          {drawers.map((d) => (
+            <button
+              key={d.id}
+              type="button"
+              className={`btl-cmd ${drawer === d.id ? 'is-on' : ''}`}
+              aria-pressed={drawer === d.id}
+              title={d.hint}
+              onClick={() => setDrawer(drawer === d.id ? null : d.id)}
+            >
+              {d.label}
+            </button>
+          ))}
+        </nav>
+      </div>
 
       {poppedPanel}
     </div>
