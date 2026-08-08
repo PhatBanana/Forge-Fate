@@ -2082,6 +2082,100 @@ Cleared per test now.
 
 ---
 
+## 27. The numbers become true
+
+Asked for as a question — *what else is not wired up?* — and answered from
+the code rather than from memory. The audit found one pattern repeated
+four times: **data the app records faithfully and never reads**. It is the
+same defect §26.2 fixed for elevation, and it was quietly wrong on most
+attacks against half the bestiary.
+
+- `[x]` **27.1 Damage lands through defences.** 165 of the 334 stat blocks
+  carry `resist`, `immune` and `vulnerable`, and nothing had ever consulted
+  them: a fire elemental took full damage from a wall of fire, a skeleton
+  full damage from a club. Every strike carried a damage *type* that was
+  only ever printed.
+
+  All nineteen entries the bestiary uses are read. Twelve are a bare type.
+  Seven carry a prose qualifier, split honestly: the ones the app **can**
+  settle (whether the swing was magical — an answer `attacks.ts` had been
+  computing and throwing away), and the ones it **cannot** — silvered,
+  adamantine, alignment, from-spells — which are announced with the
+  qualifier named rather than guessed. Unrecognised prose makes the entry
+  advisory, so a data refresh degrades to *"tell the DM"* rather than to a
+  wrong number.
+
+  Applied per damage part, since a strike dealing slashing *and* fire
+  against something resisting only fire has to split. Immunity beats
+  everything; resistance and vulnerability **cancel**, which is a ruling —
+  the SRD does not say, and cancelling is the only answer that does not
+  depend on which is applied first.
+- `[x]` **27.2 Conditions change the dice.** Every read of a condition
+  either set one or rendered a list. Not one changed a roll — while the log
+  had announced *"unseen attacker — advantage"* since §19.3 over a die
+  rolled straight. Stating an advantage you do not grant is worse than
+  never mentioning it, and §26.2 had made it worse by creating **prone**
+  that nothing read.
+
+  `engine/advantage.ts` gathers every circumstance and folds them with the
+  one rule 5e has: they do not stack, any number of each cancels, one alone
+  decides. Prone cuts both ways — advantage in reach, *disadvantage*
+  beyond — which is what makes going down a choice rather than a
+  downgrade. Condition immunities read too: a zombie cannot be poisoned.
+
+  **Frightened was skipped here and then fixed**, which is the more
+  interesting half. The rule turns on whether the source of the fear is in
+  sight, and nothing recorded what frightened you — so conditions grew
+  `conditionSources`. Both halves now work: advantage costs only while the
+  source can be seen, and a frightened creature cannot willingly move
+  *closer* to it, refused as a destination. Both remain refusable — no
+  source, or no sight model, and the rule stays quiet.
+- `[x]` **27.3 The trackers that were only ever watched.** Ammunition
+  (§2.3 gave the sheet a quiver nothing came out of), the concentration
+  save (the DC printed correctly since §2.8, never rolled), and death saves
+  (`applyDeathSaveRoll` had the whole rule since §7 and nothing called it).
+  Exhaustion and charmed came free — three levels of exhaustion cost
+  advantage and two halve the speed; a charmed creature will not attack its
+  charmer, using the source field frightened needed.
+
+**What the checking found.** Two of my own mistakes, both worth naming
+because both looked at first like app defects. A test asserted a skeleton
+*resists* bludgeoning while its own comment said *vulnerable* — the code
+was right. And the browser probe swung a greatsword at a skeleton and
+reported no defence note as a failure: a skeleton is vulnerable to
+bludgeoning and indifferent to slashing, so printing nothing was exactly
+correct. The probe now attacks a grick, which resists all three physical
+types from nonmagical weapons — the fighter's greatsword is mundane, so
+the ruling is wholly decidable and the log reads *"hit, 13 → 6 slashing"*
+followed by *"Grick — resists slashing."*
+
+**Rules coverage, restated.** The register in §23 is out of date, and this
+replaces it.
+
+*Enforced in code* — action economy; movement budgets, Dash and difficult
+ground; real path costs; cover; **damage type against resistance, immunity
+and vulnerability**; **advantage and disadvantage, and the conditions that
+grant them**; **condition immunities**; zone damage, saves and grants;
+**concentration saves, rolled**; **death saves, rolled**; **ammunition**;
+**exhaustion on attacks and speed**; **shove, falling and prone**; surface
+reactions; stealth, fog and activation; monster recharge and per-day uses;
+opportunity-attack provocation (logged).
+
+*Noted, never applied* — flanking (the obvious next row on §26.3's switch),
+the opportunity-attack swing itself (that is §28), and the resistance
+qualifiers only a table can settle.
+
+*Deliberately absent* — grappling, mounted combat, readied-action triggers,
+spell components. Frightened left this list in §27.2; shoving left it in
+§26.2. The list is meant to shrink.
+
+*Known gap* — **characters have no damage resistances at all**. The build
+model's `Defenses` is AC and hit points, so a raging Barbarian or a
+Dragonborn's ancestry is still applied by hand. Named in `defencesOf` so it
+is visible rather than implied.
+
+---
+
 ## Recently completed
 
 The SRD audit pass, in order. Each was a real defect, not a tidy-up.
