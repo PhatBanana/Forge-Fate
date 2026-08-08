@@ -46,7 +46,7 @@ export function ChoiceRow({
   title,
   /** The state of the choice: "2 to choose", "all chosen". */
   summary,
-  taken = [],
+  taken,
   /** Shown in place of the chips when nothing is taken yet. */
   emptyLabel = 'nothing chosen yet',
   open,
@@ -56,6 +56,14 @@ export function ChoiceRow({
   id: string;
   title: string;
   summary: string;
+  /**
+   * What you have taken. An empty array is a strip that says so; **omitting
+   * it entirely** means this row has no strip at all, which is for the one
+   * case where what you have taken is already on screen permanently just
+   * above the row - the feats panel lists your feats whether or not the
+   * suggestions are open. The distinction matters because the two cases
+   * disagree about whether "nothing chosen yet" would be true.
+   */
   taken?: Chip[];
   emptyLabel?: string;
   open: boolean;
@@ -97,7 +105,7 @@ export function ChoiceRow({
         hides the only way to remove something, which is exactly the rule
         `ClassOptionsPanel` set out to protect.
       */}
-      {!open && (
+      {!open && taken && (
         <div className="crow-chips">
           {taken.length === 0 ? (
             <span className="crow-empty">{emptyLabel}</span>

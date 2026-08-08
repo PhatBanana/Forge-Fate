@@ -15,14 +15,22 @@ import { fighter } from '../test/factories';
  * the easy half.
  */
 
+/*
+  Rendered with its picker already open. §33.3 put the panel behind a
+  `ChoiceRow`, which is closed by default so the Builder can hold every
+  catalogue on one page; these tests are about what is *inside* it, and the
+  opening and closing has its own tests on `ChoiceRow`.
+*/
+const open = { picker: 'counters', onPicker: () => {} };
+
 function setup(initial: Build = fighter()) {
   const patch = vi.fn();
   let build = initial;
 
-  const view = render(<CountersPanel build={build} patch={patch} />);
+  const view = render(<CountersPanel build={build} patch={patch} {...open} />);
   patch.mockImplementation((partial: Partial<Build>) => {
     build = { ...build, ...partial };
-    view.rerender(<CountersPanel build={build} patch={patch} />);
+    view.rerender(<CountersPanel build={build} patch={patch} {...open} />);
   });
 
   return {

@@ -12,16 +12,26 @@ import { buildOf, fighter } from '../test/factories';
  * these check that an inert item explains itself rather than sitting silent.
  */
 
+/*
+  Rendered with its picker already open. §33.3 put the panel behind a
+  `ChoiceRow` so the Builder can hold every catalogue on one page; these tests
+  are about what is inside it, and the row's own behaviour is tested on
+  `ChoiceRow`.
+*/
+const shown = { picker: 'items', onPicker: () => {} };
+
 function setup(initial: Build) {
   const patch = vi.fn();
   let build = initial;
 
   const view = render(
-    <ItemsPanel build={build} ctx={deriveBuild(build)} patch={patch} />,
+    <ItemsPanel build={build} ctx={deriveBuild(build)} patch={patch} {...shown} />,
   );
   patch.mockImplementation((partial: Partial<Build>) => {
     build = { ...build, ...partial };
-    view.rerender(<ItemsPanel build={build} ctx={deriveBuild(build)} patch={patch} />);
+    view.rerender(
+      <ItemsPanel build={build} ctx={deriveBuild(build)} patch={patch} {...shown} />,
+    );
   });
 
   return { get build() { return build; } };

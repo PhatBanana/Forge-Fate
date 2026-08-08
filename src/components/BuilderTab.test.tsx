@@ -51,13 +51,24 @@ describe('feats and ability score improvements', () => {
     setup(fighter(5));
     await goTo(/^feats/i);
     const panel = featsPanel();
-    expect(within(panel).getByText(/spend now — 1 unspent slot/i)).toBeInTheDocument();
-    expect(within(panel).getAllByRole('group').length).toBeGreaterThan(1);
+    /*
+      The row says what is open without being opened - §33.3 closed every
+      catalogue by default. What you have taken stays above it either way,
+      which is why this row is the one with no chips of its own.
+    */
+    expect(
+      within(panel).getByRole('button', { name: /^Spend now 1 unspent slot/i }),
+    ).toBeInTheDocument();
+    expect(within(panel).queryAllByRole('group')).toHaveLength(0);
+
+    await userEvent.click(within(panel).getByRole('button', { name: /^Spend now/i }));
+    expect(within(featsPanel()).getAllByRole('group').length).toBeGreaterThan(1);
   });
 
   it('applies a pick and shows it as taken, in the one place', async () => {
     const app = setup(fighter(5));
     await goTo(/^feats/i);
+    await userEvent.click(within(featsPanel()).getByRole('button', { name: /^Spend now/i }));
     const take = within(featsPanel()).getAllByRole('button', { name: /^take /i })[0];
     const label = take.textContent!.replace(/^Take /, '');
 
@@ -72,7 +83,9 @@ describe('feats and ability score improvements', () => {
     // A Fighter 3 has not reached an improvement yet.
     setup(fighter(3));
     await goTo(/^feats/i);
-    expect(within(featsPanel()).getByText(/if you had a slot right now/i)).toBeInTheDocument();
+    expect(
+      within(featsPanel()).getByRole('button', { name: /^If you had a slot right now/i }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -459,8 +472,14 @@ describe('which class a spell was learned as', () => {
       ...overrides,
     });
 
-  /* The panel shows one spell level at a time, so search is how both reach it. */
+  /* The panel shows one spell level at a time, so search is how both reach it.
+     Opening the row first, since §33.3 closed every catalogue by default -
+     done here rather than at each call site so the tests below still read as
+     being about spell sources. */
   const find = async (name: string) => {
+    if (!screen.queryByPlaceholderText(/search every spell/i)) {
+      await userEvent.click(screen.getByRole('button', { name: /^Spells / }));
+    }
     const box = screen.getByPlaceholderText(/search every spell/i);
     await userEvent.clear(box);
     await userEvent.type(box, name);

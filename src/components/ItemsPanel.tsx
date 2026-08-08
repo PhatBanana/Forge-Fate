@@ -3,7 +3,9 @@ import type { Build } from '../types';
 import { KIND_LABELS, KIND_ORDER, MAGIC_ITEMS, RARITY_LABELS } from '../data/magicItems';
 import type { BuildContext } from '../engine/character';
 import { isConsumable, quantityOf } from '../engine/items';
-import { Panel } from './shared';
+import { ChoiceRow } from './ChoiceRow';
+import { rowState } from './picker';
+import type { PickerProps } from './picker';
 import { RulesDisclosure } from './RulesText';
 
 /**
@@ -19,11 +21,13 @@ export function ItemsPanel({
   build,
   ctx,
   patch,
+  picker,
+  onPicker,
 }: {
   build: Build;
   ctx: BuildContext;
   patch: (partial: Partial<Build>) => void;
-}) {
+} & PickerProps) {
   const [adding, setAdding] = useState('');
   const [customName, setCustomName] = useState('');
 
@@ -33,9 +37,16 @@ export function ItemsPanel({
   const overAttuned = ctx.attunedCount > ctx.attunementSlots;
 
   return (
-    <Panel
+    <ChoiceRow
+      {...rowState('items', { picker, onPicker })}
       title="Magic items"
-      subtitle={`${ctx.attunedCount}/${ctx.attunementSlots} attunement slots used. An item does nothing until it is attuned, where attunement is required.`}
+      summary={`${items.length} carried · ${ctx.attunedCount}/${ctx.attunementSlots} attunement slots used${overAttuned ? ' — over' : ''}`}
+      emptyLabel="none carried"
+      taken={items.map((entry, index) => ({
+        id: `${entry.itemId}-${index}`,
+        label: `${MAGIC_ITEMS.find((i) => i.id === entry.itemId)?.name ?? entry.customName ?? entry.itemId}${entry.attuned ? ' · attuned' : ''}`,
+        onRemove: () => setItems(items.filter((_, i) => i !== index)),
+      }))}
     >
       <div className="row" style={{ gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
         <select
@@ -210,6 +221,6 @@ export function ItemsPanel({
         printed, and the app does not pretend to compute what a Deck of Many Things does. Anything
         not listed can still be named by hand.
       </p>
-    </Panel>
+    </ChoiceRow>
   );
 }

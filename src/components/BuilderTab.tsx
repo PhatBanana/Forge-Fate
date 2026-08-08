@@ -13,6 +13,7 @@ import { damageDice, isLight, isTwoHanded, weaponsFor } from '../data/weapons';
 import { masterySlots, recommendMasteries } from '../engine/attacks';
 import { legalPicks, reconcileSkillPicks } from '../engine/proficiency';
 import { fillSkillPicks, recommendSkills } from '../engine/skillValue';
+import { skillName } from '../data/skills';
 import type { SkillId } from '../data/skills';
 import type { Line } from '../engine/defense';
 import type { BuildContext } from '../engine/character';
@@ -28,6 +29,8 @@ import { analyze, problemsOnly } from '../engine/analyze';
 import { recommendNext } from '../engine/recommend';
 import type { Suggestion } from '../engine/recommend';
 import { ChoiceRow } from './ChoiceRow';
+import { rowState } from './picker';
+import type { PickerProps } from './picker';
 import { optionGroups, reconcileClassOptions } from '../engine/classOptions';
 import type { OptionSuggestion } from '../engine/classOptions';
 import { describeSpell, recommendSpells, spellGroups } from '../engine/spellRecommend';
@@ -677,25 +680,25 @@ export function BuilderTab({
           </label>
         </Panel>
 
-        <DefensesPanel build={build} ctx={ctx} patch={patch} />
+        <DefensesPanel build={build} ctx={ctx} patch={patch} picker={picker} onPicker={setPicker} />
 
-        <ItemsPanel build={build} ctx={ctx} patch={patch} />
+        <ItemsPanel build={build} ctx={ctx} patch={patch} picker={picker} onPicker={setPicker} />
 
-        <InventoryPanel build={build} ctx={ctx} patch={patch} />
+        <InventoryPanel build={build} ctx={ctx} patch={patch} picker={picker} onPicker={setPicker} />
           </>
         )}
 
         {section === 'options' && (
           <>
-        <ProficienciesPanel build={build} ctx={ctx} patch={patch} />
+        <ProficienciesPanel build={build} ctx={ctx} patch={patch} picker={picker} onPicker={setPicker} />
 
-        <ToolsPanel build={build} ctx={ctx} patch={patch} />
+        <ToolsPanel build={build} ctx={ctx} patch={patch} picker={picker} onPicker={setPicker} />
 
         <ClassOptionsPanel build={build} ctx={ctx} patch={patch} picker={picker} onPicker={setPicker} />
 
-        <CountersPanel build={build} patch={patch} />
+        <CountersPanel build={build} patch={patch} picker={picker} onPicker={setPicker} />
 
-        <SpellsPanel build={build} ctx={ctx} patch={patch} />
+        <SpellsPanel build={build} ctx={ctx} patch={patch} picker={picker} onPicker={setPicker} />
           </>
         )}
 
@@ -783,7 +786,7 @@ export function BuilderTab({
             ))}
           </div>
 
-          <NextPicks ctx={ctx} build={build} onChange={onChange} />
+          <NextPicks ctx={ctx} build={build} onChange={onChange} picker={picker} onPicker={setPicker} />
         </Panel>
         )}
 
@@ -1171,11 +1174,13 @@ function DefensesPanel({
   build,
   ctx,
   patch,
+  picker,
+  onPicker,
 }: {
   build: Build;
   ctx: BuildContext;
   patch: (partial: Partial<Build>) => void;
-}) {
+} & PickerProps) {
   const defenses = build.defenses;
   const setDefenses = (partial: Partial<Build['defenses']>) =>
     patch({ defenses: { ...defenses, ...partial } });
@@ -1201,9 +1206,19 @@ function DefensesPanel({
   const bonusOptions = [0, 1, 2, 3].map((n) => ({ value: String(n), label: n ? `+${n}` : 'None' }));
 
   return (
-    <Panel
+    <ChoiceRow
+      {...rowState('defenses', { picker, onPicker })}
       title="Defenses"
-      subtitle="Armor class and hit points are calculated from what you are actually wearing. The breakdowns are in the right-hand column."
+      summary={`AC ${ctx.ac.total} · ${ctx.hp.total} hit points`}
+      /*
+        Not removable: armour is a choice from a list, not a thing you add and
+        drop, so there is nothing for an ✕ to do. The chips are here to say
+        what you are wearing without opening anything.
+      */
+      taken={[
+        { id: 'armor', label: ARMOR.find((a) => a.id === defenses.armorId)?.name ?? 'No armor' },
+        ...(defenses.shield ? [{ id: 'shield', label: 'Shield' }] : []),
+      ]}
     >
       <Select
         label="Armor"
@@ -1281,7 +1296,7 @@ function DefensesPanel({
           />
         </label>
       </div>
-    </Panel>
+    </ChoiceRow>
   );
 }
 
@@ -1366,11 +1381,13 @@ function ProficienciesPanel({
   build,
   ctx,
   patch,
+  picker,
+  onPicker,
 }: {
   build: Build;
   ctx: BuildContext;
   patch: (partial: Partial<Build>) => void;
-}) {
+} & PickerProps) {
   const p = ctx.proficiencies;
   const legal = legalPicks({ build, race: ctx.race, slices: ctx.slices, featIds: ctx.featIds });
 
@@ -1408,7 +1425,19 @@ function ProficienciesPanel({
     .join(' · ');
 
   return (
-    <Panel title="Proficiencies" subtitle={subtitle}>
+    <ChoiceRow
+      {...rowState('proficiencies', { picker, onPicker })}
+      title="Proficiencies"
+      summary={subtitle}
+      emptyLabel="no skills chosen yet"
+      /* The picks, not the grants: a class's fixed proficiency is not
+         something an ✕ can take away, and offering one would lie. */
+      taken={build.skillIds.map((skill) => ({
+        id: skill,
+        label: `${skillName(skill)}${build.expertiseIds.includes(skill) ? ' · expertise' : ''}`,
+        onRemove: () => togglePick(skill),
+      }))}
+    >
       <div className="statline" style={{ marginBottom: 14 }}>
         <div>
           <div className="k">Passive Perception</div>
@@ -1501,7 +1530,7 @@ function ProficienciesPanel({
           Languages are tracked here but not scored — which ones matter is a question for your DM.
         </p>
       )}
-    </Panel>
+    </ChoiceRow>
   );
 }
 
@@ -1551,12 +1580,13 @@ function ClassOptionsPanel({
     });
   };
 
-  const subtitle = groups
-    .map((g) => `${g.label}: ${g.slots - g.open}/${g.slots}`)
-    .join(' · ');
-
+  /*
+    No subtitle. It used to count each group here - "fighting styles: 0/1 ·
+    maneuvers: 0/3" - and since §33.2 every row says its own count on its own
+    line, so this was the same sentence twice.
+  */
   return (
-    <Panel title="Class options" subtitle={subtitle}>
+    <Panel title="Class options">
       {groups.map((group) => {
         const taken = group.suggestions.filter((s) => s.taken);
         const available = group.suggestions.filter((s) => !s.taken && s.eligible);
@@ -1687,11 +1717,13 @@ function SpellsPanel({
   build,
   ctx,
   patch,
+  picker,
+  onPicker,
 }: {
   build: Build;
   ctx: BuildContext;
   patch: (partial: Partial<Build>) => void;
-}) {
+} & PickerProps) {
   const casting = ctx.spellcasting;
   const groups = spellGroups(ctx);
   const [level, setLevel] = useState(0);
@@ -1788,7 +1820,24 @@ function SpellsPanel({
   const topPicks = openPicks > 0 ? recommendSpells(ctx, 4) : [];
 
   return (
-    <Panel title="Spells" subtitle={hasNothingToShow ? 'This character no longer casts.' : subtitle}>
+    <ChoiceRow
+      {...rowState('spells', { picker, onPicker })}
+      title="Spells"
+      summary={hasNothingToShow ? 'this character no longer casts' : subtitle}
+      emptyLabel="none chosen yet"
+      /*
+        Every spell you took, which for a high-level wizard is a long row of
+        chips - and it should be. The list of what you *have* is the character;
+        the ranked list of what you have not is the catalogue, and only the
+        catalogue folds away. Granted spells are not here: an ✕ cannot take
+        back a domain spell.
+      */
+      taken={build.spellIds.map((id) => ({
+        id,
+        label: SPELLS_BY_ID[id]?.name ?? id,
+        onRemove: () => toggle(id),
+      }))}
+    >
       {!hasNothingToShow && (
       <div className="slot-row">
         {casting.bySpellLevel.map((count, index) =>
@@ -1990,7 +2039,7 @@ function SpellsPanel({
           {note}
         </p>
       ))}
-    </Panel>
+    </ChoiceRow>
   );
 }
 
@@ -2487,11 +2536,13 @@ function NextPicks({
   ctx,
   build,
   onChange,
+  picker,
+  onPicker,
 }: {
   ctx: BuildContext;
   build: Build;
   onChange: (build: Build) => void;
-}) {
+} & PickerProps) {
   const unspent = ctx.asiSlotsReached - ctx.asiSlotsSpent;
   const suggestions = useMemo(() => recommendNext(ctx, unspent > 0 ? 10 : 5), [ctx, unspent]);
   if (!suggestions.length) return null;
@@ -2511,12 +2562,20 @@ function NextPicks({
   };
 
   return (
-    <>
-      <div className="field-label" style={{ marginTop: 16 }}>
-        {unspent > 0
-          ? `Spend now — ${unspent} unspent ${unspent === 1 ? 'slot' : 'slots'}`
-          : 'If you had a slot right now'}
-      </div>
+    <ChoiceRow
+      {...rowState('next-picks', { picker, onPicker })}
+      title={unspent > 0 ? 'Spend now' : 'If you had a slot right now'}
+      summary={
+        unspent > 0
+          ? `${unspent} unspent ${unspent === 1 ? 'slot' : 'slots'}`
+          : 'a preview of your next level-up'
+      }
+      /*
+        No chip strip. This is the one catalogue whose taken list is already on
+        screen permanently, in the feats and improvements above it - so a strip
+        here would repeat it, and an empty one would be a lie.
+      */
+    >
       <p className="muted" style={{ marginTop: 0 }}>
         {unspent > 0
           ? 'Ranked for the build exactly as it stands. Click Take to apply one.'
@@ -2530,6 +2589,6 @@ function NextPicks({
           onTake={() => take(suggestion)}
         />
       ))}
-    </>
+    </ChoiceRow>
   );
 }

@@ -4,7 +4,9 @@ import type { GearCategory } from '../data/gear';
 import { LANGUAGES, LANGUAGE_KIND_LABELS } from '../data/languages';
 import type { LanguageKind } from '../data/languages';
 import type { BuildContext } from '../engine/character';
-import { Panel } from './shared';
+import { ChoiceRow } from './ChoiceRow';
+import { rowState } from './picker';
+import type { PickerProps } from './picker';
 
 /**
  * Tool proficiencies and languages.
@@ -27,11 +29,13 @@ export function ToolsPanel({
   build,
   ctx,
   patch,
+  picker,
+  onPicker,
 }: {
   build: Build;
   ctx: BuildContext;
   patch: (partial: Partial<Build>) => void;
-}) {
+} & PickerProps) {
   const held = new Set(build.toolIds);
   const spoken = new Set(build.languages);
   const openLanguages = ctx.proficiencies.languages.open;
@@ -49,13 +53,19 @@ export function ToolsPanel({
     });
 
   return (
-    <Panel
+    <ChoiceRow
+      {...rowState('tools', { picker, onPicker })}
       title="Tools and languages"
-      subtitle={
+      summary={
         openLanguages > 0
-          ? `${build.toolIds.length} tool ${build.toolIds.length === 1 ? 'proficiency' : 'proficiencies'}, and ${openLanguages} more ${openLanguages === 1 ? 'language' : 'languages'} to choose.`
-          : `${build.toolIds.length} tool ${build.toolIds.length === 1 ? 'proficiency' : 'proficiencies'} and ${build.languages.length} ${build.languages.length === 1 ? 'language' : 'languages'}.`
+          ? `${build.toolIds.length} tool ${build.toolIds.length === 1 ? 'proficiency' : 'proficiencies'} · ${openLanguages} more ${openLanguages === 1 ? 'language' : 'languages'} to choose`
+          : `${build.toolIds.length} tool ${build.toolIds.length === 1 ? 'proficiency' : 'proficiencies'} · ${build.languages.length} ${build.languages.length === 1 ? 'language' : 'languages'}`
       }
+      emptyLabel="no tools or languages chosen yet"
+      taken={[
+        ...build.toolIds.map((name) => ({ id: `tool:${name}`, label: name, onRemove: () => toggleTool(name) })),
+        ...build.languages.map((name) => ({ id: `lang:${name}`, label: name, onRemove: () => toggleLanguage(name) })),
+      ]}
     >
       {TOOL_CATEGORIES.map((category) => (
         <div key={category} style={{ marginBottom: 12 }}>
@@ -104,6 +114,6 @@ export function ToolsPanel({
         Thieves' Cant and a Druid already has Druidic — they are listed so the sheet can show them.
         Exotic languages are the ones a DM may reasonably rule out for a starting character.
       </p>
-    </Panel>
+    </ChoiceRow>
   );
 }

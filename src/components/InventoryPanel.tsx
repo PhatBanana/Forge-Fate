@@ -10,7 +10,9 @@ import {
 } from '../data/gear';
 import type { BuildContext } from '../engine/character';
 import { describePurse, purseInCopper } from '../engine/inventory';
-import { Panel } from './shared';
+import { ChoiceRow } from './ChoiceRow';
+import { rowState } from './picker';
+import type { PickerProps } from './picker';
 
 /**
  * Ordinary equipment: rope, rations, torches, tools, and what it all weighs.
@@ -39,11 +41,13 @@ export function InventoryPanel({
   build,
   ctx,
   patch,
+  picker,
+  onPicker,
 }: {
   build: Build;
   ctx: BuildContext;
   patch: (partial: Partial<Build>) => void;
-}) {
+} & PickerProps) {
   const [query, setQuery] = useState('');
   const gear = build.gear ?? [];
   const inv = ctx.inventory;
@@ -87,9 +91,19 @@ export function InventoryPanel({
   const pct = inv.capacity > 0 ? Math.min(100, (inv.weight / inv.capacity) * 100) : 0;
 
   return (
-    <Panel
+    <ChoiceRow
+      {...rowState('inventory', { picker, onPicker })}
       title="Inventory"
-      subtitle={`${inv.weight} lb. carried of ${inv.capacity} you can lift. Your purse holds ${describePurse(build.coins)}.`}
+      summary={`${inv.weight} lb of ${inv.capacity} · ${describePurse(build.coins)}`}
+      emptyLabel="nothing carried"
+      /* Every line of gear, so shutting the catalogue never hides something
+         you are carrying - and each drops one, the same as setting its
+         quantity to zero inside. */
+      taken={gear.map((entry) => ({
+        id: entry.gearId,
+        label: `${gearById(entry.gearId)?.name ?? entry.gearId}${entry.quantity > 1 ? ` ×${entry.quantity}` : ''}`,
+        onRemove: () => setQuantity(entry.gearId, 0),
+      }))}
     >
       <label className="field">
         <span>Add equipment</span>
@@ -194,6 +208,6 @@ export function InventoryPanel({
         {formatCost(purseInCopper(build.coins))} in total, weighing{' '}
         {Math.round(inv.purseWeight * 10) / 10} lb. — fifty coins to the pound, whatever the metal.
       </p>
-    </Panel>
+    </ChoiceRow>
   );
 }

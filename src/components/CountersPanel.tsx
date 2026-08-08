@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { Build, CustomResource } from '../types';
-import { Panel } from './shared';
+import { ChoiceRow } from './ChoiceRow';
+import { rowState } from './picker';
+import type { PickerProps } from './picker';
 
 /**
  * Counters the app has no table for.
@@ -31,10 +33,12 @@ const RECHARGES: { value: CustomResource['recharge']; label: string; hint: strin
 export function CountersPanel({
   build,
   patch,
+  picker,
+  onPicker,
 }: {
   build: Build;
   patch: (partial: Partial<Build>) => void;
-}) {
+} & PickerProps) {
   const counters = build.customResources ?? [];
   const [name, setName] = useState('');
   const [max, setMax] = useState('5');
@@ -62,9 +66,20 @@ export function CountersPanel({
   };
 
   return (
-    <Panel
+    <ChoiceRow
+      {...rowState('counters', { picker, onPicker })}
       title="Your own counters"
-      subtitle="For anything the app has no table for — piety, renown, a pool your DM wrote. Class resources are already tracked and do not belong here."
+      summary={
+        counters.length
+          ? `${counters.length} tracked`
+          : 'for anything the app has no table for'
+      }
+      emptyLabel="none added — class resources are already tracked"
+      taken={counters.map((counter) => ({
+        id: counter.id,
+        label: `${counter.name} ${counter.max}`,
+        onRemove: () => setCounters(counters.filter((c) => c.id !== counter.id)),
+      }))}
     >
       <div className="row" style={{ gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
         <input
@@ -143,6 +158,6 @@ export function CountersPanel({
           </div>
         ))
       )}
-    </Panel>
+    </ChoiceRow>
   );
 }
