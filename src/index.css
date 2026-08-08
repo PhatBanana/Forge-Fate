@@ -7142,7 +7142,21 @@ dl.detail-list {
   overflow: hidden;
 }
 
-.title {
+/*
+  `.title-screen`, not `.title`.
+
+  It was `.title` until §33.3, and that was a live bug for two sections: a
+  bare `.title` also matches the `<span class="title">` inside every ranked
+  suggestion card - feats, class options, spells, species pairings - which has
+  existed since long before the title screen did. Those spans inherited
+  `height: 100dvh; display: grid; place-items: center`, so each *collapsed*
+  card rendered as a near-blank 900px box with the feat's name floating in the
+  middle of it.
+
+  Everything else on this screen was already namespaced `title-*`; the one
+  generic name was the one that collided.
+*/
+.title-screen {
   position: relative;
   height: 100dvh;
   display: grid;

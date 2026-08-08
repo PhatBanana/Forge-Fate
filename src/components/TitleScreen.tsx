@@ -50,7 +50,7 @@ export function TitleScreen({
   aside?: ReactNode;
 }) {
   return (
-    <div className="title">
+    <div className="title-screen">
       <div className="title-corner">{aside}</div>
 
       <div className="title-inner">
