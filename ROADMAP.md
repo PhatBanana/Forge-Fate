@@ -50,19 +50,8 @@ Grouped by theme. Sections keep getting numbers in the order they are
 
 - `[x]` **36. The battle HUD moves onto the board.** **M** - *shipped
   2026-08-09; the full account is §36 in the shipped record.*
-- `[ ]` **37. Standing pawns for the tactical view.** **L**
-  Asked directly: *"I would like to have 3d Pawns for the tactical view."*
-  The design intent: tokens in the isometric view should *stand* on the
-  board like miniatures, not lie on it as discs. The plan is cardboard
-  standees drawn in SVG - an upright card with the portrait (§7's portraits
-  finally earn their place on the table) or the token letter, a wedge base,
-  an elliptical ground shadow, darker card edge for thickness, drawn in the
-  same painter's order the tiles already use so nearer pawns overlap
-  farther ones. SVG rather than a 3D library because the whole app is one
-  dependency-free SVG pipeline with a box-based hit test - a WebGL canvas
-  would orphan `squareAt`, the camera, the probes and the print path in one
-  move. If real 3D is still wanted after standees ship, that is its own
-  conversation.
+- `[x]` **37. Standing pawns for the tactical view.** **L** - *shipped
+  2026-08-09; the account is §37 in the shipped record.*
 - `[ ]` **38. The desk screens finish the game look.** **M**
   From the §35 review, in priority order: the Dungeons editor is the last
   website screen and it is a *map* - it should be a stage like the battle
@@ -2835,6 +2824,43 @@ The §32-era worry - tokens hidden under floats - is answered by machinery
 that did not exist then: the camera pans and zooms (§34), and hold-H clears
 and expands everything (§35.5). `run35.mjs` now asserts the stage spans the
 viewport height and both scrims exist, in both themes.
+
+---
+
+## 37. Standing pawns for the tactical view
+
+The ask, verbatim: *"I would like to have 3d Pawns for the tactical view."*
+
+The tactical view exists because height has been in the data since §12 and a
+flat wash was the only way to see it. Everything on that board stands up -
+tiles are extruded blocks with skirts, walls are two steps tall - except the
+tokens, which stayed discs lying flat. That was the last thing still
+pretending the board was flat.
+
+A token is now a **cardboard standee**: an elliptical shadow on the ground,
+a wedge base sitting in it, and a card standing out of the base carrying the
+character's portrait, or their initials when they have no face. §7 gave
+characters portraits and only the sheet and the timeline ever showed them; a
+standee is a piece of cardboard with a picture on it, which is what the
+portrait was for.
+
+**SVG, not a 3D library** - the load-bearing decision. The whole map pipeline
+is dependency-free SVG with a box-based hit test, a viewBox camera (§34), a
+print path and a browser probe that clicks rendered geometry. A WebGL canvas
+would orphan all four at once, for an effect that a wedge, a shadow and
+painter's-order overlap already sell. If real 3D is wanted later it is its
+own conversation, not a side effect of this one.
+
+The states came with it. The flat map writes every token state on a
+`circle` - party fill, active stroke, bloodied tint, down, hiding - so the
+card restates each on its own rect rather than inventing a second palette:
+the *rules* differ because the shape does, the *meanings* are identical. Down
+is the one that changed for the better: the card falls over, which is what a
+table does with a dropped miniature and needs no legend.
+
+`run34.mjs` re-run unchanged - clicking a rendered tile still lands the token
+on that exact square, which is the check that matters when token geometry
+moves.
 
 ---
 

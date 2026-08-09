@@ -48,6 +48,18 @@ const ZH = 8;
 const LIP = 3;
 /** How many steps tall a painted wall stands. */
 const WALL_STEPS = 2;
+/*
+  The standing pawn (§37). A card `PAWN_W` wide and `PAWN_H` tall, slotted
+  into a wedge base `BASE_H` deep.
+
+  Sized against the tile rather than in absolute units: a card as wide as the
+  diamond's half-width sits inside its own square, and one about two and a
+  half times as tall as it is wide is the proportion a cardboard standee
+  actually has. Taller looks like a banner; shorter looks like a sign.
+*/
+const PAWN_W = HW * 0.78;
+const PAWN_H = PAWN_W * 1.5;
+const BASE_H = 3;
 
 interface IsoZone {
   id: string;
@@ -490,18 +502,91 @@ export function IsoMap({
               onDoubleClick={() => onTokenOpen?.(token.id)}
             >
               <title>{token.title}</title>
-              <ellipse className="iso-shadow" cx={0} cy={0} rx={HW * 0.5} ry={HH * 0.5} />
-              <circle cy={-9} r={7} />
-              <text y={-9} textAnchor="middle" dominantBaseline="central">
-                {token.label}
-              </text>
+              {/*
+                A standee, not a disc (§37).
+
+                The tactical view exists because height is in the data and a
+                flat wash could not show it - and a token lying flat on a
+                board of standing blocks was the last thing still pretending
+                the board was flat. So: an elliptical shadow on the ground,
+                a wedge base sitting in it, and a card standing up out of the
+                base carrying the face or the initials. Cardboard miniatures,
+                which is what a table without painted metal actually uses.
+
+                Drawn in SVG rather than through a 3D library on purpose: the
+                whole map pipeline is dependency-free SVG with a box-based hit
+                test, a viewBox camera (§34) and a print path. A WebGL canvas
+                would orphan all four at once for an effect a wedge and a
+                shadow already sell.
+
+                Geometry, all relative to the tile centre at (0, 0):
+                  - the shadow is the tile's own ellipse, so it reads as
+                    contact with *this* square rather than a blob;
+                  - the base is a shallow wedge, narrower at the top, which
+                    is what makes the card look slotted into it;
+                  - the card is `PAWN_W` x `PAWN_H` with its foot at the base,
+                    so everything above the ground is negative y - and the
+                    condition and float text that used to sit at -20 moves up
+                    with it rather than through it.
+              */}
+              <ellipse className="iso-shadow" cx={0} cy={0} rx={HW * 0.52} ry={HH * 0.52} />
+              <polygon
+                className="iso-pawn-base"
+                points={`${-PAWN_W * 0.5},0 ${PAWN_W * 0.5},0 ${PAWN_W * 0.34},${-BASE_H} ${-PAWN_W * 0.34},${-BASE_H}`}
+              />
+              <g className="iso-pawn-card">
+                <rect
+                  x={-PAWN_W / 2}
+                  y={-BASE_H - PAWN_H}
+                  width={PAWN_W}
+                  height={PAWN_H}
+                  rx={2}
+                />
+                {token.portrait ? (
+                  <>
+                    {/*
+                      The face on the card. Clipped to the card's own rect so
+                      a tall photograph does not spill past the cardboard, and
+                      `preserveAspectRatio="slice"` fills rather than
+                      letterboxes - a portrait with bars either side would look
+                      like a mistake at this size.
+                    */}
+                    <clipPath id={`pawn-${token.id}`}>
+                      <rect
+                        x={-PAWN_W / 2 + 1}
+                        y={-BASE_H - PAWN_H + 1}
+                        width={PAWN_W - 2}
+                        height={PAWN_H - 2}
+                        rx={1.5}
+                      />
+                    </clipPath>
+                    <image
+                      href={token.portrait}
+                      x={-PAWN_W / 2 + 1}
+                      y={-BASE_H - PAWN_H + 1}
+                      width={PAWN_W - 2}
+                      height={PAWN_H - 2}
+                      preserveAspectRatio="xMidYMid slice"
+                      clipPath={`url(#pawn-${token.id})`}
+                    />
+                  </>
+                ) : (
+                  <text
+                    y={-BASE_H - PAWN_H / 2}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                  >
+                    {token.label}
+                  </text>
+                )}
+              </g>
               {token.odds && (
-                <text className="dmap-odds" y={-20} textAnchor="middle">
+                <text className="dmap-odds" y={-BASE_H - PAWN_H - 5} textAnchor="middle">
                   {token.odds}
                 </text>
               )}
               {!token.odds && token.conditions && token.conditions.length > 0 && (
-                <text className="dmap-cond" y={-20} textAnchor="middle">
+                <text className="dmap-cond" y={-BASE_H - PAWN_H - 5} textAnchor="middle">
                   <title>{token.conditions.map((c) => c.name).join(', ')}</title>
                   {token.conditions.slice(0, 3).map((c) => c.short).join('·')}
                 </text>
@@ -510,7 +595,7 @@ export function IsoMap({
                 <text
                   key={`f${token.float.seq}`}
                   className={`dmap-float ${token.float.heal ? 'is-heal' : ''}`}
-                  y={-14}
+                  y={-BASE_H - PAWN_H + 2}
                   textAnchor="middle"
                 >
                   {token.float.text}

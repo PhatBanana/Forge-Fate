@@ -2357,6 +2357,13 @@ export function TableTab({
           short: id.slice(0, 3).toUpperCase(),
           name: CONDITIONS_BY_ID[id]?.name ?? id,
         })),
+        // The face goes on the standee's card in the tactical view (§37).
+        // The same portrait the timeline tile already shows, from the same
+        // place - a character's face should be the same face everywhere.
+        portrait:
+          c.kind === 'character'
+            ? roster.entries.find((e) => e.id === c.rosterId)?.build.details.portrait
+            : undefined,
         title: hp ? `${name} — ${hp.now}/${hp.max}` : name,
       };
     });

@@ -54,6 +54,10 @@ export interface Token {
   /** A click on this token would be an attack: the cursor says crosshair,
       not grab-hand - which is how the player knows before committing. */
   targetable?: boolean;
+  /** The character's face, if they have one. The flat map ignores it - a
+      14px disc has no room - but the tactical view stands the token up as a
+      cardboard pawn and puts the portrait on the card (§37). */
+  portrait?: string;
   title: string;
 }
 

@@ -2189,6 +2189,83 @@ describe('the pointer’s loop', () => {
     expect(document.querySelector('.hud-hint')?.textContent).toMatch(/catches 2 creatures/);
   });
 
+  it('stands its tokens up as pawns rather than laying them down as discs', async () => {
+    /*
+      §37. The tactical view exists because height is in the data and a flat
+      wash could not show it - and a disc lying on a board of standing blocks
+      was the last thing still pretending the board was flat. A standee is a
+      shadow on the ground, a wedge base sitting in it, and a card standing
+      out of the base.
+
+      Asserted through the DOM rather than by eye because the *states* matter
+      as much as the shape: the flat map writes every one of them on a
+      `circle`, and the card has to carry the same meanings or a bloodied
+      monster silently stops looking bloodied in one view only.
+    */
+    const user = userEvent.setup();
+    const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
+    const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Field');
+    await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
+    await user.click(screen.getByRole('button', { name: 'Tactical view' }));
+
+    const pawn = document.querySelector('.isomap .iso-token') as SVGGElement;
+    expect(pawn).toBeTruthy();
+    // The three parts, and no disc left behind.
+    expect(pawn.querySelector('.iso-shadow')).toBeTruthy();
+    expect(pawn.querySelector('.iso-pawn-base')).toBeTruthy();
+    expect(pawn.querySelector('.iso-pawn-card rect')).toBeTruthy();
+    expect(pawn.querySelector(':scope > circle')).toBeNull();
+
+    // The card stands *above* the ground it is on: everything from the base
+    // up is negative y, which is what makes it a pawn rather than a tile.
+    const card = pawn.querySelector('.iso-pawn-card rect') as SVGRectElement;
+    expect(Number(card.getAttribute('y'))).toBeLessThan(0);
+
+    // And it still answers to everything a token answered to before.
+    expect(pawn.getAttribute('data-at')).toBe(
+      `${view.encounter.combatants[0].at!.x},${view.encounter.combatants[0].at!.y}`,
+    );
+    expect(pawn.classList.contains('character')).toBe(true);
+  });
+
+  it('puts a face on the card when the character has one', async () => {
+    // §7 gave characters portraits and only the sheet and the timeline ever
+    // showed them. A standee is a piece of cardboard with a picture on it -
+    // that is the whole idea - so the same portrait goes on the card, and the
+    // initials are the fallback rather than the rule.
+    const user = userEvent.setup();
+    const start = party();
+    const view = setup({
+      ...start,
+      entries: start.entries.map((e, i) =>
+        i === 0
+          ? {
+              ...e,
+              build: {
+                ...e.build,
+                details: { ...e.build.details, portrait: 'data:image/png;base64,iVBORw0KGgo=' },
+              },
+            }
+          : e,
+      ),
+      encounter: { ...emptyEncounter(), mapRooms: 0 },
+    });
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Field');
+    await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
+    await user.click(screen.getByRole('button', { name: 'Tactical view' }));
+
+    const image = document.querySelector('.isomap .iso-pawn-card image');
+    expect(image).toBeTruthy();
+    expect(image!.getAttribute('href')).toMatch(/^data:image\/png/);
+    // The picture replaces the initials rather than sitting behind them.
+    expect(document.querySelector('.isomap .iso-pawn-card text')).toBeNull();
+  });
+
   it('moves through the tactical camera exactly as through the flat map', async () => {
     /*
       The isometric view keeps the whole pointer contract, so the same

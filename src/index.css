@@ -6422,9 +6422,79 @@ dl.detail-list {
   fill: #8b7f6d;
 }
 
-/* Tokens standing on the ground: the shadow sells the height. */
+/*
+  §37: the standing pawn.
+
+  The flat map's token is a disc and every state it can be in is written as
+  `.dmap-token ... circle` - party fill, active stroke, bloodied tint, down,
+  hiding. The tactical view's token is now a card, so this block restates that
+  same language on the card's rect rather than inventing a second palette:
+  the *rules* differ because the shape does, the *meanings* are identical.
+
+  Fixed colours, like all the map's ink, so a standee reads the same in both
+  themes and on paper.
+*/
 .iso-token .iso-shadow {
   fill: rgba(40, 34, 26, 0.3);
+}
+
+/* The wedge the card slots into. Darker than the card, because it is the bit
+   in shadow - that difference is most of what sells "standing up". */
+.iso-token .iso-pawn-base {
+  fill: #6b5c44;
+  stroke: var(--ink);
+  stroke-width: 0.75;
+  stroke-linejoin: round;
+}
+
+.iso-token .iso-pawn-card rect {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 1.25;
+}
+
+/* The party is filled, monsters are outlined - the same one distinction the
+   flat map makes, and it survives black and white. */
+.iso-token.character .iso-pawn-card rect {
+  fill: #c9b78e;
+}
+
+.iso-token.is-up .iso-pawn-card rect {
+  stroke: var(--ink-accent);
+  stroke-width: 2;
+}
+
+.iso-token.is-bloodied .iso-pawn-card rect {
+  fill: #a35b3a;
+}
+
+.iso-token.character.is-bloodied .iso-pawn-card rect {
+  fill: #7d4a35;
+}
+
+/* Down: the card falls over. A standee knocked flat is what a table does with
+   a dropped miniature, and it needs no legend. */
+.iso-token.is-down .iso-pawn-card {
+  transform: rotate(74deg) translate(2px, 2px);
+  transform-origin: 0 0;
+  transform-box: view-box;
+  opacity: 0.75;
+}
+
+.iso-token.is-down .iso-pawn-card rect {
+  fill: var(--paper);
+  stroke-dasharray: 2 2;
+}
+
+.iso-token.is-hiding .iso-pawn-card rect,
+.iso-token.is-hiding .iso-pawn-base {
+  stroke-dasharray: 3 2;
+}
+
+/* The portrait sits inside the card's border, so the cardboard edge still
+   reads as an edge rather than the photo running to the cut. */
+.iso-token .iso-pawn-card image {
+  pointer-events: none;
 }
 
 /* Overlay diamonds keep the flat map's classes, so the washes, the ghost,
