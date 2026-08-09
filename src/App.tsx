@@ -34,8 +34,9 @@ import type { ThemeChoice } from './theme';
 import type { Histories } from './undo';
 import { BuilderTab } from './components/BuilderTab';
 import { TitleScreen } from './components/TitleScreen';
-import type { TitleEntry } from './components/TitleScreen';
+import type { TitleGroup } from './components/TitleScreen';
 import { activeCampaign, loadCampaigns } from './campaign';
+import { loadDungeons } from './dungeons';
 import { isRunning } from './encounter';
 import { Panel } from './components/shared';
 
@@ -121,34 +122,27 @@ type Tab =
   | 'table';
 
 /*
-  Two modes, one app.
+  One nav, and this is not it.
 
-  Create is the desk: build a character, read a sheet, weigh a feat, keep a
-  bestiary. Play is the table: the battle screen, and it owns the whole window.
-  The five-tab strip said "character builder with a DM tab at the end"; the
-  mode switch says what the app now is - a DM tool with a workshop behind it.
+  §35 deleted the tab strip: the title screen offered seven destinations and
+  every one of them landed on a page whose top row offered the same seven
+  again - two complete navigation systems, one of them decoration. The title
+  screen is now the only global nav, the way a tactics game's main menu is,
+  and each screen carries a small wordmark chip as its one way back.
 
-  `table` stays a `Tab` rather than becoming separate state, so everything that
-  already keys off the tab - the title, the wide layout, the lazy chunks -
-  keeps working unchanged. The mode is *derived*: being on `table` is Play.
+  What survives of the strip is its labels, because the browser tab still
+  says which screen it is showing.
 */
-const CREATE_TABS: { id: Tab; label: string }[] = [
-  { id: 'builder', label: 'Builder' },
-  { id: 'sheet', label: 'Character sheet' },
-  { id: 'pairings', label: 'Species × Class' },
-  { id: 'characters', label: 'Characters' },
-  // The map workshop: building a place is desk work, not table work. The
-  // battle screen loads what this tab saves.
-  { id: 'dungeons', label: 'Dungeons' },
-  // The party and the record of what it did - the one thing here that
-  // outlives a single afternoon.
-  { id: 'campaign', label: 'Campaign' },
-];
-
-const TABS: { id: Tab; label: string }[] = [
-  ...CREATE_TABS,
-  { id: 'table', label: 'Battle' },
-];
+const TAB_LABELS: Record<Tab, string> = {
+  title: 'Menu',
+  builder: 'Builder',
+  sheet: 'Character sheet',
+  pairings: 'Species × Class',
+  characters: 'Characters',
+  dungeons: 'Dungeons',
+  campaign: 'Campaign',
+  table: 'Battle',
+};
 
 /** "Wood Elf Ranger 11 / Rogue 3, 2014 rules" - enough to decide on. */
 function describeShared(build: Build): string {
@@ -217,15 +211,6 @@ export default function App() {
     question the link already answered.
   */
   const [tab, setTab] = useState<Tab>(() => (tokenFromLocation() ? 'builder' : 'title'));
-  /*
-    Where "Create" goes back to. A DM flipping to the battle and back should
-    land on the desk they left, not on the Builder every time - that would turn
-    every glance at a stat block into a navigation chore.
-  */
-  const [createTab, setCreateTab] = useState<Tab>('builder');
-  useEffect(() => {
-    if (tab !== 'table' && tab !== 'title') setCreateTab(tab);
-  }, [tab]);
   const [roster, setRoster] = useState<Roster>(loadRoster);
   /*
     Monsters you made, kept in their own store rather than on the roster.
@@ -396,7 +381,7 @@ export default function App() {
     the whole point is telling them apart.
   */
   useEffect(() => {
-    const label = TABS.find((entry) => entry.id === tab)?.label ?? '';
+    const label = TAB_LABELS[tab];
     const name = build.name?.trim();
     document.title = name
       ? `${name} · ${label} — Forge & Fate`
@@ -448,16 +433,22 @@ export default function App() {
   };
 
   if (setup) {
+    /*
+      The two first-run questions, asked in the title screen's voice: centred
+      wordmark, the question underneath, nothing else. This used to carry the
+      masthead, which §35 deleted everywhere - a first screen that looks like
+      a website header sets the wrong expectation for everything after it.
+    */
     return (
-      <div className="app">
-        <header className="masthead">
-          <h1>
+      <div className="app is-title">
+        <div className="setup-screen">
+          <div className="title-corner">
+            <ThemeToggle choice={themeChoice} onChange={chooseTheme} />
+          </div>
+          <h1 className="title-mark">
             Forge<span>&</span>Fate
           </h1>
-          <span className="tagline">D&amp;D 5e character builder &amp; optimizer</span>
-          <ThemeToggle choice={themeChoice} onChange={chooseTheme} />
-        </header>
-        <div className="stack" style={{ maxWidth: 640, marginTop: 32 }}>
+          <div className="stack setup-body">
           {setup === 'ruleset' && (
             <Panel
               title="Which rules does your table use?"
@@ -532,36 +523,82 @@ export default function App() {
               </details>
             </Panel>
           )}
+          </div>
         </div>
       </div>
     );
   }
 
   /*
-    What the menu offers, and what it says about each. Built here rather than
-    inside the screen because every line of it is a fact this component owns:
-    whose fight is on the table, which campaign is being played, how many
-    characters there are.
+    What the menu offers, grouped as the three decisions a table actually
+    faces - play, create, keep - and carrying live state per line. Built here
+    rather than inside the screen because every line of it is a fact this
+    component owns: whose fight is on the table, which campaign is being
+    played, how many characters and maps exist.
+
+    The counts are read on render rather than held as state: the menu renders
+    exactly when you arrive on it, which is exactly when they may have
+    changed.
   */
   const fightOn = isRunning(activeEncounter(roster));
   const playing = activeCampaign(loadCampaigns());
-  const menu: TitleEntry[] = [
-    ...(fightOn
-      ? [
-          {
-            id: 'table',
-            label: 'Resume the fight',
-            hint: `Round ${activeEncounter(roster).round} is still on the table`,
-            primary: true,
-          },
-        ]
-      : [{ id: 'table', label: 'Run a battle', hint: 'The map, the initiative, the dice', primary: true }]),
-    { id: 'builder', label: 'Build a character', hint: 'Species, class, feats, equipment, spells' },
-    { id: 'sheet', label: 'The character sheet', hint: 'The paper one, and the dice that go with it' },
-    { id: 'pairings', label: 'Species × Class', hint: 'What each pairing is worth, before you commit to one' },
-    { id: 'characters', label: 'Characters & bestiary', hint: 'The roster, monsters you made, import and export' },
-    { id: 'dungeons', label: 'Dungeons', hint: 'Draw the places you will fight in' },
-    { id: 'campaign', label: 'Campaign', hint: 'The party, and the record of what it did' },
+  const dungeonCount = loadDungeons().length;
+  const groups: TitleGroup[] = [
+    {
+      name: 'Play',
+      entries: [
+        fightOn
+          ? {
+              id: 'table',
+              label: 'Resume the fight',
+              hint: 'The board is exactly as you left it',
+              state: `Round ${activeEncounter(roster).round}`,
+              primary: true,
+            }
+          : {
+              id: 'table',
+              label: 'Run a battle',
+              hint: 'The map, the initiative, the dice',
+              primary: true,
+            },
+      ],
+    },
+    {
+      name: 'Create',
+      entries: [
+        {
+          id: 'builder',
+          label: 'Build a character',
+          hint: 'Species, class, feats, equipment, spells',
+          state: build.name?.trim() || undefined,
+        },
+        { id: 'sheet', label: 'The character sheet', hint: 'The paper one, and the dice that go with it' },
+        { id: 'pairings', label: 'Species × Class', hint: 'What each pairing is worth, before you commit to one' },
+      ],
+    },
+    {
+      name: 'World',
+      entries: [
+        {
+          id: 'characters',
+          label: 'Characters & bestiary',
+          hint: 'The roster, monsters you made, import and export',
+          state: `${roster.entries.length} saved`,
+        },
+        {
+          id: 'dungeons',
+          label: 'Dungeons',
+          hint: 'Draw the places you will fight in',
+          state: dungeonCount ? `${dungeonCount} ${dungeonCount === 1 ? 'map' : 'maps'}` : undefined,
+        },
+        {
+          id: 'campaign',
+          label: 'Campaign',
+          hint: 'The party, and the record of what it did',
+          state: playing?.name,
+        },
+      ],
+    },
   ];
 
   if (tab === 'title') {
@@ -570,7 +607,7 @@ export default function App() {
         <TitleScreen
           character={roster.entries.length ? build.name || 'Unnamed character' : null}
           campaign={playing ? playing.name : null}
-          entries={menu}
+          groups={groups}
           onPick={(id) => setTab(id as Tab)}
           aside={<ThemeToggle choice={themeChoice} onChange={chooseTheme} />}
         />
@@ -580,30 +617,78 @@ export default function App() {
 
   /*
     The Table is a workspace rather than a document, so it gets the whole
-    window. Everything else is reading matter - a form, a sheet, a matrix - and
-    a 1240px column is what makes those readable; a paragraph stretched across
-    a 27-inch monitor is not an improvement.
+    window. Everything else is reading matter - a form, a sheet, a matrix -
+    and its *content* keeps the 1240px column that makes reading possible,
+    while the chrome around it stops pretending to be a website.
   */
   return (
     <div className={`app ${tab === 'table' ? 'is-wide battle' : ''}`}>
-      <header className="masthead">
-        {/*
-          The wordmark is the way back to the menu. A game's title in the
-          corner goes home when pressed, and it saves this screen a button
-          that would otherwise sit in the tab strip pretending to be a tab.
-        */}
-        <h1>
-          <button type="button" className="mast-home" onClick={() => setTab('title')}>
+      {/*
+        The game bar: the only chrome a desk screen has since §35.
+
+        One slim row. The wordmark chip on the left is the single way back to
+        the menu - the same spot on every screen, so it becomes muscle memory
+        - and the right side holds the screen's *own* actions, never global
+        navigation. The tab strip this replaces offered all seven destinations
+        on every screen, which made the title screen's menu a decoration.
+
+        A bar rather than a floating overlay because desk screens scroll under
+        their top edge, and §34.7 was a whole commit about chrome that was
+        present, correct, and underneath something else.
+
+        The battle screen renders none of this: the map takes the whole
+        window, and its way home is the Menu command in its own bar.
+      */}
+      {tab !== 'table' && (
+        <header className="gbar">
+          <button type="button" className="gbar-home" onClick={() => setTab('title')}>
             Forge<span>&</span>Fate
           </button>
-        </h1>
-        <span className="tagline">
-          D&amp;D 5e character builder &amp; optimizer — {build.name || 'unnamed'}
-        </span>
-        <ThemeToggle choice={themeChoice} onChange={chooseTheme} />
-      </header>
+          <span className="gbar-screen">{TAB_LABELS[tab]}</span>
+          <span className="gbar-actions">
+            {tab === 'builder' && (
+              <>
+                <button
+                  className="btn btn-sm"
+                  onClick={stepBack}
+                  disabled={!canUndo(activeHistory)}
+                  title="Undo (Ctrl+Z)"
+                >
+                  ↶ Undo
+                </button>
+                <button
+                  className="btn btn-sm"
+                  onClick={stepForward}
+                  disabled={!canRedo(activeHistory)}
+                  title="Redo (Ctrl+Shift+Z)"
+                >
+                  ↷ Redo
+                </button>
+                {/* The pair people flip between, so each carries a door to
+                    the other rather than a trip through the menu. */}
+                <button className="btn btn-sm" onClick={() => setTab('sheet')}>
+                  Character sheet →
+                </button>
+              </>
+            )}
+            {tab === 'sheet' && (
+              <button className="btn btn-sm" onClick={() => setTab('builder')}>
+                ← Edit in Builder
+              </button>
+            )}
+          </span>
+        </header>
+      )}
 
-      {linkError && (
+      {/*
+        The content region, named so a screen reader can jump straight here.
+        The share banner and link error live inside it now - on the battle
+        screen they are deliberately not shown at all, because a fight owns
+        its window and a banner arriving mid-round would sit over the board;
+        they are waiting on any desk screen.
+      */}
+      <main id="content">
+      {tab !== 'table' && linkError && (
         <div className="callout error" style={{ marginBottom: 14 }}>
           {linkError}
           <button className="btn btn-sm" style={{ marginLeft: 10 }} onClick={clearShare}>
@@ -611,8 +696,7 @@ export default function App() {
           </button>
         </div>
       )}
-
-      {incoming && (
+      {tab !== 'table' && incoming && (
         <Panel
           title={`Someone shared ${incoming.name || 'a character'} with you`}
           subtitle="Nothing has been saved yet. Adding it keeps your own characters untouched."
@@ -637,75 +721,6 @@ export default function App() {
           </div>
         </Panel>
       )}
-
-      <nav className="tabs" role="tablist">
-        {/*
-          The mode switch. Play is styled as the thing you launch, because for
-          a DM mid-session it is the only button that matters; Create returns
-          to whichever desk tab you left. Both are also real tabs to a screen
-          reader - the battle screen is a tab like any other, it just dresses
-          differently.
-        */}
-        <span className="mode-switch">
-          <button
-            type="button"
-            className={`mode-btn ${tab !== 'table' ? 'is-on' : ''}`}
-            aria-pressed={tab !== 'table'}
-            onClick={() => setTab(createTab)}
-          >
-            Create
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'table'}
-            className={`mode-btn mode-play ${tab === 'table' ? 'is-on' : ''}`}
-            onClick={() => setTab('table')}
-          >
-            Play
-          </button>
-        </span>
-
-        {tab !== 'table' &&
-          CREATE_TABS.map((entry) => (
-            <button
-              key={entry.id}
-              role="tab"
-              aria-selected={tab === entry.id}
-              onClick={() => setTab(entry.id)}
-            >
-              {entry.label}
-            </button>
-          ))}
-
-        {/* Undo belongs next to the thing it undoes. In the masthead it was a
-            corner of the page away from every control it acts on. */}
-        <span className="tab-actions">
-          <button
-            className="btn btn-sm"
-            onClick={stepBack}
-            disabled={!canUndo(activeHistory)}
-            title="Undo (Ctrl+Z)"
-          >
-            ↶ Undo
-          </button>
-          <button
-            className="btn btn-sm"
-            onClick={stepForward}
-            disabled={!canRedo(activeHistory)}
-            title="Redo (Ctrl+Shift+Z)"
-          >
-            ↷ Redo
-          </button>
-        </span>
-      </nav>
-
-      {/*
-        Everything above is chrome - the masthead, the tab strip, the share
-        banner. This is the content, and naming it lets a screen reader jump
-        straight here instead of walking the nav on every tab change.
-      */}
-      <main id="content">
       {/*
         The Builder is inside this, and was not until §33.4 - it sat above
         `#content`, as a direct child of `.app`, which is `overflow: hidden`.
@@ -742,6 +757,7 @@ export default function App() {
             onChange={setRoster}
             bestiary={bestiary}
             ruleset={build.ruleset}
+            onHome={() => setTab('title')}
           />
         )}
         {tab === 'characters' && (

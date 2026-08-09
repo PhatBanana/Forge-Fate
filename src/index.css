@@ -183,12 +183,9 @@ button {
   overflow: hidden;
 }
 
-/* The chrome above the content: masthead and tabs, never scrolled away. */
-.app > .masthead,
-.app > .tabs {
+/* The chrome above the content: one slim game bar, never scrolled away. */
+.app > .gbar {
   flex: 0 0 auto;
-  padding-left: 20px;
-  padding-right: 20px;
 }
 
 /*
@@ -215,16 +212,6 @@ button {
 }
 
 .app:not(.battle) > #content > * {
-  width: 100%;
-  max-width: 1240px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-/* Anything the app puts above the content but below the tabs - a share
-   banner, a link error - keeps the old column. */
-.app > .callout,
-.app > .panel {
   width: 100%;
   max-width: 1240px;
   margin-left: auto;
@@ -260,31 +247,63 @@ button {
 
 }
 
-.masthead {
-  padding: 14px 0 12px;
-  border-bottom: 1px solid var(--border-soft);
+/*
+  The game bar - the only chrome a desk screen has since §35.
+
+  It replaced two rows: a masthead (wordmark, tagline, theme toggle) and a
+  tab strip that offered every destination on every screen, which is what
+  made the title screen's menu redundant. One slim row in the tactical voice:
+  the wordmark chip goes home, the middle names the screen, the right side
+  holds the screen's own actions. The battle screen renders no bar at all.
+*/
+.gbar {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 14px;
-  flex-wrap: wrap;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-sunken);
 }
 
-.masthead h1 {
-  font-size: 26px;
+.gbar-home {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 700;
   letter-spacing: 0.01em;
+  color: var(--text);
+  /* The cut corner, so even the way home speaks the game's chrome. */
 }
 
-.masthead h1 span {
+.gbar-home span {
   color: var(--accent);
 }
 
-.masthead .tagline {
-  color: var(--text-faint);
-  font-size: 13px;
-  font-family: var(--mono);
+.gbar-home:hover span {
+  color: var(--accent-dim);
 }
 
-/* Pushed to the far end of the masthead, and off the printed page entirely. */
+/* Which screen this is, said once and quietly - the bar's whole caption. */
+.gbar-screen {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding-left: 12px;
+  border-left: 1px solid var(--border-soft);
+}
+
+.gbar-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
 .theme-toggle {
   margin-left: auto;
   display: flex;
@@ -312,80 +331,6 @@ button {
 .theme-toggle button.is-on {
   background: var(--accent);
   color: var(--on-accent);
-}
-
-.tabs {
-  display: flex;
-  gap: 4px;
-  margin: 0 0 12px;
-  flex-wrap: wrap;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.tabs > [role='tab'] {
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--text-dim);
-  padding: 9px 14px;
-  font-size: 14px;
-  letter-spacing: 0.02em;
-  margin-bottom: -1px;
-}
-
-.tabs > [role='tab']:hover {
-  color: var(--text);
-}
-
-.tabs > [role='tab'][aria-selected='true'] {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-}
-
-/*
-  Create | Play.
-
-  A segmented control rather than two more tabs, because it is a different kind
-  of choice: the tabs pick a desk, this picks which half of the app you are in.
-  Play gets the weight - for a DM mid-session it is the only button that
-  matters - and the cut corner is the one deliberate flourish of the tactical
-  skin allowed to appear outside Play mode, so the button advertises where it
-  goes.
-*/
-.mode-switch {
-  display: inline-flex;
-  gap: 0;
-  margin-right: 14px;
-  margin-bottom: 6px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-  align-self: center;
-}
-
-.mode-switch .mode-btn {
-  background: var(--bg-raised);
-  border: 0;
-  color: var(--text-dim);
-  padding: 8px 16px;
-  font-size: 13px;
-  font-family: var(--mono);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.mode-switch .mode-btn.is-on {
-  background: var(--accent);
-  color: var(--bg);
-}
-
-.mode-switch .mode-play {
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
-}
-
-.mode-switch .mode-play:not(.is-on) {
-  color: var(--accent);
 }
 
 .columns {
@@ -2068,9 +2013,8 @@ dl.detail-list {
   sheet is removed: tabs, buttons, the masthead.
 */
 @media print {
-  .masthead,
-  .tabs,
-  /* The section switcher is chrome for the same reason the tab bar is: it says
+  .gbar,
+  /* The section switcher is chrome for the same reason the bar is: it says
      where you are, which paper does not need to be told. */
   .subtabs,
   .print-controls,
@@ -2200,14 +2144,6 @@ dl.detail-list {
 
 .curve-key .key-right::before {
   background: repeating-linear-gradient(to right, var(--sky) 0 5px, transparent 5px 8px);
-}
-
-.tab-actions {
-  display: flex;
-  gap: 6px;
-  margin-left: auto;
-  align-self: center;
-  padding-bottom: 6px;
 }
 
 .btn:disabled {
@@ -6960,9 +6896,22 @@ dl.detail-list {
   background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  /* The cut corner the mode switch uses, so the battle screen's chrome is one
-     idea rather than two that happen to be adjacent. */
+  /* The cut corner, so the battle screen's chrome is one idea rather than
+     two that happen to be adjacent. */
   clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+}
+
+/*
+  The way out, visibly not another drawer. Every other command in this bar
+  toggles a panel over the fight; this one leaves the screen, so it takes
+  less width and drops the fill - a door, not a cupboard.
+*/
+.btl-cmd-home {
+  flex: 0 0 auto;
+  padding-left: 14px;
+  padding-right: 14px;
+  background: none;
+  border-style: dashed;
 }
 
 .btl-cmd:hover {
@@ -7147,8 +7096,47 @@ dl.detail-list {
 .title-menu {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 18px;
   text-align: left;
+}
+
+/*
+  Seven destinations reading as three decisions: play, create, keep. Groups
+  rather than a shorter list, because nothing reachable today should become
+  unreachable to make a menu prettier.
+*/
+.title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.title-group-name {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 0 0 -2px 2px;
+}
+
+.title-item-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+/* The live line: what this place already holds, said without being visited. */
+.title-item-state {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.title-item.is-primary .title-item-state {
+  color: color-mix(in srgb, var(--on-accent) 78%, transparent);
 }
 
 /*
@@ -7215,26 +7203,23 @@ dl.detail-list {
   color: var(--text-faint);
 }
 
-/* The wordmark goes home. A button that has to look exactly like the heading
-   it replaced, so it inherits everything and adds nothing. */
-.mast-home {
-  background: none;
-  border: none;
-  padding: 0;
-  font: inherit;
-  color: inherit;
-  letter-spacing: inherit;
-  cursor: pointer;
+/*
+  The first-run questions, in the title screen's voice: centred wordmark, the
+  question underneath. It used to wear the masthead, which no longer exists
+  anywhere - the first screen sets the expectation for all the others.
+*/
+.setup-screen {
+  position: relative;
+  height: 100dvh;
+  overflow-y: auto;
+  padding: 48px 24px;
+  text-align: center;
 }
 
-.mast-home:hover span {
-  color: var(--accent-dim);
-}
-
-@media print {
-  .mast-home {
-    cursor: auto;
-  }
+.setup-body {
+  max-width: 640px;
+  margin: 20px auto 0;
+  text-align: left;
 }
 
 /* -------------------------------------------------- the character-creation route */
@@ -7363,46 +7348,17 @@ dl.detail-list {
   Three moves, and no more, because the palette and the type are already doing
   most of the work and a fourth idea would be decoration rather than design.
 
-  1. **The cut corner** the mode switch has had since §12.1 goes onto the
-     things you press to go somewhere - the tab strip and the primary buttons.
-     One shape, used consistently, is what makes chrome feel authored.
+  1. **The cut corner** goes onto the things you press to go somewhere - the
+     title menu and the primary buttons. One shape, used consistently, is
+     what makes chrome feel authored. (It started on §12.1's mode switch and
+     outlived it - §35 deleted the switch along with the tab strip it sat in.)
   2. **A bevel**: a hairline of light along a control's top edge and a shadow
      under it. This is the whole trick behind why a game's buttons look
      pressable and a web form's look printed, and it costs one inset shadow.
-  3. **Weight on the selected thing.** A tab strip that marks the current tab
-     with a two-pixel underline is a document's table of contents; one that
-     fills it is a menu.
+  3. **Weight on the selected thing.** Marking the current choice with a
+     two-pixel underline is a document's table of contents; filling it is a
+     menu.
 */
-
-/* --- the tab strip */
-
-.tabs {
-  border-bottom: none;
-  padding: 2px 0 0;
-}
-
-.tabs > [role='tab'] {
-  border-bottom: none;
-  margin-bottom: 0;
-  padding: 7px 15px;
-  border-radius: var(--radius);
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
-}
-
-.tabs > [role='tab']:hover {
-  background: var(--bg-sunken);
-}
-
-.tabs > [role='tab'][aria-selected='true'] {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  color: var(--accent);
-  box-shadow: inset 0 1px 0 var(--bevel);
-}
 
 /* --- buttons
 
@@ -7463,8 +7419,7 @@ dl.detail-list {
 @media print {
   /* None of this survives contact with paper, which has no light source. */
   .btn,
-  .panel,
-  .tabs > [role='tab'] {
+  .panel {
     box-shadow: none !important;
     clip-path: none !important;
   }

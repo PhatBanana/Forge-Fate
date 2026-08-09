@@ -2669,6 +2669,85 @@ could not be added without fixing it, and it was worth fixing regardless.
 
 ---
 
+## 35. One nav, one look: the website chrome dies
+
+The ask, verbatim: *"I am not liking the menu. Seem pretty redundant when it
+leads to same page with all the tabs at the top. I am thinking the entire app
+should have that full screen game feel."*
+
+The complaint was exact, and it was a real defect in §31's design. The title
+screen offered seven destinations; press any of them and you landed on a page
+whose top rows offered **the same seven destinations again** — a masthead
+with a wordmark and tagline, a CREATE/PLAY mode switch, and six tabs. Two
+complete navigation systems for one set of places, one of them decoration.
+Underneath that, a split visual language: the battle screen was the
+full-bleed game the user kept asking for, and every other screen was a
+website wearing its chrome.
+
+### Hub and spoke
+
+Fixed by **deleting the duplicate, not the menu**. The title screen is now
+the app's only global navigation — a tactics game's main menu — and every
+screen is a spoke with one small, consistent way back:
+
+- **Desk screens wear one slim game bar**: the wordmark chip (home) on the
+  left, the screen's name in the middle, the screen's *own* actions on the
+  right — never global nav. Builder: Undo/Redo and "Character sheet →";
+  Sheet: "← Edit in Builder", because that is the pair people flip between.
+  A bar rather than a floating overlay, because desk screens scroll under
+  their top edge and §34.7 was a whole commit about chrome that was present,
+  correct, and underneath something else.
+- **The battle wears nothing.** The map takes the two deleted rows — the
+  whole 1360×900 from pixel zero, probe-asserted against the viewport rather
+  than against yesterday's layout. Its way home is a **Menu** command at the
+  end of its own bar, styled as a door rather than another drawer.
+- **The hub earns its screen**: grouped as the three decisions a table faces
+  — **Play** (primary) · **Create** · **World** — with live state on any
+  line that has something to report: the loaded character on Build, the
+  roster count on Characters, the map count on Dungeons, the campaign name,
+  the round number on Resume. A hub that says nothing makes you press a
+  button to find out.
+- **Readability was kept, not traded**: `#content` and its 1240px column are
+  untouched. The chrome went to the edges; the words did not.
+
+What went with the strip: the masthead and tagline, the CREATE/PLAY mode
+switch and the `createTab` memory that existed only to serve it, the
+`tab-actions` undo cluster (undo now lives where it acts), the per-screen
+theme toggle (the title corner has it — changing theme is a settings act,
+done at the menu), and every line of their CSS, including the battle-skin
+restyle of a tab strip that no longer exists. The first-run wizard lost the
+masthead too: it asks its two questions under a centred wordmark, in the
+title screen's voice.
+
+- `[x]` **35.1 The shell**: game bar in, both navigation rows out; share
+  banner and link error moved inside `#content` (shown on desk screens only
+  — a banner arriving mid-fight would sit over the board); `document.title`
+  reads a plain label map.
+- `[x]` **35.2 The battle's way home**: `onHome` prop, Menu command,
+  full-viewport board.
+- `[x]` **35.3 The hub**: groups and live state lines; `TitleScreen` takes
+  `groups`, and its tests grew the two claims that matter — state lines
+  appear only where there is state, and the groups read in order.
+- `[x]` **35.4 Gates, probe, ship.** `run35.mjs` walks every spoke in both
+  themes at 1360: no `.masthead`/`.tabs`/`.mode-switch` anywhere, the home
+  chip visible by `elementFromPoint` on every desk screen, both jumps of the
+  Builder⇄Sheet pair, print hiding the bar while the sheet keeps its width,
+  the battle filling the window, and Menu landing back on the hub.
+  `run34.mjs` re-run untouched — the camera did not care that the board
+  moved up two rows, which is exactly what §34 promised.
+
+### The judgement call, stated
+
+Hub-and-spoke costs a press: Builder → Dungeons is now two clicks (home,
+then Dungeons) instead of one tab. That is the price of having one
+navigation instead of two, and it is paid exactly where traffic is lightest
+— the pairs that are actually flipped between (Builder⇄Sheet, and
+mid-fight glances handled inside the battle's own drawers) have direct
+doors. If a third pair turns out to matter, it gets a door too; the menu
+does not come back to the top of every screen.
+
+---
+
 ## Recently completed
 
 The SRD audit pass, in order. Each was a real defect, not a tidy-up.

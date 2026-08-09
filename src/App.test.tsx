@@ -79,7 +79,6 @@ describe('where to start', () => {
     await fromMenu(/build a character/i);
 
     // Level 1, unnamed, and nothing in hand.
-    expect(screen.getByRole('tab', { name: 'Builder' })).toHaveAttribute('aria-selected', 'true');
     const name = screen.getByLabelText(/^name$/i) as HTMLInputElement;
     expect(name.value).toBe('');
     expect(screen.getByText('At a glance').closest('.panel')).toHaveTextContent(/LEVEL\s*1/i);
@@ -210,28 +209,59 @@ describe('undo', () => {
   });
 });
 
-describe('the two modes', () => {
+describe('hub and spoke', () => {
   /**
-   * Create is the desk, Play is the table. The switch has to remember the desk:
-   * a DM flipping to the battle and back should land where they left, not on
-   * the Builder every time - that would make every glance at a stat block a
-   * navigation chore.
+   * §35. The title screen is the only global navigation: there is no tab
+   * strip to offer every destination on every screen, so a screen's one way
+   * back is its wordmark chip - and the battle's, which wears no bar at all,
+   * is the Menu command in its own command bar. These tests are the shape of
+   * the whole design: menu to screen, screen to menu, nothing in between.
    */
-  it('returns from Play to the Create tab you left', async () => {
+  const toMenu = async () => {
     render(<App />);
     await userEvent.click(screen.getAllByRole('button', { name: /use these rules/i })[0]);
     await userEvent.click(screen.getByRole('button', { name: /show me an example/i }));
+  };
+
+  it('offers no second navigation on a screen - the strip is gone', async () => {
+    await toMenu();
     await userEvent.click(screen.getByRole('button', { name: /build a character/i }));
 
-    await userEvent.click(screen.getByRole('tab', { name: 'Characters' }));
-    await userEvent.click(screen.getByRole('tab', { name: /play/i }));
-    // Play owns the window: the desk tabs are gone until you come back.
-    expect(screen.queryByRole('tab', { name: 'Builder' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    // The bar names the screen instead, so you still know where you are.
+    expect(screen.getByText('Builder')).toBeInTheDocument();
+  });
 
-    await userEvent.click(screen.getByRole('button', { name: /create/i }));
-    expect(screen.getByRole('tab', { name: 'Characters' })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
+  it('goes home through the wordmark chip, from any desk screen', async () => {
+    await toMenu();
+    await userEvent.click(screen.getByRole('button', { name: /characters & bestiary/i }));
+    // The screen is a lazy chunk; wait for it rather than for luck.
+    expect(await screen.findByRole('heading', { name: 'Your characters' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /forge\s*&\s*fate/i }));
+    // Back on the menu: the entries are offered again.
+    expect(screen.getByRole('button', { name: /build a character/i })).toBeInTheDocument();
+  });
+
+  it('goes home from the battle through the Menu command in its bar', async () => {
+    await toMenu();
+    await userEvent.click(screen.getByRole('button', { name: /run a battle/i }));
+    // The battle is a lazy chunk: wait for its bar, then check it wears no
+    // game bar - the map takes the whole window.
+    const menu = await screen.findByRole('button', { name: 'Menu' });
+    expect(screen.queryByRole('button', { name: /forge\s*&\s*fate/i })).not.toBeInTheDocument();
+
+    await userEvent.click(menu);
+    expect(screen.getByRole('button', { name: /run a battle/i })).toBeInTheDocument();
+  });
+
+  it('flips between the Builder and the sheet without a trip through the menu', async () => {
+    await toMenu();
+    await userEvent.click(screen.getByRole('button', { name: /build a character/i }));
+    await userEvent.click(screen.getByRole('button', { name: /character sheet →/i }));
+    expect(await screen.findByText(/saving throws/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /edit in builder/i }));
+    expect(screen.getByLabelText(/^name$/i)).toBeInTheDocument();
   });
 });

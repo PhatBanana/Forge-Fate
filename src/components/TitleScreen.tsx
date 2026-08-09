@@ -1,19 +1,28 @@
 import type { ReactNode } from 'react';
 
 /**
- * The main menu.
+ * The main menu - and since §35, the app's **only** navigation.
  *
- * For thirty sections this app opened on a form. That is the right landing for
- * a tool and the wrong one for the thing this has become: a table has several
- * jobs - build somebody, prep a dungeon, run the fight, keep the record - and
- * a tab strip above a form answers "which part of the Builder" rather than
- * "what are we doing tonight".
+ * For thirty sections this app opened on a form. §31.2 put a menu in front of
+ * it, but left the tab strip on every screen behind it - so the menu offered
+ * seven destinations and each of them landed on a page offering the same
+ * seven again. Two navigation systems, one of them decoration. §35 deleted
+ * the strip: this screen is the hub, each screen is a spoke, and a spoke's
+ * only way out is back through here (a wordmark chip on the desk screens, a
+ * Menu command in the battle's own bar).
  *
- * So it opens on a menu, and the menu **says what it knows**. Which character
- * is loaded, which campaign is being played, and whether a fight is still on
- * the table. That last one is the whole reason this is worth building: a DM
- * who closed the laptop mid-combat and comes back wants one button, and until
- * now the app gave them a Builder and left them to find their way.
+ * That is what earns the menu its screen: it is not a duplicate of anything
+ * any more, and it **says what it knows** - which character is loaded, which
+ * campaign is on, whether a fight is still on the table, how many characters
+ * and maps exist. A hub that says nothing makes you press a button to find
+ * out.
+ *
+ * ## Shape
+ *
+ * Seven destinations read as three decisions: Play, at the top and primary;
+ * Create, the desk work; World, the things that outlive one evening. Groups
+ * rather than a shorter list, because nothing that is reachable today should
+ * become unreachable to make a menu prettier.
  *
  * ## What it deliberately is not
  *
@@ -28,14 +37,23 @@ export interface TitleEntry {
   label: string;
   /** The line underneath: what the place is for, in a DM's words. */
   hint: string;
+  /** Live state, mono, right-aligned: "5 characters", "Round 3". A menu line
+      that knows something says it; one that knows nothing shows nothing. */
+  state?: string;
   /** Set on the one thing this menu most wants you to press. */
   primary?: boolean;
+}
+
+export interface TitleGroup {
+  /** "Play" · "Create" · "World" - the decision, not the destination. */
+  name: string;
+  entries: TitleEntry[];
 }
 
 export function TitleScreen({
   character,
   campaign,
-  entries,
+  groups,
   onPick,
   aside,
 }: {
@@ -43,7 +61,7 @@ export function TitleScreen({
   character: string | null;
   /** The campaign being played, or null when there is none. */
   campaign: string | null;
-  entries: TitleEntry[];
+  groups: TitleGroup[];
   onPick: (id: string) => void;
   /** The theme toggle, passed in rather than imported - this screen has no
       opinion about what else belongs in its corner. */
@@ -67,16 +85,24 @@ export function TitleScreen({
         </p>
 
         <nav className="title-menu" aria-label="Main menu">
-          {entries.map((entry) => (
-            <button
-              key={entry.id}
-              type="button"
-              className={`title-item ${entry.primary ? 'is-primary' : ''}`}
-              onClick={() => onPick(entry.id)}
-            >
-              <span className="title-item-label">{entry.label}</span>
-              <span className="title-item-hint">{entry.hint}</span>
-            </button>
+          {groups.map((group) => (
+            <section key={group.name} className="title-group" aria-label={group.name}>
+              <h2 className="title-group-name">{group.name}</h2>
+              {group.entries.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  className={`title-item ${entry.primary ? 'is-primary' : ''}`}
+                  onClick={() => onPick(entry.id)}
+                >
+                  <span className="title-item-row">
+                    <span className="title-item-label">{entry.label}</span>
+                    {entry.state && <span className="title-item-state">{entry.state}</span>}
+                  </span>
+                  <span className="title-item-hint">{entry.hint}</span>
+                </button>
+              ))}
+            </section>
           ))}
         </nav>
 

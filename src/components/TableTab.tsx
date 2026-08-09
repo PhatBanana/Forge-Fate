@@ -176,12 +176,17 @@ export function TableTab({
   onChange,
   bestiary,
   ruleset,
+  onHome,
 }: {
   roster: Roster;
   onChange: (roster: Roster) => void;
   /** Monsters you made, from their own store. See `src/bestiary.ts`. */
   bestiary: Monster[];
   ruleset: string;
+  /** Back to the title screen. The battle wears no game bar - the map takes
+      the whole window - so its way home is a Menu command in its own bar,
+      which is where a tactics game keeps it. */
+  onHome?: () => void;
 }) {
   const { monsters: srd, loading } = useMonsters();
 
@@ -4833,6 +4838,16 @@ export function TableTab({
               {d.label}
             </button>
           ))}
+          {onHome && (
+            <button
+              type="button"
+              className="btl-cmd btl-cmd-home"
+              title="Back to the main menu. The fight stays on the table."
+              onClick={onHome}
+            >
+              Menu
+            </button>
+          )}
         </nav>
       </div>
 
