@@ -107,6 +107,8 @@ import { isMelee, routineOptions, singleStrikes } from '../engine/strikes';
 import { meleeReach, opportunityStrike, provokedBy } from '../engine/reactions';
 import { planTurn } from '../engine/enemyTurn';
 import type { Actor } from '../engine/enemyTurn';
+import { MAX_SCALE, WHOLE_MAP, clampCamera, panBy } from '../engine/camera';
+import type { Camera } from '../engine/camera';
 import { DungeonMap } from './DungeonMap';
 import type { Token } from './DungeonMap';
 import { IsoMap } from './IsoMap';
@@ -234,6 +236,18 @@ export function TableTab({
   const [view, setView] = useState<'map' | 'tactical'>('map');
   /** The tactical camera's facing, quarter turns - FFT's L1/R1. */
   const [facing, setFacing] = useState(0);
+  /*
+    Where the camera is looking, as a fraction of whichever map is drawn.
+    Normalised precisely so it survives the two things that would otherwise
+    throw it away: switching between the flat and tactical projections, which
+    have unrelated coordinate systems, and a quarter turn, which changes the
+    isometric drawing's width, height and origin together.
+
+    Not persisted. A fight reopened starts looking at the whole board, which
+    is what it did before the camera existed and is the honest default -
+    nobody wants to come back to somebody else's zoom.
+  */
+  const [camera, setCamera] = useState<Camera>(WHOLE_MAP);
 
   /*
     A spell being placed: what it is, waiting for where. Aimed shapes take two
@@ -3537,6 +3551,8 @@ export function TableTab({
             onHover: setHover,
             onTokenClick: tokenClick,
             onTokenOpen: (id: string) => popOut(id),
+            camera,
+            onCamera: setCamera,
           };
           return view === 'tactical' ? (
             <IsoMap {...mapProps} orientation={facing} />
@@ -3544,9 +3560,15 @@ export function TableTab({
             <DungeonMap {...mapProps} />
           );
         })()}
+        {/* The keys, said once. A camera nobody can find is a camera nobody
+            has - and the rotate pair only means anything in the tactical
+            view, so it is only offered there. */}
         <div className="hud-legend" aria-hidden="true">
           Space ends the turn · Esc cancels · hold H to see the board · double-click a token
           opens the sheet
+          <br />
+          WASD moves the camera · right-drag or wheel · +/− zooms, 0 fits
+          {view === 'tactical' ? ' · Q/E turn the view' : ''}
         </div>
       </div>
   );
@@ -4470,6 +4492,54 @@ export function TableTab({
       // turn off is a HUD somebody leaves off and then wonders where the
       // controls went, and what this actually answers is "move for a second".
       if (e.key.toLowerCase() === 'h' && !e.repeat) setHudFaded(true);
+
+      /*
+        The camera on the keyboard. WASD walks it, Q and E turn it, +/- zoom
+        and 0 fits the whole board again.
+
+        Modifiers bow out first: Ctrl/Cmd+S is a browser save and Cmd+A is
+        select-all, and a camera that swallowed either would be worse than one
+        with no keys at all.
+
+        Every step is a *fraction of what is on screen*, not a distance, so one
+        press moves the view by the same visible amount at every zoom - a fixed
+        number of squares would crawl when zoomed out and leap when zoomed in.
+      */
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const STEP = 0.15;
+      switch (e.key.toLowerCase()) {
+        case 'w':
+          setCamera((c) => panBy(c, 0, -STEP));
+          break;
+        case 's':
+          setCamera((c) => panBy(c, 0, STEP));
+          break;
+        case 'a':
+          setCamera((c) => panBy(c, -STEP, 0));
+          break;
+        case 'd':
+          setCamera((c) => panBy(c, STEP, 0));
+          break;
+        // Q and E give the keyboard what only the Field drawer's Rotate button
+        // could do before, and they are the pair Tactics puts rotation on.
+        // The flat map has no facing, so there they do nothing.
+        case 'q':
+          if (view === 'tactical') setFacing((f) => (f + 3) % 4);
+          break;
+        case 'e':
+          if (view === 'tactical') setFacing((f) => (f + 1) % 4);
+          break;
+        case '0':
+          setCamera(WHOLE_MAP);
+          break;
+        default:
+          // `=` is the unshifted key `+` lives on, and `_` the one `-` does.
+          if (e.key === '+' || e.key === '=') {
+            setCamera((c) => clampCamera({ ...c, scale: Math.min(MAX_SCALE, c.scale * 1.3) }));
+          } else if (e.key === '-' || e.key === '_') {
+            setCamera((c) => clampCamera({ ...c, scale: c.scale / 1.3 }));
+          }
+      }
     };
     const onUp = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === 'h') setHudFaded(false);

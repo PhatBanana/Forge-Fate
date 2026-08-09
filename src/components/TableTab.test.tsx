@@ -2340,6 +2340,156 @@ describe('the pointer’s loop', () => {
     expect(view.encounter.round).toBe(round + 1);
   });
 
+  describe('the camera on the keyboard', () => {
+    /*
+      §34. The battle map is 48 by 36 squares in about 880 pixels, so a token's
+      conditions and floating numbers are unreadable at the fitted view and
+      there was no way to get closer. WASD walks, Q and E turn, +/- zoom, 0
+      fits.
+
+      Asserted against the `viewBox` rather than any pixel, because that is the
+      camera: `squareAt` reads the same rectangle the drawing is rendered from,
+      which is what stops a moved camera from putting tokens in the wrong
+      square.
+    */
+    const openMap = async (user: ReturnType<typeof userEvent.setup>) => {
+      const view = setup(party());
+      await open(user, 'Party');
+      await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+      await open(user, 'Field');
+      await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
+      return view;
+    };
+    const vb = () => (document.querySelector('.dmap') as SVGSVGElement).getAttribute('viewBox')!;
+    const nums = () => vb().split(' ').map(Number);
+
+    it('starts looking at the whole board, exactly as it always did', async () => {
+      await openMap(userEvent.setup());
+      expect(vb()).toBe('0 0 672 504');
+    });
+
+    it('zooms in on + and shows less of the map', async () => {
+      await openMap(userEvent.setup());
+      fireEvent.keyDown(window, { key: '+' });
+      const [, , w, h] = nums();
+      expect(w).toBeLessThan(672);
+      expect(h).toBeLessThan(504);
+      // Both axes by the same factor, so the drawing keeps its shape and the
+      // container-query fit added in §32.2 still has nothing to letterbox.
+      expect(w / h).toBeCloseTo(672 / 504, 10);
+    });
+
+    it('will not zoom out past the whole board', async () => {
+      await openMap(userEvent.setup());
+      for (let i = 0; i < 6; i++) fireEvent.keyDown(window, { key: '-' });
+      expect(vb()).toBe('0 0 672 504');
+    });
+
+    it('walks the view with WASD once there is somewhere to go', async () => {
+      await openMap(userEvent.setup());
+      fireEvent.keyDown(window, { key: '+' });
+      fireEvent.keyDown(window, { key: '+' });
+      const [x0, y0] = nums();
+      fireEvent.keyDown(window, { key: 'd' });
+      expect(nums()[0]).toBeGreaterThan(x0);
+      fireEvent.keyDown(window, { key: 's' });
+      expect(nums()[1]).toBeGreaterThan(y0);
+      fireEvent.keyDown(window, { key: 'a' });
+      fireEvent.keyDown(window, { key: 'w' });
+      expect(nums()[0]).toBeCloseTo(x0, 6);
+      expect(nums()[1]).toBeCloseTo(y0, 6);
+    });
+
+    it('stops at the edge rather than walking off the board', async () => {
+      await openMap(userEvent.setup());
+      fireEvent.keyDown(window, { key: '+' });
+      for (let i = 0; i < 20; i++) fireEvent.keyDown(window, { key: 'a' });
+      const [x, , w] = nums();
+      expect(x).toBe(0);
+      expect(w).toBeLessThan(672);
+    });
+
+    it('0 fits the whole map again', async () => {
+      await openMap(userEvent.setup());
+      fireEvent.keyDown(window, { key: '+' });
+      fireEvent.keyDown(window, { key: 'd' });
+      expect(vb()).not.toBe('0 0 672 504');
+      fireEvent.keyDown(window, { key: '0' });
+      expect(vb()).toBe('0 0 672 504');
+    });
+
+    it('leaves the camera to the browser when a modifier is held', async () => {
+      // Ctrl/Cmd+S is a save and Cmd+A is select-all. A camera that swallowed
+      // either would be worse than one with no keys at all.
+      await openMap(userEvent.setup());
+      fireEvent.keyDown(window, { key: '+' });
+      const before = vb();
+      fireEvent.keyDown(window, { key: 'd', ctrlKey: true });
+      fireEvent.keyDown(window, { key: 'a', metaKey: true });
+      expect(vb()).toBe(before);
+    });
+
+    it('ignores the camera keys while a field has focus', async () => {
+      const user = userEvent.setup();
+      await openMap(user);
+      fireEvent.keyDown(window, { key: '+' });
+      const before = vb();
+      const input = document.createElement('input');
+      document.body.appendChild(input);
+      fireEvent.keyDown(input, { key: 'd' });
+      expect(vb()).toBe(before);
+      input.remove();
+    });
+
+    it('turns the tactical view with Q and E, and does nothing on the flat map', async () => {
+      const user = userEvent.setup();
+      await openMap(user);
+      // The flat map has no facing: E must not disturb it.
+      const flat = vb();
+      fireEvent.keyDown(window, { key: 'e' });
+      expect(vb()).toBe(flat);
+
+      await user.click(screen.getByRole('button', { name: /tactical view/i }));
+      /*
+        Asserted against where a square is *drawn*, not the viewBox. The
+        isometric frame of a rectangular board is symmetric - its width is
+        `(gw + gh) * HW` either way round - so a quarter turn leaves the
+        viewBox identical while moving every tile in the drawing. Reading the
+        rendered polygon is the only honest probe.
+      */
+      // Any drawn tile will do, but it has to be one that exists - a generated
+      // map only draws ground, so square 0,0 is usually rock.
+      const someTile = document.querySelector('.isomap .iso-top')!.getAttribute('data-at');
+      const corner = () =>
+        document.querySelector(`.isomap .iso-top[data-at="${someTile}"]`)!.getAttribute('points');
+      const facing0 = corner();
+      fireEvent.keyDown(window, { key: 'e' });
+      expect(corner()).not.toBe(facing0);
+      fireEvent.keyDown(window, { key: 'q' });
+      expect(corner()).toBe(facing0);
+    });
+
+    it('keeps the zoom through a quarter turn instead of snapping back', async () => {
+      /*
+        The camera is stored as a fraction of the frame, so it survives a
+        rotation rather than being thrown away with the old coordinates. That
+        a *fraction* survives a frame whose width and height genuinely change
+        is asserted in `engine/camera.test.ts`, against three different
+        frames - this board's isometric frame happens to be symmetric, so it
+        could not show that on its own.
+      */
+      const user = userEvent.setup();
+      await openMap(user);
+      await user.click(screen.getByRole('button', { name: /tactical view/i }));
+      fireEvent.keyDown(window, { key: '+' });
+      const zoomed = (document.querySelector('.isomap') as SVGSVGElement).getAttribute('viewBox')!;
+      fireEvent.keyDown(window, { key: 'e' });
+      expect((document.querySelector('.isomap') as SVGSVGElement).getAttribute('viewBox')).toBe(
+        zoomed,
+      );
+    });
+  });
+
   it('marks the bloodied on their strip tile', async () => {
     const user = userEvent.setup();
     const view = setup(party());
