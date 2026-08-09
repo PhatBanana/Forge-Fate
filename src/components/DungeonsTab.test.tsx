@@ -88,7 +88,7 @@ describe('the drawer', () => {
     await user.click(screen.getByRole('button', { name: 'Pillar' }));
 
     await user.type(screen.getByLabelText(/name this dungeon/i), 'the kennel, level B2');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.click(screen.getByRole('button', { name: /save this map/i }));
 
     // The store took it, whole.
     const raw = JSON.parse(localStorage.getItem('dnd-forge:dungeons:v1')!);

@@ -52,15 +52,8 @@ Grouped by theme. Sections keep getting numbers in the order they are
   2026-08-09; the full account is §36 in the shipped record.*
 - `[x]` **37. Standing pawns for the tactical view.** **L** - *shipped
   2026-08-09; the account is §37 in the shipped record.*
-- `[ ]` **38. The desk screens finish the game look.** **M**
-  From the §35 review, in priority order: the Dungeons editor is the last
-  website screen and it is a *map* - it should be a stage like the battle
-  (map full-bleed, seed/size/brushes floating, §34's camera plumbed in,
-  which it was built for); the Campaign empty state is one input on a vast
-  page and should sell the record it will write; the Characters roster rows
-  should carry the portraits the data already has. Plus small polish: the
-  Species x Class dropdown stretched to paragraph width, the sheet's
-  "Print" subtab styled as a tab rather than the action it is.
+- `[x]` **38. The desk screens finish the game look.** **M** - *shipped
+  2026-08-09; the account is §38 in the shipped record.*
 
 ### B. The rules of the game, honestly finished
 
@@ -2861,6 +2854,50 @@ table does with a dropped miniature and needs no legend.
 `run34.mjs` re-run unchanged - clicking a rendered tile still lands the token
 on that exact square, which is the check that matters when token geometry
 moves.
+
+---
+
+## 38. The desk screens finish the game look
+
+The leftovers from the §35 review, in the order they mattered.
+
+**The dungeon workshop becomes a stage.** It was the last screen laid out as
+a document, and its subject is a *map* - a form stacked above a drawing that
+scrolled below the fold. It is now built the way the battle screen is and
+borrows its parts: the same `.map-stage` fit, the same `--hud-*` safe area,
+the same `.hud-cam` cluster, the same `.hud-legend`. The brushes are a rail
+at the edge nearest the hand, because they are the screen's primary verb;
+the generator and the library are panels in a column opposite.
+
+Both columns **reserve** rather than cover, which is §36's distinction
+restated: a full-width row of chrome over a board is chrome, but a side
+column you work in is a workspace - and on a screen whose whole purpose is
+clicking squares, every square has to stay clickable.
+
+§34's camera is plumbed in here for the first time. It was built for exactly
+this - a big map you want to get close to - and this is where close matters
+most, because a brush stroke lands on one square.
+
+**Found while doing it.** `.app.battle` was the only stage, so "not the
+battle screen" had quietly become the test for "is a document": the new
+stage overrode `#content`'s padding but not `.app:not(.battle) > #content > *`,
+which caps children at 1240px and centres them. The stage was still in a
+column and the map came out 120px narrow. The test is the positive one now -
+`.app.stage` - and `run35.mjs` measures the stage against the viewport so
+the same mistake cannot come back quietly.
+
+**The rest:**
+- **The Campaign empty state sells the record** instead of reporting its
+  absence. One grey line on an empty screen said nothing was there and left
+  you to guess what would be; it now names the three things a campaign keeps,
+  which is also the shortest honest description of the feature.
+- **The roster carries faces.** §7 gave characters portraits and the one
+  screen that is *about* your characters showed a name and three numbers.
+  Initials stand in where there is no picture, so the rows stay a grid.
+- **Two polish items.** A `.field` is capped at 30rem, because a control is
+  not a paragraph and a class dropdown a metre wide reads as a mistake; and
+  the sheet's Print button is separated from the two layout tabs beside it,
+  since it was styled like a third tab and is an action.
 
 ---
 

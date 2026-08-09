@@ -205,13 +205,18 @@ button {
   A tab that is a document gets its measure back, and scrolls inside the
   frame rather than moving it. 74ch of prose on a 27-inch monitor is not an
   improvement, which is why the column existed in the first place.
+
+  "Not the battle screen" was the same thing as "is a document" until §38 gave
+  the dungeon workshop a stage too - so the test is now the positive one.
+  A stage manages its own insides and takes the whole region; anything else
+  is reading matter and keeps its column.
 */
-.app:not(.battle) > #content {
+.app:not(.battle):not(.stage) > #content {
   overflow-y: auto;
   padding: 0 20px 80px;
 }
 
-.app:not(.battle) > #content > * {
+.app:not(.battle):not(.stage) > #content > * {
   width: 100%;
   max-width: 1240px;
   margin-left: auto;
@@ -235,13 +240,13 @@ button {
   }
 
   .app > #content,
-  .app:not(.battle) > #content {
+  .app:not(.battle):not(.stage) > #content {
     display: block;
     overflow: visible;
     padding: 0;
   }
 
-  .app:not(.battle) > #content > * {
+  .app:not(.battle):not(.stage) > #content > * {
     max-width: none;
   }
 
@@ -535,6 +540,14 @@ label.field,
 div.field {
   display: block;
   margin-bottom: 12px;
+  /*
+    §38: a control is not a paragraph. `width: 100%` on inputs is right - a
+    field should fill the column it is in - but a *column* capped at 1240px
+    made a class dropdown a metre wide on the Species x Class screen, which
+    reads as a layout mistake rather than a choice. 30rem is about as wide as
+    a select ever needs to be to show its longest option.
+  */
+  max-width: 30rem;
 }
 
 .field > .field-label {
@@ -1662,6 +1675,39 @@ dl.detail-list {
   border-radius: var(--radius);
   margin-bottom: 8px;
   background: var(--bg-raised);
+}
+
+/*
+  §38: the face. Fixed square so the rows stay a grid whether or not anyone
+  has a portrait yet - a list that reflows as pictures arrive is a list that
+  looks broken while they load.
+*/
+.roster-face {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+}
+
+.roster-face img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* The initials, for a character with no picture. Quiet: a placeholder that
+   competes with the name is worse than an empty box. */
+.roster-face span {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
 }
 
 /* The character the Builder is editing, marked so switching is unambiguous. */
@@ -5085,10 +5131,250 @@ dl.detail-list {
   max-width: none;
 }
 
-/* The battle screen takes the whole region and manages its own insides. */
-.app.battle > #content {
+/* A stage takes the whole region and manages its own insides - the battle
+   screen, and since §38 the dungeon workshop, whose subject is also a map. */
+.app.battle > #content,
+.app.stage > #content {
   overflow: hidden;
   padding: 0;
+}
+
+/*
+  ------------------------------------------------- the dungeon workshop (§38)
+
+  The last desk screen laid out as a document, and its subject is a map - a
+  form stacked above a drawing that scrolled below the fold. It is a stage
+  now, built the way the battle screen is and borrowing its parts: the same
+  `.map-stage` fit, the same `--hud-*` safe area, the same `.hud-cam` camera
+  cluster, the same `.hud-legend`.
+
+  The two columns **reserve** rather than cover, which is the §36 distinction
+  restated: a full-width row of chrome over a board is chrome, but a side
+  column you work in is a workspace - and on a screen whose entire purpose is
+  clicking squares, every square has to stay clickable.
+*/
+.dgn {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.dgn-stage {
+  position: absolute;
+  inset: 0;
+  /* The same sunken, vignetted board the battle draws on, so a map looks like
+     it is sitting in something in both places. */
+  background:
+    radial-gradient(120% 90% at 50% 40%, transparent 40%, rgba(0, 0, 0, 0.28) 100%),
+    var(--bg-sunken);
+  --hud-top: 0px;
+  --hud-bottom: 0px;
+  --hud-left: 148px;
+  --hud-right: 320px;
+}
+
+/* The brush rail: the screen's primary verb, at the edge nearest the hand.
+   A column rather than a row because the drawing is wider than it is tall,
+   so a column costs the map less. */
+.dgn-rail {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 128px;
+  /* As tall as its brushes, not as tall as the window: a column of dark
+     glass with nothing in the bottom two-thirds is a hole in the screen. */
+  max-height: calc(100% - 20px);
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow-y: auto;
+  padding: 10px;
+  background: rgba(24, 22, 18, 0.72);
+  border: 1px solid rgba(242, 237, 226, 0.22);
+  border-radius: var(--radius);
+}
+
+.dgn-rail-title,
+.dgn-panel h2 {
+  margin: 0 0 2px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(242, 237, 226, 0.6);
+}
+
+/* The brushes wear the battle's glass rather than the page's panel colour -
+   the same move §36 made on the command bar, for the same reason. */
+.dgn-rail .brush {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 6px 9px;
+  text-align: left;
+  background: rgba(24, 22, 18, 0.6);
+  border: 1px solid rgba(242, 237, 226, 0.22);
+  color: rgba(242, 237, 226, 0.85);
+  border-radius: 3px;
+  cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
+}
+
+.dgn-rail .brush:hover {
+  color: #f2ede2;
+  border-color: rgba(242, 237, 226, 0.45);
+}
+
+.dgn-rail .brush.is-on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Clear all is destructive and sits apart from the brushes it undoes. */
+.dgn-clear {
+  margin-top: 6px;
+  border-top: 1px solid rgba(242, 237, 226, 0.18);
+  border-style: dashed !important;
+}
+
+.dgn-side {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  right: 10px;
+  width: 300px;
+  /* The panels size to their content and stack from the top; the column
+     itself only scrolls when the saved list outgrows the window. */
+  align-content: start;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.dgn-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 12px 12px;
+  background: rgba(24, 22, 18, 0.72);
+  border: 1px solid rgba(242, 237, 226, 0.22);
+  border-radius: var(--radius);
+  color: rgba(242, 237, 226, 0.85);
+}
+
+/* The library grows with the list; the generator does not. */
+.dgn-library {
+  min-height: 0;
+}
+
+.dgn-note {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: rgba(242, 237, 226, 0.6);
+}
+
+.dgn-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(242, 237, 226, 0.55);
+}
+
+.dgn-field input,
+.dgn-field select {
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: normal;
+  padding: 5px 8px;
+  background: rgba(12, 11, 9, 0.55);
+  border: 1px solid rgba(242, 237, 226, 0.25);
+  border-radius: 3px;
+  color: #f2ede2;
+}
+
+.dgn-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.dgn-wide {
+  width: 100%;
+}
+
+.dgn-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.dgn-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 8px;
+  background: rgba(12, 11, 9, 0.4);
+  border: 1px solid rgba(242, 237, 226, 0.16);
+  border-radius: 3px;
+  font-size: 12.5px;
+}
+
+.dgn-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: rgba(242, 237, 226, 0.5);
+}
+
+.dgn-row-actions {
+  display: flex;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+/*
+  Narrow windows: the columns stop reserving and the panels go under the map
+  as ordinary blocks. Two 150px columns and a map between them is three
+  unusable things on a tablet in portrait.
+*/
+@media (max-width: 900px) {
+  .dgn-stage {
+    --hud-left: 0px;
+    --hud-right: 0px;
+    --hud-bottom: 0px;
+    position: static;
+    overflow-y: auto;
+    height: 100%;
+  }
+
+  .dgn-stage .map-stage {
+    position: relative;
+    inset: auto;
+    height: 52vh;
+  }
+
+  .dgn-rail,
+  .dgn-side {
+    position: static;
+    width: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin: 10px;
+  }
 }
 
 /* ------------------------------------------------------------ the battle HUD */
@@ -6094,6 +6380,77 @@ dl.detail-list {
   stroke-dasharray: 3 2;
 }
 
+/*
+  §38: an empty state that sells the thing rather than reporting its absence.
+
+  A single grey line on a whole empty screen tells you nothing is there and
+  leaves you to guess what would be. This names what the feature keeps, in
+  its own three parts, which is also the shortest honest description of it.
+*/
+.empty-pitch {
+  padding: 18px 16px 16px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+}
+
+.empty-pitch h3 {
+  margin: 0 0 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.empty-pitch > p {
+  margin: 0 0 14px;
+  max-width: 62ch;
+  color: var(--text-dim);
+}
+
+.empty-pitch ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.empty-pitch li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 10px;
+  border-left: 2px solid var(--accent-dim);
+}
+
+.empty-pitch li b {
+  font-size: 13px;
+}
+
+.empty-pitch li span {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/*
+  §38: Print is an action, not a third tab.
+
+  It sits in the same row as the two layout tabs and was styled as a filled
+  chip of about the same size, so it read as "the tab you are on". A rule
+  between them, and the action pushed away from the pair it is not part of,
+  is the whole fix - the two tabs choose *what* prints, this does the
+  printing.
+*/
+.print-controls > .btn-primary {
+  margin-left: 6px;
+  padding-left: 18px;
+  padding-right: 18px;
+  border-left: 1px solid var(--border);
+}
+
 /* The debrief table: the recap you read to the table, so it prints. */
 .debrief {
   width: 100%;
@@ -6573,7 +6930,8 @@ dl.detail-list {
   stretching - a battle grid whose squares are not square would be worse than
   a small one - and §32.1 made the hit-test agree with that either way.
 */
-.btl-stage .map-stage {
+.btl-stage .map-stage,
+.dgn-stage .map-stage {
   position: absolute;
   /*
     §36: full height, always. The strip and the bar used to be *reservations*
@@ -6693,7 +7051,8 @@ dl.detail-list {
   transition: opacity 120ms ease-out;
 }
 
-.btl-stage .dmap {
+.btl-stage .dmap,
+.dgn-stage .dmap {
   aspect-ratio: var(--map-ratio);
   width: min(100cqw, calc(100cqh * var(--map-ratio)));
   height: auto;

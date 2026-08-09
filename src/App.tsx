@@ -622,7 +622,15 @@ export default function App() {
     while the chrome around it stops pretending to be a website.
   */
   return (
-    <div className={`app ${tab === 'table' ? 'is-wide battle' : ''}`}>
+    <div
+      className={`app ${tab === 'table' ? 'is-wide battle' : ''} ${
+        // §38: the dungeon workshop is a stage too - its subject is a map, so
+        // it takes the whole region under the game bar and manages its own
+        // insides, exactly as the battle does. It keeps the bar, because it
+        // is still a desk screen and the way home has to be somewhere.
+        tab === 'dungeons' ? 'is-wide stage' : ''
+      }`}
+    >
       {/*
         The game bar: the only chrome a desk screen has since §35.
 

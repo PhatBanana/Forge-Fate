@@ -149,6 +149,27 @@ export function CharactersTab({
           const isActive = entry.id === roster.activeId;
           return (
             <div className={`roster-row ${isActive ? 'is-active' : ''}`} key={entry.id}>
+              {/*
+                §38: the face, where the data already had one. §7 gave
+                characters portraits and this list - the one screen that is
+                *about* your characters - showed a name and three numbers. The
+                initials stand in when there is no picture, so every row is
+                the same shape and the list never reflows as faces arrive.
+              */}
+              <div className="roster-face" aria-hidden="true">
+                {entry.build.details.portrait ? (
+                  <img src={entry.build.details.portrait} alt="" />
+                ) : (
+                  <span>
+                    {(entry.build.name || '?')
+                      .split(/\s+/)
+                      .slice(0, 2)
+                      .map((word) => word[0])
+                      .join('')
+                      .toUpperCase()}
+                  </span>
+                )}
+              </div>
               <div className="roster-main">
                 <input
                   className="roster-name"

@@ -67,11 +67,35 @@ export function CampaignTab({ roster }: { roster: Roster }) {
           </button>
         </div>
 
+        {/*
+          §38: the empty state sells the record rather than apologising for
+          not having one. A single grey line on a whole empty screen said
+          "nothing here" and left you to guess what would be here - so this
+          says what a campaign *does*, in the three things it actually keeps,
+          and the one line of prose that names where they come from.
+        */}
         {file.campaigns.length === 0 && (
-          <p className="muted">
-            Nothing yet. A campaign is a party plus a record — start one and the debrief will
-            begin writing it for you.
-          </p>
+          <div className="empty-pitch">
+            <h3>No campaign yet</h3>
+            <p>
+              A campaign is a party and the record of what it did. Name one above and every
+              fight you run starts writing it.
+            </p>
+            <ul>
+              <li>
+                <b>The party</b>
+                <span>Who is in it, drawn from your roster.</span>
+              </li>
+              <li>
+                <b>The ledger</b>
+                <span>Experience and treasure, totted up per fight by the debrief.</span>
+              </li>
+              <li>
+                <b>The record</b>
+                <span>What each fight cost and who nearly died in it.</span>
+              </li>
+            </ul>
+          </div>
         )}
 
         {file.campaigns.map((one) => (
