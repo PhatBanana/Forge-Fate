@@ -1,0 +1,148 @@
+{
+ "source": "dnd5eapi SRD 5.1 and 5.2",
+ "refreshed": "2026-08-09",
+ "records": {
+  "2014": {
+   "feats": {
+    "grappler": {
+     "name": "Grappler",
+     "category": null
+    }
+   },
+   "backgrounds": {
+    "acolyte": {
+     "name": "Acolyte",
+     "abilities": [],
+     "originFeat": null,
+     "skills": []
+    }
+   }
+  },
+  "2024": {
+   "feats": {
+    "ability score improvement": {
+     "name": "Ability Score Improvement",
+     "category": "general"
+    },
+    "alert": {
+     "name": "Alert",
+     "category": "origin"
+    },
+    "archery": {
+     "name": "Archery",
+     "category": "fighting-style"
+    },
+    "boon of combat prowess": {
+     "name": "Boon of Combat Prowess",
+     "category": "epic-boon"
+    },
+    "boon of dimensional travel": {
+     "name": "Boon of Dimensional Travel",
+     "category": "epic-boon"
+    },
+    "boon of fate": {
+     "name": "Boon of Fate",
+     "category": "epic-boon"
+    },
+    "boon of irresistible offense": {
+     "name": "Boon of Irresistible Offense",
+     "category": "epic-boon"
+    },
+    "boon of spell recall": {
+     "name": "Boon of Spell Recall",
+     "category": "epic-boon"
+    },
+    "boon of the night spirit": {
+     "name": "Boon of the Night Spirit",
+     "category": "epic-boon"
+    },
+    "boon of truesight": {
+     "name": "Boon of Truesight",
+     "category": "epic-boon"
+    },
+    "defense": {
+     "name": "Defense",
+     "category": "fighting-style"
+    },
+    "grappler": {
+     "name": "Grappler",
+     "category": "general"
+    },
+    "great weapon fighting": {
+     "name": "Great Weapon Fighting",
+     "category": "fighting-style"
+    },
+    "magic initiate": {
+     "name": "Magic Initiate",
+     "category": "origin"
+    },
+    "savage attacker": {
+     "name": "Savage Attacker",
+     "category": "origin"
+    },
+    "skilled": {
+     "name": "Skilled",
+     "category": "origin"
+    },
+    "two weapon fighting": {
+     "name": "Two Weapon Fighting",
+     "category": "fighting-style"
+    }
+   },
+   "backgrounds": {
+    "acolyte": {
+     "name": "Acolyte",
+     "abilities": [
+      "int",
+      "wis",
+      "cha"
+     ],
+     "originFeat": "Magic Initiate",
+     "skills": [
+      "Insight",
+      "Religion"
+     ]
+    },
+    "criminal": {
+     "name": "Criminal",
+     "abilities": [
+      "dex",
+      "con",
+      "int"
+     ],
+     "originFeat": "Alert",
+     "skills": [
+      "Sleight of Hand",
+      "Stealth"
+     ]
+    },
+    "sage": {
+     "name": "Sage",
+     "abilities": [
+      "con",
+      "int",
+      "wis"
+     ],
+     "originFeat": "Magic Initiate",
+     "skills": [
+      "Arcana",
+      "History"
+     ]
+    },
+    "soldier": {
+     "name": "Soldier",
+     "abilities": [
+      "str",
+      "dex",
+      "con"
+     ],
+     "originFeat": "Savage Attacker",
+     "skills": [
+      "Athletics",
+      "Intimidation"
+     ]
+    }
+   }
+  }
+ }
+}

@@ -290,6 +290,65 @@ async function subclasses2024() {
   })));
 }
 
+// -------------------------------------------------- feats and backgrounds
+/**
+ * The feats and backgrounds each edition's SRD actually carries.
+ *
+ * This was recorded "blocked, no source" twice before anybody checked the
+ * 2024 namespace - `/api/feats` aliases to 2014 and answers with Grappler
+ * alone, which says nothing whatever about 2024. See §49.
+ *
+ * Both editions are fetched into one fixture, because the interesting fact is
+ * the *difference*: SRD 5.1 has one feat and one background, SRD 5.2 has
+ * seventeen and four, and the app ships 97 and 29. The audit's job is to
+ * verify the overlap and force the remainder to be labelled rather than to
+ * pretend the tables are covered.
+ *
+ * A 2024 background is the one that moves numbers - it sets the ability
+ * increases *and* the origin feat - so those two fields are what the fixture
+ * leads with.
+ */
+const ABILITY_BY_CODE = { STR: 'str', DEX: 'dex', CON: 'con', INT: 'int', WIS: 'wis', CHA: 'cha' };
+
+async function featsAndBackgrounds() {
+  const editions = ['2014', '2024'];
+  const out = {};
+
+  for (const edition of editions) {
+    const [featIndex, bgIndex] = await Promise.all([
+      getJson(`${DND5EAPI}/api/${edition}/feats?limit=200`),
+      getJson(`${DND5EAPI}/api/${edition}/backgrounds?limit=200`),
+    ]);
+    const [feats, backgrounds] = await Promise.all([
+      getAll(featIndex.results.map((r) => `${DND5EAPI}${r.url}`)),
+      getAll(bgIndex.results.map((r) => `${DND5EAPI}${r.url}`)),
+    ]);
+
+    out[edition] = {
+      feats: byKey(feats.map((f) => ({
+        name: f.name,
+        // 2024 sorts feats into Origin, General, Fighting Style and Epic Boon;
+        // 2014 has no categories at all, so this is absent there rather than
+        // guessed at.
+        category: f.type ?? null,
+      }))),
+      backgrounds: byKey(backgrounds.map((b) => ({
+        name: b.name,
+        abilities: (b.ability_scores ?? []).map((a) => ABILITY_BY_CODE[a.name]).filter(Boolean),
+        originFeat: b.feat?.name ?? null,
+        // "Skill: Athletics" and "Tool: Dice" share one list upstream; the app
+        // keeps skills and tools apart, so they are split here.
+        skills: (b.proficiencies ?? [])
+          .filter((p) => p.name.startsWith('Skill: '))
+          .map((p) => p.name.slice(7))
+          .sort(),
+      }))),
+    };
+  }
+
+  return out;
+}
+
 // ---------------------------------------------------- 2014 subclass features
 /**
  * What each of the twelve SRD 5.1 subclasses gets, and when.
@@ -927,6 +986,7 @@ const SETS = {
   'srd-2014-core': core2014,
   'srd-2014-class-levels': classLevels2014,
   'srd-2014-subclasses': subclasses2014,
+  'srd-feats-backgrounds': featsAndBackgrounds,
   'srd-2024-weapons': weapons2024,
   'srd-2024-subclasses': subclasses2024,
   'srd-2024-classes': classes2024,
@@ -950,7 +1010,10 @@ for (const [name, build] of chosen) {
   write(name, {
     source: name === 'srd-2024-weapons' || name === 'srd-2024-classes'
       ? 'open5e SRD 5.2'
-      : name.startsWith('srd-2024') ? 'dnd5eapi SRD 5.2' : 'dnd5eapi SRD 5.1',
+      : name === 'srd-feats-backgrounds'
+        // The one fixture that spans both editions, keyed by edition inside.
+        ? 'dnd5eapi SRD 5.1 and 5.2'
+        : name.startsWith('srd-2024') ? 'dnd5eapi SRD 5.2' : 'dnd5eapi SRD 5.1',
     refreshed: new Date().toISOString().slice(0, 10),
     records: await build(),
   });

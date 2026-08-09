@@ -40,7 +40,7 @@ src/
     classes.ts          13 classes, ~120 subclasses, ability priorities
     skills.ts           the 18 skills and what each is actually for
     spells.ts           344 spells, with the damage the calculator reads
-    feats.ts            75 feats for 2014, 69 for 2024, with prerequisites,
+    feats.ts            75 feats for 2014, 70 for 2024, with prerequisites,
                         scoring rules and per-ruleset overrides
     backgrounds.ts      13 backgrounds for 2014, 16 for 2024
     weapons.ts          37 weapons in 2014 and 39 in 2024, with the rows that differ

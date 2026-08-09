@@ -1422,6 +1422,26 @@ export const FEATS: Feat[] = [
     base: 7,
   },
   {
+    /*
+      Missing until §50, and missed because nothing was checking: the app
+      carried nine epic boons and the SRD's seventh was not among them, while
+      three the app *does* carry (Recovery, Skill, Speed) are not in the SRD
+      at all. A list can be longer than its source and still be incomplete.
+    */
+    id: 'boon-of-the-night-spirit',
+    name: 'Boon of the Night Spirit',
+    source: 'PHB 2024',
+    rulesets: ['2024'],
+    category: 'epic-boon',
+    summary: 'In dim light or darkness you can become Invisible as a Bonus Action, and have resistance to all damage but psychic and force while there.',
+    tags: ['defense', 'utility', 'survivability'],
+    prereq: { minLevel: 19 },
+    base: 8,
+    rules: [
+      { when: cls('rogue'), delta: 2, why: 'A Rogue is already fighting from the shadows; going invisible there is most of a turn saved.' },
+    ],
+  },
+  {
     id: 'boon-of-spell-recall',
     name: 'Boon of Spell Recall',
     source: 'PHB 2024',

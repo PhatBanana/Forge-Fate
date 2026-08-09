@@ -14,7 +14,7 @@ from the books" is an honest provenance and a weaker one than "verified against
 the SRD" — the audits exist because the difference turned out to matter
 fourteen times over. See **Provenance** below.
 
-The shipped history — forty-nine sections with their reasoning — lives in
+The shipped history — fifty sections with their reasoning — lives in
 **`docs/HISTORY.md`** so this file can be a plan.
 
 ---
@@ -31,7 +31,7 @@ full-bleed board and a pan/zoom/rotate camera.
 
 **The state.** Tests, lint, types and the build are clean, deployed from
 `main` to GitHub Pages. The data tables are diffed against the SRD 5.1 and
-5.2 APIs inside `npm test`, so drift fails a build - for twenty-one tables,
+5.2 APIs inside `npm test`, so drift fails a build - for twenty-three tables,
 including every spell slot, cantrip and spells-known column, both editions'
 subclass progressions and the 2014 resource columns. Two tables have no
 fixture, and item 2 says why neither is simply work.
@@ -89,35 +89,27 @@ sneak attack / divine smite / rage in the damage model, attunement,
 encumbrance with the variant thresholds, and the frightened movement
 clause.
 
-### 2. Data provenance — `[~]` one of three tables done **M**
+### 2. Data provenance — `[x]` **done, and it does not mean what a tick usually means**
 
-One job wearing three hats: extend `refresh.mjs` and `srdAudit.test.ts` to
-the tables they never reached. Twenty-one tables are audited now; two are
-left, and **neither is blocked** — that claim was mine and it was wrong.
+All three tables now have a source and a check. The tick is real; what it
+certifies is narrower than "the tables are right", and the difference is the
+honest part of this item.
 
-- `[x]` **The 2014 class feature table.** Done — `srd-2014-class-levels`
-  and the check that reads it. See §46. It found eight features the app
-  did not have, a Barbarian ladder a 2024 character was getting on top of
-  its replacement, and two bugs on the way out.
-- `[ ]` **Feats, epic boons included.** **S**, and unblocked. §46 and §47
-  called this blocked on two counts and was wrong on both: `dnd5eapi` has a
-  full **`/api/2024/`** namespace that was never checked - only `/api/feats`,
-  which aliases to 2014 - and it serves **17 feats**. Open5e was down for
-  that session, not gone; it answers in under a second and serves the same
-  17 under `document__key=srd-2024`. Two independent sources agreeing on the
-  count is better corroboration than either alone.
-- `[ ]` **Backgrounds.** **S**, same story: `/api/2024/backgrounds` serves
-  **4**, each carrying the ability scores, the origin feat, proficiencies and
-  equipment - which is exactly the data that "moves real numbers". Open5e
-  agrees on 4.
+- `[x]` **The 2014 class feature table** — §46. Found eight missing features
+  and a Barbarian ladder a 2024 character was getting on top of its
+  replacement.
+- `[x]` **Feats, epic boons included** — §50. Found **Boon of the Night
+  Spirit** missing: the app had nine boons where the SRD prints seven, and
+  being longer than the source hid being incomplete.
+- `[x]` **Backgrounds** — §50. All four SRD rows already agreed on abilities,
+  Origin feat and skills.
 
-**What the numbers mean, and why this item can never reach 100%.** The app
-ships **97 feats and 29 backgrounds**; the SRD covers 17 and 4 under 2024,
-and 1 and 1 under 2014. So roughly 80 feats and 25 backgrounds have no
-licensed source, the same position as the ~108 non-SRD subclasses. Auditing
-these two tables means *verifying the SRD subset and labelling the rest* -
-finishing this item is a coverage line under **Provenance**, not a green
-tick.
+**What the tick does not cover.** The SRD carries 17 feats and 4 backgrounds
+under 2024, 1 and 1 under 2014. The app ships 70 and 16. So fifty-four feats
+and twelve backgrounds are 2024 PHB content with **no licensed source** — the
+same position as the ~108 non-SRD subclasses. They are labelled in the
+Builder by their source badge and counted by a pinned coverage assertion;
+they are not, and cannot be, verified. See **Provenance**.
 
 ### 3. Small and optional — `[ ]` **XS each**
 
@@ -197,6 +189,10 @@ difference turned out to matter fourteen times over.
   §47 read the book by hand: it casts from 1st level, and it rounds *up*
   when multiclassing. Both are now flags on the class carrying that
   provenance in a comment. Treat the rest of it as unverified.
+- `[!]` **Not verifiable, and counted rather than assumed:** ~108 non-SRD
+  subclasses, **54** of the 70 2024 feats, and **12** of the 16 2024
+  backgrounds. Each is labelled by its source badge in the Builder, and the
+  SRD-covered fraction is pinned in the audit so it cannot drift quietly.
 - `[!]` **Not verifiable:** the ~108 non-SRD subclasses. No licensed source
   carries them; the community sites that do are unlicensed copies, and the
   two open-source alternatives evaluated in 2026-08 turned out to be
@@ -243,7 +239,7 @@ forgery, and it is the parked §9.
 
 ## History
 
-Forty-nine shipped sections, with the reasoning intact, live in
+Fifty shipped sections, with the reasoning intact, live in
 **`docs/HISTORY.md`**. Forty-four of them were split out of this file on
 2026-08-09 — forty-four numbered sections had made a *plan* unreadable, and
 a roadmap should say what is left rather than what was done. §45 was
@@ -268,4 +264,4 @@ section has gone since.
 | The full-screen game UI | 31-35 |
 | The game look, finished | 36-38 |
 | 5e core mechanics: grapple, light, surprise, the small rules | 39-42 |
-| Builder correctness, and the audits that found it | 43-49 |
+| Builder correctness, and the audits that found it | 43-50 |

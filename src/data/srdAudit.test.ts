@@ -7,6 +7,7 @@ import classLevelsFixture from './srd/srd-2014-class-levels.json';
 import weapon2024Fixture from './srd/srd-2024-weapons.json';
 import subclass2024Fixture from './srd/srd-2024-subclasses.json';
 import subclass2014Fixture from './srd/srd-2014-subclasses.json';
+import featBackgroundFixture from './srd/srd-feats-backgrounds.json';
 import class2024Fixture from './srd/srd-2024-classes.json';
 import { GEAR } from './gear';
 import { WEAPONS, weaponsFor } from './weapons';
@@ -21,7 +22,10 @@ import { heldResources } from '../engine/resources';
 import { PREPARED_2024 } from './spellSlots';
 import { computeSlots } from '../engine/spellcasting';
 import { deriveBuild, emptyBuild } from '../engine/character';
-import type { Ability, ClassId } from '../types';
+import type { Ability, ClassId, Ruleset } from '../types';
+import { RULESETS } from '../types';
+import { featById, featsFor } from './feats';
+import { BACKGROUNDS } from './backgrounds';
 import { RACES } from './races';
 import { SKILLS } from './skills';
 import { CONDITIONS } from './conditions';
@@ -108,6 +112,14 @@ const EXPECTED_SOURCE: Record<string, string> = {
   // --- A subrace that changes its lineage's speed.
   'race:Wood Elf:speed':
     'Fleet of Foot raises a Wood Elf to 35 feet; the SRD records the Elf base of 30.',
+
+  // --- A 2024 feat the app models as a mechanic rather than a row.
+  'feat:Ability Score Improvement:missing':
+    '2024 turned Ability Score Improvement into a General feat, and the SRD '
+    + 'lists it as one. The app models it as the thing it has always been - '
+    + 'the ASI slots on `CharClass.asiLevels`, spendable on two points or a '
+    + 'feat - so adding a row would put it in the feat list *and* the slot it '
+    + 'competes with, and a player could take it twice for one slot.',
 
   // --- A choice the source flattened into a grant.
   'race:Variant Human:asi':
@@ -875,6 +887,186 @@ describe('classes, races, skills, conditions and languages against SRD 5.1', () 
     const languages = new Set(LANGUAGES.map((l) => key(l.name)));
     const missingLanguages = srd.languages.filter((l) => !languages.has(key(l)));
     expect(missingLanguages).toEqual([]);
+  });
+});
+
+/**
+ * Feats and backgrounds against both SRDs.
+ *
+ * This item spent two sections marked "blocked, no source" because nobody had
+ * checked the 2024 namespace - `/api/feats` aliases to 2014 and answers with
+ * Grappler alone. See §49. The source was there the whole time.
+ *
+ * ## Why the counts do not, and cannot, match
+ *
+ * The app ships 97 feats and 29 backgrounds. SRD 5.2 carries **17 and 4**;
+ * SRD 5.1 carries **1 and 1**. So most of both tables has no licensed source
+ * and never will, exactly like the ~108 non-SRD subclasses.
+ *
+ * That shapes what these checks can be. They are not "every row is verified" -
+ * they are **"every row the SRD covers agrees, and the remainder is counted
+ * rather than assumed"**. The coverage figures are pinned so that a row moving
+ * between the two groups has to be looked at: silently dropping an SRD feat
+ * would otherwise just make the covered set smaller.
+ */
+describe('feats and backgrounds against SRD 5.1 and 5.2', () => {
+  const srd = records<Record<string, {
+    feats: Record<string, { name: string; category: string | null }>;
+    backgrounds: Record<string, {
+      name: string; abilities: string[]; originFeat: string | null; skills: string[];
+    }>;
+  }>>(featBackgroundFixture);
+
+  const appFeats = (ruleset: Ruleset) =>
+    new Map(featsFor(ruleset).map((f) => [key(f.name), f]));
+  const appBackgrounds = (ruleset: Ruleset) =>
+    new Map(BACKGROUNDS.filter((b) => b.rulesets.includes(ruleset)).map((b) => [key(b.name), b]));
+
+  it('carries every feat the SRD prints, in the edition that prints it', () => {
+    const findings: Finding[] = [];
+    for (const ruleset of RULESETS) {
+      const mine = appFeats(ruleset);
+      for (const [k, s] of Object.entries(srd[ruleset].feats)) {
+        const feat = mine.get(k);
+        if (!feat) {
+          findings.push({ key: `feat:${k}:missing`, detail: `SRD ${ruleset} has it; the app does not` });
+          continue;
+        }
+        // 2014 has no feat categories at all, so `category` is only compared
+        // where the source states one.
+        if (s.category && feat.category !== s.category) {
+          findings.push({
+            key: `feat:${k}:category`,
+            detail: `app ${feat.category ?? 'none'}, srd ${s.category}`,
+          });
+        }
+      }
+    }
+    const { unexpected, stale } = reconcile(findings, ['feat'], ['missing', 'category']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  it('gives every SRD background its abilities, origin feat and skills', () => {
+    /*
+      The three fields that move real numbers under 2024: `abilities` decides
+      where +2/+1 can go, `originFeatId` is a free feat at 1st level, and the
+      skills are proficiencies. A wrong row here is a wrong modifier on a
+      sheet, which is why backgrounds were worth chasing a source for at all.
+    */
+    const findings: Finding[] = [];
+    for (const ruleset of RULESETS) {
+      const mine = appBackgrounds(ruleset);
+      for (const [k, s] of Object.entries(srd[ruleset].backgrounds)) {
+        const bg = mine.get(k);
+        if (!bg) {
+          findings.push({ key: `background:${k}:missing`, detail: `SRD ${ruleset} has it; the app does not` });
+          continue;
+        }
+        if (s.abilities.length) {
+          const theirs = [...s.abilities].sort().join(',');
+          const ours = [...(bg.abilities ?? [])].sort().join(',');
+          if (ours !== theirs) {
+            findings.push({ key: `background:${k}:abilities`, detail: `app [${ours}], srd [${theirs}]` });
+          }
+        }
+        if (s.originFeat) {
+          const granted = bg.originFeatId ? featById(bg.originFeatId, ruleset) : undefined;
+          if (key(granted?.name ?? '') !== key(s.originFeat)) {
+            findings.push({
+              key: `background:${k}:originFeat`,
+              detail: `app ${granted?.name ?? bg.originFeatId ?? 'none'}, srd ${s.originFeat}`,
+            });
+          }
+        }
+        if (s.skills.length) {
+          const theirs = [...s.skills].map((n) => key(n)).sort().join(', ');
+          const ours = [...bg.skills].map((id) => key(SKILLS.find((sk) => sk.id === id)?.name ?? id)).sort().join(', ');
+          if (ours !== theirs) {
+            findings.push({ key: `background:${k}:skills`, detail: `app [${ours}], srd [${theirs}]` });
+          }
+        }
+      }
+    }
+    const { unexpected, stale } = reconcile(
+      findings, ['background'], ['missing', 'abilities', 'originFeat', 'skills'],
+    );
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  it('makes the boon it was missing a real, takeable feat', () => {
+    /*
+      A row in the table is not the deliverable - the deliverable is a 19th
+      level character being offered it. Boon of the Night Spirit was the one
+      SRD feat the app did not have, and it is checked here the way a player
+      reaches it: through the ruleset-aware lookup the Builder uses, with its
+      prerequisite and its epic-boon slot intact.
+    */
+    const boon = featById('boon-of-the-night-spirit', '2024');
+    expect(boon, 'the boon the SRD has and the app did not').toBeDefined();
+    expect(boon!.category).toBe('epic-boon');
+    expect(boon!.prereq?.minLevel).toBe(19);
+    // 2024 only: epic boons do not exist in 2014, and a 2014 character asking
+    // for it must not silently get one.
+    expect(featsFor('2024').some((f) => f.id === 'boon-of-the-night-spirit')).toBe(true);
+    expect(featsFor('2014').some((f) => f.id === 'boon-of-the-night-spirit')).toBe(false);
+  });
+
+  it('has every epic boon the SRD prints, and says which ones it adds', () => {
+    // The app carries nine boons where the SRD prints seven. Being *longer*
+    // than the source hid being incomplete, which is how the missing one
+    // survived: nobody compares a list to a shorter list.
+    const boons = featsFor('2024').filter((f) => f.category === 'epic-boon');
+    const srdBoons = Object.values(srd['2024'].feats)
+      .filter((f) => f.category === 'epic-boon').map((f) => f.name).sort();
+    const mine = boons.map((f) => f.name).sort();
+    expect(srdBoons.every((n) => mine.includes(n)), 'every SRD boon is present').toBe(true);
+    expect(mine.filter((n) => !srdBoons.includes(n))).toEqual([
+      // 2024 PHB, not in the SRD. Labelled, not verified.
+      'Boon of Recovery', 'Boon of Skill', 'Boon of Speed',
+    ]);
+  });
+
+  it('counts how much of each table the SRD actually covers', () => {
+    /*
+      The number this item is really about. Pinned rather than computed into a
+      message, because the whole risk here is a table quietly drifting away
+      from its source - and a coverage figure that moves on its own is the
+      first sign of it.
+    */
+    const covered = (appNames: Iterable<string>, srdKeys: string[]) =>
+      [...appNames].filter((k) => srdKeys.includes(k)).length;
+
+    const feats2024 = appFeats('2024');
+    const bg2024 = appBackgrounds('2024');
+
+    expect({
+      feats: {
+        app: feats2024.size,
+        srd: Object.keys(srd['2024'].feats).length,
+        covered: covered(feats2024.keys(), Object.keys(srd['2024'].feats)),
+      },
+      backgrounds: {
+        app: bg2024.size,
+        srd: Object.keys(srd['2024'].backgrounds).length,
+        covered: covered(bg2024.keys(), Object.keys(srd['2024'].backgrounds)),
+      },
+    }).toEqual({
+      /*
+        Sixteen of the SRD's seventeen 2024 feats are rows here; the
+        seventeenth is Ability Score Improvement, which the app models as a
+        slot rather than a feat (see EXPECTED). The other fifty-four of the
+        app's seventy are 2024 PHB content with no licensed source, and stay
+        labelled rather than verified.
+
+        `app: 70` moved from 69 the moment Boon of the Night Spirit was
+        added, which is the check doing its job - a coverage figure that
+        drifts on its own is the first sign of a table leaving its source.
+      */
+      feats: { app: 70, srd: 17, covered: 16 },
+      backgrounds: { app: 16, srd: 4, covered: 4 },
+    });
   });
 });
 

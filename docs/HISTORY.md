@@ -3548,3 +3548,55 @@ licensed source at all - the same position as the ~108 non-SRD subclasses,
 and a much bigger fact than which API to call. Auditing these two tables
 means verifying the SRD subset and labelling the remainder. It is a coverage
 line under Provenance, not a box that will ever be ticked.
+
+## 50. Feats and backgrounds, audited at last
+
+The item §49 unblocked, built. Two fixtures, two checks, one real gap
+filled, and a coverage figure that says out loud how much of these tables
+can never be verified.
+
+**The fixture spans both editions**, because the interesting fact is the
+difference: SRD 5.1 carries one feat and one background, SRD 5.2 carries
+seventeen and four, and the app ships seventy 2024 feats and sixteen 2024
+backgrounds. One file, keyed by edition.
+
+**Backgrounds passed outright.** All four - Acolyte, Criminal, Sage,
+Soldier - agree on the three fields that move numbers under 2024: the
+ability scores the +2/+1 can go to, the Origin feat granted at 1st level,
+and the two skill proficiencies. That is the half of this item that was
+argued for hardest ("a wrong row moves real numbers, not flavour") and it
+turned out to be right already.
+
+**Feats found two things.**
+
+1. **Boon of the Night Spirit was missing.** The app carried nine epic
+   boons; the SRD prints seven; the app had six of them plus three of its
+   own. Being *longer* than the source is how this hid - nobody thinks to
+   check a list of nine against a list of seven for something absent.
+2. **Ability Score Improvement is listed as a feat by 2024**, and the app
+   models it as what it has always been: the slots on `CharClass.asiLevels`,
+   spendable on two points *or* a feat. Adding a row would put it in the
+   feat list and in the slot it competes with, and a player could take it
+   twice for one slot. Recorded in `EXPECTED` with that reasoning rather
+   than "fixed".
+
+**The coverage figures are pinned, and that is the point.** `{ feats: app
+70, srd 17, covered 16 }` and `{ backgrounds: app 16, srd 4, covered 4 }`
+sit in an assertion. A number that drifts on its own is the first sign of a
+table leaving its source - and it earned that immediately, failing the
+moment the new boon was added, then failing again in `readmeCounts` because
+`docs/development.md` still said 69.
+
+**What this item is, finally.** Not "the tables are verified" - fifty-four
+of the app's seventy 2024 feats and twelve of its sixteen backgrounds are
+2024 PHB content with no licensed source, the same position as the ~108
+non-SRD subclasses. This audit verifies the SRD subset and **counts** the
+remainder. Feats already render their source badge in the Builder, so the
+labelling half was done in §9.1; what was missing was anyone checking the
+part that could be checked.
+
+**Wired, not filed.** The new boon is asserted through `featById` - the
+ruleset-aware lookup the Builder actually uses - with its epic-boon category
+and its level-19 prerequisite, and asserted *absent* under 2014, because a
+2014 character being quietly handed an epic boon would be the obvious way to
+get this wrong.
