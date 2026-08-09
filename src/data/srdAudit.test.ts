@@ -648,7 +648,13 @@ describe('the 2014 subclasses against SRD 5.1', () => {
 // --------------------------------------------------------------------- core
 
 interface SrdCore {
-  classes: Record<string, { name: string; hitDie: number; saves: string[]; skillPicks: number | null }>;
+  classes: Record<string, {
+    name: string; hitDie: number; saves: string[]; skillPicks: number | null;
+    /** Armor and weapon categories, saving throws excluded - checked above. */
+    proficiencies?: string[];
+    /** `null` where the SRD says "choose any", which the Bard does. */
+    skillOptions?: string[] | null;
+  }>;
   races: Record<string, { name: string; speed: number; size: string; asi: Record<string, number> }>;
   /** The four SRD 5.1 subraces, carrying their own increase only. */
   subraces: Record<string, { name: string; parent: string | null; asi: Record<string, number> }>;
@@ -675,6 +681,75 @@ describe('classes, races, skills, conditions and languages against SRD 5.1', () 
       }
     }
     const { unexpected, stale } = reconcile(findings, ['class'], ['hitDie', 'saves', 'skillPicks']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  it('gives every class the armor and weapon proficiency the SRD gives it', () => {
+    /*
+      `armorProficiency` and `weaponProficiency` drive AC, the attack line and
+      half the feat prerequisites, and until 2026-08-09 nothing compared
+      either - the class check next door read hit die, saves and skill picks
+      and stopped. A Fighter who had lost heavy armor would have shown a wrong
+      AC on every screen and failed no test.
+    */
+    const findings: Finding[] = [];
+    for (const klass of CLASSES) {
+      const s = srd.classes[key(klass.name)];
+      if (!s?.proficiencies) continue;
+      const mine = [
+        ...klass.armorProficiency,
+        ...(klass.weaponProficiency.categories ?? []),
+      ].sort().join(',');
+      const theirs = [...s.proficiencies].sort().join(',');
+      if (mine !== theirs) {
+        findings.push({
+          key: `class:${key(klass.name)}:proficiencies`,
+          detail: `app [${mine}], srd [${theirs}]`,
+        });
+      }
+    }
+    const { unexpected, stale } = reconcile(findings, ['class'], ['proficiencies']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  it('offers every class the skills the SRD lets it choose from', () => {
+    /*
+      The count was checked; the list never was. A wrong list is the Builder
+      offering a skill the class cannot take, or hiding one it can - and it
+      cannot be caught by looking at a number.
+
+      `null` means the SRD says "choose any", which the Bard does and which is
+      a real answer rather than a missing one.
+    */
+    const byId = new Map(SKILLS.map((sk) => [sk.id, sk.name]));
+    const findings: Finding[] = [];
+    for (const klass of CLASSES) {
+      const s = srd.classes[key(klass.name)];
+      if (!s || s.skillOptions === undefined) continue;
+
+      const mine = klass.skillChoices.from.map((id) => byId.get(id) ?? id).sort();
+      if (s.skillOptions === null) {
+        // "Choose any three" - the app spells the whole list out, so the
+        // comparison is against every skill rather than against nothing.
+        if (mine.length !== SKILLS.length) {
+          findings.push({
+            key: `class:${key(klass.name)}:skillOptions`,
+            detail: `srd says any skill; app offers ${mine.length} of ${SKILLS.length}`,
+          });
+        }
+        continue;
+      }
+      const theirs = [...s.skillOptions].sort();
+      if (mine.join(', ') !== theirs.join(', ')) {
+        findings.push({
+          key: `class:${key(klass.name)}:skillOptions`,
+          detail: `app [${mine.join(', ')}], srd [${theirs.join(', ')}]`,
+        });
+      }
+    }
+    const { unexpected, stale } = reconcile(findings, ['class'], ['skillOptions']);
     expect(show(unexpected)).toEqual([]);
     expect(stale, 'exceptions that no longer apply').toEqual([]);
   });

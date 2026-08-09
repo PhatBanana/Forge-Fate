@@ -3439,3 +3439,68 @@ Two columns are deliberately unmapped, and both were findings against the
 
 **Still not verified:** everything 2024 outside the tables SRD 5.2 prints,
 and the Artificer entirely. Said in Provenance rather than left to be assumed.
+
+## 48. What a class is proficient in, and the crit that should have killed
+
+Two more tables get a source, and a sweep through the rules the *engine*
+applies rather than the tables it reads finds one live bug.
+
+**Class proficiencies and skill lists.** The class check compared hit die,
+saves and skill *count*; `armorProficiency`, `weaponProficiency` and the
+skill *list* were compared against nothing. Those drive AC, the attack line,
+half the feat prerequisites, and which skills the Builder offers - a class
+with the wrong list is a Builder handing a Fighter Arcana, and no number
+anywhere would have looked wrong. **All twelve classes pass.**
+
+Getting the fixture right took three passes, and each failure is worth
+keeping:
+
+- The Fighter and Paladin are recorded as **"All armor"** rather than three
+  rows, so a first pass had them proficient in none of it.
+- Two classes phrase the skill choice as "Choose two **skills** from" and the
+  rest as "Choose two from", which leaked the lead-in into the list.
+- Anchoring on a few obvious skill names to find the skill sentence fails on
+  the **Cleric**, whose list happens to contain none of them. The test is
+  "names at least three of the eighteen skills", which every class's sentence
+  passes and no instrument or tool choice does.
+
+The Bard is the one class with no list to compare: the SRD says "choose any
+three", so the fixture stores `null` and the audit reads that as
+*unrestricted* rather than *unknown* - a different fact, and the app's
+`ALL_SKILL_IDS` is what has to match it.
+
+**The rules the engine runs, walked by hand.** Not everything has a fixture,
+so these were read against the books:
+
+- **Long rest** - restores hit dice up to half your total, minimum one;
+  clears slots, pact slots, every resource, death saves and one level of
+  exhaustion; keeps ammunition, conditions, the log and experience. Correct,
+  and the exhaustion clause its comment promises is actually there.
+- **Encumbrance** - capacity Strength × 15, encumbered at × 5, heavily at
+  × 10. Correct.
+- **Passive Perception and Investigation** - 10 + modifier, plus Observant.
+  Correct; the situational ±5 for advantage is a DM's call rather than a
+  sheet value.
+- **Concentration** - Constitution, DC 10 or half the damage, and the battle
+  screen rolls it rather than mentioning it.
+- **The off-hand attack** - no ability modifier to damage without the
+  Two-Weapon Fighting style, and it says so in a note rather than silently.
+- **Starting equipment** - not audited, because it is *loaded from* the
+  fixture rather than transcribed beside it. That is stronger provenance than
+  a diff: there is nothing to drift.
+
+**The bug.** A critical hit against a creature at 0 hit points is **two**
+death save failures, not one. The app applied one, whatever landed.
+
+That is not a rounding error - it decides the outcome. A downed character on
+two failures dies to a crit and walks away from an ordinary hit, and the app
+was quietly always choosing "walks away". `damage()` takes the crit now, and
+the strike path tracks whether any attack in a volley crit, because a
+Fighter's three attacks resolve as one damage write.
+
+**Not verified, and not because nobody looked:** the DM's own hazards and
+area effects call `damage()` without a crit flag, which is right - hazards do
+not crit - but it does mean the rule is enforced on the attack path only. If
+a future path can crit, it has to pass the flag; the parameter's default
+being `false` makes forgetting silent, which is the one thing about this fix
+worth watching.

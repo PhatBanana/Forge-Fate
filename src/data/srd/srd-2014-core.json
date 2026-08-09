@@ -10,7 +10,22 @@
      "con",
      "str"
     ],
-    "skillPicks": 2
+    "skillPicks": 2,
+    "proficiencies": [
+     "light",
+     "martial",
+     "medium",
+     "shield",
+     "simple"
+    ],
+    "skillOptions": [
+     "Animal Handling",
+     "Athletics",
+     "Intimidation",
+     "Nature",
+     "Perception",
+     "Survival"
+    ]
    },
    "bard": {
     "name": "Bard",
@@ -19,7 +34,12 @@
      "cha",
      "dex"
     ],
-    "skillPicks": 3
+    "skillPicks": 3,
+    "proficiencies": [
+     "light",
+     "simple"
+    ],
+    "skillOptions": null
    },
    "cleric": {
     "name": "Cleric",
@@ -28,7 +48,20 @@
      "cha",
      "wis"
     ],
-    "skillPicks": 2
+    "skillPicks": 2,
+    "proficiencies": [
+     "light",
+     "medium",
+     "shield",
+     "simple"
+    ],
+    "skillOptions": [
+     "History",
+     "Insight",
+     "Medicine",
+     "Persuasion",
+     "Religion"
+    ]
    },
    "druid": {
     "name": "Druid",
@@ -37,7 +70,22 @@
      "int",
      "wis"
     ],
-    "skillPicks": 2
+    "skillPicks": 2,
+    "proficiencies": [
+     "light",
+     "medium",
+     "shield"
+    ],
+    "skillOptions": [
+     "Animal Handling",
+     "Arcana",
+     "Insight",
+     "Medicine",
+     "Nature",
+     "Perception",
+     "Religion",
+     "Survival"
+    ]
    },
    "fighter": {
     "name": "Fighter",
@@ -46,7 +94,25 @@
      "con",
      "str"
     ],
-    "skillPicks": 2
+    "skillPicks": 2,
+    "proficiencies": [
+     "heavy",
+     "light",
+     "martial",
+     "medium",
+     "shield",
+     "simple"
+    ],
+    "skillOptions": [
+     "Acrobatics",
+     "Animal Handling",
+     "Athletics",
+     "History",
+     "Insight",
+     "Intimidation",
+     "Perception",
+     "Survival"
+    ]
    },
    "monk": {
     "name": "Monk",
@@ -55,7 +121,18 @@
      "dex",
      "str"
     ],
-    "skillPicks": 2
+    "skillPicks": 2,
+    "proficiencies": [
+     "simple"
+    ],
+    "skillOptions": [
+     "Acrobatics",
+     "Athletics",
+     "History",
+     "Insight",
+     "Religion",
+     "Stealth"
+    ]
    },
    "paladin": {
     "name": "Paladin",
@@ -64,7 +141,23 @@
      "cha",
      "wis"
     ],
-    "skillPicks": 2
+    "skillPicks": 2,
+    "proficiencies": [
+     "heavy",
+     "light",
+     "martial",
+     "medium",
+     "shield",
+     "simple"
+    ],
+    "skillOptions": [
+     "Athletics",
+     "Insight",
+     "Intimidation",
+     "Medicine",
+     "Persuasion",
+     "Religion"
+    ]
    },
    "ranger": {
     "name": "Ranger",
@@ -73,7 +166,24 @@
      "dex",
      "str"
     ],
-    "skillPicks": 3
+    "skillPicks": 3,
+    "proficiencies": [
+     "light",
+     "martial",
+     "medium",
+     "shield",
+     "simple"
+    ],
+    "skillOptions": [
+     "Animal Handling",
+     "Athletics",
+     "Insight",
+     "Investigation",
+     "Nature",
+     "Perception",
+     "Stealth",
+     "Survival"
+    ]
    },
    "rogue": {
     "name": "Rogue",
@@ -82,7 +192,24 @@
      "dex",
      "int"
     ],
-    "skillPicks": 4
+    "skillPicks": 4,
+    "proficiencies": [
+     "light",
+     "simple"
+    ],
+    "skillOptions": [
+     "Acrobatics",
+     "Athletics",
+     "Deception",
+     "Insight",
+     "Intimidation",
+     "Investigation",
+     "Perception",
+     "Performance",
+     "Persuasion",
+     "Sleight of Hand",
+     "Stealth"
+    ]
    },
    "sorcerer": {
     "name": "Sorcerer",
@@ -91,7 +218,16 @@
      "cha",
      "con"
     ],
-    "skillPicks": 2
+    "skillPicks": 2,
+    "proficiencies": [],
+    "skillOptions": [
+     "Arcana",
+     "Deception",
+     "Insight",
+     "Intimidation",
+     "Persuasion",
+     "Religion"
+    ]
    },
    "warlock": {
     "name": "Warlock",
@@ -100,7 +236,20 @@
      "cha",
      "wis"
     ],
-    "skillPicks": 2
+    "skillPicks": 2,
+    "proficiencies": [
+     "light",
+     "simple"
+    ],
+    "skillOptions": [
+     "Arcana",
+     "Deception",
+     "History",
+     "Intimidation",
+     "Investigation",
+     "Nature",
+     "Religion"
+    ]
    },
    "wizard": {
     "name": "Wizard",
@@ -109,7 +258,16 @@
      "int",
      "wis"
     ],
-    "skillPicks": 2
+    "skillPicks": 2,
+    "proficiencies": [],
+    "skillOptions": [
+     "Arcana",
+     "History",
+     "Insight",
+     "Investigation",
+     "Medicine",
+     "Religion"
+    ]
    }
   },
   "subclasses": {

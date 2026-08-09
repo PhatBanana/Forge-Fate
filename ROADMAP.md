@@ -14,7 +14,7 @@ from the books" is an honest provenance and a weaker one than "verified against
 the SRD" — the audits exist because the difference turned out to matter
 fourteen times over. See **Provenance** below.
 
-The shipped history — forty-seven sections with their reasoning — lives in
+The shipped history — forty-eight sections with their reasoning — lives in
 **`docs/HISTORY.md`** so this file can be a plan.
 
 ---
@@ -31,7 +31,7 @@ full-bleed board and a pan/zoom/rotate camera.
 
 **The state.** Tests, lint, types and the build are clean, deployed from
 `main` to GitHub Pages. The data tables are diffed against the SRD 5.1 and
-5.2 APIs inside `npm test`, so drift fails a build - for nineteen tables,
+5.2 APIs inside `npm test`, so drift fails a build - for twenty-one tables,
 including every spell slot, cantrip and spells-known column, both editions'
 subclass progressions and the 2014 resource columns. Two tables have no
 fixture, and item 2 says why neither is simply work.
@@ -171,8 +171,11 @@ difference turned out to matter fourteen times over.
   plus the four SRD subraces), skills, conditions, languages, spells,
   equipment, weapons, magic items, subclass progressions in **both**
   editions, 2014 subclass spell lists, class resource columns in both
-  editions, and every casting column - slot grid, pact slots, cantrips
-  known, spells known, 2024 prepared. Drift fails a build.
+  editions, armor and weapon proficiency, the skill list each class chooses
+  from, and every casting column - slot grid, pact slots, cantrips known,
+  spells known, 2024 prepared. Drift fails a build.
+- **Stronger than audited:** starting equipment is *loaded from* its fixture
+  rather than transcribed beside it, so there is nothing to drift.
 - `[!]` **Not verifiable from SRD 5.1:** the feat list and the background
   list. Checked, not assumed: the SRD 5.1 API carries exactly one of each -
   Grappler and Acolyte. Every other row in both tables is written from the
@@ -204,7 +207,7 @@ forgery, and it is the parked §9.
 
 ## History
 
-Forty-seven shipped sections, with the reasoning intact, live in
+Forty-eight shipped sections, with the reasoning intact, live in
 **`docs/HISTORY.md`**. Forty-four of them were split out of this file on
 2026-08-09 — forty-four numbered sections had made a *plan* unreadable, and
 a roadmap should say what is left rather than what was done. §45 was
@@ -229,4 +232,4 @@ section has gone since.
 | The full-screen game UI | 31-35 |
 | The game look, finished | 36-38 |
 | 5e core mechanics: grapple, light, surprise, the small rules | 39-42 |
-| Builder correctness, and the audits that found it | 43-47 |
+| Builder correctness, and the audits that found it | 43-48 |

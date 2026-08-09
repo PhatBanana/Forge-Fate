@@ -1619,6 +1619,14 @@ export function TableTab({
     const ruling = rulings.length ? ` (${rulings.join(', ')})` : '';
 
     let totalDamage = 0;
+    /*
+      Whether any attack in this volley crit, which only matters if the target
+      is already down: a critical hit on a creature at 0 hit points is *two*
+      death save failures rather than one, and the app applied one either way
+      until §48 checked. Tracked across the loop because a Fighter's three
+      attacks resolve as one damage write.
+    */
+    let anyCrit = false;
     const lines: string[] = [];
     /*
       What the defences had to say, gathered once rather than repeated per
@@ -1668,6 +1676,7 @@ export function TableTab({
         for (const note of through.notes) rulingNotes.add(note);
       }
       totalDamage += dealt;
+      if (crit && dealt > 0) anyCrit = true;
       lines.push(
         `${who.name} — ${strike.label} ${d20.total} vs AC ${effectiveAc}${ruling}: ${crit ? 'CRIT, ' : 'hit, '}${parts.join(' + ')} to ${targetName}.`,
       );
@@ -1731,7 +1740,7 @@ export function TableTab({
     if (target.kind === 'character' && totalDamage > 0) {
       const entry = next.entries.find((e) => e.id === target.rosterId);
       const max = derived.get(target.rosterId)?.ctx.hp.total ?? 0;
-      if (entry) next = updatePlay(next, entry.id, damage(entry.play, totalDamage, max));
+      if (entry) next = updatePlay(next, entry.id, damage(entry.play, totalDamage, max, anyCrit));
     }
     // The spell drops in the same write as the damage that broke it.
     if (concentrationBroken) {

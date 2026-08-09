@@ -141,6 +141,32 @@ describe('death saves', () => {
     expect(play.deathSaves.failures).toBe(1);
   });
 
+  it('counts a critical hit on a downed character as two failures', () => {
+    /*
+      "If the damage is from a critical hit, you suffer two failures instead."
+      The app applied one either way, which is the difference between a
+      character on two failures dying to the crit and walking away from it -
+      so it decided outcomes, silently, in the direction of surviving.
+    */
+    let play = damage(emptyPlay(), 999, MAX);
+    play = damage(play, 5, MAX, true);
+    expect(play.deathSaves.failures).toBe(2);
+  });
+
+  it('still stops at three, however the failures arrive', () => {
+    let play = damage(emptyPlay(), 999, MAX);
+    play = damage(play, 5, MAX, true);
+    play = damage(play, 5, MAX, true);
+    expect(play.deathSaves.failures).toBe(3);
+  });
+
+  it('leaves a standing character alone, crit or not', () => {
+    // The rule is about being at zero. A crit on someone upright costs hit
+    // points and nothing else.
+    const play = damage(emptyPlay(), 5, MAX, true);
+    expect(play.deathSaves.failures).toBe(0);
+  });
+
   it('can be cleared by hand', () => {
     const play = recordDeathSave(emptyPlay(), 'success');
     expect(clearDeathSaves(play).deathSaves.successes).toBe(0);

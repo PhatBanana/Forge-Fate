@@ -349,7 +349,19 @@ export function hpNow(play: PlayState, max: number): number {
  * Temporary hit points are spent first and are not healed back - they are a
  * buffer, not part of you, which is the rule people most often play wrong.
  */
-export function damage(play: PlayState, amount: number, max: number): PlayState {
+export function damage(
+  play: PlayState,
+  amount: number,
+  max: number,
+  /**
+   * Whether this damage came from a critical hit, which matters only when the
+   * target is already down: "if the damage is from a critical hit, you suffer
+   * two failures instead". A downed character on two failures dies to a crit
+   * and survives an ordinary hit, so the difference is the whole outcome -
+   * and the app applied one failure either way until this was checked.
+   */
+  fromCrit = false,
+): PlayState {
   if (amount <= 0) return play;
   const absorbed = Math.min(play.tempHp, amount);
   const remaining = amount - absorbed;
@@ -359,12 +371,15 @@ export function damage(play: PlayState, amount: number, max: number): PlayState 
     ...play,
     tempHp: play.tempHp - absorbed,
     currentHp: hp,
-    // Taking damage at 0 is a failed death save, and enough damage at once
-    // kills outright - but massive damage is a table call, so only the save is
-    // applied here.
+    // Taking damage at 0 is a failed death save - two of them from a critical
+    // hit - and enough damage at once kills outright, but massive damage is a
+    // table call, so only the saves are applied here.
     deathSaves:
       hpNow(play, max) === 0 && remaining > 0
-        ? { ...play.deathSaves, failures: Math.min(3, play.deathSaves.failures + 1) }
+        ? {
+            ...play.deathSaves,
+            failures: Math.min(3, play.deathSaves.failures + (fromCrit ? 2 : 1)),
+          }
         : play.deathSaves,
   };
 }

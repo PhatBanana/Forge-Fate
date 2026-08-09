@@ -479,6 +479,61 @@ async function core2014() {
     return asi;
   };
 
+  /*
+    What a class is proficient in, and which skills it may choose from.
+
+    The audit already compared the skill *count* and never the list, so a
+    class offering the wrong skills - a Builder handing a Fighter Arcana -
+    would have passed. Armor and weapon proficiency were in the same
+    position: `armorProficiency` and `weaponProficiency` drive AC, the attack
+    line and half the feat prerequisites, and nothing checked either.
+
+    Saving throws arrive as proficiencies named "Saving Throw: DEX" and are
+    already compared elsewhere, so they are filtered out here rather than
+    counted twice.
+  */
+  const PROFICIENCY_KINDS = {
+    'light armor': ['light'], 'medium armor': ['medium'], 'heavy armor': ['heavy'],
+    // The Fighter and Paladin are recorded as "All armor" rather than three
+    // rows, which is why an earlier pass had them proficient in none of it.
+    'all armor': ['light', 'medium', 'heavy'],
+    shields: ['shield'], 'simple weapons': ['simple'], 'martial weapons': ['martial'],
+  };
+
+  for (const c of classRecords) {
+    const source = classes.find((k) => k.name === c.name);
+    c.proficiencies = [...new Set((source.proficiencies ?? [])
+      .flatMap((p) => PROFICIENCY_KINDS[p.name.toLowerCase()] ?? []))].sort();
+    // The skill list is prose in `desc`, and the structured `from.options`
+    // is empty for several classes - so the names are read out of the
+    // sentence, which is the only place all twelve of them agree.
+    /*
+      Which of a class's proficiency choices is the skill one. Matching on a
+      handful of anchor skill names does not work - the Cleric's list happens
+      to contain none of the obvious ones - so the test is "names at least
+      three of the eighteen skills", which every class's sentence does and no
+      instrument or tool choice does.
+    */
+    const SKILL_NAMES = skills.map((sk) => sk.name);
+    const namesIn = (d) => SKILL_NAMES.filter((n) => d.includes(n)).length;
+    const prose = (source.proficiency_choices ?? [])
+      .map((ch) => ch.desc ?? '')
+      .find((d) => /choose any/i.test(d) || namesIn(d) >= 3);
+    if (!prose || /choose any/i.test(prose)) {
+      // The Bard picks "any three", so there is no list to compare - null
+      // says *unrestricted*, which is a different fact from *unknown* and the
+      // audit treats it as one.
+      c.skillOptions = null;
+    } else {
+      c.skillOptions = prose
+        // "Choose two skills from Acrobatics, ..." and "Choose two from ..."
+        // are both used; strip either lead-in before splitting.
+        .replace(/^choose \w+(?: skills?)? from /i, '')
+        .replace(/,? and /g, ', ')
+        .split(',').map((n) => n.trim().replace(/\.$/, '')).filter(Boolean).sort();
+    }
+  }
+
   const raceRecords = races.map((r) => ({
     name: r.name, speed: r.speed, size: r.size, asi: bonusesOf(r),
   }));
