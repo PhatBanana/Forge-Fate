@@ -2560,6 +2560,101 @@ None of the four had a test or a probe looking at them. Both probes do now.
 
 ---
 
+## 34. The camera: pan, zoom and rotate
+
+The ask, verbatim: *"wasd can be used for map movement. q and e for rotation"*
+and *"use hold right click to drag with mouse"*.
+
+The board is 48×36 squares drawn into roughly 880×660 pixels. A square is about
+18px, and a token's conditions, hit bar and floating numbers are drawn inside
+it — so on a full map you cannot read them, and there was no way to get closer.
+
+### The camera is the viewBox, not a transform
+
+This is the load-bearing decision and everything else follows from it. Both maps
+resolve a click through `getBoundingClientRect()` of the `<svg>` itself, which
+reports the element's **untransformed** box. A CSS transform would move the
+drawing on screen while every click kept resolving to where the drawing used to
+be — silently, because a token is its own element with its own correct box, which
+is exactly how the §32.1 bug survived a whole section.
+
+Expressed in the viewBox instead, `toUserSpace` needed **no change at all**: it
+already took an arbitrary `ViewBox`, because IsoMap's origin was never zero.
+That was §32.1's real payoff, cashed here.
+
+Stored **normalised** — the centre as a fraction of the drawing, not a
+coordinate in it. The two maps have unrelated coordinate systems, and rotating
+the isometric one changes its width, height, `minX` and `pad` together. A
+fraction survives all of that; a coordinate would land somewhere arbitrary.
+
+> **At `scale: 1` the viewBox is byte-identical to the one rendered before §34.**
+
+That invariant is the reason about forty existing tests — which stub a map's box
+and compute clicks as raw client coordinates — needed no edits. It is asserted
+in `camera.test.ts` for both the flat frame and the isometric `-pad` one rather
+than left to be noticed.
+
+- `[x]` **34.1 One viewBox per map.** Each map used to write it **twice** — a
+  template string in the JSX, an object literal inside `squareAt` — with nothing
+  but discipline keeping them equal. This step changed no behaviour and is what
+  made the next one a change to a single expression.
+- `[x]` **34.2 `engine/camera.ts`**, pure, with the scale-1 identity asserted
+  first. Two things surfaced while testing it, both now in the code: zooming
+  **in** can never need the clamp (the anchor is already inside the window and
+  the window only shrinks around it), and a drag must convert through the same
+  `meet` scale the pointer maths uses or it tracks at one zoom and slips at the
+  rest.
+- `[x]` **34.3 The maps take a camera.** Right-drag pans, the wheel zooms at the
+  pointer, two fingers pan and pinch. Left-drag is deliberately **not** a pan —
+  it already places a combatant before the fight and walks them during it.
+  Wired once in `useMapCamera`, because duplicated pointer maths across these
+  two files is precisely what §32.1 was about.
+- `[x]` **34.4 The keys.** WASD moves, Q/E turn the tactical view, `+`/`-` zoom
+  and `0` fits. Every step is a fraction of what is on screen rather than a
+  distance, so one press moves the view by the same visible amount at every
+  zoom. Modifiers bow out first: Ctrl/Cmd+S is a save and Cmd+A is select-all.
+- `[x]` **34.5 Follow the turn — only off screen.** Recentring every turn when
+  the whole fight is already in view is the version of this people turn off. At
+  the fitted view nothing is ever off screen, so it never fires until somebody
+  zooms in. Plus a zoom widget, and notes that clamp against the *window*
+  instead of the whole drawing.
+- `[x]` **34.6 Gates, probe both themes at 1360, and the dead `.ws-*` CSS
+  deleted** — 245 lines orphaned when §31.3 removed the Workspace component.
+  §31.3's own commit argued that kept-but-unused code reads as load-bearing;
+  it deleted the component and left the styles.
+
+### A real bug fixed on the way in
+
+Both maps' `onPointerDown` checked `onPaint` and the token drag but **never
+checked `e.button`** — so right-clicking the battle map already placed or walked
+the selected token, on top of opening the browser's context menu. Right-drag
+could not be added without fixing it, and it was worth fixing regardless.
+
+### Two things the probe caught that nothing else could
+
+- **The zoom widget was invisible.** Bottom-left is the obvious corner and is
+  already taken: `.btl-tail`, the combat log, floats there at a higher
+  z-index and covered the widget completely. The DOM said it was there and the
+  right size. Found by *looking at the screenshot*, which is why `run34.mjs`
+  now asserts occlusion with `elementFromPoint` and not merely presence.
+- **My own first probe passed vacuously**, twice. It skipped arming Move
+  without saying so, and picked a target tile that the camera had scrolled off
+  screen — an SVG clips to its viewBox, so the tile still reported a rect but
+  was not there to be clicked. Both now fail loudly. A probe that quietly
+  passes when it found nothing to click is worse than no probe, which is how
+  §32.1 lived through a section.
+
+### Decisions taken without asking
+
+- **Battle screen first.** The Dungeons editor passes no camera and is
+  unaffected; adopting it there later is small.
+- **Maximum zoom 4×** — about eight squares across, close enough to read a
+  token's conditions. Minimum is fit-to-map; you cannot zoom out past the board.
+- **Not persisted.** A fight reopened starts looking at the whole board, the
+  way it did before the camera existed.
+
+---
+
 ## Recently completed
 
 The SRD audit pass, in order. Each was a real defect, not a tidy-up.

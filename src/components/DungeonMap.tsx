@@ -467,6 +467,10 @@ export function DungeonMap({
         <rect
           key={`r${at.x},${at.y}`}
           className={`dmap-reach ${dash ? 'is-dash' : ''}`}
+          /* Named, so a probe can ask where this square was drawn and click
+             exactly there - the check that catches a camera the hit test does
+             not share. The tactical view names its tiles for the same reason. */
+          data-at={`${at.x},${at.y}`}
           x={at.x * CELL}
           y={at.y * CELL}
           width={CELL}
@@ -549,6 +553,9 @@ export function DungeonMap({
              CSS animation replays - an attribute change alone would not. */
           key={`${token.id}:${token.flash ?? 0}`}
           className={`dmap-token ${token.kind} ${token.active ? 'is-up' : ''} ${token.down ? 'is-down' : ''} ${token.bloodied ? 'is-bloodied' : ''} ${token.flash ? 'is-hit' : ''} ${token.hiding ? 'is-hiding' : ''} ${token.targetable ? 'is-target' : ''}`}
+          /* Which square this token is standing on, so a probe can click a
+             tile and then ask where the token actually went. */
+          data-at={`${token.at.x},${token.at.y}`}
           transform={`translate(${(token.at.x + 0.5) * CELL}, ${(token.at.y + 0.5) * CELL})`}
           onPointerDown={(e) => {
             dragging.current = token.id;

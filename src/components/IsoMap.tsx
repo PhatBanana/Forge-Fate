@@ -335,11 +335,17 @@ export function IsoMap({
     );
   };
 
-  /** A diamond overlay on a cell's top face - reach, zones, the cursor. */
+  /**
+   * A diamond overlay on a cell's top face - reach, zones, the cursor.
+   *
+   * `data-at` for the same reason `.iso-top` carries it: a browser probe needs
+   * to ask where a square was *drawn* and then click there, which is the only
+   * check that can see a camera applied to the drawing but not to `squareAt`.
+   */
   const overlay = (at: Square, className: string, key: string, title?: string) => {
     const z = zOf(at) + (terrain[keyOf(at)] === 'wall' ? WALL_STEPS : 0);
     return (
-      <polygon key={key} className={className} points={facePoints(at, z)}>
+      <polygon key={key} className={className} data-at={keyOf(at)} points={facePoints(at, z)}>
         {title ? <title>{title}</title> : null}
       </polygon>
     );
@@ -469,6 +475,9 @@ export function IsoMap({
               className={`dmap-token iso-token ${token.kind} ${token.active ? 'is-up' : ''} ${
                 token.down ? 'is-down' : ''
               } ${token.bloodied ? 'is-bloodied' : ''} ${token.flash ? 'is-hit' : ''} ${token.hiding ? 'is-hiding' : ''} ${token.targetable ? 'is-target' : ''}`}
+              /* Same as the flat map: the square this token stands on, for a
+                 probe that clicks a tile and checks where it landed. */
+              data-at={keyOf(token.at)}
               transform={`translate(${cn.x}, ${cn.y})`}
               onPointerDown={(e) => {
                 dragging.current = token.id;
