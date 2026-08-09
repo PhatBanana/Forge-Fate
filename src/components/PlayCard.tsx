@@ -20,6 +20,7 @@ import { defaultRng, rollD20 } from '../engine/dice';
 import { useState } from 'react';
 import type { Build } from '../types';
 import { CommandMenu } from './ActionTray';
+import type { GrabMode } from '../engine/grapple';
 
 /**
  * A character in a 320px column.
@@ -52,7 +53,9 @@ export function PlayCard({
   onAim,
   onAct,
   onMoveCommand,
-  onShove,
+  onGrab,
+  onEscapeGrapple,
+  onReleaseGrapple,
   onHide,
   standing,
 }: {
@@ -70,8 +73,12 @@ export function PlayCard({
   /** Arm move mode on the battlefield. Movement is its own budget, not the
       action, so this spends nothing. */
   onMoveCommand?: () => void;
-  /** Arm a shove or a trip; the next click on a combatant resolves it. */
-  onShove?: (mode: 'push' | 'prone') => void;
+  /** Arm a shove, a trip or a grapple; the next click on a combatant resolves it. */
+  onGrab?: (mode: GrabMode) => void;
+  /** Offered only while this character is held, and only by the battle. */
+  onEscapeGrapple?: () => void;
+  /** Offered only while they are holding somebody. */
+  onReleaseGrapple?: () => void;
   onHide?: () => void;
   /** The battle cockpit keeps the command box open the way the monster rail
       does - one glance answers "what can they do". Elsewhere the box still
@@ -252,7 +259,9 @@ export function PlayCard({
           onAct={onAct ?? (({ play: next }) => next && onPlayChange(next))}
           onAim={onAim}
           onMoveCommand={onMoveCommand}
-          onShove={onShove}
+          onGrab={onGrab}
+          onEscapeGrapple={onEscapeGrapple}
+          onReleaseGrapple={onReleaseGrapple}
           onHide={onHide}
           standing={standing}
           onClose={() => {

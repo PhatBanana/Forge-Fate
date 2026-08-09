@@ -16,8 +16,12 @@ import type { Rng } from './dice';
  * be pushed off is scenery.
  *
  * Shoving is also, unlike grappling, a single contested roll with two possible
- * outcomes and no ongoing state to track. It fits in a function. Grappling
- * stays absent, and stays absent for its own reasons.
+ * outcomes and no ongoing state to track. It fits in a function.
+ *
+ * Grappling followed in §39, once the map had somewhere to put ongoing state:
+ * `grapple.ts` holds the half that shoving does not need - who is holding
+ * whom, when the hold breaks, and what dragging somebody costs. The contest
+ * itself is this file's, because it is the same contest.
  *
  * ## The rules, as the SRD states them
  *
@@ -44,7 +48,14 @@ export const FEET_PER_STEP = 10;
 /** Sizes, smallest first, so "more than one larger" is a subtraction. */
 export const SIZES = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan'];
 
-const rankOf = (size: string): number => {
+/**
+ * Where a size sits on the ladder, so size comparisons are subtraction.
+ *
+ * Exported because grappling asks the same two questions from the other
+ * module - "more than one larger?" for whether the grab is legal at all, and
+ * "two or more smaller?" for whether dragging them costs half your speed.
+ */
+export const sizeRank = (size: string): number => {
   const i = SIZES.findIndex((s) => s.toLowerCase() === size.trim().toLowerCase());
   // An unknown size is treated as Medium rather than as unshovable: a
   // homebrew monster with a blank size should not become immovable by accident.
@@ -53,7 +64,7 @@ const rankOf = (size: string): number => {
 
 /** Nobody shoves what is more than one size larger than they are. */
 export const canShove = (shover: string, target: string): boolean =>
-  rankOf(target) - rankOf(shover) <= 1;
+  sizeRank(target) - sizeRank(shover) <= 1;
 
 export interface Contest {
   shoverRoll: number;

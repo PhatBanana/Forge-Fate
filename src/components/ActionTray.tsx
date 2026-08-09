@@ -18,6 +18,7 @@ import { damageDice } from '../data/weapons';
 import type { Spell } from '../data/spells';
 import { consumeItem, isConsumable, quantityOf } from '../engine/items';
 import { gearById } from '../data/gear';
+import type { GrabMode } from '../engine/grapple';
 
 /**
  * The command menu: what an action can be spent on, the way the old RPGs
@@ -48,7 +49,9 @@ export function CommandMenu({
   onAct,
   onAim,
   onMoveCommand,
-  onShove,
+  onGrab,
+  onEscapeGrapple,
+  onReleaseGrapple,
   onHide,
   standing,
   onClose,
@@ -70,11 +73,16 @@ export function CommandMenu({
   /** Arm move mode - walking is its own budget, so this spends no pip. */
   onMoveCommand?: () => void;
   /**
-   * Arm a shove. Two entries rather than a submenu, because the SRD leaves
-   * the choice to the shover and "Shove" versus "Trip" says which at a glance
-   * - a table does not need a menu level to tell a push from a leg sweep.
+   * Arm a shove or a grapple. Three entries rather than a submenu, because the
+   * SRD leaves the choice to the attacker and "Shove" versus "Trip" versus
+   * "Grapple" says which at a glance - a table does not need a menu level to
+   * tell a push from a leg sweep from a headlock.
    */
-  onShove?: (mode: 'push' | 'prone') => void;
+  onGrab?: (mode: GrabMode) => void;
+  /** Offered only while this character is held: the action that gets them out. */
+  onEscapeGrapple?: () => void;
+  /** Offered only while they are holding somebody: letting go is free. */
+  onReleaseGrapple?: () => void;
   /** Roll Stealth and hide, through the battlefield's own machinery. The
       owner spends the action in the same write as the roll. */
   onHide?: () => void;
@@ -415,23 +423,52 @@ export function CommandMenu({
                 },
                 'Roll Stealth for real and vanish from the fog',
               )}
-            {slot === 'action' && onShove &&
+            {slot === 'action' && onGrab &&
               item(
                 'Shove',
                 () => {
-                  onShove('push');
+                  onGrab('push');
                   done();
                 },
                 'Athletics against their Athletics or Acrobatics — five feet back, and off a ledge if one is behind them',
               )}
-            {slot === 'action' && onShove &&
+            {slot === 'action' && onGrab &&
               item(
                 'Trip',
                 () => {
-                  onShove('prone');
+                  onGrab('prone');
                   done();
                 },
                 'The same contest, spent on putting them on the floor instead',
+              )}
+            {slot === 'action' && onGrab &&
+              item(
+                'Grapple',
+                () => {
+                  onGrab('grapple');
+                  done();
+                },
+                'The same contest again, spent on holding them: speed 0 until they break free or you let go',
+              )}
+            {slot === 'action' && onEscapeGrapple &&
+              item(
+                'Escape the grapple',
+                () => {
+                  // The owner rolls, frees, logs and spends the action in one
+                  // write - trying costs the action whether or not it works.
+                  onEscapeGrapple();
+                  done();
+                },
+                'Your Athletics or Acrobatics, whichever is better, against their Athletics',
+              )}
+            {onReleaseGrapple &&
+              item(
+                'Let go',
+                () => {
+                  onReleaseGrapple();
+                  done();
+                },
+                'Release whoever you are holding — free, and takes nothing from the turn',
               )}
             {slot === 'action' &&
               item(

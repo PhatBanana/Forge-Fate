@@ -622,6 +622,29 @@ export function toggleCondition(play: PlayState, id: string): PlayState {
   return { ...play, conditions: [...play.conditions, id] };
 }
 
+/**
+ * Record who caused a condition, or clear the record.
+ *
+ * The character-side twin of `setConditionSource` in `encounter.ts`. The field
+ * has existed since §27.2 for frightened and charmed, and only the monster
+ * half ever had a writer - the DM's picker sets a goblin's source, and a
+ * character's was read but never written. §39 needed the other half: a grapple
+ * without a grappler is a condition nothing can end.
+ */
+export function setPlayConditionSource(
+  play: PlayState,
+  id: string,
+  sourceId: string | undefined,
+): PlayState {
+  const conditionSources = { ...play.conditionSources };
+  if (sourceId) conditionSources[id] = sourceId;
+  else delete conditionSources[id];
+  return {
+    ...play,
+    conditionSources: Object.keys(conditionSources).length ? conditionSources : undefined,
+  };
+}
+
 /** Put a condition on with a clock: gone after this many rounds pass. */
 export function addTimedCondition(play: PlayState, id: string, rounds: number): PlayState {
   return {

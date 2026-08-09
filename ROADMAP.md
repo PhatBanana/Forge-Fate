@@ -63,10 +63,8 @@ found by auditing the engine against the 5e core combat chapter
 marked as such. Everything here should keep §2's discipline: model it, or
 say on the screen that the table has to rule it.
 
-- `[ ]` **39. Grappling.** **M** - Absent. Shove landed in §26.2; grapple
-  never did. Athletics vs Athletics/Acrobatics, the grappled condition
-  (speed 0 - the condition *exists* and has teeth, but nothing applies it),
-  escape as an action, dragging a grappled creature at half speed.
+- `[x]` **39. Grappling.** **M** - *shipped 2026-08-09; the account is §39
+  in the shipped record.*
 - `[ ]` **40. Light and darkness.** **L** - Absent. The battlefield has fog
   (party sight radius) but no light model: no dim light or darkness, no
   light sources on the map, and darkvision is a rated builder trait the
@@ -2234,9 +2232,10 @@ and the resistance qualifiers only a table can settle. The
 opportunity-attack swing left this list in §28, along with Disengage and
 Dodge.
 
-*Deliberately absent* — grappling, mounted combat, readied-action triggers,
-spell components. Frightened left this list in §27.2; shoving left it in
-§26.2. The list is meant to shrink.
+*Deliberately absent* — mounted combat, readied-action triggers, spell
+components. Frightened left this list in §27.2; shoving left it in §26.2;
+grappling left it in §39, once conditions had a source to hang a hold on.
+The list is meant to shrink.
 
 *Known gap* — **characters have no damage resistances at all**. The build
 model's `Defenses` is AC and hit points, so a raging Barbarian or a
@@ -2930,6 +2929,75 @@ the same mistake cannot come back quietly.
   since it was styled like a third tab and is an action.
 
 ---
+
+## 39. Grappling
+
+Section 23 put grappling in the "deliberately absent" register beside
+shoving. §26.2 took shoving back and wrote that grappling "stays absent, and
+stays absent for its own reasons". Those reasons were real, and they are now
+spent — which is the whole justification for this section.
+
+**Why it was absent, and what changed.** A shove resolves and is over; a
+grapple is a *relationship* that persists across turns, and the app had
+nowhere to record "this goblin is holding that wizard". It has had somewhere
+since §27.2, when conditions grew a **source** for frightened and charmed:
+`conditionSources.grappled` is exactly the missing field, already persisted,
+already migrated, already undone by undo. The other half — the condition's
+speed 0 — needed a speed to zero, and §16.7 derived one and made it a budget.
+So the only remaining reason to leave grappling out was that it had always
+been left out, and that is not a reason.
+
+**One contest, three modes.** `shoveContest` in `engine/shove.ts` already
+*was* the grapple contest — attacker's Athletics against the defender's
+better of Athletics and Acrobatics, ties to the defender. So the armed shove
+state widened from two modes to three rather than growing a sibling beside
+it: the size rule, the reach check, the mis-click refund and the spent action
+are shared, and only the last step differs. `engine/grapple.ts` holds the
+half shoving does not need — the escape contest, when a hold breaks, and what
+dragging costs.
+
+**The escape is its own function, not the contest with the arguments
+swapped.** In a shove the *defender* picks the better of two skills; in an
+escape it is the *escapee* who picks and the grappler who is stuck with
+Athletics. Passing the arguments in the wrong holes would still typecheck and
+would silently hand the grappler Acrobatics.
+
+**A hold that outlives its grappler is the bug this section exists to
+prevent.** It is checked on every render rather than remembered, because all
+four endings can happen without anyone touching the grapple: the grappler is
+stunned by somebody else's spell, dropped by somebody else's arrow, the
+target is moved out of reach, or the grappler leaves the fight. The check
+uses the grappler's real reach, so a creature with a ten foot arm holds
+somebody at arm's length.
+
+**The six conditions that stop movement now stop it.** Grappled and
+restrained say "speed 0"; paralysed, petrified, stunned and unconscious say
+"can't move", which is the same sentence by a different author. All six were
+tracked and all six were decorative — the app would happily walk a stunned
+creature across the map. `speedUnderConditions` is one function beside
+`speedUnderExhaustion`, and `speedOf` reads both.
+
+**Dragging, which is what makes a grapple tactical rather than a stalemate.**
+Half speed unless they are two or more sizes smaller, and the dragged
+creature lands on the last square of the route — not on the square the
+grappler vacated, which is the same thing for one step and wrong for two: a
+four-square walk left them behind and the hold snapped on the distance check
+a moment later. Forced movement, so no opportunity attack is provoked on
+their behalf.
+
+**Two things this refuses to decide.** Whether a hand is free — a shield can
+be doffed and a torch dropped, and a DM who has to argue with a tool about it
+will stop using the tool. And a `grappled` the DM ticked by hand with no
+source named is left alone: that is the DM's own note, not a hold this screen
+made.
+
+**Fixed on the way past:** an armed shove had never said so on screen. You
+armed it from a menu that then closed, and nothing told you the next click
+was a contest rather than a selection — the aim has had a banner since §18.1
+and its sibling never did. Three modes on the same gesture made that worse,
+so it got the same banner.
+
+Gates green: 1767 tests, `tsc`, `oxlint`, `npm run build`.
 
 ## Recently completed
 

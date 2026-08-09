@@ -184,6 +184,35 @@ export function speedUnderExhaustion(speed: number, exhaustion: number): number 
 }
 
 /**
+ * The six conditions whose text is, in whole or in part, "your speed is 0".
+ *
+ * Grappled and restrained say it outright. The other four say "can't move",
+ * which is the same sentence written by a different author - and until §39
+ * every one of them was decorative: the app tracked all six and a stunned
+ * creature could still be walked across the map.
+ */
+export const STOPS_MOVEMENT = [
+  'grappled',
+  'restrained',
+  'paralyzed',
+  'petrified',
+  'stunned',
+  'unconscious',
+];
+
+/**
+ * A speed with the conditions applied, which is nought or nothing.
+ *
+ * Deliberately separate from `speedUnderExhaustion` rather than folded into
+ * it: exhaustion is a track that halves, conditions are states that stop, and
+ * a caller wants both applied but wants to be able to say which one took the
+ * feet away.
+ */
+export function speedUnderConditions(speed: number, conditions: string[]): number {
+  return conditions.some((c) => STOPS_MOVEMENT.includes(c)) ? 0 : speed;
+}
+
+/**
  * Whether a charmed creature is allowed to attack this target.
  *
  * "The creature can't attack the charmer" - free once conditions carry a

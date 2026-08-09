@@ -3418,6 +3418,188 @@ describe('shoving, and the ledge behind them', () => {
 });
 
 /**
+ * Section 39. The contest and the bookkeeping are `engine/grapple.test.ts`;
+ * what needs a component test is everything that only exists here - that a
+ * hold reaches the map, that it takes the feet away, that the escape and the
+ * release are offered to the right person, and that a hold nobody can
+ * maintain ends itself.
+ */
+describe('grappling, and getting free', () => {
+  const mapElG = () => document.querySelector('.dmap') as SVGSVGElement;
+  const boxMapG = () => {
+    mapElG().getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+  };
+
+  /** The fighter adjacent to a goblin on a flat blank grid, fight running. */
+  const brawl = async (user: ReturnType<typeof userEvent.setup>) => {
+    const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
+    await bestiaryReady();
+    const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Bestiary');
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
+    const entry = [...document.querySelectorAll('.mon-list li')].find(
+      (li) => li.querySelector('b')?.textContent === 'Goblin',
+    ) as HTMLElement;
+    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+
+    boxMapG();
+    const put = (at: { x: number; y: number }) =>
+      fireEvent.pointerDown(mapElG(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
+    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
+    put({ x: 10, y: 10 });
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
+    put({ x: 11, y: 10 });
+
+    await open(user, 'Order');
+    fireEvent.change(within(rowFor(name)).getByLabelText(new RegExp(`${name} initiative`, 'i')), {
+      target: { value: '30' },
+    });
+    fireEvent.change(within(rowFor('Goblin')).getByLabelText(/goblin initiative/i), {
+      target: { value: '1' },
+    });
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+    return { view, name };
+  };
+
+  const goblinOf = (view: ReturnType<typeof setup>) =>
+    view.encounter.combatants.find((c) => c.kind === 'monster') as MonsterCombatant;
+
+  const logOf = (view: ReturnType<typeof setup>) =>
+    (view.encounter.log ?? []).map((l) => l.text).join('\n');
+
+  const cardMenu = () => document.querySelector('.pcard .cmd-menu') as HTMLElement;
+  const railMenu = () => document.querySelector('.rail-monster .cmd-menu') as HTMLElement;
+
+  /**
+   * Grab hold, retrying until the dice agree. The contest is real, so a single
+   * roll would pin nothing - and giving the action back between tries is the
+   * same trick the shove tests use.
+   */
+  const holdThem = async (
+    user: ReturnType<typeof userEvent.setup>,
+    view: ReturnType<typeof setup>,
+  ) => {
+    for (let i = 0; i < 40 && !goblinOf(view).conditions.includes('grappled'); i++) {
+      await user.click(within(cardMenu()).getByRole('button', { name: 'Grapple' }));
+      boxMapG();
+      await user.click(document.querySelector('.dmap-token.monster') as Element);
+      if (!goblinOf(view).conditions.includes('grappled')) {
+        await user.click(screen.getByRole('button', { name: /end turn/i }));
+        await user.click(screen.getByRole('button', { name: /end turn/i }));
+      }
+    }
+  };
+
+  it('offers the grab beside the shove, and nothing about escaping yet', async () => {
+    const user = userEvent.setup();
+    await brawl(user);
+    expect(within(cardMenu()).getByRole('button', { name: 'Grapple' })).toBeTruthy();
+    // Nobody is held, so neither the escape nor the release is on offer -
+    // a menu full of commands that do nothing is a menu nobody reads.
+    expect(within(cardMenu()).queryByRole('button', { name: 'Escape the grapple' })).toBeNull();
+    expect(within(cardMenu()).queryByRole('button', { name: 'Let go' })).toBeNull();
+  });
+
+  it('applies the condition, names the grappler, and spends the action', async () => {
+    const user = userEvent.setup();
+    const { view } = await brawl(user);
+    await user.click(within(cardMenu()).getByRole('button', { name: 'Grapple' }));
+    boxMapG();
+    await user.click(document.querySelector('.dmap-token.monster') as Element);
+
+    // Whichever way the dice went, the contest happened and was written down,
+    // and the try cost the action either way.
+    expect(logOf(view)).toMatch(/Athletics \d+ vs (Athletics|Acrobatics) \d+/);
+    expect(view.roster.entries[0].play.turn.action).toBe(true);
+  });
+
+  it('takes the feet away, and says who is holding them', async () => {
+    const user = userEvent.setup();
+    const { view } = await brawl(user);
+    await holdThem(user, view);
+
+    const goblin = goblinOf(view);
+    expect(goblin.conditions).toContain('grappled');
+    // The source is the whole reason the hold can ever end: without it the
+    // escape has nobody to roll against.
+    expect(goblin.conditionSources?.grappled).toBe(view.encounter.combatants[0].id);
+    expect(logOf(view)).toMatch(/has hold of/);
+
+    // Speed 0, which is the entirety of what the condition does - and was
+    // decorative in this app until §39.
+    await user.click(screen.getByRole('button', { name: /end turn/i }));
+    expect((document.querySelector('.rail-monster .hud-move') as HTMLElement).title).toMatch(
+      /^0 of 0 feet/,
+    );
+  });
+
+  it('offers the escape to whoever is held, on their own turn', async () => {
+    const user = userEvent.setup();
+    const { view } = await brawl(user);
+    await holdThem(user, view);
+    await user.click(screen.getByRole('button', { name: /end turn/i }));
+
+    await user.click(within(railMenu()).getByRole('button', { name: 'Escape the grapple' }));
+    // The escapee picks their better skill and the grappler is stuck with
+    // Athletics, which is the opposite of who chooses in a shove.
+    expect(logOf(view)).toMatch(/(Athletics|Acrobatics) \d+ vs Athletics \d+/);
+    expect(logOf(view)).toMatch(/breaks out of|still held/);
+  });
+
+  it('lets the grappler let go for free', async () => {
+    const user = userEvent.setup();
+    const { view } = await brawl(user);
+    await holdThem(user, view);
+
+    await user.click(within(cardMenu()).getByRole('button', { name: 'Let go' }));
+    expect(goblinOf(view).conditions).not.toContain('grappled');
+    expect(goblinOf(view).conditionSources?.grappled).toBeUndefined();
+    expect(logOf(view)).toMatch(/lets go of/);
+  });
+
+  it('drags them along at half pace when the grappler walks', async () => {
+    const user = userEvent.setup();
+    const { view } = await brawl(user);
+    await holdThem(user, view);
+
+    // Four squares west: twenty feet, which a 30 ft speed covers as ordinary
+    // movement and a *halved* one does not - so the walk announces a Dash.
+    // That is the assertion that proves the halving rather than assuming it.
+    await user.click(within(cardMenu()).getByRole('button', { name: /^Move/ }));
+    boxMapG();
+    fireEvent.pointerDown(mapElG(), { clientX: 6.5 * 10, clientY: 10.5 * 10 });
+
+    expect(view.encounter.combatants[0].at).toEqual({ x: 6, y: 10 });
+    expect(logOf(view)).toMatch(/Dashes/);
+    // Onto the last square of the route, so they finish adjacent to wherever
+    // the walk ended - and the hold survives the walk rather than snapping.
+    expect(goblinOf(view).at).toEqual({ x: 7, y: 10 });
+    expect(goblinOf(view).conditions).toContain('grappled');
+    expect(logOf(view)).toMatch(/drags/);
+  });
+
+  it('ends a hold by itself once they are out of reach', async () => {
+    const user = userEvent.setup();
+    const { view } = await brawl(user);
+    await holdThem(user, view);
+
+    // Something moved them across the room - the DM's hand, here, which is the
+    // same thing a teleport is as far as the hold is concerned.
+    await open(user, 'Order');
+    await user.click(screen.getByRole('button', { name: /end the fight/i }));
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
+    boxMapG();
+    fireEvent.pointerDown(mapElG(), { clientX: 30.5 * 10, clientY: 10.5 * 10 });
+
+    expect(goblinOf(view).conditions).not.toContain('grappled');
+    expect(logOf(view)).toMatch(/is free — they are out of reach/);
+  });
+});
+
+/**
  * Section 26.3. High ground has been computed and announced since 12.4 and
  * has never changed a number. This is the switch that lets a table say it
  * should - and the tests that pin it staying off until they do.

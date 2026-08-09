@@ -6,6 +6,7 @@ import { rechargeReady, usesLeft } from '../encounter';
 import { defaultRng, rollDie } from '../engine/dice';
 import { routineFor, strikeOf } from '../engine/strikes';
 import type { Strike } from '../engine/strikes';
+import type { GrabMode } from '../engine/grapple';
 
 /**
  * The monster's command menu - the stat block behind Attack / Abilities,
@@ -43,7 +44,9 @@ export function MonsterCommandMenu({
   onLog,
   onMove,
   onHide,
-  onShove,
+  onGrab,
+  onEscapeGrapple,
+  onReleaseGrapple,
   onStance,
 }: {
   monster: Monster;
@@ -61,8 +64,12 @@ export function MonsterCommandMenu({
   onMove?: () => void;
   /** Roll Stealth and hide, through the battlefield's own machinery. */
   onHide?: () => void;
-  /** Arm a shove; the next click on a combatant resolves the contest. */
-  onShove?: (mode: 'push' | 'prone') => void;
+  /** Arm a shove or a grapple; the next click on a combatant resolves the contest. */
+  onGrab?: (mode: GrabMode) => void;
+  /** Offered only while this monster is held: the action that gets it out. */
+  onEscapeGrapple?: () => void;
+  /** Offered only while it is holding somebody: letting go is free. */
+  onReleaseGrapple?: () => void;
   /**
    * Take the Disengage or the Dodge. Not `onLog`, which is what these two were
    * before §28: both are rules the app now enforces, so both have to be
@@ -135,14 +142,28 @@ export function MonsterCommandMenu({
           {onLog &&
             item('Dash', () => onLog('Dashes.'), "The map's amber tier charges the feet; this says it out loud")}
           {onHide && item('Hide', () => onHide(), 'Roll the stat block Stealth and vanish from the fog')}
-          {onShove &&
+          {onGrab &&
             item(
               'Shove',
-              () => onShove('push'),
+              () => onGrab('push'),
               'Athletics against their Athletics or Acrobatics — five feet back, and off a ledge if one is behind them',
             )}
-          {onShove &&
-            item('Trip', () => onShove('prone'), 'The same contest, spent on putting them on the floor')}
+          {onGrab &&
+            item('Trip', () => onGrab('prone'), 'The same contest, spent on putting them on the floor')}
+          {onGrab &&
+            item(
+              'Grapple',
+              () => onGrab('grapple'),
+              'The same contest again, spent on holding them: speed 0 until they break free or it lets go',
+            )}
+          {onEscapeGrapple &&
+            item(
+              'Escape the grapple',
+              () => onEscapeGrapple(),
+              'Its Athletics or Acrobatics, whichever is better, against the grappler’s Athletics',
+            )}
+          {onReleaseGrapple &&
+            item('Let go', () => onReleaseGrapple(), 'Release whoever it is holding — free, and costs nothing')}
           {onStance &&
             item(
               'Disengage',

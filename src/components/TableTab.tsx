@@ -68,8 +68,24 @@ import {
 import type { EncounterState, Square } from '../encounter';
 import { placeZone } from '../surfaces';
 import { canShove, fallDamage, fallFeet, pushedTo, shoveContest } from '../engine/shove';
+import {
+  END_REASON,
+  GRAPPLED,
+  canGrapple,
+  dragSpeed,
+  escapeContest,
+  grappleEnds,
+} from '../engine/grapple';
+import type { GrabMode } from '../engine/grapple';
 import { applyDefences } from '../engine/defences';
-import { describeOdds, mayApproach, mayAttack, oddsFor, speedUnderExhaustion } from '../engine/advantage';
+import {
+  describeOdds,
+  mayApproach,
+  mayAttack,
+  oddsFor,
+  speedUnderConditions,
+  speedUnderExhaustion,
+} from '../engine/advantage';
 import { ammunitionCarried } from '../engine/inventory';
 import { heldResources, rechargeFor } from '../engine/resources';
 import { describeSpoils, spoilsFor } from '../engine/spoils';
@@ -88,7 +104,7 @@ import { SURFACE_KINDS } from '../zones';
 import type { SurfaceKind } from '../zones';
 import { deriveBuild } from '../engine/character';
 import { forecast } from '../engine/forecast';
-import { concentrationDc, damage, dash, emptyPlay, heal, hpNow, moveBy, movementLeft, awardXp, longRest, newTurn, setTurnSlot, shortRest, tickConditions, toggleCondition, spendAmmo, applyDeathSaveRoll } from '../play';
+import { concentrationDc, damage, dash, emptyPlay, heal, hpNow, moveBy, movementLeft, awardXp, longRest, newTurn, setPlayConditionSource, setTurnSlot, shortRest, tickConditions, toggleCondition, spendAmmo, applyDeathSaveRoll } from '../play';
 import { defaultRng, expectedTotal, parseNotation, rollD20, rollDamage, rollNotation } from '../engine/dice';
 import { CONDITIONS, CONDITIONS_BY_ID } from '../data/conditions';
 import { damageDice } from '../data/weapons';
@@ -307,12 +323,17 @@ export function TableTab({
   */
   const [moveArmed, setMoveArmed] = useState(false);
   /**
-   * A shove waiting for a target: the next click on a combatant resolves the
-   * contest. The mode was chosen when it was armed, because the SRD leaves
-   * the push-or-floor choice to the shover and asking afterwards would be
-   * asking after the dice.
+   * A hand reaching for somebody: the next click on a combatant resolves the
+   * contest. The mode was chosen when it was armed, because the SRD leaves the
+   * push-or-floor-or-hold choice to the attacker and asking afterwards would
+   * be asking after the dice.
+   *
+   * One state for all three because it is one gesture - arm it, click a token
+   * - and because the map can only have one tool in hand at a time. §39 widened
+   * it from the two shove modes rather than adding a second armed state beside
+   * it, which would have needed every "put the tool down" to learn a new name.
    */
-  const [shoving, setShoving] = useState<{ byId: string; mode: 'push' | 'prone' } | null>(null);
+  const [grab, setGrab] = useState<{ byId: string; mode: GrabMode } | null>(null);
   /** The optional rules this table has switched on. Off is the book. */
   /*
     Which drawer is open over the map, or none.
@@ -617,6 +638,40 @@ export function TableTab({
     let enc = placeCombatant(encAfter, self.id, to);
     if (needsDash) enc = appendLog(enc, `${nameOf(self)} Dashes.`);
 
+    /*
+      Dragged along, which is the half of grappling that makes it tactical
+      rather than a stalemate: "you can drag or carry the grappled creature
+      with you, but your speed is halved". The halving is already in `speedOf`,
+      so by the time the click gets here the budget has charged for it; this is
+      the body moving.
+
+      Onto the last square of the route before the destination, so they finish
+      adjacent to wherever the walk ended rather than where it began. The first
+      version put them on the square the grappler vacated, which is the same
+      thing for one step and wrong for two: a four-square walk left them behind
+      and the hold snapped on the distance check a moment later, which is not
+      what dragging somebody means.
+
+      The route's squares are all walkable and were all just walked through,
+      so the spot is free - unless somebody is standing on it, which the
+      pathing allows for the *final* square only when it is empty. Falling back
+      to the vacated square keeps a rare case from stacking two bodies.
+
+      Forced movement, so no opportunity attack is provoked on their behalf,
+      which is why they do not go through `walkInto` themselves.
+    */
+    const dragged = heldBy(self);
+    if (dragged?.at && !(dragged.at.x === to.x && dragged.at.y === to.y)) {
+      const via = route.length >= 2 ? route[route.length - 2] : self.at;
+      const taken = encAfter.combatants.some(
+        (c) => c.id !== self.id && c.id !== dragged.id && c.at && c.at.x === via.x && c.at.y === via.y,
+      );
+      enc = appendLog(
+        placeCombatant(enc, dragged.id, taken ? self.at : via),
+        `${nameOf(self)} drags ${nameOf(dragged)} along.`,
+      );
+    }
+
     let next: Roster;
     if (self.kind === 'character') {
       const entry = updated.entries.find((e) => e.id === self.rosterId);
@@ -906,7 +961,97 @@ export function TableTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [encounter, partyVisible, sightContext]);
 
-  /** A combatant's speed in feet, from whichever side owns it. */
+  /*
+    Holds that stopped being holds.
+
+    Checked rather than remembered, because every one of these can happen
+    without the grapple being touched: the grappler is stunned by somebody
+    else's spell, dropped by somebody else's arrow, or the target is teleported
+    across the room. A hold that outlives its grappler is the bug this exists
+    to make impossible - and the reason `grappled` was never worth applying
+    before something watched it.
+
+    One composed write for however many ended at once, for the usual reason:
+    two `onChange` calls from one pass would each build from this render's
+    roster and the second would erase the first.
+  */
+  useEffect(() => {
+    let updated = roster;
+    const freed: string[] = [];
+    for (const c of encounter.combatants) {
+      if (!conditionsOf(c).includes(GRAPPLED)) continue;
+      const by = sourcesOf(c)[GRAPPLED];
+      // A grappled with no grappler named is the DM's own tick on the
+      // condition list, not a hold this screen made. Left well alone.
+      if (!by) continue;
+      const grappler = encounter.combatants.find((x) => x.id === by);
+      const end = grappleEnds(
+        grappler && {
+          conditions: conditionsOf(grappler),
+          hp: hpOf(grappler)?.now ?? 0,
+          at: grappler.at,
+        },
+        { at: c.at },
+        // Reach in squares: a creature with a ten foot arm holds somebody at
+        // arm's length, and the map counts in fives.
+        grappler ? Math.max(1, Math.round(meleeReach(allStrikesFor(grappler)) / 5)) : 1,
+      );
+      if (!end) continue;
+      updated = letGo(updated, c.id);
+      freed.push(`${nameOf(c)} is free — ${END_REASON[end]}.`);
+    }
+    if (!freed.length) return;
+    let enc = activeEncounter(updated);
+    for (const line of freed) enc = appendLog(enc, line);
+    onChange(updateEncounter(updated, enc));
+    // The readers below all derive from these two stores.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [encounter, roster.entries]);
+
+  /*
+    Who somebody is, in the terms the rules ask about.
+
+    These four sit above `speedOf` rather than beside the rest of the readers
+    because the walk budget is computed during render and calls it - a reader
+    declared further down the component would still be in its temporal dead
+    zone when the memo ran.
+  */
+
+  /** The conditions on somebody, from whichever store holds them. */
+  const conditionsOf = (c: Combatant): string[] =>
+    c.kind === 'monster'
+      ? c.conditions
+      : (roster.entries.find((e) => e.id === c.rosterId)?.play.conditions ?? []);
+
+  /** And who caused them, for the conditions that turn on it. */
+  const sourcesOf = (c: Combatant): Record<string, string> =>
+    (c.kind === 'monster'
+      ? c.conditionSources
+      : roster.entries.find((e) => e.id === c.rosterId)?.play.conditionSources) ?? {};
+
+  /** A creature's size, for the rules that compare two of them. */
+  const sizeOf = (c: Combatant): string =>
+    c.kind === 'monster' ? (byId.get(c.monsterId)?.size ?? 'Medium') : 'Medium';
+
+  /**
+   * The two ends of a grapple, read off the condition and its source.
+   *
+   * No new store: a hold IS the grappled condition plus the source field
+   * conditions grew in §27.2. That is what makes it survive a refresh, an
+   * undo and a save without a line of migration.
+   */
+  const grapplerOf = (c: Combatant): Combatant | undefined => {
+    if (!conditionsOf(c).includes(GRAPPLED)) return undefined;
+    const by = sourcesOf(c)[GRAPPLED];
+    return by ? encounter.combatants.find((x) => x.id === by) : undefined;
+  };
+
+  /** Whoever this one has hold of, if anybody. */
+  const heldBy = (c: Combatant): Combatant | undefined =>
+    encounter.combatants.find(
+      (x) => x.id !== c.id && conditionsOf(x).includes(GRAPPLED) && sourcesOf(x)[GRAPPLED] === c.id,
+    );
+
   /** Exhaustion, which only a character carries - a stat block has no track
       for it, so a monster reads as rested. */
   const exhaustionOf = (c: Combatant): number =>
@@ -914,14 +1059,27 @@ export function TableTab({
       ? (roster.entries.find((e) => e.id === c.rosterId)?.play.exhaustion ?? 0)
       : 0;
 
+  /** A combatant's speed in feet, from whichever side owns it. */
   const speedOf = (combatant: Combatant): number => {
     const base =
       combatant.kind === 'monster'
         ? (byId.get(combatant.monsterId)?.speed.walk ?? 30)
         : (derived.get(combatant.rosterId)?.ctx.speed.total ?? 30);
+    /*
+      Nought, if any of the six conditions that say so is on them. Grappled and
+      restrained say "speed 0" outright; stunned, paralysed, petrified and
+      unconscious say "can't move", which is the same sentence. Every one of
+      them was decorative until §39 - the app tracked all six and would still
+      walk a stunned creature across the map.
+    */
+    const stopped = speedUnderConditions(base, conditionsOf(combatant));
     // Exhaustion halves it from level two and stops it at five - the two
     // levels that are a movement question rather than a roll.
-    return speedUnderExhaustion(base, exhaustionOf(combatant));
+    const walking = speedUnderExhaustion(stopped, exhaustionOf(combatant));
+    // Hauling somebody costs half your pace, unless they are two or more
+    // sizes smaller, in which case they weigh nothing worth counting.
+    const dragging = heldBy(combatant);
+    return dragging ? dragSpeed(walking, sizeOf(combatant), sizeOf(dragging)) : walking;
   };
 
   /*
@@ -1636,12 +1794,6 @@ export function TableTab({
     );
   };
 
-  /** The conditions on somebody, from whichever store holds them. */
-  const conditionsOf = (c: Combatant): string[] =>
-    c.kind === 'monster'
-      ? c.conditions
-      : (roster.entries.find((e) => e.id === c.rosterId)?.play.conditions ?? []);
-
   /**
    * Disengage or Dodge, from whichever store holds it.
    *
@@ -1696,12 +1848,6 @@ export function TableTab({
     return melee.length ? [melee[0]] : [];
   };
 
-  /** And who caused them, for the conditions that turn on it. */
-  const sourcesOf = (c: Combatant): Record<string, string> =>
-    (c.kind === 'monster'
-      ? c.conditionSources
-      : roster.entries.find((e) => e.id === c.rosterId)?.play.conditionSources) ?? {};
-
   /**
    * Whether one combatant can see another, for the rules that ask.
    *
@@ -1731,37 +1877,42 @@ export function TableTab({
       : {};
   };
 
-  /** A creature's size, for the rule that nobody shoves what towers over them. */
-  const sizeOf = (c: Combatant): string =>
-    c.kind === 'monster' ? (byId.get(c.monsterId)?.size ?? 'Medium') : 'Medium';
-
   /**
-   * A shove: one contested roll, and whatever the ground does next.
+   * A shove, a trip or a grapple: one contested roll, and whatever follows.
    *
-   * Section 23 ruled shoving out as a ruling richer than a grid should model.
-   * That was right about grappling and wrong about this, for a reason the
-   * register did not account for: **this map has height**, and had never once
-   * let it change a number. A ledge nobody can be pushed off is scenery.
+   * Section 23 ruled shoving and grappling out as rulings richer than a grid
+   * should model. That was wrong about shoving for a reason the register did
+   * not account for - **this map has height**, and a ledge nobody can be
+   * pushed off is scenery - and §26.2 took it back. §39 took grappling back
+   * too, for reasons `engine/grapple.ts` sets out: the ongoing state it needs
+   * has existed since conditions grew a source, and the speed it zeroes has
+   * existed since movement became a budget.
+   *
+   * All three modes share this function because they share the contest, the
+   * reach, the size rule and the cost. Only the last step differs.
    *
    * Everything composes into ONE write - the contest, the move, the fall, the
-   * damage, the prone condition, the log. A push that damaged somebody across
-   * two `onChange` calls would have the second build from a roster the first
-   * had already replaced.
+   * damage, the condition, the log. A push that damaged somebody across two
+   * `onChange` calls would have the second build from a roster the first had
+   * already replaced.
    */
-  const resolveShove = (targetId: string) => {
-    if (!shoving) return;
-    const shover = encounter.combatants.find((c) => c.id === shoving.byId);
+  const resolveGrab = (targetId: string) => {
+    if (!grab) return;
+    const mode = grab.mode;
+    const shover = encounter.combatants.find((c) => c.id === grab.byId);
     const target = encounter.combatants.find((c) => c.id === targetId);
-    setShoving(null);
+    setGrab(null);
     if (!shover?.at || !target?.at || shover.id === target.id) return;
 
     const name = nameOf(shover);
     const them = nameOf(target);
+    /** What the attempt is called, for the lines that have to name it. */
+    const verb = mode === 'grapple' ? 'grapple' : 'shove';
 
     /*
-      Every ending goes through here, because a shove costs the same whether
-      it worked: it replaces one attack of the Attack action, so the pip is
-      spent on the attempt. Composed into the same write as everything else,
+      Every ending goes through here, because the attempt costs the same
+      whether it worked: it replaces one attack of the Attack action, so the
+      pip is spent on the try. Composed into the same write as everything else,
       since a second onChange would build from a roster this one replaced.
     */
     const finish = (enc: EncounterState, then?: (r: Roster) => Roster) => {
@@ -1776,12 +1927,23 @@ export function TableTab({
 
     if (Math.max(Math.abs(shover.at.x - target.at.x), Math.abs(shover.at.y - target.at.y)) > 1) {
       // Nothing was attempted, so nothing is spent: this is a mis-click.
-      setEncounter(appendLog(encounter, `${name} is not close enough to shove ${them}.`));
+      setEncounter(appendLog(encounter, `${name} is not close enough to ${verb} ${them}.`));
       return;
     }
-    if (!canShove(sizeOf(shover), sizeOf(target))) {
+    // One size rule, applied to both: the SRD states it once.
+    if (!(mode === 'grapple' ? canGrapple : canShove)(sizeOf(shover), sizeOf(target))) {
       setEncounter(
-        appendLog(encounter, `${them} is too big for ${name} to shove — more than one size larger.`),
+        appendLog(encounter, `${them} is too big for ${name} to ${verb} — more than one size larger.`),
+      );
+      return;
+    }
+    // Two hands, one hold: somebody already holding a creature has to let go
+    // before grabbing another, which is the honest reading of a rule that
+    // costs a free hand.
+    const already = mode === 'grapple' ? heldBy(shover) : undefined;
+    if (already) {
+      setEncounter(
+        appendLog(encounter, `${name} already has hold of ${nameOf(already)} — let go first.`),
       );
       return;
     }
@@ -1795,11 +1957,26 @@ export function TableTab({
     const roll = `Athletics ${contest.shoverRoll} vs ${contest.targetUsed} ${contest.targetRoll}`;
 
     if (!contest.success) {
-      finish(appendLog(encounter, `${name} shoves ${them} — ${roll}: holds firm.`));
+      finish(
+        appendLog(
+          encounter,
+          mode === 'grapple'
+            ? `${name} grabs at ${them} — ${roll}: they twist away.`
+            : `${name} shoves ${them} — ${roll}: holds firm.`,
+        ),
+      );
       return;
     }
 
-    if (shoving.mode === 'prone') {
+    if (mode === 'grapple') {
+      finish(
+        appendLog(encounter, `${name} has hold of ${them} — ${roll}: grappled, speed 0.`),
+        (r) => holdOn(r, target.id, shover.id),
+      );
+      return;
+    }
+
+    if (mode === 'prone') {
       finish(appendLog(encounter, `${name} trips ${them} — ${roll}: down they go.`), (r) =>
         knockProne(r, target.id),
       );
@@ -1868,6 +2045,100 @@ export function TableTab({
     const entry = updated.entries.find((e) => e.id === c.rosterId);
     if (!entry || entry.play.conditions.includes('prone')) return updated;
     return updatePlay(updated, entry.id, toggleCondition(entry.play, 'prone'));
+  };
+
+  /**
+   * The hold applied, and the hold released.
+   *
+   * Both write the condition AND the source, in one composed roster, because
+   * a `grappled` with nobody named on it is a condition nothing can ever end -
+   * the escape has no-one to roll against and the sweep has no-one to check.
+   * The two halves live in different stores for the usual reason: a
+   * character's state is on their sheet, a monster's is on the combatant.
+   */
+  const holdOn = (updated: Roster, id: string, byWhom: string): Roster => {
+    const encNow = activeEncounter(updated);
+    const c = encNow.combatants.find((x) => x.id === id);
+    if (!c) return updated;
+    if (c.kind === 'monster') {
+      const enc = c.conditions.includes(GRAPPLED)
+        ? encNow
+        : toggleMonsterCondition(encNow, id, GRAPPLED);
+      return updateEncounter(updated, setConditionSource(enc, id, GRAPPLED, byWhom));
+    }
+    const entry = updated.entries.find((e) => e.id === c.rosterId);
+    if (!entry) return updated;
+    const play = entry.play.conditions.includes(GRAPPLED)
+      ? entry.play
+      : toggleCondition(entry.play, GRAPPLED);
+    return updatePlay(updated, entry.id, setPlayConditionSource(play, GRAPPLED, byWhom));
+  };
+
+  /** Let go: the condition off and the source cleared, so nothing is left
+      pointing at a grappler who is no longer holding anybody. */
+  const letGo = (updated: Roster, id: string): Roster => {
+    const encNow = activeEncounter(updated);
+    const c = encNow.combatants.find((x) => x.id === id);
+    if (!c) return updated;
+    if (c.kind === 'monster') {
+      const enc = c.conditions.includes(GRAPPLED)
+        ? toggleMonsterCondition(encNow, id, GRAPPLED)
+        : encNow;
+      return updateEncounter(updated, setConditionSource(enc, id, GRAPPLED, undefined));
+    }
+    const entry = updated.entries.find((e) => e.id === c.rosterId);
+    if (!entry) return updated;
+    const play = entry.play.conditions.includes(GRAPPLED)
+      ? toggleCondition(entry.play, GRAPPLED)
+      : entry.play;
+    return updatePlay(updated, entry.id, setPlayConditionSource(play, GRAPPLED, undefined));
+  };
+
+  /**
+   * The Escape action: their better of Athletics and Acrobatics against the
+   * grappler's Athletics.
+   *
+   * The action is spent either way, because trying is what costs - and a table
+   * that could re-roll a failed escape for free would never fail one.
+   */
+  const escapeGrapple = (c: Combatant) => {
+    const grappler = grapplerOf(c);
+    if (!grappler) return;
+    const out = escapeContest(
+      skillBonusFor(c, 'athletics', 'str'),
+      skillBonusFor(c, 'acrobatics', 'dex'),
+      skillBonusFor(grappler, 'athletics', 'str'),
+      defaultRng,
+    );
+    const roll = `${out.escapeeUsed} ${out.escapeeRoll} vs Athletics ${out.grapplerRoll}`;
+    let updated = out.success ? letGo(roster, c.id) : roster;
+    updated = updateEncounter(
+      updated,
+      appendLog(
+        activeEncounter(updated),
+        out.success
+          ? `${nameOf(c)} breaks out of ${nameOf(grappler)}'s grip — ${roll}.`
+          : `${nameOf(c)} struggles against ${nameOf(grappler)} — ${roll}: still held.`,
+      ),
+    );
+    if (c.kind === 'character') {
+      const entry = updated.entries.find((e) => e.id === c.rosterId);
+      if (entry) updated = updatePlay(updated, entry.id, setTurnSlot(entry.play, 'action', true));
+    }
+    onChange(updated);
+  };
+
+  /** Letting go, which the SRD makes free: no roll, no action, no argument. */
+  const releaseGrapple = (c: Combatant) => {
+    const held = heldBy(c);
+    if (!held) return;
+    const updated = letGo(roster, held.id);
+    onChange(
+      updateEncounter(
+        updated,
+        appendLog(activeEncounter(updated), `${nameOf(c)} lets go of ${nameOf(held)}.`),
+      ),
+    );
   };
 
   /*
@@ -1958,8 +2229,8 @@ export function TableTab({
   const tokenClick = (id: string) => {
     // An armed shove takes the click before anything else: the tool in hand
     // is the tool that answers, same as an armed aim.
-    if (shoving) {
-      resolveShove(id);
+    if (grab) {
+      resolveGrab(id);
       return;
     }
     const target = encounter.combatants.find((c) => c.id === id);
@@ -3518,6 +3789,31 @@ export function TableTab({
             ))}
           </div>
         )}
+        {/*
+          The same banner for the other armed tool. An aim has said what it is
+          in hand since §18.1 and a shove never did - you armed it from a menu
+          that then closed, and nothing on screen said the next click would be
+          a contest rather than a selection. §39 made that worse by adding a
+          third mode to the same gesture, so it is fixed here rather than
+          left for whoever hits it.
+        */}
+        {grab && !aim && (
+          <div className="hud-aim-row">
+            <button
+              type="button"
+              className="hud-aim-banner"
+              onClick={() => setGrab(null)}
+              title="Press to cancel"
+            >
+              {grab.mode === 'grapple'
+                ? 'Grappling: '
+                : grab.mode === 'prone'
+                  ? 'Tripping: '
+                  : 'Shoving: '}
+              <b>click whoever is within reach</b> — Esc cancels
+            </button>
+          </div>
+        )}
         {(() => {
           /* One props object, two cameras: the flat map that prints and
              paints, and the tactical view through FFT's lens. Same tokens,
@@ -4110,15 +4406,25 @@ export function TableTab({
             }
           : undefined
       }
-      onShove={
+      onGrab={
         !isRunning(encounter) || selected.id === active?.id
           ? (mode) => {
               setAim(null);
               setMoveArmed(false);
-              setShoving({ byId: selected.id, mode });
+              setGrab({ byId: selected.id, mode });
             }
           : undefined
       }
+      /* Offered only to somebody actually held, and only on their own turn:
+         escaping is an action, and an action belongs to a turn. */
+      onEscapeGrapple={
+        grapplerOf(selected) && (!isRunning(encounter) || selected.id === active?.id)
+          ? () => escapeGrapple(selected)
+          : undefined
+      }
+      /* Letting go is free, so it needs no turn - a DM should be able to
+         release a hold whenever the fiction says the hand opened. */
+      onReleaseGrapple={heldBy(selected) ? () => releaseGrapple(selected) : undefined}
       onAct={({ play, build, log }) => {
         /*
           One command, one write. A potion is a build write, a play write and
@@ -4234,17 +4540,23 @@ export function TableTab({
                 }
               : undefined
           }
-          onShove={
+          onGrab={
             !isRunning(encounter) || selected.id === active?.id
               ? (mode) => {
-                  // One tool in hand: arming a shove puts the walk and the
-                  // aim down, the way arming either of those does.
+                  // One tool in hand: arming a shove or a grab puts the walk
+                  // and the aim down, the way arming either of those does.
                   setAim(null);
                   setMoveArmed(false);
-                  setShoving({ byId: selected.id, mode });
+                  setGrab({ byId: selected.id, mode });
                 }
               : undefined
           }
+          onEscapeGrapple={
+            grapplerOf(selected) && (!isRunning(encounter) || selected.id === active?.id)
+              ? () => escapeGrapple(selected)
+              : undefined
+          }
+          onReleaseGrapple={heldBy(selected) ? () => releaseGrapple(selected) : undefined}
           onStance={
             !isRunning(encounter) || selected.id === active?.id
               ? (stance) => {
@@ -4545,7 +4857,7 @@ export function TableTab({
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
       if (e.key === 'Escape') {
         if (aim) setAim(null);
-        else if (shoving) setShoving(null);
+        else if (grab) setGrab(null);
         else if (moveArmed) setMoveArmed(false);
         else if (placing) {
           setPlacing(null);
