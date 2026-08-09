@@ -3762,6 +3762,133 @@ describe('light and darkness', () => {
 });
 
 /**
+ * Section 41. The arithmetic is `engine/surprise.test.ts`; what needs a
+ * component test is that starting a fight actually decides it, that a
+ * surprised turn is spent before it starts, and that it ends when that turn
+ * does rather than lasting the fight.
+ */
+describe('surprise', () => {
+  const mapElS = () => document.querySelector('.dmap') as SVGSVGElement;
+  const boxMapS = () => {
+    mapElS().getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+  };
+
+  /** The party and a goblin, in the order drawer, fight not started. */
+  const lineUp = async (user: ReturnType<typeof userEvent.setup>) => {
+    const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
+    await bestiaryReady();
+    const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Bestiary');
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
+    const entry = [...document.querySelectorAll('.mon-list li')].find(
+      (li) => li.querySelector('b')?.textContent === 'Goblin',
+    ) as HTMLElement;
+    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await open(user, 'Order');
+    fireEvent.change(within(rowFor(name)).getByLabelText(new RegExp(`${name} initiative`, 'i')), {
+      target: { value: '30' },
+    });
+    fireEvent.change(within(rowFor('Goblin')).getByLabelText(/goblin initiative/i), {
+      target: { value: '1' },
+    });
+    return { view, name };
+  };
+
+  const logOf = (view: ReturnType<typeof setup>) =>
+    (view.encounter.log ?? []).map((l) => l.text).join('\n');
+
+  it('surprises nobody when both sides walk into each other', async () => {
+    const user = userEvent.setup();
+    const { view } = await lineUp(user);
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+
+    // Which is most fights: this feature has to default to doing nothing.
+    expect(view.encounter.combatants.some((c) => c.surprised)).toBe(false);
+    expect(logOf(view)).not.toMatch(/surprised/i);
+    expect(view.roster.entries[0].play.turn.action).toBeFalsy();
+  });
+
+  it('lets the DM mark somebody, and spends their whole first turn', async () => {
+    const user = userEvent.setup();
+    const { view, name } = await lineUp(user);
+    await user.click(within(rowFor(name)).getByRole('button', { name: 'Surprised' }));
+    expect(view.encounter.combatants[0].surprised).toBe(true);
+
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+
+    // The turn happens and is over: no action, no bonus, no reaction.
+    const play = view.roster.entries[0].play;
+    expect(play.turn.action).toBe(true);
+    expect(play.turn.bonusAction).toBe(true);
+    expect(play.turn.reaction).toBe(true);
+    expect(logOf(view)).toMatch(/is surprised — the turn passes/);
+  });
+
+  it('takes their feet away for that turn, and gives them back for the next', async () => {
+    const user = userEvent.setup();
+    const { view, name } = await lineUp(user);
+    await user.click(within(rowFor(name)).getByRole('button', { name: 'Surprised' }));
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+
+    // The cockpit's move bar is the readout: nought of nought while it lasts.
+    const bar = () => document.querySelector('.pcard-movebar') as HTMLElement;
+    // Nought left of the sheet's own thirty: the bar is honest about both.
+    expect(bar().title).toMatch(/^0 of 30 feet/);
+
+    // Their turn ends, the goblin's passes, and they come back up awake.
+    await user.click(screen.getByRole('button', { name: /end turn/i }));
+    expect(view.encounter.combatants[0].surprised).toBeFalsy();
+    await user.click(screen.getByRole('button', { name: /end turn/i }));
+    expect(bar().title).toMatch(/^30 of 30 feet/);
+  });
+
+  it('decides it from a real ambush: hidden Stealth against passive Perception', async () => {
+    const user = userEvent.setup();
+    const { view } = await lineUp(user);
+    // The goblin lies in wait. Its Stealth roll is real, so the fight is
+    // started until the roll is one the party cannot beat - the point being
+    // that the *rule* fires, not that a particular die did.
+    /** Its Hide button reads "Hidden 14" once it is, so step out by that name. */
+    const hideButton = () =>
+      within(rowFor('Goblin')).getByRole('button', { name: /^(Hide|Hidden \d+)$/ });
+    let caught = false;
+    for (let i = 0; i < 40 && !caught; i++) {
+      if (view.encounter.combatants.find((c) => c.kind === 'monster')?.hidden === undefined) {
+        await user.click(hideButton());
+      }
+      await user.click(screen.getByRole('button', { name: /start the fight/i }));
+      caught = !!view.encounter.combatants.find((c) => c.kind === 'character')?.surprised;
+      await user.click(screen.getByRole('button', { name: /end the fight/i }));
+      if (!caught && view.encounter.combatants.find((c) => c.kind === 'monster')?.hidden !== undefined) {
+        await user.click(hideButton());
+      }
+    }
+    expect(caught).toBe(true);
+    expect(logOf(view)).toMatch(/Surprised: /);
+  });
+
+  it('refuses the walk while it lasts', async () => {
+    const user = userEvent.setup();
+    const { view, name } = await lineUp(user);
+    await user.click(within(rowFor(name)).getByRole('button', { name: 'Surprised' }));
+    boxMapS();
+    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
+    fireEvent.pointerDown(mapElS(), { clientX: 10.5 * 10, clientY: 10.5 * 10 });
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+
+    const menu = document.querySelector('.pcard .cmd-menu') as HTMLElement;
+    await user.click(within(menu).getByRole('button', { name: /^Move/ }));
+    boxMapS();
+    fireEvent.pointerDown(mapElS(), { clientX: 11.5 * 10, clientY: 10.5 * 10 });
+    // Nought feet reaches nowhere, so the token never left its square.
+    expect(view.encounter.combatants[0].at).toEqual({ x: 10, y: 10 });
+  });
+});
+
+/**
  * Section 26.3. High ground has been computed and announced since 12.4 and
  * has never changed a number. This is the switch that lets a table say it
  * should - and the tests that pin it staying off until they do.

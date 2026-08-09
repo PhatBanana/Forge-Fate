@@ -61,6 +61,7 @@ import {
   removeLight,
   setAmbientLight,
   setMonsterRecharge,
+  setSurprised,
   toggleLightOut,
   spendLegendary,
   spendMonsterMovement,
@@ -115,6 +116,7 @@ import { damageDice } from '../data/weapons';
 import { hitChance } from '../engine/dpr';
 import { flanked, heightAdvantage } from '../engine/tactics';
 import { visibleFrom } from '../engine/fog';
+import { surprisedAtStart } from '../engine/surprise';
 import {
   LIGHT_KINDS,
   canSeeInto,
@@ -1202,6 +1204,21 @@ export function TableTab({
       (x) => x.id !== c.id && conditionsOf(x).includes(GRAPPLED) && sourcesOf(x)[GRAPPLED] === c.id,
     );
 
+  /**
+   * What somebody notices without looking, from whichever side owns it.
+   *
+   * The stat block states it; a character's is derived. Ten is the floor for
+   * a monster with neither, which is a plain unmodified passive - the honest
+   * default rather than a zero that would make every ambush work.
+   */
+  const passivePerceptionOf = (c: Combatant): number => {
+    if (c.kind === 'monster') {
+      const monster = byId.get(c.monsterId);
+      return monster?.passivePerception ?? (monster ? 10 + monsterMod(monster.scores.wis) : 10);
+    }
+    return derived.get(c.rosterId)?.ctx.proficiencies.passivePerception ?? 10;
+  };
+
   /** Exhaustion, which only a character carries - a stat block has no track
       for it, so a monster reads as rested. */
   const exhaustionOf = (c: Combatant): number =>
@@ -1222,6 +1239,13 @@ export function TableTab({
       them was decorative until §39 - the app tracked all six and would still
       walk a stunned creature across the map.
     */
+    /*
+      Ambushed: "you can't move or take an action on your first turn". The
+      action and the bonus are spent when the turn begins; the movement is
+      refused here, because this is the one function the walk, the wash and
+      the ruler all price themselves from.
+    */
+    if (combatant.surprised) return 0;
     const stopped = speedUnderConditions(base, conditionsOf(combatant));
     // Exhaustion halves it from level two and stops it at five - the two
     // levels that are a movement question rather than a roll.
@@ -2668,7 +2692,45 @@ export function TableTab({
       const under = grantsUnder(encounter.zones, active.at, sideOf(active.kind));
       for (const dice of under.heals) base = healFromZone(base, active.id, dice);
     }
-    const encNow = activeEncounter(base);
+    let encNow = activeEncounter(base);
+
+    /*
+      The ambush, decided once, at the moment the fight starts.
+
+      Everything this needs has existed since §19.3 - a hidden combatant
+      carries the Stealth total that hides them, and both sides have a passive
+      Perception - and initiative still started every fight the same way. The
+      DM can disagree afterwards: the order's own checkbox is the override,
+      because "the DM determines who might be surprised" is the rule's first
+      sentence and this is only its arithmetic.
+    */
+    if (!isRunning(encNow) && encNow.combatants.length) {
+      const caught = surprisedAtStart(
+        encNow.combatants.map((c) => ({
+          id: c.id,
+          side: c.kind === 'character' ? ('party' as const) : ('monsters' as const),
+          ...(c.hidden !== undefined ? { hidden: c.hidden } : {}),
+          passivePerception: passivePerceptionOf(c),
+        })),
+      );
+      if (caught.size) {
+        encNow = [...caught].reduce((enc, id) => setSurprised(enc, id, true), encNow);
+        encNow = appendLog(
+          encNow,
+          `Surprised: ${encNow.combatants
+            .filter((c) => caught.has(c.id))
+            .map((c) => nameOf(c))
+            .join(', ')} — no action, no movement, and no reaction until that turn ends.`,
+        );
+      }
+    }
+
+    /*
+      And the ambush ending, which is the half everybody forgets: the
+      condition lasts through the surprised creature's first turn and stops
+      when it does, so it comes off here rather than when the turn began.
+    */
+    if (isRunning(encNow) && active?.surprised) encNow = setSurprised(encNow, active.id, false);
 
     const { encounter: stepped, began } = nextTurn(encNow);
     // A new round burns every clock at once: the zones, and every timed
@@ -2687,6 +2749,50 @@ export function TableTab({
         ),
       };
     }
+    /*
+      A surprised creature's turn happens and is over: "you can't move or take
+      an action on your first turn of the combat, and you can't take a
+      reaction until that turn ends". Modelled as an economy that is spent
+      before it starts, because a spent economy is exactly what that is - and
+      the app already enforces one everywhere, so nothing else has to learn
+      the rule.
+
+      Applied after `newTurn` gives the turn back, which is why it cannot be
+      folded into the branch above: the refresh would undo it.
+    */
+    const spendSurprise = (r: Roster): Roster => {
+      if (!began?.surprised) return r;
+      let out = r;
+      if (began.kind === 'character') {
+        const entry = out.entries.find((e) => e.id === began.rosterId);
+        if (entry) {
+          let play = setTurnSlot(entry.play, 'action', true);
+          play = setTurnSlot(play, 'bonusAction', true);
+          play = setTurnSlot(play, 'reaction', true);
+          /*
+            And the feet, spent rather than merely refused. `speedOf` already
+            answers nought while the flag is set, so the walk would be turned
+            away either way - but the cockpit's move bar reads the *sheet's*
+            speed, and a card saying "30 of 30 ft left" over a map that
+            refuses every step is the kind of thing this project keeps
+            finding and fixing. Spent from the sheet's own number, since the
+            battle's is nought by then.
+          */
+          const feet = derived.get(began.rosterId)?.ctx.speed.total ?? 0;
+          play = moveBy(play, feet, feet);
+          out = updatePlay(out, entry.id, play);
+        }
+      } else {
+        // A monster's bar reads the battle's speed, which is already nought,
+        // so only its reaction has to be taken away by hand.
+        out = updateEncounter(out, spendMonsterReaction(activeEncounter(out), began.id));
+      }
+      return updateEncounter(
+        out,
+        appendLog(activeEncounter(out), `${nameOf(began)} is surprised — the turn passes.`),
+      );
+    };
+
     if (began?.kind === 'character') {
       const entry = updated.entries.find((e) => e.id === began.rosterId);
       if (entry) updated = updatePlay(updated, entry.id, newTurn(entry.play));
@@ -2728,6 +2834,8 @@ export function TableTab({
         );
       }
     }
+    updated = spendSurprise(updated);
+
     // The phase card: a round wrap announces the round, otherwise whoever
     // just came up. Keyed by seq so each advance replays the animation.
     setBanner((prev) => ({
@@ -3061,6 +3169,29 @@ export function TableTab({
                         Delay
                       </button>
                     )}
+                    {/*
+                      The DM's override, because "the DM determines who might
+                      be surprised" is the rule's first sentence and the
+                      arithmetic the fight does on start is only its default.
+                      Offered before the fight as well as during it: an ambush
+                      is usually decided while everyone is still being placed.
+                    */}
+                    <button
+                      className={`btn btn-sm ${combatant.surprised ? 'btn-primary' : ''}`}
+                      aria-pressed={!!combatant.surprised}
+                      title={
+                        combatant.surprised
+                          ? 'Surprised — no action, no movement and no reaction on their first turn. Press to wake them.'
+                          : 'Mark them surprised: their first turn passes'
+                      }
+                      onClick={() =>
+                        setEncounter(
+                          setSurprised(encounter, combatant.id, !combatant.surprised),
+                        )
+                      }
+                    >
+                      Surprised
+                    </button>
                     {combatant.kind === 'monster' && (
                       <button
                         className="btn btn-sm"

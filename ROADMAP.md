@@ -67,9 +67,8 @@ say on the screen that the table has to rule it.
   in the shipped record.*
 - `[x]` **40. Light and darkness.** **L** - *shipped 2026-08-09; the account
   is §40 in the shipped record.*
-- `[ ]` **41. Surprise.** **S** - Absent. Stealth and hiding landed in
-  §19.3, but initiative has no surprised state; an ambush and a doorway
-  fight start identically.
+- `[x]` **41. Surprise.** **S** - *shipped 2026-08-09; the account is §41 in
+  the shipped record.*
 - `[ ]` **42. The smaller combat rules, one by one.** **M** - the list below
   is *verified against the code* (2026-08-09), not guessed. Several items
   this section originally carried were already done and have been struck; a
@@ -3061,6 +3060,47 @@ cameras, and off the printed page.
 
 Gates green: 1801 tests, `tsc`, `oxlint`, `npm run build`; probed in both
 themes at 1360, flat and tactical.
+
+---
+
+## 41. Surprise
+
+Everything this needed had existed since §19.3 - the Hide action rolls a
+real Stealth score, the hidden state lives on the combatant, and a watcher
+with the passive Perception to beat it finds them - and initiative still
+started every fight the same way. An ambush from a pitch-dark alcove and two
+parties meeting at a doorway were the same first round.
+
+**Per creature, not per side.** The elf with the good ears acts while the
+rest of the party stands there, which is the whole texture of the rule. And
+a creature is surprised only if it notices **nothing**: one goblin standing
+in the open blows the ambush however well its friends are hiding, because
+"doesn't notice a threat" is about threats, plural.
+
+**A spent turn, not a skipped one.** "You can't move or take an action on
+your first turn of the combat, and you can't take a reaction until that turn
+ends." The turn happens and everything in it is gone before it starts -
+which is exactly a spent action economy, and the app has enforced one of
+those everywhere since §16.7, so nothing else had to learn the rule. The
+feet are taken twice on purpose: `speedOf` answers nought so the walk is
+refused at the one place that already refuses walks, *and* the movement is
+marked spent, because the cockpit's bar reads the sheet's speed and a card
+saying "30 of 30 ft left" over a map that refuses every step is the exact
+defect this project keeps finding.
+
+**It ends when that turn ends**, not when it begins - which is the half
+everybody forgets, since the reaction is barred for the whole of it. And it
+does not survive the fight: `endEncounter` clears it, so that a DM marking
+somebody surprised *before* a fight - which is when an ambush is actually
+decided - is never indistinguishable from a flag left over from the last
+one.
+
+**The DM has the last word**, because "the DM determines who might be
+surprised" is the rule's first sentence. The fight computes it on start from
+real Stealth against real passive Perception and says so in the log; every
+row in the order carries a Surprised toggle that overrules it either way.
+
+Gates green: 1813 tests, `tsc`, `oxlint`, `npm run build`.
 
 ## Recently completed
 

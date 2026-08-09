@@ -57,6 +57,13 @@ export interface CharacterCombatant {
   /** Hiding, and the Stealth total that hides them. A battlefield fact, so
       it lives on the combatant rather than the sheet. */
   hidden?: number;
+  /**
+   * Ambushed: no action, no movement and no reaction on their first turn.
+   *
+   * Set when the fight starts and cleared when their first turn ends, so the
+   * order can say so while it is true. See `engine/surprise.ts`.
+   */
+  surprised?: boolean;
 }
 
 export interface MonsterCombatant {
@@ -73,6 +80,8 @@ export interface MonsterCombatant {
   conditions: string[];
   /** Rounds left per condition; absent means until removed. Same clock as zones. */
   conditionTimers?: Record<string, number>;
+  /** Ambushed - the monster half of the same flag the characters carry. */
+  surprised?: boolean;
   /**
    * Who caused a condition, by combatant id, for the ones that turn on it.
    *
@@ -734,6 +743,29 @@ export function setConditionSource(
 /** Conditions whose rules turn on who caused them, so the UI knows to ask. */
 export const CONDITIONS_WITH_A_SOURCE = ['frightened', 'charmed'];
 
+// ---------------------------------------------------------------- surprise
+
+/**
+ * Mark somebody surprised, or wake them up.
+ *
+ * A writer rather than a field the caller sets, for the usual reason: both
+ * kinds of combatant carry the flag and neither the battle screen nor the
+ * order drawer should have to remember which branch of the union it is
+ * holding.
+ */
+export function setSurprised(
+  encounter: EncounterState,
+  id: string,
+  surprised: boolean,
+): EncounterState {
+  return {
+    ...encounter,
+    combatants: encounter.combatants.map((c) =>
+      c.id === id ? { ...c, surprised: surprised || undefined } : c,
+    ),
+  };
+}
+
 // ------------------------------------------------------------------- light
 
 /**
@@ -961,7 +993,20 @@ export function nextTurn(encounter: EncounterState): {
  * back to 0 - and the log gets its closing line.
  */
 export function endEncounter(encounter: EncounterState): EncounterState {
-  const ended = { ...encounter, round: 0, turnIndex: -1 };
+  /*
+    Surprise does not survive the fight it belonged to. Cleared here rather
+    than when the next one starts, so that a DM marking somebody surprised
+    *before* a fight - which is when an ambush is usually decided - is not
+    indistinguishable from a flag left over from the last one.
+  */
+  const ended = {
+    ...encounter,
+    round: 0,
+    turnIndex: -1,
+    combatants: encounter.combatants.map((c) =>
+      c.surprised ? { ...c, surprised: undefined } : c,
+    ),
+  };
   if (!isRunning(encounter)) return ended;
   return appendLog(
     { ...ended, endedAfter: encounter.round },
