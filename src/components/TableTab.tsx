@@ -4745,6 +4745,19 @@ export function TableTab({
   const safeArea = {
     '--hud-top': stripTiles.length ? undefined : '0px',
     '--hud-right': cockpitShut || !cockpitDocked ? '0px' : undefined,
+    /*
+      Hold H releases the whole safe area, so the board grows into the space
+      the HUD normally reserves. §32 deliberately did NOT do this, arguing the
+      drawing must not resize under a held key - and that protected a key that
+      did nothing: the cockpit and the command bar are *beside* the board, not
+      over it, so fading them revealed no board at all. "See the board" has to
+      mean the board gets the window. Squares staying put was the wrong thing
+      to protect; the hit test is box-based (§32.1), so a click lands on the
+      right square at every size, including mid-transition.
+    */
+    ...(hudFaded
+      ? { '--hud-top': '0px', '--hud-right': '0px', '--hud-bottom': '0px', '--hud-left': '0px' }
+      : {}),
   } as CSSProperties;
 
   return (

@@ -709,23 +709,30 @@ describe('the battle screen', () => {
   it('fades the HUD while H is held, and only while it is held', async () => {
     /*
       Held rather than toggled: a HUD you can switch off is one somebody
-      leaves off and then wonders where the controls went. The safe area is
-      deliberately untouched - the drawing must not resize under a held key,
-      or letting go would move every square out from under the pointer.
+      leaves off and then wonders where the controls went.
+
+      And it releases the safe area, so the board takes the whole window while
+      the key is down. The first version pinned the opposite - the safe area
+      "deliberately untouched" - and a user reported it as a bug, correctly:
+      the cockpit and command bar sit *beside* the board, so fading them
+      revealed nothing. "See the board" means the board gets the window.
     */
     const user = userEvent.setup();
     const view = setup(party());
     await open(user, 'Party');
     await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
     const stage = document.querySelector('.btl-stage') as HTMLElement;
-    const reserved = stage.style.getPropertyValue('--hud-right');
 
     fireEvent.keyDown(window, { key: 'h' });
     expect(stage.classList.contains('is-bare')).toBe(true);
-    expect(stage.style.getPropertyValue('--hud-right')).toBe(reserved);
+    for (const side of ['top', 'right', 'bottom', 'left']) {
+      expect(stage.style.getPropertyValue(`--hud-${side}`)).toBe('0px');
+    }
 
     fireEvent.keyUp(window, { key: 'h' });
     expect(stage.classList.contains('is-bare')).toBe(false);
+    // The reservations come back with the HUD - the cockpit is open again.
+    expect(stage.style.getPropertyValue('--hud-right')).not.toBe('0px');
   });
 
   it('un-fades the HUD if the window is taken away mid-hold', async () => {

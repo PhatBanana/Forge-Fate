@@ -6509,6 +6509,14 @@ dl.detail-list {
   right: var(--hud-right);
   bottom: var(--hud-bottom);
   left: var(--hud-left);
+  /* The grow-and-shrink of hold-H (and of collapsing the cockpit): the safe
+     rectangle animates, and the drawing follows it through the container
+     query. Short, so a peek feels like a peek. */
+  transition:
+    top 120ms ease-out,
+    right 120ms ease-out,
+    bottom 120ms ease-out,
+    left 120ms ease-out;
   /* Centres the drawing in whatever the safe rectangle turns out to be. The
      floated readouts are absolutely positioned, so they are out of this
      flow and unaffected. */
@@ -6573,15 +6581,28 @@ dl.detail-list {
   margins left over are precisely where the floating HUD wants to sit.
 */
 /*
-  Hold H: every float fades to a ghost of itself and stops taking clicks.
+  Hold H: the HUD fades to a ghost, and the board takes the whole window.
 
-  The honest answer to "let me see the whole board for a second". Fading rather
-  than hiding, because a panel that vanished would take its layout with it and
-  the board would jump; and the safe area is deliberately *not* released - the
-  drawing must not resize under a held key, or letting go would move every
-  square out from under the pointer.
+  Both halves matter, and the first draft had only the fade - which a user
+  correctly reported as a bug: the cockpit and the command bar sit *beside*
+  the board in the safe-area layout, so fading them revealed no board at all,
+  while the floats actually sitting on the board (the hint, the height
+  readout, the camera cluster, the legend) were the ones the fade skipped.
+
+  So: the stage children fade AND stop taking clicks; the in-map floats fade
+  the same way (everything in the map-stage except the drawing itself); and
+  TableTab zeroes the safe-area vars while H is held, so the map grows into
+  the reserved space. §32's argument for holding the size - "letting go would
+  move every square out from under the pointer" - protected a key that did
+  nothing; the hit test is box-based, so clicks are correct at every size.
 */
 .btl-stage.is-bare > :not(.map-stage) {
+  opacity: 0.15;
+  pointer-events: none;
+  transition: opacity 120ms ease-out;
+}
+
+.btl-stage.is-bare .map-stage > :not(.dmap) {
   opacity: 0.15;
   pointer-events: none;
   transition: opacity 120ms ease-out;
