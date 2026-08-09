@@ -65,11 +65,8 @@ say on the screen that the table has to rule it.
 
 - `[x]` **39. Grappling.** **M** - *shipped 2026-08-09; the account is §39
   in the shipped record.*
-- `[ ]` **40. Light and darkness.** **L** - Absent. The battlefield has fog
-  (party sight radius) but no light model: no dim light or darkness, no
-  light sources on the map, and darkvision is a rated builder trait the
-  battle never reads. This is the biggest honest gap on the DM side - most
-  dungeons are dark.
+- `[x]` **40. Light and darkness.** **L** - *shipped 2026-08-09; the account
+  is §40 in the shipped record.*
 - `[ ]` **41. Surprise.** **S** - Absent. Stealth and hiding landed in
   §19.3, but initiative has no surprised state; an ambush and a doorway
   fight start identically.
@@ -2998,6 +2995,72 @@ and its sibling never did. Three modes on the same gesture made that worse,
 so it got the same banner.
 
 Gates green: 1767 tests, `tsc`, `oxlint`, `npm run build`.
+
+---
+
+## 40. Light and darkness
+
+The biggest honest gap on the DM side, and the reason it was one: the
+battlefield had fog of war - what the party can see, by line of sight, from
+their own eyes - and no reason for a corridor to be dark. Line of sight had
+unlimited range and every square was implicitly floodlit, so a dungeon at
+midnight played exactly like a meadow at noon. **Darkvision**, a trait the
+Builder rates and one of the top three reasons anyone picks a species,
+changed nothing at all.
+
+**Three levels, two obscurities, one ladder.** `engine/light.ts` keeps light
+and obscurity lined up the way the SRD does: bright is normal, dim is
+*lightly obscured* (disadvantage on sight-based Perception, which for a
+passive score is -5), dark is *heavily obscured* (effectively blinded).
+Darkvision shifts one step within its range - darkness reads as dim, dim
+reads as bright - and **not two**, which is the mistake everyone makes at
+the table. A dwarf in an unlit room still has disadvantage on Perception.
+
+**Lights are their own layer, not a kind of zone.** A zone is an effect with
+a shape and a clock; a torch does nothing to whoever stands in it and lasts
+until somebody snuffs it. A light is fixed to a square *or* carried by a
+combatant, and a carried light's position is derived from its bearer on
+every render - a torch that stays where it was lit is not a torch. The radii
+are the SRD's own: candle 5/5, torch 20/20, lamp 15/30, hooded lantern
+30/30, bullseye 60/60, Light 20/20, Daylight 60/60. The brightest source
+wins rather than the levels adding up, because two torches do not make
+daylight.
+
+**One field is the whole feature.** `ambientLight` on the encounter, absent
+meaning bright - so every fight saved before this section, and every outdoor
+fight at noon, plays exactly as it did. Set it to `dark` and the dungeon is
+a dungeon.
+
+**It reaches all three places it had never reached.** The fog asks a second
+question of every square now, and each pair of eyes answers for itself: the
+dwarf sees the unlit corridor and the human beside him does not, and the
+union is what the party knows between them. The dice take "disadvantage
+swinging at what you cannot see" and "advantage on somebody who cannot see
+you" as two separate facts, so mutual darkness cancels to a straight roll -
+which is the SRD's answer and the reason it is two booleans rather than one
+"in the dark" flag. And the passive-Perception spotting check reads the
+gloom through the watcher's own darkvision before it takes its -5.
+
+**Six conditions stopped being decorative on the way past.** Grappled and
+restrained say "speed 0"; paralysed, petrified, stunned and unconscious say
+"can't move". All six were tracked and none of them stopped anybody - §39
+added `speedUnderConditions` for the grapple, and this section is what made
+the rest of them matter.
+
+**What it refuses to model, stated rather than discovered.** Light spreads by
+distance and does not care what is in the way, so a torch lights the far side
+of a pillar; doing it properly means running `lineOfSight` from every source
+to every square on every render, and the honest trade is that a DM can see
+where the torch is. Sunlight Sensitivity turns on *sunlight* specifically and
+nothing here can tell a sunbeam from a lantern, so it stays a ruling.
+
+The map draws the dark as a blue-black wash - deliberately not the fog's warm
+brown, because the two layers stack and a DM has to tell "nobody has been
+here" from "there is no light here" at a glance - under the fog, in both
+cameras, and off the printed page.
+
+Gates green: 1801 tests, `tsc`, `oxlint`, `npm run build`; probed in both
+themes at 1360, flat and tactical.
 
 ## Recently completed
 
