@@ -10,6 +10,7 @@ import {
   heal,
   hpNow,
   movementLeft,
+  setInspiration,
   setTurnSlot,
   toggleCondition,
   toggleTurnSlot,
@@ -363,6 +364,29 @@ export function PlayCard({
           ))}
         </select>
       </div>
+
+      {/*
+        Heroic Inspiration, §42. It was in the data - the 2024 Human's
+        Resourceful trait says "gain Heroic Inspiration on every long rest" -
+        and there was nowhere on the sheet to put one, so the trait was a
+        sentence rather than a resource. A single chip, because that is the
+        whole rule: you have one or you do not, and a second is not a second
+        reroll.
+      */}
+      <button
+        type="button"
+        className={`pcard-insp ${play.inspiration ? 'is-held' : ''}`}
+        aria-pressed={!!play.inspiration}
+        title={
+          play.inspiration
+            ? 'Heroic Inspiration in hand — spend it to reroll any d20. Press to spend.'
+            : 'No Heroic Inspiration. Press when the DM hands you one.'
+        }
+        onClick={() => onPlayChange(setInspiration(play, !play.inspiration))}
+      >
+        <span className="hud-k">Inspiration</span>
+        <b>{play.inspiration ? 'held' : '—'}</b>
+      </button>
 
       {play.exhaustion > 0 && (
         <p className="pcard-warn">Exhaustion {play.exhaustion}</p>

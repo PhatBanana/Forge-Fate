@@ -4,6 +4,9 @@ import { deriveBuild, emptyBuild } from './engine/character';
 import {
   applyDeathSaveRoll,
   clearDeathSaves,
+  maySpend,
+  recordSpellCast,
+  setInspiration,
   clearRolls,
   recordRoll,
   damage,
@@ -816,3 +819,56 @@ describe('condition clocks', () => {
     expect(off.conditionTimers?.stunned).toBeUndefined();
   });
 });
+
+describe('the bonus-action spell rule', () => {
+  const fresh = () => emptyPlay();
+
+  it('allows anything on a turn where nothing has been cast', () => {
+    expect(maySpend(fresh(), { level: 3, castingTime: 'action' })).toBe(true);
+    expect(maySpend(fresh(), { level: 1, castingTime: 'bonus' })).toBe(true);
+  });
+
+  it('bars a second spell after a bonus-action one, cantrips excepted', () => {
+    const after = recordSpellCast(fresh(), 'bonus');
+    expect(maySpend(after, { level: 1, castingTime: 'action' })).toBe(false);
+    // "except a cantrip with a casting time of 1 action" - the exception is
+    // the whole reason a Quickened caster still gets to throw a Fire Bolt.
+    expect(maySpend(after, { level: 0, castingTime: 'action' })).toBe(true);
+  });
+
+  it('bars a bonus-action spell after ANY spell, which is the half people miss', () => {
+    // The restriction fires in either order: casting Fireball and then
+    // Healing Word breaks it just as surely as the other way round.
+    const after = recordSpellCast(fresh(), 'action');
+    expect(maySpend(after, { level: 1, castingTime: 'bonus' })).toBe(false);
+  });
+
+  it('leaves reactions alone, because they happen on somebody else’s turn', () => {
+    const after = recordSpellCast(fresh(), 'bonus');
+    expect(maySpend(after, { level: 1, castingTime: 'reaction' })).toBe(true);
+  });
+
+  it('forgets all of it when the turn does', () => {
+    const after = newTurn(recordSpellCast(fresh(), 'bonus'));
+    expect(after.turn.spellCast).toBeFalsy();
+    expect(maySpend(after, { level: 1, castingTime: 'bonus' })).toBe(true);
+  });
+});
+
+describe('heroic inspiration', () => {
+  it('is held or not held, and never two', () => {
+    const held = setInspiration(emptyPlay(), true);
+    expect(held.inspiration).toBe(true);
+    expect(setInspiration(held, true).inspiration).toBe(true);
+    // Spent, and gone rather than stored as false - absent is the default
+    // every character who has never been given one carries.
+    expect(setInspiration(held, false).inspiration).toBeUndefined();
+  });
+
+  it('is not something a rest hands out by itself', () => {
+    // The 2024 Human's trait grants it and a DM grants it; a long rest on its
+    // own does not, so nothing here should invent one.
+    expect(longRest(emptyPlay(), { fighter: 5 }).inspiration).toBeUndefined();
+  });
+});
+

@@ -1498,6 +1498,19 @@ export function CharacterSheet({
                           )}
                           <b>{spell.name}</b>
                           {spell.concentration && <em> concentration</em>}
+                          {/*
+                            Ritual, §42. The field has been on every spell
+                            since the list was built and was surfaced
+                            **nowhere** - data with no reader, which is the
+                            same thing as no data. It changes how a spell is
+                            cast, so it belongs beside concentration.
+                          */}
+                          {spell.ritual && (
+                            <em title="Castable as a ritual: ten minutes longer, and it costs no slot">
+                              {' '}
+                              ritual
+                            </em>
+                          )}
                           <div className="sub">
                             {describeSpell(spell)} · {CASTING_TIME_LABELS[spell.castingTime]}
                             {castAs(spell) && ` · as a ${castAs(spell)}`}

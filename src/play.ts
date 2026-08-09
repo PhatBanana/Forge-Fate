@@ -59,6 +59,18 @@ export interface TurnState {
    * dodging protects you until *your* next turn begins.
    */
   stance?: 'disengage' | 'dodge';
+  /**
+   * Spells cast this turn, and whether one of them took the bonus action.
+   *
+   * The 2014 rule that nothing enforced: "if you cast a spell with a bonus
+   * action, you can't cast another spell during the same turn, except a
+   * cantrip with a casting time of 1 action". Two flags rather than one,
+   * because the restriction fires in either order - a bonus-action spell
+   * after an action spell breaks it just as surely - and the menu needs to
+   * know both which happened and whether either did.
+   */
+  spellCast?: boolean;
+  bonusSpellCast?: boolean;
 }
 
 export function emptyTurn(): TurnState {
@@ -153,6 +165,18 @@ export interface PlayState {
    * its next turn", and the honest one available.
    */
   conditionTimers?: Record<string, number>;
+  /**
+   * Heroic Inspiration: one reroll, held or spent.
+   *
+   * A boolean rather than a count, because that is the rule - "you either have
+   * it or you don't, and you can't stockpile it". The 2024 Human gets one on
+   * every long rest and a DM hands them out for good play; either way the only
+   * question a sheet has to answer is whether one is in hand.
+   *
+   * Absent means no, so nothing changes for a character who has never been
+   * given one.
+   */
+  inspiration?: boolean;
 }
 
 export function emptyPlay(): PlayState {
@@ -611,6 +635,55 @@ export function longRest(
     // something you sleep off.
     customValues: rechargeCustom(play.customValues, customResources, 'long'),
   };
+}
+
+/**
+ * A spell was cast this turn, with the pip it used.
+ *
+ * Recorded so the bonus-action spell rule can be applied by the one thing
+ * that knows a turn's history. Cleared by `newTurn` along with everything
+ * else the turn owns.
+ */
+export function recordSpellCast(play: PlayState, castingTime: string): PlayState {
+  return {
+    ...play,
+    turn: {
+      ...play.turn,
+      spellCast: true,
+      bonusSpellCast: play.turn.bonusSpellCast || castingTime === 'bonus',
+    },
+  };
+}
+
+/**
+ * Whether this spell may be cast right now, given what the turn has already
+ * done.
+ *
+ * The whole 2014 rule in one predicate. A reaction spell is outside it: the
+ * restriction is about your own turn, and a shield cast on somebody else's
+ * is not "during the same turn". Left permissive when the app cannot tell -
+ * the refusals a tool makes have to be ones a table would agree with.
+ */
+export function maySpend(play: PlayState, spell: { level: number; castingTime: string }): boolean {
+  if (spell.castingTime === 'reaction') return true;
+  if (spell.castingTime === 'bonus') {
+    // A bonus-action spell is barred by ANY spell already cast this turn.
+    return !play.turn.spellCast;
+  }
+  // After a bonus-action spell, only a cantrip with a casting time of one
+  // action gets through.
+  if (play.turn.bonusSpellCast) return spell.level === 0;
+  return true;
+}
+
+/**
+ * Take it or spend it.
+ *
+ * Not a counter: "you either have Heroic Inspiration or you don't", and a
+ * second one handed to somebody already holding one is not a second reroll.
+ */
+export function setInspiration(play: PlayState, held: boolean): PlayState {
+  return { ...play, inspiration: held || undefined };
 }
 
 export function toggleCondition(play: PlayState, id: string): PlayState {

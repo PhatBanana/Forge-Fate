@@ -116,6 +116,8 @@ import { damageDice } from '../data/weapons';
 import { hitChance } from '../engine/dpr';
 import { flanked, heightAdvantage } from '../engine/tactics';
 import { visibleFrom } from '../engine/fog';
+import { COVER_AC } from '../engine/sight';
+import type { Cover } from '../engine/sight';
 import { surprisedAtStart } from '../engine/surprise';
 import {
   LIGHT_KINDS,
@@ -1400,6 +1402,24 @@ export function TableTab({
       const choice = routeChoice(key);
       if (!choice || choice.cost > walkBudget.dash) continue;
       const [x, y] = key.split(',').map(Number);
+      /*
+        Frightened's other half, drawn as well as enforced. `walkInto` has
+        refused these squares since §27.2 - "the creature can't willingly move
+        closer to the source of its fear" - and the wash went on lighting them
+        anyway, so the tiles said "you can walk here" and the click did
+        nothing. A refusal nobody can see is indistinguishable from a bug.
+      */
+      if (
+        selected?.at &&
+        !mayApproach(
+          { conditions: conditionsOf(selected), conditionSources: sourcesOf(selected) },
+          selected.at,
+          { x, y },
+          (id) => encounter.combatants.find((c) => c.id === id)?.at,
+        )
+      ) {
+        continue;
+      }
       out.push(choice.cost <= walkBudget.base ? { at: { x, y } } : { at: { x, y }, dash: true });
     }
     return out;
@@ -1504,10 +1524,10 @@ export function TableTab({
     // high ground ride the same parenthesis - noted, never applied.
     const attacker = who.id ? enc.combatants.find((c) => c.id === who.id) : undefined;
     const attackerAt = attacker?.at;
-    const cover =
+    const cover: Cover =
       attackerAt && target.at
         ? lineOfSight(sightContext, attackerAt, target.at).cover
-        : false;
+        : 'none';
     /*
       The ground both of them are standing on. A paladin's aura raises the
       target's AC; standing somewhere that steadies your hand raises the
@@ -1517,7 +1537,7 @@ export function TableTab({
     const attackerGround = attacker
       ? grantsUnder(enc.zones, attackerAt, sideOf(attacker.kind))
       : { toHit: 0, notes: [] as string[] };
-    const effectiveAc = targetAc + (cover ? 2 : 0) + targetGround.ac;
+    const effectiveAc = targetAc + COVER_AC[cover] + targetGround.ac;
     /*
       High ground, applied only if the table said so. The steps come from the
       one function that decides who is uphill; whether they are worth anything
@@ -1570,7 +1590,7 @@ export function TableTab({
     const oddsNote = describeOdds(odds);
 
     const rulings = [
-      cover ? 'half cover' : '',
+      cover === 'none' ? '' : `${cover === 'half' ? 'half' : 'three-quarters'} cover +${COVER_AC[cover]}`,
       attacker && attackerAt && target.at && target.kind !== attacker.kind &&
       flanked(
         attackerAt,
@@ -2497,11 +2517,12 @@ export function TableTab({
           c.kind === 'monster' ? byId.get(c.monsterId)?.ac : derived.get(c.rosterId)?.ctx.ac.total;
         if (ac === undefined) return null;
         const los = attacker?.at && c.at ? lineOfSight(sightContext, attacker.at, c.at) : null;
-        const cover = los?.cover ?? false;
-        const effectiveAc = ac + (cover ? 2 : 0);
+        const cover: Cover = los?.cover ?? 'none';
+        const effectiveAc = ac + COVER_AC[cover];
         /*
-          The same +2 the dice will get, or the percentage under the crosshair
-          is a promise the roll does not keep.
+          The same bonus the dice will get, or the percentage under the
+          crosshair is a promise the roll does not keep. Since §42 that is +2
+          or +5, because the grid can tell a pillar from a corner.
         */
         const uphill =
           attacker?.at && c.at ? heightAdvantage(encounter.elevation ?? {}, attacker.at, c.at) : 0;
@@ -4076,7 +4097,7 @@ export function TableTab({
                 className={`hud-target ${t.foe ? '' : 'is-friend'}`}
                 title={`${t.name} — ${Math.round(t.chance * 100)}% to hit, about ${
                   Math.round(t.expected * 10) / 10
-                } damage${t.cover ? ', behind half cover' : ''}${
+                } damage${t.cover === 'none' ? '' : `, behind ${t.cover} cover (+${COVER_AC[t.cover]} AC)`}${
                   t.blocked ? ', no line of sight' : ''
                 }${t.flanking ? '. Flanked — advantage, if your table uses the optional rule' : ''}${
                   t.high ? `. High ground: +${t.high * 5} ft over them` : ''
@@ -4089,7 +4110,7 @@ export function TableTab({
                 <b>{t.name}</b>
                 <span className="hud-odds">{Math.round(t.chance * 100)}%</span>
                 <span className="hud-exp">~{Math.round(t.expected)} dmg</span>
-                {t.cover && <i>cover</i>}
+                {t.cover !== 'none' && <i>{t.cover === 'half' ? 'cover' : '¾ cover'}</i>}
                 {t.blocked && <i>no sight</i>}
                 {t.flanking && <i className="is-boon">flanked</i>}
                 {t.high > 0 && <i className="is-boon">high ground</i>}
@@ -4387,7 +4408,11 @@ export function TableTab({
           {sightLines.filter((l) => l.visible).length
             ? sightLines
                 .filter((l) => l.visible)
-                .map((l) => `${l.name}${l.cover ? ' (half cover, +2 AC)' : ''}`)
+                .map((l) =>
+                  l.cover === 'none'
+                    ? l.name
+                    : `${l.name} (${l.cover} cover, +${COVER_AC[l.cover]} AC)`,
+                )
                 .join(', ')
             : 'nobody'}
           {sightLines.some((l) => !l.visible) && (

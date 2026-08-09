@@ -35,9 +35,16 @@ import type { ElevationMap, TerrainMap } from '../terrain';
  * ## Cover
  *
  * When the line is clear but passes a blocking square adjacent to the target
- * on the attacker's side, that is cover as the SRD means it: half cover, +2 to
- * armor class. Reported as a note for the DM to apply, not an automatic
- * modifier - whether that pillar counts is famously a ruling.
+ * on the attacker's side, that is cover as the SRD means it. **One** such
+ * square is half cover (+2 AC); **two** - the target tucked into a corner,
+ * blocked on both of the axes the attack is coming down - is three-quarters
+ * cover (+5), which had no model at all until §42. Total cover is not a
+ * degree of cover here: it is simply no line of sight, which `visible`
+ * already answers.
+ *
+ * Reported alongside the sight rather than folded into a number, because
+ * whether that pillar counts is famously a ruling and the DM is the one
+ * making it.
  */
 
 export interface SightContext {
@@ -46,12 +53,29 @@ export interface SightContext {
   elevation: ElevationMap;
 }
 
+/** How much of the target is behind something. Total cover is `visible: false`. */
+export type Cover = 'none' | 'half' | 'three-quarters';
+
+/** What each degree is worth to armor class, in the SRD's own numbers. */
+export const COVER_AC: Record<Cover, number> = {
+  none: 0,
+  half: 2,
+  'three-quarters': 5,
+};
+
 export interface SightResult {
   visible: boolean;
   /** The square that cut the line, when one did. */
   blockedBy?: Square;
-  /** Half cover: a blocking square beside the target, on the attacker's side. */
-  cover: boolean;
+  /**
+   * Blocking squares beside the target on the attacker's side: one is half
+   * cover, two is three-quarters.
+   *
+   * Was a boolean until §42, which is why the name reads like one. Widened
+   * rather than joined by a second field, because two fields describing one
+   * fact is one of them waiting to go stale.
+   */
+  cover: Cover;
 }
 
 /** Eyes are half a step above the ground stood on. */
@@ -127,24 +151,33 @@ export function lineOfSight(ctx: SightContext, from: Square, to: Square): SightR
 
   for (const { at, t } of lineSquares(from, to)) {
     const top = topOf(ctx, at);
-    if (top === Infinity) return { visible: false, blockedBy: at, cover: false };
+    if (top === Infinity) return { visible: false, blockedBy: at, cover: 'none' };
     const lineHeight = eyeFrom + (eyeTo - eyeFrom) * t;
     // Strictly above: grazing the top of a ridge passes. This is what lets an
     // archer a step up clear the mid-field rock while the same rock still
     // hides whoever is crouched directly behind it.
-    if (top > lineHeight) return { visible: false, blockedBy: at, cover: false };
+    if (top > lineHeight) return { visible: false, blockedBy: at, cover: 'none' };
   }
 
-  return { visible: true, cover: hasCover(ctx, from, to) };
+  return { visible: true, cover: coverFor(ctx, from, to) };
 }
 
 /**
- * Half cover: a sight-blocking square orthogonally beside the target, on the
- * side the attack comes from. The dot product is the whole test - "on the
- * attacker's side" means the step from target to cover points the same way as
- * the line back toward the attacker.
+ * How much of the target is behind something.
+ *
+ * A sight-blocking square orthogonally beside the target, on the side the
+ * attack comes from. The dot product is the whole test - "on the attacker's
+ * side" means the step from target to cover points the same way as the line
+ * back toward the attacker.
+ *
+ * **Counted rather than merely spotted**, which is the §42 change. On a grid
+ * there are at most two such sides - the two axes the attack comes down - so
+ * one blocker is a pillar to lean out past (half, +2) and two is a corner the
+ * target is tucked into, shot at diagonally with masonry on both approaches.
+ * That is three-quarters cover (+5), which the SRD prices for exactly this
+ * and which this app has been quietly rounding down to +2 since §12.4.
  */
-function hasCover(ctx: SightContext, from: Square, to: Square): boolean {
+function coverFor(ctx: SightContext, from: Square, to: Square): Cover {
   const toward = { x: from.x - to.x, y: from.y - to.y };
   const sides = [
     { x: 1, y: 0 },
@@ -152,12 +185,14 @@ function hasCover(ctx: SightContext, from: Square, to: Square): boolean {
     { x: 0, y: 1 },
     { x: 0, y: -1 },
   ];
-  return sides.some((side) => {
+  const blocking = sides.filter((side) => {
     const at = { x: to.x + side.x, y: to.y + side.y };
     if (at.x === from.x && at.y === from.y) return false;
     const top = topOf(ctx, at);
     // Cover has to actually rise above the target's own ground.
     if (!(top > groundAt(ctx, to))) return false;
     return side.x * toward.x + side.y * toward.y > 0;
-  });
+  }).length;
+  if (blocking >= 2) return 'three-quarters';
+  return blocking === 1 ? 'half' : 'none';
 }

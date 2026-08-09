@@ -8,6 +8,8 @@ import {
   recordRoll,
   setStance,
   setTurnSlot,
+  maySpend,
+  recordSpellCast,
   slotsLeft,
   spendPact,
   spendSlot,
@@ -189,7 +191,33 @@ export function CommandMenu({
     return null;
   };
 
+  /**
+   * Cast it as a ritual: ten minutes longer, and it costs no slot.
+   *
+   * `Spell.ritual` has been on every spell since the list was built and had
+   * **no reader anywhere** - data with no reader is the same thing as no
+   * data. It spends no slot and no pip, because a ritual takes ten minutes
+   * and a ten-minute cast is not part of anybody's turn; the log says so, so
+   * a DM reading back can see the time went somewhere.
+   */
+  const castAsRitual = (spell: Spell) => {
+    setLastRoll(`Ritual: ${spell.name}`);
+    onAct({
+      play: recordRoll(play, {
+        kind: 'check',
+        label: `Cast ${spell.name} as a ritual`,
+        total: 0,
+        working: 'no slot, ten minutes',
+      }),
+      log: `casts ${spell.name} as a ritual (no slot; ten minutes).`,
+    });
+    done();
+  };
+
   const cast = (spell: Spell) => {
+    // The bonus-action spell rule, refused rather than merely greyed: the
+    // button is disabled below, and this is the guard behind it.
+    if (!maySpend(play, spell)) return;
     let next = play;
     let cost = 'no slot';
     if (spell.level > 0) {
@@ -209,6 +237,9 @@ export function CommandMenu({
     if (spell.castingTime === 'action') next = setTurnSlot(next, 'action', true);
     if (spell.castingTime === 'bonus') next = setTurnSlot(next, 'bonusAction', true);
     if (spell.castingTime === 'reaction') next = setTurnSlot(next, 'reaction', true);
+    // Remembered so the next cast this turn can be judged against it - see
+    // `maySpend`, which is the 2014 bonus-action spell rule in one predicate.
+    next = recordSpellCast(next, spell.castingTime);
 
     let note = cost;
     if (spell.concentration) {
@@ -581,18 +612,30 @@ export function CommandMenu({
           <div className="hud-spell-list">
             {spells.map((spell) => {
               const payable = spell.level === 0 || slotFor(spell) !== null;
+              /*
+                And the 2014 rule that nothing has ever enforced: a bonus
+                action spell bars every other spell that turn bar a cantrip
+                cast with an action. Greyed with the reason in the tooltip
+                rather than hidden, because a spell that vanishes off your own
+                list looks like a bug and a spell that says why does not.
+              */
+              const allowed = maySpend(play, spell);
               return (
                 <button
                   key={spell.id}
                   type="button"
                   className="hud-act"
-                  disabled={!payable}
+                  disabled={!payable || !allowed}
                   title={
-                    spell.level === 0
-                      ? `${spell.name} — cantrip. ${spell.summary}`
-                      : payable
-                        ? `${spell.name} — level ${spell.level}. ${spell.summary}`
-                        : `${spell.name} — no slot left that can carry it`
+                    !allowed
+                      ? play.turn.bonusSpellCast
+                        ? `${spell.name} — a bonus-action spell was cast this turn, so only a cantrip with a casting time of one action can follow`
+                        : `${spell.name} — a spell was already cast this turn, so no bonus-action spell can follow`
+                      : spell.level === 0
+                        ? `${spell.name} — cantrip. ${spell.summary}`
+                        : payable
+                          ? `${spell.name} — level ${spell.level}. ${spell.summary}`
+                          : `${spell.name} — no slot left that can carry it`
                   }
                   onClick={() => cast(spell)}
                 >
@@ -602,6 +645,30 @@ export function CommandMenu({
               );
             })}
           </div>
+          {/*
+            The rituals, in their own row rather than as a second button on
+            every spell: a ritual is a different act, done out of combat and
+            paid for with ten minutes instead of a slot, and mixing the two
+            into one control is how a slot gets spent by accident.
+          */}
+          {spells.some((s) => s.ritual && s.level > 0) && (
+            <div className="hud-spell-list">
+              {spells
+                .filter((s) => s.ritual && s.level > 0)
+                .map((spell) => (
+                  <button
+                    key={`ritual-${spell.id}`}
+                    type="button"
+                    className="hud-act"
+                    title={`${spell.name} as a ritual — ten minutes, no slot spent`}
+                    onClick={() => castAsRitual(spell)}
+                  >
+                    {spell.name}
+                    <em>ritual</em>
+                  </button>
+                ))}
+            </div>
+          )}
           <button type="button" className="cmd-back" onClick={() => setSub(null)}>
             ‹ Back
           </button>

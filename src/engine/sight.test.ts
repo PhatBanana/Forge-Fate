@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lineOfSight, lineSquares, walkable } from './sight';
+import { COVER_AC, lineOfSight, lineSquares, walkable } from './sight';
 import type { SightContext } from './sight';
 import { generateDungeon } from './dungeon';
 import { paint } from '../terrain';
@@ -132,14 +132,33 @@ describe('cover', () => {
     const angled = lineOfSight(ctx, { x: 6, y: 0 }, { x: 10, y: 5 });
     expect(result.visible).toBe(false);
     expect(angled.visible).toBe(true);
-    expect(angled.cover).toBe(true);
+    expect(angled.cover).toBe('half');
   });
 
   it('grants none when the cover is behind the target instead', () => {
     const ctx = open(paint({}, { x: 11, y: 5 }, 'pillar'));
     const result = lineOfSight(ctx, { x: 0, y: 5 }, { x: 10, y: 5 });
     expect(result.visible).toBe(true);
-    expect(result.cover).toBe(false);
+    expect(result.cover).toBe('none');
+  });
+
+  it('grants three-quarters in a corner, blocked on both approaches', () => {
+    /*
+      The target tucked into a masonry corner and shot at diagonally: a pillar
+      on each of the two axes the attack comes down. On a grid that is the
+      most cover short of total, and the SRD prices it at +5 - a degree this
+      app rounded down to +2 for thirty sections.
+    */
+    const ctx = open(paint(paint({}, { x: 9, y: 5 }, 'pillar'), { x: 10, y: 4 }, 'pillar'));
+    const result = lineOfSight(ctx, { x: 4, y: 0 }, { x: 10, y: 5 });
+    expect(result.visible).toBe(true);
+    expect(result.cover).toBe('three-quarters');
+  });
+
+  it('prices each degree the way the book does', () => {
+    expect(COVER_AC.none).toBe(0);
+    expect(COVER_AC.half).toBe(2);
+    expect(COVER_AC['three-quarters']).toBe(5);
   });
 });
 

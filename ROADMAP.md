@@ -69,22 +69,9 @@ say on the screen that the table has to rule it.
   is §40 in the shipped record.*
 - `[x]` **41. Surprise.** **S** - *shipped 2026-08-09; the account is §41 in
   the shipped record.*
-- `[ ]` **42. The smaller combat rules, one by one.** **M** - the list below
-  is *verified against the code* (2026-08-09), not guessed. Several items
-  this section originally carried were already done and have been struck; a
-  roadmap that invents work is the failure mode item 1.5 was about.
-  - **Three-quarters cover (+5)** - absent. Only half cover's +2 exists
-    (`TableTab.tsx`, `effectiveAc`). Total cover is handled by sight.
-  - **Lair actions** - parsed off the stat block and dropped. Legendary
-    actions are tracked and spent; their sibling is not.
-  - **Frightened's movement clause** - partial. The disadvantage half has
-    teeth (`advantage.ts`); "cannot willingly move closer" does not gate
-    pathing.
-  - **Heroic inspiration** - absent. A one-flag model on `PlayState`.
-  - **The bonus-action spell rule** - absent. Nothing stops a leveled spell
-    as a bonus action plus a second leveled spell as the action.
-  - **Ritual casting** - `Spell.ritual` is on every spell and is surfaced
-    **nowhere**. Data with no reader.
+- `[x]` **42. The smaller combat rules, one by one.** **M** - *shipped
+  2026-08-09; the account, including the one item that turned out not to
+  exist, is §42 in the shipped record.*
 - `[ ]` **43. Two Builder correctness gaps, found in the same audit.** **S**
   - **Multiclass ability prerequisites are not enforced or flagged.** A
     Wizard 5 with Strength 8 can take a Fighter level. `checkPrereq` exists
@@ -116,13 +103,19 @@ modelled, most of them well:
 
 ### C. The Builder and optimizer, fully set
 
-- `[ ]` **43. The Builder completeness pass.** **M** - Audit the character
+- `[ ]` **44. The Builder completeness pass.** **M** - Audit the character
   path end to end against the PHB's character-creation chapter the way §2
-  audited the engine: languages and tools chosen rather than implied,
-  alignment/personality carried to the sheet, starting wealth alternatives,
-  level-20 capstones present for every class, epic boon coverage, and
-  whatever else the pass turns up. The outcome is a list like §2's - each
-  item modelled, or honestly labelled on screen.
+  audited the engine: alignment and personality carried to the sheet,
+  starting wealth alternatives, epic boon coverage, and whatever else the
+  pass turns up. The outcome is a list like §2's - each item modelled, or
+  honestly labelled on screen.
+
+  *Renumbered from 43 (2026-08-09): this section and B's item 43 both
+  carried the number, which would have made every future code comment
+  citing "§43" ambiguous. Two of its original bullets are gone from the
+  list because §43 does them - languages and tools chosen rather than
+  implied - and level-20 capstones came off because the §42 audit found
+  all twelve already present.*
 
 ### Parked
 
@@ -3101,6 +3094,66 @@ real Stealth against real passive Perception and says so in the log; every
 row in the order carries a Surprised toggle that overrules it either way.
 
 Gates green: 1813 tests, `tsc`, `oxlint`, `npm run build`.
+
+---
+
+## 42. The smaller combat rules
+
+Six items, verified against the code before any of them were built. Five
+were real and are done; the sixth was not there to do, and saying so is the
+point of the exercise.
+
+**Three-quarters cover (+5).** The sight engine has reported cover since
+§12.4 as a boolean, and the battle has added +2 for it ever since - so a
+target tucked into a masonry corner and shot at diagonally, with stone on
+both of the axes the attack comes down, got the same +2 as somebody leaning
+past a single pillar. `cover` is now a degree rather than a flag: one
+blocking side is half, two is three-quarters, and `COVER_AC` prices them at
+the SRD's own +2 and +5. Widened rather than joined by a second field,
+because two fields describing one fact is one of them waiting to go stale.
+
+**Frightened's other half, drawn as well as enforced.** `walkInto` has
+refused to let a frightened creature approach what frightened it since
+§27.2 - and the movement wash went on lighting those squares, so the tiles
+said "you can walk here" and the click did nothing. A refusal nobody can see
+is indistinguishable from a bug.
+
+**Heroic Inspiration.** It was in the data - the 2024 Human's Resourceful
+trait says "gain Heroic Inspiration on every long rest" - and there was
+nowhere on a sheet to put one, so the trait was a sentence rather than a
+resource. One chip on the play card, and a boolean rather than a counter,
+because that is the rule: you have one or you do not, and a second is not a
+second reroll.
+
+**The bonus-action spell rule.** The 2014 restriction nothing enforced:
+casting a spell with a bonus action bars every other spell that turn except
+a cantrip with a casting time of one action. Two flags on the turn rather
+than one, because it fires in **either order** - Fireball then Healing Word
+breaks it as surely as the reverse - and the menu needs to know both which
+happened and whether either did. Barred spells are greyed with the reason in
+the tooltip rather than hidden: a spell that vanishes off your own list looks
+like a bug, and one that says why does not.
+
+**Ritual casting.** `Spell.ritual` has been on every spell since the list was
+built and was surfaced **nowhere** - data with no reader is the same thing as
+no data. It now tags the spell on the character sheet, and the command menu
+grows a rituals row that casts for ten minutes and no slot. Its own row
+rather than a second button on each spell, because a ritual is a different
+act and mixing the two into one control is how a slot gets spent by accident.
+
+**Lair actions - struck, because the claim was wrong.** This section's own
+list said they were "parsed off the stat block and dropped". They are not:
+`data/monsters.ts` has no lair field, `scripts/audit/refresh.mjs` never
+reads one, and the SRD fixture contains the phrase "lair actions" only
+inside the prose of *other* abilities. Nothing drops them because nothing
+has them. Building the feature would mean **authoring** lair actions that no
+licensed source in this repository carries, which is exactly what the
+provenance discipline rules out - so it is struck rather than done, on the
+same principle as the ten items §42 struck when it was written: a roadmap
+that invents work is the failure mode item 1.5 was about, and an item that
+invents *data* is worse.
+
+Gates green: `tsc`, `oxlint`, `npm run build`, and the full suite.
 
 ## Recently completed
 

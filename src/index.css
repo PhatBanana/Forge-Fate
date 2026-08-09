@@ -6391,6 +6391,45 @@ dl.detail-list {
   }
 }
 
+/*
+  Heroic Inspiration, one chip on the play card. Reads as a held token when
+  it is held and as an empty slot when it is not, so a glance answers the
+  only question the rule asks.
+*/
+.pcard-insp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin: 6px 0 0;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.pcard-insp b {
+  margin-left: auto;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.78rem;
+  opacity: 0.65;
+}
+
+.pcard-insp.is-held {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.pcard-insp.is-held b {
+  color: var(--accent);
+  opacity: 1;
+}
+
 /* The lights standing on the map, listed under the Field drawer's controls. */
 .light-list {
   list-style: none;
