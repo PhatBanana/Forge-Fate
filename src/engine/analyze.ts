@@ -12,6 +12,7 @@ import { isLegalPointBuy, pointsSpent } from './pointBuy';
 import { ammunitionCarried } from './inventory';
 import { weaponById } from '../data/weapons';
 import { BACKGROUNDS_BY_ID } from '../data/backgrounds';
+import { checkMulticlass } from './conditions';
 
 export type Severity = 'error' | 'warning' | 'info' | 'good';
 
@@ -63,6 +64,29 @@ export function analyze(ctx: BuildContext): Finding[] {
   // Findings about "your primary" mean the attack/save-DC stat specifically,
   // not every ability the class happens to rate highly.
   const key = ctx.keyAbility;
+
+  /*
+    Multiclass prerequisites, §43. `checkPrereq` has covered feats since the
+    Builder had feats and nothing ever checked the multiclassing table, so a
+    Wizard 5 with Strength 8 could take a Fighter level and no screen in the
+    app said a word about it.
+
+    An error rather than a warning: this is not "your build is weak", it is
+    "your character could not legally have been made". Flagged rather than
+    forbidden, because the Builder is a planning tool and refusing the class
+    would answer "does this work?" by hiding the answer - and because a table
+    running the optional waiver, or a sheet imported from one, has to survive
+    the trip.
+  */
+  const legality = checkMulticlass(ctx.slices, scores);
+  if (!legality.ok) {
+    findings.push({
+      severity: 'error',
+      title: 'This multiclass does not meet its prerequisites',
+      detail: legality.problems.join(' '),
+      fix: 'Raise the score in the Abilities section, drop the class, or agree with your table that you are waiving the prerequisite — it is an optional rule some tables ignore.',
+    });
+  }
 
   // --- unspent progression -------------------------------------------------
   const unspent = ctx.asiSlotsReached - ctx.asiSlotsSpent;

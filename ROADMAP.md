@@ -72,16 +72,9 @@ say on the screen that the table has to rule it.
 - `[x]` **42. The smaller combat rules, one by one.** **M** - *shipped
   2026-08-09; the account, including the one item that turned out not to
   exist, is §42 in the shipped record.*
-- `[ ]` **43. Two Builder correctness gaps, found in the same audit.** **S**
-  - **Multiclass ability prerequisites are not enforced or flagged.** A
-    Wizard 5 with Strength 8 can take a Fighter level. `checkPrereq` exists
-    and covers *feats* only. The build review is the natural home - this is
-    a legality question, and §2's discipline says model it or say so on
-    screen.
-  - **Open language and tool slots are counted but never chosen.**
-    `Proficiencies.languages` carries what the lineage and background
-    *grant*; the Builder prints "2 extra languages to choose" and offers no
-    way to choose them, so the pick never reaches the sheet.
+- `[x]` **43. Two Builder correctness gaps.** **S** - *shipped 2026-08-09.
+  One was real; the other was already done and the entry was stale. The
+  account is §43 in the shipped record.*
 
 **Struck from this section after checking the code** - each was already
 modelled, most of them well:
@@ -3152,6 +3145,55 @@ provenance discipline rules out - so it is struck rather than done, on the
 same principle as the ten items §42 struck when it was written: a roadmap
 that invents work is the failure mode item 1.5 was about, and an item that
 invents *data* is worse.
+
+Gates green: `tsc`, `oxlint`, `npm run build`, and the full suite.
+
+---
+
+## 43. Two Builder correctness gaps
+
+One was real. The other had been fixed already and the roadmap had not
+noticed - the second stale entry the §42 audit list turned out to carry, and
+worth recording as plainly as the work itself.
+
+**Multiclass prerequisites, which nothing checked.** `checkPrereq` has
+covered *feats* since the Builder had feats, and the SRD's Multiclassing
+prerequisites table was never in the data at all - so a Wizard 5 with
+Intelligence 8 could take a Fighter level and no screen in the app said a
+word about it. The table is now on the class records, and `checkMulticlass`
+reads it in both directions, because the rule has two halves and the second
+is the one people skip: "you must meet the ability score prerequisites for
+**both your current class and the new one**". The `mode` field earns its
+keep - a Fighter wants Strength 13 **or** Dexterity 13 and a Paladin wants
+Strength 13 **and** Charisma 13, and collapsing the two would let a Paladin
+in on Strength alone.
+
+It **flags rather than forbids**, and the reason is what the Builder is for:
+half of why anyone opens it is to find out whether a build works before
+committing, and refusing the class would answer that question by hiding it.
+It is also the only behaviour that can be right for a table running the
+optional waiver, or for a sheet imported from one. So it lands in the build
+review as an `error` - "your character could not legally have been made" is
+a different severity from "your build is weak" - with the waiver named in
+the fix.
+
+The Artificer has no row, because the multiclassing table never covered it,
+and a missing row is not a failed one.
+
+**Open language and tool slots - already done, entry stale.** The claim was
+that the Builder "prints '2 extra languages to choose' and offers no way to
+choose them, so the pick never reaches the sheet". `ToolsPanel` does exactly
+that job, is mounted in the Builder, writes `build.languages` and
+`build.toolIds`, and the proficiency engine reads both back. What was
+missing was a *test* pinning it - the gap the audit described would have
+reappeared silently - and one signpost: the Proficiencies panel announced
+the open slots without saying where to spend them, two sections above the
+row that spends them. Both fixed.
+
+That is two stale items in one audit list (lair actions in §42, this one
+here). Both were written from reading the roadmap rather than the code, and
+both are struck by the same discipline item 1.5 established: check first,
+then write it down.
 
 Gates green: `tsc`, `oxlint`, `npm run build`, and the full suite.
 

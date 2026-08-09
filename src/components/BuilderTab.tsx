@@ -1676,8 +1676,9 @@ function ProficienciesPanel({
       )}
       {p.languages.open > 0 && (
         <p className="muted">
-          {p.languages.open} extra {p.languages.open === 1 ? 'language' : 'languages'} to choose.
-          Languages are tracked here but not scored — which ones matter is a question for your DM.
+          {p.languages.open} extra {p.languages.open === 1 ? 'language' : 'languages'} to choose —
+          in <strong>Tools and languages</strong>, further down this section. Languages are tracked
+          but not scored: which ones matter is a question for your DM.
         </p>
       )}
     </ChoiceRow>

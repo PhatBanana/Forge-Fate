@@ -1,4 +1,4 @@
-import type { Condition, Feat } from '../types';
+import type { Ability, CharClass, Condition, Feat } from '../types';
 import type { BuildContext } from './character';
 import { armorProficiencies, weaponProficiencies } from './defense';
 import { WEAPONS_BY_ID } from '../data/weapons';
@@ -128,6 +128,58 @@ export function checkPrereq(feat: Feat, ctx: BuildContext, atLevel?: number): Pr
         [...weapons.specific].some((id) => WEAPONS_BY_ID[id]?.category === 'martial');
     }
     if (covered === false) problems.push(prereq.note);
+  }
+
+  return { ok: problems.length === 0, problems };
+}
+
+/**
+ * Whether this build is legal to have taken, as a multiclass.
+ *
+ * "To qualify for a new class, you must meet the ability score prerequisites
+ * for both your current class and the new one." Both halves matter and both
+ * are checked: a Wizard 5 with Strength 8 cannot take a Fighter level, and a
+ * Fighter 5 with Intelligence 8 cannot take a Wizard one.
+ *
+ * ## Why it flags rather than forbids
+ *
+ * The Builder is a planning tool, and half the reason to open it is to find
+ * out *whether* a build works before committing to it. Refusing the class
+ * outright would answer that question by hiding it. So this reports, the
+ * build review carries it as a finding, and the character is still built -
+ * which is also the only behaviour that can be right for a table using the
+ * optional rule that waives prerequisites, and for a build imported from
+ * somewhere that did.
+ *
+ * A single-class character is never checked, because the prerequisites are a
+ * multiclassing rule and nothing else. That is the SRD's own scoping, and
+ * without it every 1st-level Wizard with Intelligence 12 would be scolded.
+ */
+export function checkMulticlass(
+  slices: { klass: CharClass }[],
+  scores: Record<Ability, number>,
+): PrereqResult {
+  const problems: string[] = [];
+  if (slices.length < 2) return { ok: true, problems };
+
+  for (const { klass } of slices) {
+    const prereq = klass.multiclassPrereq;
+    // No entry means the multiclassing table never covered this class - the
+    // Artificer, here - and a missing row is not a failed one.
+    if (!prereq) continue;
+    const met =
+      prereq.mode === 'any'
+        ? prereq.abilities.some((req) => scores[req.ability] >= req.min)
+        : prereq.abilities.every((req) => scores[req.ability] >= req.min);
+    if (met) continue;
+    const text = prereq.abilities
+      .map((req) => `${ABILITY_LABEL[req.ability]} ${req.min}`)
+      .join(prereq.mode === 'any' ? ' or ' : ' and ');
+    problems.push(
+      `Multiclassing into ${klass.name} needs ${text}; this build has ${prereq.abilities
+        .map((req) => `${ABILITY_LABEL[req.ability]} ${scores[req.ability]}`)
+        .join(', ')}.`,
+    );
   }
 
   return { ok: problems.length === 0, problems };

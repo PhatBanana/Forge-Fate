@@ -56,6 +56,7 @@ export const CLASSES: CharClass[] = [
     defaultWeaponStyle: 'str-melee',
     multiclass: { armor: ['shield'], weapons: { categories: ['simple', 'martial'] } },
     skillChoices: { count: 2, from: ['animal-handling', 'athletics', 'intimidation', 'nature', 'perception', 'survival'] },
+    multiclassPrereq: { abilities: [{ ability: 'str', min: 13 }], mode: 'all' },
     subclasses: [
       { id: 'ancestral-guardian', name: 'Path of the Ancestral Guardian', source: 'XGtE', level: 3, note: 'The best tank in 5e - you impose disadvantage and halve damage to allies without spending anything.', tags: ['tank'] },
       { id: 'battlerager', name: 'Path of the Battlerager', source: 'SCAG', level: 3, note: 'Locked to spiked armor and dwarves, and the damage is poor. Skip.', tags: [] },
@@ -87,6 +88,7 @@ export const CLASSES: CharClass[] = [
     defaultWeaponStyle: 'spell',
     skillChoices: { count: 3, from: ALL_SKILL_IDS },
     multiclass: { skills: { count: 1, from: ALL_SKILL_IDS }, armor: ['light'] },
+    multiclassPrereq: { abilities: [{ ability: 'cha', min: 13 }], mode: 'all' },
     subclasses: [
       { id: 'creation', name: 'College of Creation', source: 'TCoE', level: 3, note: 'Animating objects and free items. Quirky, fine.', tags: ['support'] },
       { id: 'dance', name: 'College of Dance', rulesets: ['2024'], source: 'PHB 2024', level: 3, note: 'Unarmored Defense on Dexterity and Charisma, a d6 unarmed strike, and mobility. The Bard answer to a Monk.', tags: ['gish'], abilityPriority: { dex: 2 } },
@@ -117,6 +119,7 @@ export const CLASSES: CharClass[] = [
     defaultWeaponStyle: 'spell',
     multiclass: { armor: ['light', 'medium', 'shield'] },
     skillChoices: { count: 2, from: ['history', 'insight', 'medicine', 'persuasion', 'religion'] },
+    multiclassPrereq: { abilities: [{ ability: 'wis', min: 13 }], mode: 'all' },
     subclasses: [
       { id: 'arcana', name: 'Arcana Domain', source: 'SCAG', level: 1, note: 'Wizard cantrips and spells on a WIS chassis. Strong if allowed.', tags: ['blaster'] },
       { id: 'death', name: 'Death Domain', source: 'DMG', level: 1, note: 'Necromantic damage focus; DMG subclass, often not allowed.', tags: ['blaster'] },
@@ -158,6 +161,7 @@ export const CLASSES: CharClass[] = [
     defaultWeaponStyle: 'spell',
     multiclass: { armor: ['light', 'medium', 'shield'] },
     skillChoices: { count: 2, from: ['animal-handling', 'arcana', 'insight', 'medicine', 'nature', 'perception', 'religion', 'survival'] },
+    multiclassPrereq: { abilities: [{ ability: 'wis', min: 13 }], mode: 'all' },
     subclasses: [
       { id: 'dreams', name: 'Circle of Dreams', source: 'XGtE', level: 2, note: 'Short-rest healing and party travel utility. Solid support.', tags: ['support'] },
       { id: 'land', name: 'Circle of the Land', rulesets: ['2014', '2024'], source: 'PHB', level: 2, note: 'Free spells and recovered slots. The default caster Druid.', tags: ['controller'] },
@@ -189,6 +193,7 @@ export const CLASSES: CharClass[] = [
     skillChoices: { count: 2, from: ['acrobatics', 'animal-handling', 'athletics', 'history', 'insight', 'intimidation', 'perception', 'survival'] },
     // 2024 added Persuasion to the Fighter list.
     skillChoicesIn2024: { count: 2, from: ['acrobatics', 'animal-handling', 'athletics', 'history', 'insight', 'intimidation', 'perception', 'persuasion', 'survival'] },
+    multiclassPrereq: { abilities: [{ ability: 'str', min: 13 }, { ability: 'dex', min: 13 }], mode: 'any' },
     subclasses: [
       { id: 'arcane-archer', name: 'Arcane Archer', source: 'XGtE', level: 3, note: 'Two arrows per short rest. Badly underpowered for the concept.', tags: [] },
       { id: 'battle-master', name: 'Battle Master', rulesets: ['2014', '2024'], source: 'PHB', level: 3, note: 'Superiority dice give real tactical options every fight. The best all-round Fighter.', tags: ['controller'] },
@@ -218,6 +223,7 @@ export const CLASSES: CharClass[] = [
     defaultWeaponStyle: 'unarmed',
     multiclass: { weapons: { categories: ['simple'], specific: ['shortsword'] } },
     skillChoices: { count: 2, from: ['acrobatics', 'athletics', 'history', 'insight', 'religion', 'stealth'] },
+    multiclassPrereq: { abilities: [{ ability: 'dex', min: 13 }, { ability: 'wis', min: 13 }], mode: 'all' },
     subclasses: [
       { id: 'ascendant-dragon', name: 'Way of the Ascendant Dragon', source: 'FToD', level: 3, note: 'Flexible damage types, a breath weapon and flight. Good and thematic.', tags: [] },
       { id: 'astral-self', name: 'Way of the Astral Self', source: 'TCoE', level: 3, note: 'WIS replaces STR/DEX for unarmed strikes and adds reach. Fixes Monk MAD.', tags: [] },
@@ -250,6 +256,7 @@ export const CLASSES: CharClass[] = [
     defaultWeaponStyle: 'str-melee',
     multiclass: { armor: ['light', 'medium', 'shield'], weapons: { categories: ['simple', 'martial'] } },
     skillChoices: { count: 2, from: ['athletics', 'insight', 'intimidation', 'medicine', 'persuasion', 'religion'] },
+    multiclassPrereq: { abilities: [{ ability: 'str', min: 13 }, { ability: 'cha', min: 13 }], mode: 'all' },
     subclasses: [
       { id: 'ancients', name: 'Oath of the Ancients', rulesets: ['2014', '2024'], source: 'PHB', level: 3, note: 'Aura of Warding halves all magic damage for the party. Extremely strong at tier 3.', tags: ['tank'] },
       { id: 'conquest', name: 'Oath of Conquest', source: 'XGtE', level: 3, note: 'Frightened enemies cannot move. Best control Paladin.', tags: ['controller', 'tank'] },
@@ -287,6 +294,7 @@ export const CLASSES: CharClass[] = [
     defaultWeaponStyle: 'dex-ranged',
     skillChoices: { count: 3, from: ['animal-handling', 'athletics', 'insight', 'investigation', 'nature', 'perception', 'stealth', 'survival'] },
     multiclass: { skills: { count: 1, from: ['animal-handling', 'athletics', 'insight', 'investigation', 'nature', 'perception', 'stealth', 'survival'] }, armor: ['light', 'medium', 'shield'], weapons: { categories: ['simple', 'martial'] } },
+    multiclassPrereq: { abilities: [{ ability: 'dex', min: 13 }, { ability: 'wis', min: 13 }], mode: 'all' },
     subclasses: [
       { id: 'beast-master', name: 'Beast Master', rulesets: ['2014', '2024'], source: 'PHB', level: 3, note: 'The PHB version is famously weak; use the Tasha\'s Primal Companion option instead.', tags: ['summoner'] },
       { id: 'fey-wanderer', name: 'Fey Wanderer', rulesets: ['2014', '2024'], source: 'TCoE', level: 3, note: 'WIS-based bonus damage on every hit plus charm defenses. Best all-round Ranger.', tags: ['support'] },
@@ -316,6 +324,7 @@ export const CLASSES: CharClass[] = [
     defaultWeaponStyle: 'dex-melee',
     skillChoices: { count: 4, from: ['acrobatics', 'athletics', 'deception', 'insight', 'intimidation', 'investigation', 'perception', 'performance', 'persuasion', 'sleight-of-hand', 'stealth'] },
     multiclass: { skills: { count: 1, from: ['acrobatics', 'athletics', 'deception', 'insight', 'intimidation', 'investigation', 'perception', 'performance', 'persuasion', 'sleight-of-hand', 'stealth'] }, armor: ['light'], tools: ["Thieves' tools"] },
+    multiclassPrereq: { abilities: [{ ability: 'dex', min: 13 }], mode: 'all' },
     subclasses: [
       { id: 'arcane-trickster', name: 'Arcane Trickster', rulesets: ['2014', '2024'], source: 'PHB', level: 3, note: 'Booming Blade, Shield and Find Familiar (a reliable advantage engine). Excellent.', tags: ['gish'], castingType: 'third', castingAbility: 'int', abilityPriority: { int: 2 } },
       { id: 'assassin', name: 'Assassin', rulesets: ['2014', '2024'], source: 'PHB', level: 3, note: 'Devastating in ambushes, dead weight in every other fight. Highly campaign-dependent.', tags: ['stealth'] },
@@ -345,6 +354,7 @@ export const CLASSES: CharClass[] = [
     weaponProficiency: { categories: [], specific: ['dagger', 'dart', 'sling', 'quarterstaff', 'light-crossbow'] },
     defaultWeaponStyle: 'spell',
     skillChoices: { count: 2, from: ['arcana', 'deception', 'insight', 'intimidation', 'persuasion', 'religion'] },
+    multiclassPrereq: { abilities: [{ ability: 'cha', min: 13 }], mode: 'all' },
     subclasses: [
       { id: 'aberrant-mind', name: 'Aberrant Mind', rulesets: ['2014', '2024'], nameIn2024: 'Aberrant Sorcery', source: 'TCoE', level: 1, note: 'Free extra spells known and sorcery-point Subtle casting. Fixes the Sorcerer\'s biggest weakness.', tags: ['controller'] },
       { id: 'clockwork-soul', name: 'Clockwork Soul', rulesets: ['2014', '2024'], nameIn2024: 'Clockwork Sorcery', source: 'TCoE', level: 1, note: 'Free spells plus a d8 to any attack or save in the party. Superb.', tags: ['support'] },
@@ -374,6 +384,7 @@ export const CLASSES: CharClass[] = [
     defaultWeaponStyle: 'spell',
     multiclass: { armor: ['light'], weapons: { categories: ['simple'] } },
     skillChoices: { count: 2, from: ['arcana', 'deception', 'history', 'intimidation', 'investigation', 'nature', 'religion'] },
+    multiclassPrereq: { abilities: [{ ability: 'cha', min: 13 }], mode: 'all' },
     subclasses: [
       { id: 'archfey', name: 'The Archfey', rulesets: ['2014', '2024'], nameIn2024: 'Archfey Patron', source: 'PHB', level: 1, note: 'Fey Presence charm/fear burst. Decent control.', tags: ['controller'] },
       { id: 'celestial', name: 'The Celestial', rulesets: ['2014', '2024'], nameIn2024: 'Celestial Patron', source: 'XGtE', level: 1, note: 'Healing light and Cure Wounds. The support Warlock.', tags: ['support'] },
@@ -409,6 +420,7 @@ export const CLASSES: CharClass[] = [
     weaponProficiency: { categories: [], specific: ['dagger', 'dart', 'sling', 'quarterstaff', 'light-crossbow'] },
     defaultWeaponStyle: 'spell',
     skillChoices: { count: 2, from: ['arcana', 'history', 'insight', 'investigation', 'medicine', 'religion'] },
+    multiclassPrereq: { abilities: [{ ability: 'int', min: 13 }], mode: 'all' },
     subclasses: [
       { id: 'abjuration', name: 'School of Abjuration', rulesets: ['2014', '2024'], nameIn2024: 'Abjurer', source: 'PHB', level: 2, note: 'Arcane Ward soaks damage all day for free. The most durable Wizard.', tags: ['tank'] },
       { id: 'bladesinging', name: 'Bladesinging', source: 'TCoE/SCAG', level: 2, features: [{ level: 6, name: 'Extra Attack', summary: 'Attack twice with the Attack action.', tags: ['extra-attack'] }], note: 'INT to AC, Extra Attack at 6, and full Wizard casting. The best gish in the game. Wants DEX 16+.', tags: ['gish'], abilityPriority: { dex: 3 }, armorProficiency: ['light'] },

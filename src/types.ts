@@ -258,6 +258,19 @@ export interface CharClass {
    * true of Sorcerer and Wizard.
    */
   multiclass?: MulticlassGrant;
+  /**
+   * The ability scores a character needs to *take* a level in this class
+   * after the first, from the SRD's Multiclassing prerequisites table.
+   *
+   * `mode` because the table has both shapes: a Fighter wants Strength 13
+   * **or** Dexterity 13, a Paladin wants Strength 13 **and** Charisma 13,
+   * and collapsing the two would let a Paladin in on Strength alone.
+   *
+   * Absent means the class has no prerequisite, which in the SRD is only
+   * true of the Artificer - a class from a later book that this project
+   * carries and the multiclassing table never covered.
+   */
+  multiclassPrereq?: { abilities: { ability: Ability; min: number }[]; mode: 'all' | 'any' };
   subclasses: Subclass[];
   note: string;
 }
