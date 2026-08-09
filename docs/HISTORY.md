@@ -3504,3 +3504,47 @@ not crit - but it does mean the rule is enforced on the attack path only. If
 a future path can crit, it has to pass the flag; the parameter's default
 being `false` makes forgetting silent, which is the one thing about this fix
 worth watching.
+
+## 49. Correction: the sources were there all along
+
+§46 and §47 both said the feats and backgrounds audits were blocked. Both
+were wrong, and the mistake is worth keeping because of its shape rather
+than its size.
+
+**The first error.** I checked `dnd5eapi/api/feats`, got one record
+(Grappler), and concluded SRD 5.1 carries no feat list. That part is true.
+What I then wrote is that the 2024 half needed Open5e - because I never
+checked whether dnd5eapi had a 2024 namespace. It does:
+
+    /api/2024/feats           17 records
+    /api/2024/backgrounds      4 records
+
+The unversioned paths alias to 2014, so `/api/feats` answers as
+`/api/2014/feats` and says nothing whatever about 2024. One missing URL
+segment, and a conclusion written into two shipped documents.
+
+**The second error.** Open5e timed out on every request for the whole of
+that session, so I recorded it "unreachable". It is not: it answers in
+83-600 ms, and serves the same 17 feats and 4 backgrounds under
+`document__key=srd-2024`. A transient outage written down as a property of
+the source.
+
+The two together are the same failure twice: a negative result from one
+probe, promoted to a fact about the world. "I could not reach it" and "it is
+not there" are different sentences, and only one of them belonged in a
+roadmap.
+
+**What the survey actually found.** Both APIs cover both editions, with one
+gap each: dnd5eapi's 2024 namespace has no spells, and Open5e's SRD
+documents are two of twenty-four - the rest are Kobold Press, Level Up A5e,
+Tal'dorei and Black Flag, none of which this project takes. `document__key`
+is a filter to pass every time, not a default. The table is in the roadmap
+under **Where the data comes from**, with both traps written out.
+
+**And the number that matters more than either.** The app ships **97 feats
+and 29 backgrounds**. The SRD covers **17 and 4** under 2024, **1 and 1**
+under 2014. So about eighty feats and twenty-five backgrounds have no
+licensed source at all - the same position as the ~108 non-SRD subclasses,
+and a much bigger fact than which API to call. Auditing these two tables
+means verifying the SRD subset and labelling the remainder. It is a coverage
+line under Provenance, not a box that will ever be ticked.

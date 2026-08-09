@@ -14,7 +14,7 @@ from the books" is an honest provenance and a weaker one than "verified against
 the SRD" — the audits exist because the difference turned out to matter
 fourteen times over. See **Provenance** below.
 
-The shipped history — forty-eight sections with their reasoning — lives in
+The shipped history — forty-nine sections with their reasoning — lives in
 **`docs/HISTORY.md`** so this file can be a plan.
 
 ---
@@ -92,26 +92,32 @@ clause.
 ### 2. Data provenance — `[~]` one of three tables done **M**
 
 One job wearing three hats: extend `refresh.mjs` and `srdAudit.test.ts` to
-the tables they never reached. Thirteen tables are audited now; two are
-left, and both are blocked on the same missing source rather than on work.
+the tables they never reached. Twenty-one tables are audited now; two are
+left, and **neither is blocked** — that claim was mine and it was wrong.
 
 - `[x]` **The 2014 class feature table.** Done — `srd-2014-class-levels`
   and the check that reads it. See §46. It found eight features the app
   did not have, a Barbarian ladder a 2024 character was getting on top of
   its replacement, and two bugs on the way out.
-- `[!]` **Feats, epic boons included** — *blocked on 2024, closed on 2014.*
-  Checked rather than assumed on 2026-08-09: `dnd5eapi /api/feats` returns
-  **one** record, Grappler. So SRD 5.1 does not carry the feat list at all,
-  and the 2014 half is not "unaudited" — it is unauditable, and belongs
-  beside the non-SRD subclasses under **Provenance**. The 2024 half needs
-  Open5e's `srd-2024`, which was unreachable from this container all
-  session (every request past 110s, while dnd5eapi answered in one). Retry
-  the fetch before assuming it needs work.
-- `[!]` **Backgrounds** — *same shape.* `dnd5eapi /api/backgrounds` returns
-  **one** record, Acolyte, so 28 of the app's 29 rows have no 5.1 source.
-  The 2024 half matters more anyway — a background sets the ability
-  increases *and* the origin feat there, so a wrong row moves real numbers
-  — and it is behind the same unreachable Open5e endpoint.
+- `[ ]` **Feats, epic boons included.** **S**, and unblocked. §46 and §47
+  called this blocked on two counts and was wrong on both: `dnd5eapi` has a
+  full **`/api/2024/`** namespace that was never checked - only `/api/feats`,
+  which aliases to 2014 - and it serves **17 feats**. Open5e was down for
+  that session, not gone; it answers in under a second and serves the same
+  17 under `document__key=srd-2024`. Two independent sources agreeing on the
+  count is better corroboration than either alone.
+- `[ ]` **Backgrounds.** **S**, same story: `/api/2024/backgrounds` serves
+  **4**, each carrying the ability scores, the origin feat, proficiencies and
+  equipment - which is exactly the data that "moves real numbers". Open5e
+  agrees on 4.
+
+**What the numbers mean, and why this item can never reach 100%.** The app
+ships **97 feats and 29 backgrounds**; the SRD covers 17 and 4 under 2024,
+and 1 and 1 under 2014. So roughly 80 feats and 25 backgrounds have no
+licensed source, the same position as the ~108 non-SRD subclasses. Auditing
+these two tables means *verifying the SRD subset and labelling the rest* -
+finishing this item is a coverage line under **Provenance**, not a green
+tick.
 
 ### 3. Small and optional — `[ ]` **XS each**
 
@@ -199,6 +205,36 @@ difference turned out to matter fourteen times over.
 - `[!]` **Lair actions** - the same problem in miniature: no fixture carries
   them, so building the feature would mean authoring content.
 
+### Where the data comes from
+
+Surveyed and timed on 2026-08-09, because "no source exists" had been
+asserted twice on the strength of one unchecked URL and one bad afternoon.
+
+| Source | Covers | Notes |
+|---|---|---|
+| **dnd5eapi** `/api/2014/*` | SRD 5.1 | 24 endpoints. The only source for **spells**, `rules` and `rule-sections`. |
+| **dnd5eapi** `/api/2024/*` | SRD 5.2 | 23 endpoints incl. feats, backgrounds, species, subspecies, poisons, weapon-mastery-properties. **No spells.** |
+| **Open5e** `v2/?document__key=srd-2014` | SRD 5.1 | Second opinion. 319 spells, 1 feat, 1 background. |
+| **Open5e** `v2/?document__key=srd-2024` | SRD 5.2 | The 2024 equipment table and class progressions; 339 spells, 17 feats, 4 backgrounds. |
+
+Two traps worth writing down:
+
+1. **`/api/feats` is not `/api/2024/feats`.** The unversioned paths alias to
+   2014, so checking `/api/feats`, finding one record and concluding "the SRD
+   has no feats" is a mistake this project has now made once. Always name the
+   edition.
+2. **Open5e serves 24 documents and only two of them are the SRD.** Kobold
+   Press (Tome of Beasts, Deep Magic), Level Up A5e, Tal'dorei and Black Flag
+   all sit behind the same endpoints under different `document__key`s. They
+   are separately licensed third-party content, not SRD, and this project
+   takes neither - `document__key` is a filter that has to be passed every
+   time, not a default.
+
+GitHub is a third route in principle - the `5e-bits/5e-database` repo is what
+dnd5eapi serves - but `api.github.com` is gated in this environment (403,
+needs an explicit repo grant) and the raw-content paths did not resolve on a
+first guess. Not needed while both APIs answer.
+
 This is also why the app may write **its own** subclasses under its own
 names, badged and off by default - that is a new thing rather than a
 forgery, and it is the parked §9.
@@ -207,7 +243,7 @@ forgery, and it is the parked §9.
 
 ## History
 
-Forty-eight shipped sections, with the reasoning intact, live in
+Forty-nine shipped sections, with the reasoning intact, live in
 **`docs/HISTORY.md`**. Forty-four of them were split out of this file on
 2026-08-09 — forty-four numbered sections had made a *plan* unreadable, and
 a roadmap should say what is left rather than what was done. §45 was
@@ -232,4 +268,4 @@ section has gone since.
 | The full-screen game UI | 31-35 |
 | The game look, finished | 36-38 |
 | 5e core mechanics: grapple, light, surprise, the small rules | 39-42 |
-| Builder correctness, and the audits that found it | 43-48 |
+| Builder correctness, and the audits that found it | 43-49 |
