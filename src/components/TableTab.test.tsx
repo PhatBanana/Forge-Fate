@@ -3482,14 +3482,26 @@ describe('grappling, and getting free', () => {
     user: ReturnType<typeof userEvent.setup>,
     view: ReturnType<typeof setup>,
   ) => {
-    for (let i = 0; i < 40 && !goblinOf(view).conditions.includes('grappled'); i++) {
+    const held = () => goblinOf(view).conditions.includes('grappled');
+    for (let i = 0; i < 60 && !held(); i++) {
       await user.click(within(cardMenu()).getByRole('button', { name: 'Grapple' }));
       boxMapG();
       await user.click(document.querySelector('.dmap-token.monster') as Element);
-      if (!goblinOf(view).conditions.includes('grappled')) {
+      if (!held()) {
         await user.click(screen.getByRole('button', { name: /end turn/i }));
         await user.click(screen.getByRole('button', { name: /end turn/i }));
       }
+    }
+    /*
+      Fail here rather than three assertions later. This loop rolls real dice
+      and gives the action back between tries, so it can in principle run out
+      - and when it did once under full parallel load, the test that used it
+      failed on "conditions did not contain grappled", which reads like the
+      grapple is broken rather than like the setup never happened. A helper
+      that cannot do its job has to say so itself.
+    */
+    if (!held()) {
+      throw new Error('setup failed: the grapple never landed in 60 attempts');
     }
   };
 

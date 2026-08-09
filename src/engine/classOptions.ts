@@ -82,7 +82,9 @@ export interface OptionGroup {
   suggestions: OptionSuggestion[];
 }
 
-const KIND_LABELS: Record<ClassOptionKind, { one: string; many: string }> = {
+/** Plural and singular for each option kind, exported so the legality engine
+    can name a budget without a second copy of the words. */
+export const KIND_LABELS: Record<ClassOptionKind, { one: string; many: string }> = {
   'fighting-style': { one: 'fighting style', many: 'fighting styles' },
   'pact-boon': { one: 'Pact Boon', many: 'Pact Boons' },
   invocation: { one: 'Eldritch Invocation', many: 'Eldritch Invocations' },

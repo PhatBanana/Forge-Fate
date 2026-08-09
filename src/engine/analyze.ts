@@ -13,6 +13,7 @@ import { ammunitionCarried } from './inventory';
 import { weaponById } from '../data/weapons';
 import { BACKGROUNDS_BY_ID } from '../data/backgrounds';
 import { checkMulticlass } from './conditions';
+import { describeOverspend, illegalFeats, overspends, uncastableSpells } from './legality';
 
 export type Severity = 'error' | 'warning' | 'info' | 'good';
 
@@ -78,6 +79,41 @@ export function analyze(ctx: BuildContext): Finding[] {
     running the optional waiver, or a sheet imported from one, has to survive
     the trip.
   */
+  /*
+    Every budget spent past its limit, §45. Each of these was silent: the
+    "how many are open" fields all clamp at zero, so a Bard knowing 25 spells
+    of a permitted 22 read exactly like one knowing 22. One finding per
+    budget rather than one combined, because they are fixed in different
+    panels and a reader needs to know which.
+  */
+  for (const over of overspends(ctx)) {
+    findings.push({
+      severity: 'error',
+      title: `${over.taken} ${over.label}, and this build allows ${over.allowed}`,
+      detail: `${describeOverspend(over)} are recorded. A character cannot hold more than the rules give them, so this build could not have been made as it stands.`,
+      fix: `Drop ${over.taken - over.allowed} in the ${over.where} section.`,
+    });
+  }
+
+  /*
+    And spells nothing can cast. A level-3 Artificer with a 2nd-level spell
+    on the sheet is not a questionable pick, it is a spell they do not have a
+    slot for - at 36 class-and-level combinations, silently.
+  */
+  const uncastable = uncastableSpells(ctx);
+  if (uncastable.length) {
+    const worst = uncastable.reduce((a, b) => (a.level >= b.level ? a : b));
+    findings.push({
+      severity: 'error',
+      title: `${uncastable.length} spell${uncastable.length === 1 ? '' : 's'} above every slot this character has`,
+      detail:
+        worst.topSlot === 0
+          ? `${uncastable.map((s) => s.name).join(', ')} cannot be cast: this character has no spell slots at all.`
+          : `${uncastable.map((s) => `${s.name} (level ${s.level})`).join(', ')} — the highest slot here is level ${worst.topSlot}.`,
+      fix: 'Swap them for something castable, or come back at the level the slot arrives.',
+    });
+  }
+
   const legality = checkMulticlass(ctx.slices, scores);
   if (!legality.ok) {
     findings.push({
@@ -194,6 +230,27 @@ export function analyze(ctx: BuildContext): Finding[] {
       severity: 'good',
       title: 'Concentration is protected',
       detail: 'You have taken a feat that keeps your concentration spells running under fire.',
+    });
+  }
+
+  /*
+    Origin feats, §45: the wrong category for the slot, and prerequisites the
+    loop below never reached because it walks `featIds` only. The same feat
+    was flagged in one slot and silent in the other.
+  */
+  for (const bad of illegalFeats(
+    ctx,
+    (id, ruleset) => featById(id, ruleset as typeof ctx.build.ruleset),
+    (id) => {
+      const feat = featById(id, ctx.build.ruleset);
+      return feat ? checkPrereq(feat, ctx).problems : [];
+    },
+  )) {
+    findings.push({
+      severity: 'error',
+      title: `${bad.name} cannot sit in an origin slot`,
+      detail: `${bad.name} ${bad.reason}.`,
+      fix: 'Swap it for an Origin feat, or take it with an ability score improvement instead.',
     });
   }
 

@@ -430,3 +430,5 @@ This project is not affiliated with or endorsed by Wizards of the Coast.
   test suites, deploying.
 - **[docs/engine.md](docs/engine.md)** — how the recommendations are computed.
 - **[ROADMAP.md](ROADMAP.md)** — what is left, what is blocked and by what.
+- **[docs/HISTORY.md](docs/HISTORY.md)** — every shipped section with its
+  reasoning. Code comments cite these numbers, so they never change.
