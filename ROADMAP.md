@@ -41,7 +41,7 @@ and the box stays unticked until they are. See the live plan.
 
 ## The live plan
 
-Only *open* work lives here. Anything shipped moves to the record below —
+Only *open* work lives here. Anything shipped moves to `docs/HISTORY.md` —
 a plan full of ticked boxes is a changelog wearing a plan's clothes, and it
 was hiding how much is actually left.
 
@@ -74,10 +74,10 @@ box unticked:
   **S**, *blocked on provenance* — 2024's equivalent is modelled; the 2014
   table is not in any fixture the app ships, and whether SRD 5.1 carries it
   is unverified. Check the source before doing the work. See §44.
-- `[–]` **Mounted combat, underwater combat, chase rules.** Out of scope for
-  a tabletop aid at this table's scale — the DM rules them. A decision.
-- `[–]` **Massive damage.** Deliberately unmodelled, with a comment in the
-  code saying so. A table call.
+- `[–]` **Four rules ruled out on purpose** — mounted and underwater combat,
+  chases, and massive damage. Listed once, under **Decisions on record**;
+  they count toward "every line is a recorded decision" rather than toward
+  work left.
 
 **Checked and already done** — kept so the same items are not "found"
 again, which has now happened twice: concentration DCs, death saves,
@@ -119,8 +119,6 @@ misses these.
   would be worse than the gap.
 - `[ ]` **9.2 The originals switch / 9.3 Twelve original subclasses** -
   parked by the project owner after 9.1.
-
----
 
 ---
 
