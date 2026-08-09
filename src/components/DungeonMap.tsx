@@ -163,6 +163,7 @@ export function DungeonMap({
   ruler = null,
   arc = null,
   fog = null,
+  gloom,
   onMove,
   onPaint,
   onHover,
@@ -207,6 +208,15 @@ export function DungeonMap({
   /** Fog of war: what the party sees now, and what it has seen before.
       Squares in neither set are dark; explored-but-unseen are dim. */
   fog?: { visible: Set<string>; explored: Set<string> } | null;
+  /**
+   * How dark each square is, by key - only the ones that are not bright, so
+   * a fully lit map hands over an empty object and draws nothing.
+   *
+   * Under the fog rather than over it: the fog is what the party *knows*
+   * and the gloom is what is *there*, so an unexplored square reads as
+   * unexplored rather than as unlit. Both layers ignore the pointer.
+   */
+  gloom?: Record<string, 'dim' | 'dark'>;
   onMove?: (id: string, to: Square) => void;
   /**
    * Present while a terrain brush is selected. Clicking or dragging across
@@ -603,6 +613,29 @@ export function DungeonMap({
           )}
         </g>
       ))}
+
+      {/*
+        The dark, §40. Drawn as a wash over the ground and everything on it,
+        because a torch does not light a room by lighting the floor - the
+        whole square is dim or is not.
+      */}
+      {gloom && Object.keys(gloom).length > 0 && (
+        <g className="dmap-gloom-layer" pointerEvents="none">
+          {Object.entries(gloom).map(([key, level]) => {
+            const [x, y] = key.split(',').map(Number);
+            return (
+              <rect
+                key={`gloom${key}`}
+                className={`dmap-gloom is-${level}`}
+                x={x * CELL}
+                y={y * CELL}
+                width={CELL}
+                height={CELL}
+              />
+            );
+          })}
+        </g>
+      )}
 
       {/*
         The fog, over everything that stands and under the measuring tools:

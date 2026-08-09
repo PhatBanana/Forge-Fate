@@ -276,3 +276,51 @@ describe('the Dodge action, at last worth an action', () => {
     ).toBe('advantage');
   });
 });
+
+describe('fighting in the dark', () => {
+  const plain = { conditions: [] };
+
+  it('costs disadvantage when you cannot see what you are swinging at', () => {
+    const odds = oddsFor({
+      attacker: plain,
+      target: plain,
+      adjacent: true,
+      attackerSeesTarget: false,
+      targetSeesAttacker: true,
+    });
+    expect(odds.mode).toBe('disadvantage');
+    expect(describeOdds(odds)).toContain('cannot see');
+  });
+
+  it('grants advantage when they cannot see you', () => {
+    expect(
+      oddsFor({
+        attacker: plain,
+        target: plain,
+        adjacent: true,
+        attackerSeesTarget: true,
+        targetSeesAttacker: false,
+      }).mode,
+    ).toBe('advantage');
+  });
+
+  it('cancels in mutual darkness, which is the SRD answer', () => {
+    // Two blind swings at each other is a straight roll, not a stack of
+    // modifiers - and the log still names both halves.
+    const odds = oddsFor({
+      attacker: plain,
+      target: plain,
+      adjacent: true,
+      attackerSeesTarget: false,
+      targetSeesAttacker: false,
+    });
+    expect(odds.mode).toBe('normal');
+    expect(odds.cancelled).toBe(true);
+  });
+
+  it('changes nothing at a table with no light model', () => {
+    // Undefined is not false: a caller that never asked must be unaffected.
+    expect(oddsFor({ attacker: plain, target: plain, adjacent: true }).reasons).toEqual([]);
+  });
+});
+

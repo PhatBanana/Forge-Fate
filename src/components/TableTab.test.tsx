@@ -3600,6 +3600,168 @@ describe('grappling, and getting free', () => {
 });
 
 /**
+ * Section 40. The arithmetic is `engine/light.test.ts`; what needs a
+ * component test is that the light reaches the map, the fog and the dice -
+ * the three places it had never reached before, which is why darkvision was
+ * a trait the Builder rated and the battle ignored.
+ */
+describe('light and darkness', () => {
+  const mapElL = () => document.querySelector('.dmap') as SVGSVGElement;
+  const boxMapL = () => {
+    mapElL().getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+  };
+
+  const darkSquares = () => document.querySelectorAll('.dmap-gloom.is-dark').length;
+  const dimSquares = () => document.querySelectorAll('.dmap-gloom.is-dim').length;
+
+  /** A blank grid with the party on it, and the Field drawer open. */
+  const field = async (user: ReturnType<typeof userEvent.setup>) => {
+    const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
+    const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name }));
+    // Adding is not selecting: the row's own button is what puts somebody in
+    // the cockpit, and the light tool hands its torch to whoever is there.
+    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
+    boxMapL();
+    fireEvent.pointerDown(mapElL(), { clientX: 10.5 * 10, clientY: 10.5 * 10 });
+    await open(user, 'Field');
+    return { view, name };
+  };
+
+  const goDark = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.selectOptions(screen.getByLabelText(/ambient light/i), 'dark');
+  };
+
+  it('draws nothing at all until somebody says it is dark', async () => {
+    const user = userEvent.setup();
+    await field(user);
+    // Every fight from before §40 is a bright one, and a bright map hands
+    // the cameras an empty object.
+    expect(darkSquares()).toBe(0);
+    expect(dimSquares()).toBe(0);
+  });
+
+  it('darkens the whole grid when the dungeon is unlit', async () => {
+    const user = userEvent.setup();
+    await field(user);
+    await goDark(user);
+    expect(darkSquares()).toBeGreaterThan(100);
+    expect(dimSquares()).toBe(0);
+  });
+
+  it('lights a patch of it with a torch, bright inside and dim beyond', async () => {
+    const user = userEvent.setup();
+    const { view } = await field(user);
+    await goDark(user);
+    const before = darkSquares();
+
+    await user.click(screen.getByRole('button', { name: 'Torch' }));
+    boxMapL();
+    fireEvent.pointerDown(mapElL(), { clientX: 20.5 * 10, clientY: 20.5 * 10 });
+
+    // Twenty feet of bright is a nine-by-nine block with nothing drawn over
+    // it; the dim ring beyond it is drawn, at half the wash.
+    expect(darkSquares()).toBeLessThan(before);
+    expect(dimSquares()).toBeGreaterThan(0);
+    expect(view.encounter.lights?.length).toBe(1);
+    expect((view.encounter.log ?? [])[0].text).toMatch(/torch is lit/i);
+  });
+
+  it('snuffs it without losing it, and puts it out again', async () => {
+    const user = userEvent.setup();
+    const { view } = await field(user);
+    await goDark(user);
+    await user.click(screen.getByRole('button', { name: 'Torch' }));
+    boxMapL();
+    fireEvent.pointerDown(mapElL(), { clientX: 20.5 * 10, clientY: 20.5 * 10 });
+    const lit = darkSquares();
+
+    await user.click(screen.getByRole('button', { name: 'Snuff' }));
+    expect(darkSquares()).toBeGreaterThan(lit);
+    // The same lamp, currently out - not deleted, which is why it can come
+    // back on.
+    expect(view.encounter.lights?.length).toBe(1);
+    await user.click(screen.getByRole('button', { name: 'Light it' }));
+    expect(darkSquares()).toBe(lit);
+  });
+
+  it('carries a light with whoever is holding it', async () => {
+    const user = userEvent.setup();
+    const { view } = await field(user);
+    await goDark(user);
+    await user.click(screen.getByRole('button', { name: 'Torch' }));
+    await user.click(screen.getByRole('button', { name: /^Give it to/ }));
+
+    expect(view.encounter.lights?.[0].carriedBy).toBe(view.encounter.combatants[0].id);
+    // And it lights the map from where they are standing, without ever having
+    // been given a square of its own.
+    expect(view.encounter.lights?.[0].at).toBeUndefined();
+    expect(dimSquares()).toBeGreaterThan(0);
+  });
+
+  it('reaches the dice: swinging at what you cannot see', async () => {
+    const user = userEvent.setup();
+    const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
+    await bestiaryReady();
+    const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Bestiary');
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
+    const entry = [...document.querySelectorAll('.mon-list li')].find(
+      (li) => li.querySelector('b')?.textContent === 'Goblin',
+    ) as HTMLElement;
+    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+
+    boxMapL();
+    const put = (at: { x: number; y: number }) =>
+      fireEvent.pointerDown(mapElL(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
+    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
+    put({ x: 10, y: 10 });
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
+    put({ x: 11, y: 10 });
+
+    await open(user, 'Field');
+    await user.selectOptions(screen.getByLabelText(/ambient light/i), 'dark');
+
+    await open(user, 'Order');
+    fireEvent.change(within(rowFor(name)).getByLabelText(new RegExp(`${name} initiative`, 'i')), {
+      target: { value: '30' },
+    });
+    fireEvent.change(within(rowFor('Goblin')).getByLabelText(/goblin initiative/i), {
+      target: { value: '1' },
+    });
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+
+    boxMapL();
+    await user.click(document.querySelector('.dmap-token.monster') as Element);
+
+    const log = (view.encounter.log ?? []).map((l) => l.text).join('\n');
+    // The goblin has darkvision and the fighter does not, so this is the one
+    // case that does *not* cancel: they see you coming, you are swinging
+    // blind. Both halves are named, and the die that follows is the one the
+    // note describes.
+    expect(log).toMatch(/disadvantage: swinging at what you cannot see/);
+  });
+
+  it('shows the party only what their own eyes can reach in the dark', async () => {
+    const user = userEvent.setup();
+    const { view } = await field(user);
+    await goDark(user);
+    await user.click(screen.getByLabelText(/fog of war/i).closest('label')!.querySelector('input')!);
+
+    // A party with no darkvision and no light knows the square it stands on
+    // and nothing else - which is what a pitch-dark dungeon is.
+    const eyes = view.encounter.combatants.filter((c) => c.kind === 'character' && c.at).length;
+    const clear = document.querySelectorAll('.dmap-fog').length;
+    const total = 40 * 30;
+    expect(total - clear).toBeLessThanOrEqual(eyes);
+  });
+});
+
+/**
  * Section 26.3. High ground has been computed and announced since 12.4 and
  * has never changed a number. This is the switch that lets a table say it
  * should - and the tests that pin it staying off until they do.

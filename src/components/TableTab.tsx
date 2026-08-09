@@ -57,7 +57,11 @@ import {
   addTimedMonsterCondition,
   appendLog,
   delayTurn,
+  addLight,
+  removeLight,
+  setAmbientLight,
   setMonsterRecharge,
+  toggleLightOut,
   spendLegendary,
   spendMonsterMovement,
   spendMonsterReaction,
@@ -111,6 +115,16 @@ import { damageDice } from '../data/weapons';
 import { hitChance } from '../engine/dpr';
 import { flanked, heightAdvantage } from '../engine/tactics';
 import { visibleFrom } from '../engine/fog';
+import {
+  LIGHT_KINDS,
+  canSeeInto,
+  feetIn,
+  lightAt,
+  perceptionPenalty,
+  placeLights,
+  seenAs,
+} from '../engine/light';
+import type { Eyes, LightLevel } from '../engine/light';
 import { Panel } from './shared';
 import { MonsterCard } from './MonsterCard';
 import { PopOut } from './PopOut';
@@ -334,6 +348,13 @@ export function TableTab({
    * it, which would have needed every "put the tool down" to learn a new name.
    */
   const [grab, setGrab] = useState<{ byId: string; mode: GrabMode } | null>(null);
+  /**
+   * A light waiting for a square: the next click on the map puts it down.
+   *
+   * The same arm-then-click grammar as a zone or a shove, because it is the
+   * same gesture and a DM should not have to learn a second one.
+   */
+  const [placingLight, setPlacingLight] = useState<string | null>(null);
   /** The optional rules this table has switched on. Off is the book. */
   /*
     Which drawer is open over the map, or none.
@@ -440,6 +461,21 @@ export function TableTab({
   );
 
   const paintAt = (at: Square) => {
+    // A light being placed claims the click first: it is the simplest tool
+    // in hand and has no second step to get wrong.
+    if (placingLight) {
+      const kind = LIGHT_KINDS.find((k) => k.id === placingLight);
+      setPlacingLight(null);
+      if (kind) {
+        setEncounter(
+          appendLog(
+            addLight(encounter, { label: kind.label, at, bright: kind.bright, dim: kind.dim }),
+            `A ${kind.label.toLowerCase()} is lit.`,
+          ),
+        );
+      }
+      return;
+    }
     /*
       A spell being placed claims the click. Aimed shapes take the origin
       first, then the click that points them.
@@ -862,19 +898,115 @@ export function TableTab({
   );
 
   /*
+    The lights, with the carried ones stood where their bearer is standing.
+
+    A torch is the commonest light in the game and a torch that stays where it
+    was lit is not a torch, so the position of a carried light is derived from
+    its bearer on every render rather than written down and kept in step.
+  */
+  const lights = useMemo(
+    () =>
+      placeLights(
+        encounter.lights ?? [],
+        (id) => encounter.combatants.find((c) => c.id === id)?.at ?? undefined,
+      ),
+    [encounter.lights, encounter.combatants],
+  );
+
+  /** How bright the map is where no light reaches. Bright unless said. */
+  const ambient: LightLevel = encounter.ambientLight ?? 'bright';
+
+  /**
+   * How bright one square is, memoised across a render.
+   *
+   * The fog asks this once per square per pair of eyes and the map asks it
+   * once per drawn square, so a party of five on a 40x30 map is six thousand
+   * calls to a loop over the lights. The cache turns that into twelve hundred.
+   */
+  const litAt = useMemo(() => {
+    const cache = new Map<string, LightLevel>();
+    return (at: Square): LightLevel => {
+      const key = keyOf(at);
+      const seen = cache.get(key);
+      if (seen) return seen;
+      const level = lightAt(lights, at, ambient);
+      cache.set(key, level);
+      return level;
+    };
+  }, [lights, ambient]);
+
+  /**
+   * The dark, as the map draws it: every square that is not bright, by key.
+   *
+   * Only the exceptions travel, so a lit map hands the cameras an empty
+   * object and both draw nothing at all - which is what every fight from
+   * before §40 is, and what a table that never touches the light control
+   * stays.
+   */
+  const gloom = useMemo(() => {
+    if (ambient === 'bright' && !lights.length) return {};
+    const out: Record<string, 'dim' | 'dark'> = {};
+    for (let y = 0; y < dungeon.height; y++) {
+      for (let x = 0; x < dungeon.width; x++) {
+        const level = litAt({ x, y });
+        if (level !== 'bright') out[keyOf({ x, y })] = level;
+      }
+    }
+    return out;
+  }, [litAt, ambient, lights.length, dungeon.width, dungeon.height]);
+
+  /**
+   * What a creature's eyes are worth: where they are, and what they can see
+   * in the dark.
+   *
+   * Both sides of the table state the range in prose - a species trait is
+   * "Darkvision 60 ft." and a stat block is `{ darkvision: 60 }` - and both
+   * are read here rather than in the fog, because the fog should not have to
+   * know that characters and monsters keep their senses in different places.
+   */
+  const eyesOf = (c: Combatant): Eyes | null => {
+    if (!c.at) return null;
+    if (c.kind === 'monster') {
+      const monster = byId.get(c.monsterId);
+      const senses = monster?.senses ?? {};
+      const feet = (key: string) => {
+        const value = senses[key];
+        return typeof value === 'number' ? value : typeof value === 'string' ? feetIn(value) : 0;
+      };
+      const blind = Math.max(feet('blindsight'), feet('truesight'));
+      return {
+        at: c.at,
+        ...(feet('darkvision') ? { darkvision: feet('darkvision') } : {}),
+        ...(blind ? { blindsight: blind } : {}),
+      };
+    }
+    const traits = derived.get(c.rosterId)?.ctx.race.traits ?? [];
+    const dark = traits
+      .filter((t) => t.tags?.includes('darkvision'))
+      .reduce((most, t) => Math.max(most, feetIn(t.name) || feetIn(t.text)), 0);
+    return { at: c.at, ...(dark ? { darkvision: dark } : {}) };
+  };
+
+  /*
     Fog of war: what the party can see right now, from their eyes, by the
     same line-of-sight rule attacks and cover already use. Null when the fog
     is off - the map shows everything, as it always has.
+
+    Since §40 it asks a second question of every square - is there light
+    enough *for these eyes* - and each pair answers for itself, which is the
+    whole point of darkvision: the dwarf sees the unlit corridor and the human
+    beside him does not.
   */
   const partyVisible = useMemo(() => {
     if (!encounter.fog) return null;
     const eyes = encounter.combatants
       .filter((c) => c.kind === 'character' && c.at && (hpOf(c)?.now ?? 0) > 0)
-      .map((c) => c.at!);
-    return visibleFrom(sightContext, eyes, dungeon.width, dungeon.height);
-    // hpOf derives from exactly these stores.
+      .map((c) => eyesOf(c))
+      .filter((e): e is Eyes => !!e);
+    return visibleFrom(sightContext, eyes, dungeon.width, dungeon.height, litAt);
+    // hpOf and eyesOf derive from exactly these stores.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [encounter.fog, encounter.combatants, sightContext, dungeon.width, dungeon.height, roster.entries]);
+  }, [encounter.fog, encounter.combatants, sightContext, dungeon.width, dungeon.height, roster.entries, litAt]);
 
   /*
     The fog's bookkeeping lives in ONE effect below (memory, activation,
@@ -915,19 +1047,37 @@ export function TableTab({
       const seen = partyVisible.has(keyOf(c.at));
       if (!seen) continue;
       if (c.hidden !== undefined) {
-        const spotter = watchers.find((watcher) => {
+        /*
+          What the gloom costs a pair of eyes. Dim light is *lightly
+          obscured* - disadvantage on a Perception check, which for a passive
+          score is -5, the SRD's own conversion. Passive is the only form
+          this can take: asking a DM to roll Perception for every watcher
+          every round is not a tool, it is a chore.
+
+          Read through the watcher's own darkvision, so a dwarf peering into
+          an unlit corridor sees it as dim and takes the five, while the
+          human beside him cannot see the square at all and never gets here.
+        */
+        const passiveOf = (watcher: Extract<Combatant, { kind: 'character' }>) => {
           const info = derived.get(watcher.rosterId);
-          return (
-            !!info &&
-            info.ctx.proficiencies.passivePerception >= c.hidden! &&
-            lineOfSight(sightContext, watcher.at!, c.at!).visible
-          );
+          if (!info) return null;
+          const eyes = eyesOf(watcher);
+          const level = eyes ? seenAs(eyes, c.at!, litAt(c.at!)) : 'bright';
+          if (level === 'dark') return null;
+          return info.ctx.proficiencies.passivePerception + perceptionPenalty(level);
+        };
+        let score: number | null = null;
+        const spotter = watchers.find((watcher) => {
+          const passive = passiveOf(watcher);
+          if (passive === null || passive < c.hidden!) return false;
+          if (!lineOfSight(sightContext, watcher.at!, c.at!).visible) return false;
+          score = passive;
+          return true;
         });
-        if (spotter) {
-          const passive = derived.get(spotter.rosterId)!.ctx.proficiencies.passivePerception;
+        if (spotter && score !== null) {
           enc = appendLog(
             setDormant(setHidden(enc, c.id, undefined), c.id, false),
-            `${nameOf(spotter)} notices ${c.label} — passive Perception ${passive} against Stealth ${c.hidden}.`,
+            `${nameOf(spotter)} notices ${c.label} — passive Perception ${score} against Stealth ${c.hidden}.`,
           );
           changed = true;
         }
@@ -1375,6 +1525,19 @@ export function TableTab({
       // which is why it rides beside the conditions instead of inside them.
       target: { conditions: conditionsOf(target), dodging: stanceOf(target) === 'dodge' },
       ...(attacker ? { canSee: canSeeFrom(attacker) } : {}),
+      /*
+        The dark, both ways round: disadvantage swinging at what you cannot
+        see, advantage on somebody who cannot see you, and in mutual darkness
+        the two cancel to a straight roll. Both halves are omitted rather than
+        guessed at when either side is off the map, which leaves the rule
+        unapplied rather than applied wrongly.
+      */
+      ...(attacker && attackerAt && target.at
+        ? {
+            attackerSeesTarget: lightSees(attacker, target.at),
+            targetSeesAttacker: lightSees(target, attackerAt),
+          }
+        : {}),
       adjacent:
         !attackerAt || !target.at
           ? true
@@ -1855,6 +2018,20 @@ export function TableTab({
    * thing across the whole app. Somebody off the map is not visible, which is
    * the safe answer: it leaves a rule unapplied rather than applying it wrong.
    */
+  /**
+   * Whether the light lets this creature make out that square.
+   *
+   * Only the light half: line of sight is `canSeeFrom`'s business and the
+   * two are asked separately because they fail for different reasons and a
+   * DM wants to know which. True when the creature is off the map, so a
+   * missing position leaves the rule unapplied rather than applying it in
+   * the harshest direction.
+   */
+  const lightSees = (watcher: Combatant, at: Square): boolean => {
+    const eyes = eyesOf(watcher);
+    return eyes ? canSeeInto(eyes, at, litAt(at)) : true;
+  };
+
   const canSeeFrom = (watcher: Combatant) => (id: string): boolean => {
     const other = encounter.combatants.find((c) => c.id === id);
     if (!watcher.at || !other?.at) return false;
@@ -3854,6 +4031,7 @@ export function TableTab({
             fog: partyVisible
               ? { visible: partyVisible, explored: new Set(encounter.explored ?? []) }
               : null,
+            gloom,
             onMove,
             onPaint: paintAt,
             onHover: setHover,
@@ -4098,6 +4276,118 @@ export function TableTab({
         <p className="muted" style={{ marginTop: 8 }}>
           Select somebody who is on the map to see their sight lines.
         </p>
+      )}
+
+      {/*
+        Light, §40. The one control that matters is the first: a dungeon is
+        dark, and that single field is what makes darkvision - a trait the
+        Builder rates and the battle had never once read - change anything.
+      */}
+      <h4 className="panel-sub" style={{ marginTop: 16 }}>Light</h4>
+      <div className="row" style={{ gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
+        <label className="field field-sm" style={{ margin: 0 }}>
+          <span>Where no light reaches</span>
+          <select
+            aria-label="Ambient light"
+            value={ambient}
+            onChange={(e) => setEncounter(setAmbientLight(encounter, e.target.value as LightLevel))}
+          >
+            <option value="bright">Bright — daylight</option>
+            <option value="dim">Dim — dusk, or a lit hall beyond the lamps</option>
+            <option value="dark">Dark — an unlit dungeon</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+        {LIGHT_KINDS.map((kind) => (
+          <button
+            key={kind.id}
+            type="button"
+            className={`btn btn-sm ${placingLight === kind.id ? 'btn-primary' : ''}`}
+            title={kind.hint}
+            aria-pressed={placingLight === kind.id}
+            onClick={() => setPlacingLight(placingLight === kind.id ? null : kind.id)}
+          >
+            {kind.label}
+          </button>
+        ))}
+      </div>
+      {placingLight && (
+        <p className="hint" style={{ marginTop: 0 }}>
+          Click the map to put it down — Esc puts it back.
+          {selected && ' Or hand it to whoever is selected, and it walks with them.'}
+        </p>
+      )}
+      {placingLight && selected && (
+        <div className="row" style={{ gap: 6, marginBottom: 8 }}>
+          <button
+            className="btn btn-sm"
+            onClick={() => {
+              const kind = LIGHT_KINDS.find((k) => k.id === placingLight);
+              setPlacingLight(null);
+              if (!kind) return;
+              setEncounter(
+                appendLog(
+                  addLight(encounter, {
+                    label: kind.label,
+                    carriedBy: selected.id,
+                    bright: kind.bright,
+                    dim: kind.dim,
+                  }),
+                  `${nameOf(selected)} lights a ${kind.label.toLowerCase()}.`,
+                ),
+              );
+            }}
+          >
+            Give it to {nameOf(selected)}
+          </button>
+        </div>
+      )}
+
+      {(encounter.lights ?? []).length > 0 && (
+        <ul className="light-list">
+          {(encounter.lights ?? []).map((light) => {
+            const bearer = light.carriedBy
+              ? encounter.combatants.find((c) => c.id === light.carriedBy)
+              : undefined;
+            return (
+              <li key={light.id} className={light.out ? 'is-out' : ''}>
+                <b>{light.label}</b>
+                <span className="muted">
+                  {' '}
+                  {light.bright}/{light.dim} ft ·{' '}
+                  {bearer
+                    ? `carried by ${nameOf(bearer)}`
+                    : light.at
+                      ? `at ${light.at.x},${light.at.y}`
+                      : 'nowhere'}
+                  {light.out ? ' · out' : ''}
+                </span>
+                <button
+                  className="btn btn-sm"
+                  onClick={() =>
+                    setEncounter(
+                      appendLog(
+                        toggleLightOut(encounter, light.id),
+                        `The ${light.label.toLowerCase()} is ${light.out ? 'lit again' : 'snuffed'}.`,
+                      ),
+                    )
+                  }
+                >
+                  {light.out ? 'Light it' : 'Snuff'}
+                </button>
+                <button
+                  className="btn btn-sm"
+                  onClick={() => setEncounter(removeLight(encounter, light.id))}
+                  aria-label={`Remove the ${light.label}`}
+                >
+                  ✕
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
     </Panel>
@@ -4858,6 +5148,7 @@ export function TableTab({
       if (e.key === 'Escape') {
         if (aim) setAim(null);
         else if (grab) setGrab(null);
+        else if (placingLight) setPlacingLight(null);
         else if (moveArmed) setMoveArmed(false);
         else if (placing) {
           setPlacing(null);

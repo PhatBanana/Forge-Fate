@@ -69,6 +69,21 @@ export interface Exchange {
    * rather than guessed at.
    */
   canSee?: (id: string) => boolean;
+  /**
+   * Whether the attacker can see the target, and whether the target can see
+   * the attacker - the two halves of fighting in the dark.
+   *
+   * "You have disadvantage when you attack a target you can't see, and
+   * advantage when you attack a creature that can't see you." Two separate
+   * facts, and in mutual darkness they cancel to a straight roll, which is
+   * the answer the SRD gives and the reason this is two booleans rather than
+   * one "in the dark" flag.
+   *
+   * Undefined means the caller has no light model, and both are then left
+   * alone rather than guessed at - the same refusal `canSee` makes.
+   */
+  attackerSeesTarget?: boolean;
+  targetSeesAttacker?: boolean;
 }
 
 const has = (c: Combatant, id: string) => c.conditions.includes(id);
@@ -105,6 +120,21 @@ export function circumstances(exchange: Exchange): Circumstance[] {
     out.push({ label: 'target is prone and beyond reach', gives: 'disadvantage' });
   }
   if (has(target, 'invisible')) out.push({ label: 'target is unseen', gives: 'disadvantage' });
+  /*
+    The dark, both ways round. Explicitly `=== false` rather than falsy,
+    because undefined means "no light model here" and must change nothing -
+    the same distinction `canSee` draws.
+
+    The advantage half sits down here beside its opposite rather than up with
+    the other boons, because the two are one rule read from two ends and a
+    reader checking whether they cancel should not have to scroll.
+  */
+  if (exchange.targetSeesAttacker === false) {
+    out.push({ label: 'they cannot see you coming', gives: 'advantage' });
+  }
+  if (exchange.attackerSeesTarget === false) {
+    out.push({ label: 'swinging at what you cannot see', gives: 'disadvantage' });
+  }
   /*
     Dodge, which the SRD suspends the moment you are incapacitated or your
     speed drops to nought - so a dodging creature that has been paralysed gets

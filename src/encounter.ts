@@ -191,6 +191,22 @@ export interface EncounterState {
   /** The debrief's score: damage dealt and taken, kills and knockdowns, per
       combatant id. Cleared when a fight starts; read when it ends. */
   tally?: Record<string, TallyEntry>;
+  /**
+   * The lights standing on the map, or carried in somebody's hand.
+   *
+   * Its own layer rather than a kind of zone: a zone is an *effect* with a
+   * shape and a clock, and a torch is neither - it does nothing to whoever
+   * stands in it, and it lasts until somebody puts it out. See `engine/light.ts`.
+   */
+  lights?: import('./engine/light').LightSource[];
+  /**
+   * How bright the map is where no light reaches.
+   *
+   * Absent means bright, so every encounter saved before §40 - and every
+   * outdoor fight at noon - plays exactly as it did. A dungeon is `dark`, and
+   * that one field is what makes darkvision matter.
+   */
+  ambientLight?: import('./engine/light').LightLevel;
   /** Fog of war: the map shows only what the party can see or has seen. */
   fog?: boolean;
   /** Squares the party has laid eyes on, by key - the fog's memory. On the
@@ -717,6 +733,47 @@ export function setConditionSource(
 
 /** Conditions whose rules turn on who caused them, so the UI knows to ask. */
 export const CONDITIONS_WITH_A_SOURCE = ['frightened', 'charmed'];
+
+// ------------------------------------------------------------------- light
+
+/**
+ * Put a light on the map, or into somebody's hand.
+ *
+ * Ids are minted from `nextSeq` the way combatant names are, so two torches
+ * lit in the same session never collide - and so an undo that restores the
+ * counter cannot hand out an id that is already in use.
+ */
+export function addLight(
+  encounter: EncounterState,
+  light: Omit<import('./engine/light').LightSource, 'id'>,
+): EncounterState {
+  return {
+    ...encounter,
+    nextSeq: encounter.nextSeq + 1,
+    lights: [...(encounter.lights ?? []), { ...light, id: `light-${encounter.nextSeq}` }],
+  };
+}
+
+export function removeLight(encounter: EncounterState, id: string): EncounterState {
+  return { ...encounter, lights: (encounter.lights ?? []).filter((l) => l.id !== id) };
+}
+
+/** Snuff it, or light it again - the same lamp either way, which is why this
+    is a flag rather than a delete. */
+export function toggleLightOut(encounter: EncounterState, id: string): EncounterState {
+  return {
+    ...encounter,
+    lights: (encounter.lights ?? []).map((l) => (l.id === id ? { ...l, out: !l.out } : l)),
+  };
+}
+
+/** How bright the map is where no light reaches. */
+export function setAmbientLight(
+  encounter: EncounterState,
+  level: import('./engine/light').LightLevel,
+): EncounterState {
+  return { ...encounter, ambientLight: level };
+}
 
 export function addTimedMonsterCondition(
   encounter: EncounterState,

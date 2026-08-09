@@ -6363,11 +6363,60 @@ dl.detail-list {
   opacity: 0.42;
 }
 
+/*
+  The dark, §40. A blue-black wash rather than the fog's warm brown, because
+  the two layers stack and a DM has to be able to tell "nobody has been here"
+  from "there is no light here" at a glance. Dim is a hint; dark is most of
+  the way to black but never all of it - the DM is looking at this map to run
+  the fight, and a square they cannot see is a square they cannot use.
+*/
+.dmap-gloom {
+  fill: #05070f;
+  opacity: 0.62;
+}
+
+.dmap-gloom.is-dim {
+  opacity: 0.28;
+}
+
 @media print {
   /* The printed map is the DM's copy; the fog is a screen thing. */
   .dmap-fog {
     display: none !important;
   }
+
+  /* And so is the dark: a printed map that is mostly black is not a map. */
+  .dmap-gloom {
+    display: none !important;
+  }
+}
+
+/* The lights standing on the map, listed under the Field drawer's controls. */
+.light-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.light-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.light-list li.is-out {
+  opacity: 0.6;
+}
+
+.light-list li .muted {
+  flex: 1 1 auto;
 }
 
 /* Hiding: there, but not seen - translucent, dashed, the plan drawing's

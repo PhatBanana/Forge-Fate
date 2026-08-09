@@ -85,6 +85,7 @@ export function IsoMap({
   arc = null,
   orientation = 0,
   fog = null,
+  gloom,
   onMove,
   onPaint,
   onHover,
@@ -110,6 +111,9 @@ export function IsoMap({
   orientation?: number;
   /** Fog of war, same contract as the flat map: dark, dim, or clear. */
   fog?: { visible: Set<string>; explored: Set<string> } | null;
+  /** How dark each square is, by key - only the ones that are not bright.
+      Drawn as tinted top faces, the same shape the fog uses. */
+  gloom?: Record<string, 'dim' | 'dark'>;
   onMove?: (id: string, to: Square) => void;
   onPaint?: (at: Square) => void;
   onHover?: (at: Square | null) => void;
@@ -604,6 +608,17 @@ export function IsoMap({
             </g>
           );
         })}
+
+      {/* The dark, §40, under the fog for the same reason the flat map draws
+          it there: the fog is what the party knows, the gloom is what is
+          there, and an unexplored square must not read as merely unlit. */}
+      {gloom && Object.keys(gloom).length > 0 && (
+        <g className="dmap-gloom-layer" pointerEvents="none">
+          {ground
+            .filter((at) => !!gloom[keyOf(at)])
+            .map((at) => overlay(at, `dmap-gloom is-${gloom[keyOf(at)]}`, `gloom${keyOf(at)}`))}
+        </g>
+      )}
 
       {/* The fog, as tinted top faces over everything that stands: never
           seen is dark, seen-before is dim, in sight is clear. */}
