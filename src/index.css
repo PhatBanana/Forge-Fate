@@ -5290,7 +5290,7 @@ dl.detail-list {
    instruction pill. Fixed map-ink colours, like everything over the map. */
 .hud-hint {
   position: absolute;
-  top: 8px;
+  top: calc(var(--hud-top, 0px) + 8px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 3;
@@ -5312,7 +5312,7 @@ dl.detail-list {
 /* The height readout, top right like Tactics prints it. */
 .hud-height {
   position: absolute;
-  top: 8px;
+  top: calc(var(--hud-top, 0px) + 8px);
   right: 10px;
   z-index: 3;
   display: flex;
@@ -5338,7 +5338,7 @@ dl.detail-list {
    on screen. */
 .hud-legend {
   position: absolute;
-  bottom: 6px;
+  bottom: calc(var(--hud-bottom, 0px) + 6px);
   right: 10px;
   z-index: 3;
   font-family: var(--mono);
@@ -5369,7 +5369,7 @@ dl.detail-list {
 */
 .hud-cam {
   position: absolute;
-  top: 8px;
+  top: calc(var(--hud-top, 0px) + 8px);
   left: 10px;
   z-index: 4;
   display: flex;
@@ -5886,7 +5886,7 @@ dl.detail-list {
   position: absolute;
   left: 8px;
   right: 8px;
-  bottom: 28px;
+  bottom: calc(var(--hud-bottom, 0px) + 28px);
   z-index: 4;
   display: flex;
   flex-wrap: wrap;
@@ -6505,9 +6505,21 @@ dl.detail-list {
 */
 .btl-stage .map-stage {
   position: absolute;
-  top: var(--hud-top);
+  /*
+    §36: full height, always. The strip and the bar used to be *reservations*
+    - rows the board never extended under - and were reported for exactly
+    what they were: "elements outside the screen". Now the board's stage runs
+    edge to edge vertically and the strip and bar float over it on dark-glass
+    plates, the way the hint and the shot bar always have. Only the cockpit
+    keeps a reservation: it is a workspace you read and type in, not a
+    readout, and §32's argument about hiding tokens still holds for a full-
+    height opaque column. The in-map floats below offset themselves by
+    --hud-top/--hud-bottom instead, so they clear the strip and bar - and
+    slide to the edges when hold-H zeroes the vars or the strip is absent.
+  */
+  top: 0;
   right: var(--hud-right);
-  bottom: var(--hud-bottom);
+  bottom: 0;
   left: var(--hud-left);
   /* The grow-and-shrink of hold-H (and of collapsing the cockpit): the safe
      rectangle animates, and the drawing follows it through the container
@@ -6542,8 +6554,11 @@ dl.detail-list {
   left: 0;
   right: 0;
   z-index: 10;
-  padding: 6px 10px 0;
+  padding: 6px 10px 4px;
   pointer-events: none;
+  /* A scrim, not a row: the board runs underneath since §36, and dark glass
+     over the game is what makes a strip read as HUD rather than as chrome. */
+  background: linear-gradient(rgba(24, 22, 18, 0.5), rgba(24, 22, 18, 0.28) 70%, transparent);
 }
 
 .btl-timeline .init-strip {
@@ -6900,6 +6915,9 @@ dl.detail-list {
   align-items: center;
   gap: 6px;
   padding: 0 10px 8px;
+  /* Same idea as the timeline's scrim: the bar sits ON the board now, so it
+     wears the battle HUD's dark glass instead of resting on page colour. */
+  background: linear-gradient(transparent, rgba(24, 22, 18, 0.32) 30%, rgba(24, 22, 18, 0.55));
 }
 
 .btl-cmd {
@@ -6913,9 +6931,16 @@ dl.detail-list {
   font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--text-dim);
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
+  /*
+    Dark glass, not panel colour. §36 put the bar ON the board, and a row of
+    page-coloured buttons over a battlefield reads as the website leaking
+    back in - the same dark-glass language the hint, the camera cluster and
+    the shot bar already speak is what makes it HUD. Theme-independent on
+    purpose, like the rest of the battle glass: glass is glass in both.
+  */
+  color: rgba(242, 237, 226, 0.85);
+  background: rgba(24, 22, 18, 0.72);
+  border: 1px solid rgba(242, 237, 226, 0.25);
   border-radius: var(--radius);
   /* The cut corner, so the battle screen's chrome is one idea rather than
      two that happen to be adjacent. */
@@ -6936,9 +6961,9 @@ dl.detail-list {
 }
 
 .btl-cmd:hover {
-  color: var(--text);
-  border-color: var(--border-strong);
-  background: var(--panel);
+  color: #f2ede2;
+  border-color: rgba(242, 237, 226, 0.5);
+  background: rgba(24, 22, 18, 0.85);
 }
 
 .btl-cmd.is-on {

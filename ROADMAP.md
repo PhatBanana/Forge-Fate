@@ -16,79 +16,135 @@ matter fourteen times over.
 
 ---
 
-## Where things stand
+## Where things stand (rewritten 2026-08-09)
 
-Eight phases are complete: the scoring engine, both rulesets, proficiencies,
-class features and options, equipment and attacks, damage per round,
-spellcasting, the roster and share links, play tracking, the 1:1 printable
-sheet, and the full equipment and magic item catalogues.
+Thirty-five sections are shipped: the scoring engine and both rulesets, the
+whole player-facing stack (proficiencies, features, equipment, damage per
+round, spellcasting, roster, share links, play tracking, the 1:1 printable
+sheet), the DM half (SRD monsters, the encounter tracker, the forecast, the
+dungeon generator), a battle screen that enforces the rules it draws
+(movement, reach, sight, cover, zones, hazards, elevation, reactions,
+conditions with mechanical teeth), and a UI rebuilt as a full-screen game -
+hub-and-spoke navigation, a full-bleed board with a pan/zoom/rotate camera,
+and one slim game bar on the desk screens.
 
-1147 tests, lint and types clean, deployed from `main` to GitHub Pages.
+1743 tests, lint and types clean, deployed from `main` to GitHub Pages. The
+data tables are diffed against the SRD 5.1 and 5.2 APIs inside `npm test`,
+so drift fails a build. One item remains `[!]`: no licensed source carries
+the ~108 non-SRD subclasses, and inventing them would be worse than the gap.
 
-The data tables have now been diffed against the SRD 5.1 and 5.2 APIs. What
-that found is in [Data provenance](#1-data-provenance) below; the short version
-is that **equipment, magic items, spells, classes, races, skills, conditions
-and languages are verified**, and the ~108 non-SRD subclasses are not.
-
-**Every item in this file was closed, and then a code review reopened it.** The
-file had reached the pleasant state of having nothing left in it that was not
-blocked, which turned out to say more about the roadmap than about the app.
-Reading the code found six things it had never contained. Five are now done —
-the multiclass save DC (2.1), the concentration buff (2.8), healing (2.7), and
-both halves of 2024's missing safety net (section 5) — and the work found two
-more bugs on the way in: Hunter's Mark and Hex were being added together for a
-character who could only concentrate on one, and the 2024 background check
-caught an illegal ability pick in a regression fixture written an hour earlier.
-The last assumption any of them shipped under is now closed too: per-spell
-class attribution (2.2) means a Cleric/Wizard's sheet says which of their two
-save DCs each spell is cast at, rather than quietly taking the better one.
-
-The sixth was not a gap at all. **Item 1.5 was wrong, and it was mine**: I
-counted the magic items with no computable effect, called them silent, and
-scheduled a phase of writing summaries that already existed. It is withdrawn
-and the mistake is recorded in its place, because a roadmap can invent work as
-easily as it can miss it.
-
-Nothing raised by that review is left open, and a new section is: **section 7**
-is what an audit against D&D Beyond found, narrowed by the project owner to the
-player-facing half. All eight are done — the SRD's full rules text now sits
-under the verdict on every spell and magic item, every modifier on the character
-sheet is the button that rolls it, the whole app works with no network, a
-1st-level character can take the kit the book gives them, levelling up says
-what it gave you and what it is waiting on, a character can have a face,
-potions and scrolls are used up rather than merely listed, and the sheet tracks
-what is left of your turn. Each closed by
-finding something no one had written down: a decision in section 6 that was
-wrong about its own reason, a contrast defect on the printed sheet that no test
-had been in a position to see, a cache that missed every asset because of a
-response header nobody thinks about, starting gold the source states in prose
-and nowhere else, a class swap that read as a level-up, and 53 consumables that
-were catalogued and inert. **Section 7 is closed** — every item in it is done
-except the half of 7.4 that no licensed source can supply.
-
-One item remains `[!]` rather than `[ ]`: no licensed
-source carries the ~108 non-SRD subclasses, and inventing them would be worse
-than the gap. (The
-other `[!]` did not survive being checked either — see 2.6. Enumerating every
-document Open5e serves confirmed only two are Wizards of the Coast: SRD 5.1 and
-SRD 5.2. Everything else is EN Publishing, Kobold Press, Green Ronin or Open5e
-themselves, and none of them carries Xanathar's or Tasha's.) That distinction is
-the point of this file, and so is the lesson above — a roadmap only tracks the
-gaps somebody has already noticed, so it is worth re-reading the code
-occasionally to find the ones nobody wrote down.
-
-**Section 8 is the DM half**, asked for after section 7 closed, and it overrules
-§6's "no DM tools" - recorded there rather than quietly dropped. All six items
-are done: 334 SRD monsters served lazily, an encounter tracker where a
-character's hit points have exactly one home, a sheet that pops out into its own
-window and stays live, a fight forecast built on this app's own damage model
-rather than a table it cannot licence, a seeded dungeon generator, and tokens
-whose drags spend the movement the sheet already tracks. The three constraints
-it was built inside - no backend, 2014 and 2024 only, nothing unlicensed - all
-survive, which is why the monsters are SRD 5.1 and why there is no live party
-view.
+This file was restructured on 2026-08-09 at the project owner's ask: the
+live plan now sits at the top, grouped by theme, and the shipped record
+keeps its original chronological numbering below - **the numbers are
+load-bearing** (code comments cite §32.1, §34.7 and friends), so nothing is
+renumbered. History is under "The shipped record", indexed by theme.
 
 ---
+
+## The live plan
+
+Grouped by theme. Sections keep getting numbers in the order they are
+*started*, so the numbers here continue the shipped record's sequence.
+
+### A. The game look, finished
+
+- `[x]` **36. The battle HUD moves onto the board.** **M** - *shipped
+  2026-08-09; the full account is §36 in the shipped record.*
+- `[ ]` **37. Standing pawns for the tactical view.** **L**
+  Asked directly: *"I would like to have 3d Pawns for the tactical view."*
+  The design intent: tokens in the isometric view should *stand* on the
+  board like miniatures, not lie on it as discs. The plan is cardboard
+  standees drawn in SVG - an upright card with the portrait (§7's portraits
+  finally earn their place on the table) or the token letter, a wedge base,
+  an elliptical ground shadow, darker card edge for thickness, drawn in the
+  same painter's order the tiles already use so nearer pawns overlap
+  farther ones. SVG rather than a 3D library because the whole app is one
+  dependency-free SVG pipeline with a box-based hit test - a WebGL canvas
+  would orphan `squareAt`, the camera, the probes and the print path in one
+  move. If real 3D is still wanted after standees ship, that is its own
+  conversation.
+- `[ ]` **38. The desk screens finish the game look.** **M**
+  From the §35 review, in priority order: the Dungeons editor is the last
+  website screen and it is a *map* - it should be a stage like the battle
+  (map full-bleed, seed/size/brushes floating, §34's camera plumbed in,
+  which it was built for); the Campaign empty state is one input on a vast
+  page and should sell the record it will write; the Characters roster rows
+  should carry the portraits the data already has. Plus small polish: the
+  Species x Class dropdown stretched to paragraph width, the sheet's
+  "Print" subtab styled as a tab rather than the action it is.
+
+### B. The rules of the game, honestly finished
+
+The §2 audit closed every gap it knew about; this is the next ring out,
+found by auditing the engine against the 5e core combat chapter
+(2026-08-09). Absent, partial, and to-verify are different states and are
+marked as such. Everything here should keep §2's discipline: model it, or
+say on the screen that the table has to rule it.
+
+- `[ ]` **39. Grappling.** **M** - Absent. Shove landed in §26.2; grapple
+  never did. Athletics vs Athletics/Acrobatics, the grappled condition
+  (speed 0 - the condition *exists* and has teeth, but nothing applies it),
+  escape as an action, dragging a grappled creature at half speed.
+- `[ ]` **40. Light and darkness.** **L** - Absent. The battlefield has fog
+  (party sight radius) but no light model: no dim light or darkness, no
+  light sources on the map, and darkvision is a rated builder trait the
+  battle never reads. This is the biggest honest gap on the DM side - most
+  dungeons are dark.
+- `[ ]` **41. Surprise.** **S** - Absent. Stealth and hiding landed in
+  §19.3, but initiative has no surprised state; an ambush and a doorway
+  fight start identically.
+- `[ ]` **42. The smaller combat rules, audited and closed one by one.**
+  **M** - Partial or unverified, each needs a look before a decision:
+  three-quarters cover (+5 - only half cover's +2 is modelled today), lair
+  actions (legendary actions are tracked, lair are parsed and dropped),
+  frightened's movement half (the roll half has teeth; "cannot willingly
+  approach" may not gate movement), concentration checks on damage (the
+  concentration *slot* is tracked; verify a hit prompts the CON save),
+  heroic inspiration (absent; a one-checkbox model), ritual casting (tagged
+  on spells; verify it is surfaced anywhere it matters), multiclass ability
+  prerequisites in the Builder (verify they are enforced or at least
+  flagged).
+- `[–]` **Mounted combat, underwater combat, chase rules.** Declared out of
+  scope for a tabletop aid at this table's scale - the DM rules them. A
+  decision, recorded here so it stays one.
+
+### C. The Builder and optimizer, fully set
+
+- `[ ]` **43. The Builder completeness pass.** **M** - Audit the character
+  path end to end against the PHB's character-creation chapter the way §2
+  audited the engine: languages and tools chosen rather than implied,
+  alignment/personality carried to the sheet, starting wealth alternatives,
+  level-20 capstones present for every class, epic boon coverage, and
+  whatever else the pass turns up. The outcome is a list like §2's - each
+  item modelled, or honestly labelled on screen.
+
+### Parked
+
+- `[!]` **Non-SRD subclasses** (~108) - no licensed source; inventing them
+  would be worse than the gap.
+- `[ ]` **9.2 The originals switch / 9.3 Twelve original subclasses** -
+  parked by the project owner after 9.1.
+
+---
+
+## The shipped record, indexed
+
+Everything below this line is history, kept chronological and unrenumbered
+because code comments cite the section numbers. By theme:
+
+| Theme | Sections |
+|---|---|
+| Data, provenance and the SRD audits | 1-5, and the audit notes at the very end of this file |
+| Decisions on record | 6 |
+| Player-facing feature parity | 7 |
+| The DM half: monsters, tracker, dungeons | 8, 11, 13-15 |
+| Forge originals (parked) | 9 |
+| Layout and the workspace era | 10, 12, 20 |
+| The battle screen's rules | 16, 19, 21-23, 25-29 |
+| The FFT/X-COM treatment | 17, 18, 26 |
+| Storage | 24 |
+| The campaign layer | 30 |
+| The full-screen game UI | 31-35 |
 
 ## 1. Data provenance
 
@@ -2745,6 +2801,40 @@ navigation instead of two, and it is paid exactly where traffic is lightest
 mid-fight glances handled inside the battle's own drawers) have direct
 doors. If a third pair turns out to matter, it gets a door too; the menu
 does not come back to the top of every screen.
+
+---
+
+## 36. The battle HUD moves onto the board
+
+The ask, verbatim: *"The play/fight screen still has elements 'outside the
+screen' such as the turn order at the top, all the buttons on the bottom."*
+
+Correct, and structural: since §32.2 the timeline and the command bar floated
+*inside* the stage but reserved rows (`--hud-top`/`--hud-bottom`) that the
+board's fit rectangle never extended under - so they sat on page-coloured
+margins looking exactly like the chrome rows §35 had just deleted everywhere
+else. The §35.5 hold-H fix had already proven the board can take the whole
+window; this makes it the resting state.
+
+- **The board's stage spans the full window height, always.** The strip and
+  bar reservations died; only the cockpit keeps its column, because it is a
+  workspace you read and type in, and §32's token-hiding argument still
+  holds for a full-height opaque panel.
+- **The in-map floats offset themselves by the same `--hud-top`/`--hud-bottom`
+  vars** the reservations used to consume - so the hint, the camera cluster,
+  the height readout and the legend clear the strip and bar, and slide to
+  the window edges when hold-H zeroes the vars or the strip is absent. One
+  set of vars, two consumers swapped.
+- **The strip and bar wear the battle's dark glass.** A scrim behind each,
+  and the command buttons themselves went from page-coloured panels to the
+  same translucent dark the hint, the shot bar and the camera cluster
+  already speak - which is most of what made them read as "outside the
+  screen" in the first place. Theme-independent, like all the battle glass.
+
+The §32-era worry - tokens hidden under floats - is answered by machinery
+that did not exist then: the camera pans and zooms (§34), and hold-H clears
+and expands everything (§35.5). `run35.mjs` now asserts the stage spans the
+viewport height and both scrims exist, in both themes.
 
 ---
 
