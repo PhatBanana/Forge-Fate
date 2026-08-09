@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
-import { WHOLE_MAP, dragBy, viewBoxFor, zoomAt } from '../engine/camera';
+import { WHOLE_MAP, centreOn, dragBy, isVisible, viewBoxFor, zoomAt } from '../engine/camera';
 import type { Camera, Frame } from '../engine/camera';
 import type { ViewBox } from '../engine/letterbox';
 
@@ -69,6 +69,12 @@ export function useMapCamera(
   frame: Frame,
   camera: Camera = WHOLE_MAP,
   onCamera?: (next: Camera) => void,
+  /**
+   * A point in the drawing's own units worth keeping in sight - whoever's turn
+   * it is. Each map converts a square through its own projection before
+   * passing it here, because only the map knows where it draws things.
+   */
+  focus?: { x: number; y: number } | null,
 ): MapCamera {
   const view = viewBoxFor(camera, frame);
 
@@ -114,6 +120,40 @@ export function useMapCamera(
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
   }, [svg, onCamera]);
+
+  /*
+    Follow the turn - but only when there is something to follow to.
+
+    The camera moves **only if whoever is up has gone off screen**. Recentring
+    on every turn when the whole fight is already in view is the behaviour
+    people turn off: the board lurches, you lose your place, and you learn
+    nothing you could not already see. At the fitted view nothing is ever off
+    screen, so this never fires at all until somebody zooms in.
+
+    Keyed on the point rather than on a turn counter, so it also catches a
+    combatant who walks out of the window during their own turn - the same
+    question, "can I see who is acting", asked continuously.
+  */
+  const key = focus ? `${focus.x},${focus.y}` : null;
+  const followed = useRef<string | null>(null);
+  useEffect(() => {
+    if (key === null) {
+      followed.current = null;
+      return;
+    }
+    if (key === followed.current) return;
+    followed.current = key;
+    const { camera: from, frame: on, onCamera: emit } = live.current;
+    if (!emit || !focus || isVisible(from, on, focus)) return;
+    emit(centreOn(from, on, focus));
+    /*
+      Keyed on the string, not the object. `focus` is a fresh literal on every
+      render, so listing it would re-run this on renders where nothing moved;
+      the string only changes when the point actually does, and the closure
+      still holds that render's value.
+    */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
   const centreOfTouches = (): Pinch | null => {
     const points = [...touches.current.values()];

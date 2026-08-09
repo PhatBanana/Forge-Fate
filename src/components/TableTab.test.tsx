@@ -2441,6 +2441,30 @@ describe('the pointer’s loop', () => {
       input.remove();
     });
 
+    it('gives the mouse the same three controls, since keys are hard to find', async () => {
+      const user = userEvent.setup();
+      await openMap(user);
+      expect(screen.getByText('1.0×')).toBeInTheDocument();
+      // At the fitted view there is nothing to zoom out of.
+      expect(screen.getByRole('button', { name: 'Zoom out' })).toBeDisabled();
+
+      await user.click(screen.getByRole('button', { name: 'Zoom in' }));
+      expect(nums()[2]).toBeLessThan(672);
+      expect(screen.getByRole('button', { name: 'Zoom out' })).toBeEnabled();
+      expect(screen.getByText('1.3×')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Fit the whole map' }));
+      expect(vb()).toBe('0 0 672 504');
+    });
+
+    it('stops offering Zoom in at the limit', async () => {
+      const user = userEvent.setup();
+      await openMap(user);
+      for (let i = 0; i < 8; i++) fireEvent.keyDown(window, { key: '+' });
+      expect(screen.getByText('4.0×')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
+    });
+
     it('turns the tactical view with Q and E, and does nothing on the flat map', async () => {
       const user = userEvent.setup();
       await openMap(user);

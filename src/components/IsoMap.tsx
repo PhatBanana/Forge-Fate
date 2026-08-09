@@ -80,6 +80,7 @@ export function IsoMap({
   onTokenOpen,
   camera,
   onCamera,
+  focus = null,
 }: {
   dungeon: Dungeon;
   tokens?: Token[];
@@ -106,6 +107,9 @@ export function IsoMap({
   camera?: Camera;
   /** Present to make the map pannable and zoomable. See `useMapCamera`. */
   onCamera?: (next: Camera) => void;
+  /** A square to keep in sight - whoever's turn it is. Projected through this
+      view's own geometry before the camera sees it. */
+  focus?: Square | null;
 }) {
   const svg = useRef<SVGSVGElement>(null);
   const dragging = useRef<string | null>(null);
@@ -176,8 +180,6 @@ export function IsoMap({
     quarter turn.
   */
   const frame: Frame = { x0: 0, y0: -pad, w, h };
-  const cam = useMapCamera(svg, frame, camera, onCamera);
-  const view: ViewBox = cam.view;
 
   /** The four corners of a cell's top face at height z, as a points string. */
   const facePoints = (at: Square, z: number): string => {
@@ -201,6 +203,15 @@ export function IsoMap({
       y: vy(r.x + 0.5, r.y + 0.5) - z * ZH,
     };
   };
+
+  /*
+    Declared here rather than beside the frame because following the turn needs
+    `centre`: only this view knows where a square is drawn, so it projects the
+    square and the camera works in drawing units it can compare against its own
+    window.
+  */
+  const cam = useMapCamera(svg, frame, camera, onCamera, focus ? centre(focus) : null);
+  const view: ViewBox = cam.view;
 
   /*
     Client coordinates back to a square: invert the vertex transform at each
@@ -541,11 +552,14 @@ export function IsoMap({
 
       {cursor && overlay(cursor, 'dmap-cursor', 'cursor')}
 
+      {/* Clamped inside the visible window rather than the whole drawing -
+          they were the same rectangle until the camera arrived, and zoomed in
+          the difference is a note the reader cannot see. */}
       {note && noteAt && (
         <text
           className="dmap-note"
-          x={Math.max(20, Math.min(w - 20, centre(noteAt).x))}
-          y={Math.max(-pad + 10, centre(noteAt).y - HH * 2.2)}
+          x={Math.max(view.x + 20, Math.min(view.x + view.width - 20, centre(noteAt).x))}
+          y={Math.max(view.y + 10, centre(noteAt).y - HH * 2.2)}
           textAnchor="middle"
         >
           {note}

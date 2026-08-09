@@ -5653,9 +5653,66 @@ dl.detail-list {
   pointer-events: none;
 }
 
+/*
+  The zoom control, bottom left - the one corner of the stage the hint, the
+  height readout and the legend had left.
+
+  It exists because a camera reachable only from the keyboard is a camera most
+  people never find out about. It reuses `.seg`, the segmented control from
+  §33.6, rather than inventing a third button style for three buttons.
+*/
+.hud-zoom {
+  position: absolute;
+  bottom: 6px;
+  left: 10px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* `.seg` carries a bottom margin for the panels it was written for; floating
+   over a map there is nothing below it to clear. */
+.hud-zoom .seg {
+  margin-bottom: 0;
+  border-color: rgba(242, 237, 226, 0.25);
+}
+
+.hud-zoom .seg button {
+  background: rgba(24, 22, 18, 0.72);
+  color: rgba(242, 237, 226, 0.8);
+  padding: 3px 9px;
+}
+
+.hud-zoom .seg button + button {
+  border-left-color: rgba(242, 237, 226, 0.25);
+}
+
+.hud-zoom .seg button:hover:not(:disabled) {
+  color: #f2ede2;
+}
+
+.hud-zoom .seg button:disabled {
+  color: rgba(242, 237, 226, 0.3);
+  cursor: default;
+}
+
+/* The current magnification, so "am I zoomed in?" has an answer that is not
+   "compare the map with your memory of it". */
+.hud-zoom-n {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: rgba(242, 237, 226, 0.75);
+  background: rgba(24, 22, 18, 0.6);
+  padding: 3px 6px;
+  border-radius: 3px;
+}
+
 @media print {
   .hud-hint,
   .hud-height,
+  .hud-zoom,
   .hud-legend {
     display: none !important;
   }

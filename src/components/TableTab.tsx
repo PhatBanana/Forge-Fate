@@ -3553,6 +3553,10 @@ export function TableTab({
             onTokenOpen: (id: string) => popOut(id),
             camera,
             onCamera: setCamera,
+            // Keep whoever is up in sight - but only once they have left the
+            // window, which at the fitted view never happens. Each map
+            // projects the square itself; see `useMapCamera`.
+            focus: isRunning(encounter) ? (active?.at ?? null) : null,
           };
           return view === 'tactical' ? (
             <IsoMap {...mapProps} orientation={facing} />
@@ -3560,6 +3564,35 @@ export function TableTab({
             <DungeonMap {...mapProps} />
           );
         })()}
+        {/* The camera, for the hand that is on the mouse. The keys below are
+            faster once you know them, and this is how you find out they are
+            there. */}
+        <div className="hud-zoom">
+          <div className="seg">
+            <button
+              type="button"
+              onClick={() => setCamera((c) => clampCamera({ ...c, scale: c.scale / 1.3 }))}
+              disabled={camera.scale <= 1}
+              aria-label="Zoom out"
+            >
+              −
+            </button>
+            <button type="button" onClick={() => setCamera(WHOLE_MAP)} aria-label="Fit the whole map">
+              Fit
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setCamera((c) => clampCamera({ ...c, scale: Math.min(MAX_SCALE, c.scale * 1.3) }))
+              }
+              disabled={camera.scale >= MAX_SCALE}
+              aria-label="Zoom in"
+            >
+              +
+            </button>
+          </div>
+          <span className="hud-zoom-n">{camera.scale.toFixed(1)}×</span>
+        </div>
         {/* The keys, said once. A camera nobody can find is a camera nobody
             has - and the rotate pair only means anything in the tactical
             view, so it is only offered there. */}

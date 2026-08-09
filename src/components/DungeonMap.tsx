@@ -166,6 +166,7 @@ export function DungeonMap({
   onTokenOpen,
   camera,
   onCamera,
+  focus = null,
 }: {
   dungeon: Dungeon;
   tokens?: Token[];
@@ -222,6 +223,9 @@ export function DungeonMap({
   /** Present to make the map pannable and zoomable. Without it there are no
       gestures at all - no wheel listener, no suppressed context menu. */
   onCamera?: (next: Camera) => void;
+  /** A square to keep in sight - whoever's turn it is. The camera moves only
+      when it has gone off screen; see `useMapCamera`. */
+  focus?: Square | null;
 }) {
   const w = dungeon.width * CELL;
   const h = dungeon.height * CELL;
@@ -239,7 +243,13 @@ export function DungeonMap({
     element's box and click through raw coordinates are untouched.
   */
   const frame: Frame = { x0: 0, y0: 0, w, h };
-  const cam = useMapCamera(svg, frame, camera, onCamera);
+  const cam = useMapCamera(
+    svg,
+    frame,
+    camera,
+    onCamera,
+    focus ? { x: (focus.x + 0.5) * CELL, y: (focus.y + 0.5) * CELL } : null,
+  );
   const view: ViewBox = cam.view;
   const dragging = useRef<string | null>(null);
   const brushDown = useRef(false);
@@ -658,14 +668,33 @@ export function DungeonMap({
       {/*
         The note rides the cursor rather than sitting in a corner: measuring
         the bottom-right of a big map with the answer printed forty squares
-        away was a quiz. Clamped inside the drawing, and flipped below the
-        square when the cursor is on the top row.
+        away was a quiz. Flipped below the square when the cursor is on the
+        top row.
+
+        Clamped inside the *visible window*, not the whole drawing. Those were
+        the same rectangle until §34; now that they are not, clamping to the
+        drawing would let the note sit off screen whenever the camera is
+        zoomed in - which is exactly when the note is being read. Without a
+        `noteAt` it parks in the window's top-left corner, wherever that is.
       */}
       {note && (
         <text
           className="dmap-note"
-          x={Math.max(14, Math.min(w - 14, ((noteAt?.x ?? 0) + 0.5) * CELL))}
-          y={noteAt ? (noteAt.y < 1 ? (noteAt.y + 1) * CELL + 10 : noteAt.y * CELL - 4) : 11}
+          x={
+            noteAt
+              ? Math.max(view.x + 14, Math.min(view.x + view.width - 14, (noteAt.x + 0.5) * CELL))
+              : view.x + 14
+          }
+          y={(() => {
+            if (!noteAt) return view.y + 11;
+            // Above the square by default, below it when there is no room -
+            // which used to mean "on row 0" and now means "against the top of
+            // what you can see", the same rule with the camera taken into
+            // account.
+            const above = noteAt.y * CELL - 4;
+            const below = (noteAt.y + 1) * CELL + 10;
+            return above < view.y + 11 ? below : above;
+          })()}
           textAnchor={noteAt ? 'middle' : 'start'}
         >
           {note}

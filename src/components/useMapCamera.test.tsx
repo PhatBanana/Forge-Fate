@@ -314,6 +314,79 @@ describe('the drawing and the hit test move together', () => {
   });
 });
 
+describe('following the turn', () => {
+  /*
+    The camera moves for whoever is up **only once they have gone off screen**.
+    Recentring every turn when the whole fight is already in view is the
+    behaviour people turn off: the board lurches and you learn nothing you
+    could not already see.
+  */
+  function Follow({ at }: { at: Square | null }) {
+    const [camera, setCamera] = useState<Camera>(WHOLE_MAP);
+    return (
+      <>
+        <DungeonMap dungeon={dungeon} camera={camera} onCamera={setCamera} focus={at} />
+        <span data-testid="scale">{camera.scale.toFixed(3)}</span>
+      </>
+    );
+  }
+
+  /** Whether a square's centre is inside the drawn window. */
+  const sees = (at: Square) => {
+    const [x, y, w, h] = viewBox()!.split(' ').map(Number);
+    const px = (at.x + 0.5) * 14;
+    const py = (at.y + 0.5) * 14;
+    return px >= x && px <= x + w && py >= y && py <= y + h;
+  };
+
+  it('holds still at the fitted view, where nothing is ever off screen', () => {
+    const { rerender } = render(<Follow at={{ x: 2, y: 2 }} />);
+    const before = viewBox();
+    rerender(<Follow at={{ x: 45, y: 33 }} />);
+    expect(viewBox()).toBe(before);
+  });
+
+  it('centres on the new turn once it is out of the window', () => {
+    const { rerender } = render(<Follow at={{ x: 4, y: 4 }} />);
+    sizeMap();
+    // Zoom into the top-left corner, leaving the far corner off screen.
+    fireEvent.wheel(map(), { deltaY: -600, clientX: 40, clientY: 30 });
+    const far = { x: 44, y: 32 };
+    expect(sees(far)).toBe(false);
+
+    rerender(<Follow at={far} />);
+    expect(sees(far)).toBe(true);
+  });
+
+  it('does not move for a turn that is already in view', () => {
+    const { rerender } = render(<Follow at={{ x: 24, y: 18 }} />);
+    sizeMap();
+    fireEvent.wheel(map(), { deltaY: -300, clientX: 336, clientY: 252 });
+    const settled = viewBox();
+    // One square over from the middle: still comfortably inside the window.
+    rerender(<Follow at={{ x: 25, y: 18 }} />);
+    expect(viewBox()).toBe(settled);
+  });
+
+  it('keeps the zoom it was at - following is not zooming', () => {
+    const { rerender } = render(<Follow at={{ x: 4, y: 4 }} />);
+    sizeMap();
+    fireEvent.wheel(map(), { deltaY: -600, clientX: 40, clientY: 30 });
+    const zoom = screen.getByTestId('scale').textContent;
+    rerender(<Follow at={{ x: 44, y: 32 }} />);
+    expect(screen.getByTestId('scale').textContent).toBe(zoom);
+  });
+
+  it('does nothing when there is nobody up', () => {
+    const { rerender } = render(<Follow at={{ x: 4, y: 4 }} />);
+    sizeMap();
+    fireEvent.wheel(map(), { deltaY: -600, clientX: 40, clientY: 30 });
+    const settled = viewBox();
+    rerender(<Follow at={null} />);
+    expect(viewBox()).toBe(settled);
+  });
+});
+
 describe('without an onCamera the map is exactly as it was', () => {
   it('ignores the wheel and lets the page have it', () => {
     render(<Harness live={false} />);
