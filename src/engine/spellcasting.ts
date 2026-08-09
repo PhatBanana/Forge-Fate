@@ -150,8 +150,8 @@ export function computeSlots(slices: ClassSlice[], ruleset: Ruleset = '2014'): S
       continue;
     }
     casterLevel += sole
-      ? soleCasterLevel(castingType, slice.entry.level, ruleset)
-      : casterLevelContribution(castingType, slice.entry.level);
+      ? soleCasterLevel(castingType, slice.entry.level, ruleset, slice.klass.castsFromLevel1)
+      : casterLevelContribution(castingType, slice.entry.level, slice.klass.multiclassRoundsUp);
   }
 
   const bySpellLevel = slotsForCasterLevel(casterLevel);

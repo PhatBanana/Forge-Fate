@@ -815,3 +815,72 @@ describe('recommending around what is already granted', () => {
     expect(recommendSpells(war, 12).map((s) => s.id)).toContain('revivify');
   });
 });
+
+/**
+ * The Artificer, which is a half caster at everything except the two things
+ * TCoE says it is not.
+ *
+ * Both of these were live bugs, found by walking the casting rules class by
+ * class rather than by anyone reporting them. Sharing `castingType: 'half'`
+ * with the Paladin and Ranger is right about the slot shape, the prepared
+ * count and the multiclass pool - and wrong about exactly two rules, which
+ * are now flags on the class rather than assumptions in the engine.
+ */
+describe('the Artificer, whose half-casting has two exceptions', () => {
+  const art = (level: number, ruleset: Build['ruleset'] = '2014') =>
+    cast(build({ ruleset, classes: [{ classId: 'artificer', level }] }));
+
+  it('casts from 1st level, where a 2014 Paladin waits until 2nd', () => {
+    /*
+      The app gave a 1st-level Artificer two cantrips and no spell slots -
+      internally inconsistent, and the inconsistency is what gave it away.
+      Its own table prints two 1st-level slots at 1st level.
+    */
+    expect(art(1).bySpellLevel[0]).toBe(2);
+    expect(art(1).cantripsKnown).toBe(2);
+    // And the classes the late start belongs to still have it.
+    expect(cast(build({ classes: [{ classId: 'paladin', level: 1 }] })).bySpellLevel[0]).toBe(0);
+    expect(cast(build({ classes: [{ classId: 'ranger', level: 1 }] })).bySpellLevel[0]).toBe(0);
+  });
+
+  it('follows its own printed table the rest of the way up', () => {
+    expect(art(2).bySpellLevel.slice(0, 3)).toEqual([2, 0, 0]);
+    expect(art(3).bySpellLevel.slice(0, 3)).toEqual([3, 0, 0]);
+    expect(art(5).bySpellLevel.slice(0, 3)).toEqual([4, 2, 0]);
+    expect(art(9).bySpellLevel.slice(0, 3)).toEqual([4, 3, 2]);
+  });
+
+  it('rounds its multiclass contribution up, where every other half caster rounds down', () => {
+    /*
+      "Add half your levels (rounded up) in the artificer class." An Artificer
+      3 / Wizard 3 is a 5th-level caster; the app made them a 4th, one whole
+      spell level short, at every odd Artificer level.
+    */
+    const together = (a: ClassId, aLevel: number, b: ClassId, bLevel: number) =>
+      cast(build({ classes: [{ classId: a, level: aLevel }, { classId: b, level: bLevel }] }))
+        .casterLevel;
+
+    expect(together('artificer', 3, 'wizard', 3)).toBe(5);
+    expect(together('artificer', 5, 'wizard', 5)).toBe(8);
+    expect(together('artificer', 1, 'wizard', 1)).toBe(2);
+    // Even levels agree either way, which is why this hid for so long.
+    expect(together('artificer', 4, 'wizard', 4)).toBe(6);
+
+    // The Paladin is the control: it rounds down, and still does.
+    expect(together('paladin', 3, 'wizard', 3)).toBe(4);
+    expect(together('paladin', 5, 'wizard', 5)).toBe(7);
+    // A Paladin 1 contributes nothing at all - the rule has no round-up and
+    // no minimum, and floor(1/2) is zero either way.
+    expect(together('paladin', 1, 'wizard', 5)).toBe(5);
+  });
+
+  it('reaches the slot the fix is worth: a real 3/3 gets 3rd-level spells', () => {
+    // The point of the caster level is the row it reads. At 4 the character
+    // has no 3rd-level slot; at 5 they do, and that is the whole bug.
+    const ctx = deriveBuild(build({
+      classes: [{ classId: 'artificer', level: 3 }, { classId: 'wizard', level: 3 }],
+    }));
+    expect(ctx.spellcasting.bySpellLevel[2]).toBeGreaterThan(0);
+    expect(ctx.spellcasting.highestLevel).toBe(3);
+  });
+});

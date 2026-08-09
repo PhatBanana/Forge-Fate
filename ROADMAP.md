@@ -14,7 +14,7 @@ from the books" is an honest provenance and a weaker one than "verified against
 the SRD" — the audits exist because the difference turned out to matter
 fourteen times over. See **Provenance** below.
 
-The shipped history — forty-six sections with their reasoning — lives in
+The shipped history — forty-seven sections with their reasoning — lives in
 **`docs/HISTORY.md`** so this file can be a plan.
 
 ---
@@ -31,8 +31,10 @@ full-bleed board and a pan/zoom/rotate camera.
 
 **The state.** Tests, lint, types and the build are clean, deployed from
 `main` to GitHub Pages. The data tables are diffed against the SRD 5.1 and
-5.2 APIs inside `npm test`, so drift fails a build - for thirteen tables.
-Two more have no fixture, and item 2 says why neither is simply work.
+5.2 APIs inside `npm test`, so drift fails a build - for nineteen tables,
+including every spell slot, cantrip and spells-known column, both editions'
+subclass progressions and the 2014 resource columns. Two tables have no
+fixture, and item 2 says why neither is simply work.
 
 **What is not finished.** The core 5e mechanics are close but not complete,
 and the box stays unticked until they are. See the live plan.
@@ -164,19 +166,28 @@ fact came from. "Written from the books" is honest provenance and a weaker
 one than "verified against the SRD" - the audits exist because that
 difference turned out to matter fourteen times over.
 
-- **Verified in `npm test`:** classes, races, skills, conditions, languages,
-  spells, equipment, weapons, magic items, 2014 subclass spell lists, 2024
-  subclasses, 2024 class resources, and the 2014 class feature table. Drift
-  fails a build.
+- **Verified in `npm test`:** classes (hit die, saves, skill picks, and the
+  whole 2014 feature table), lineages (speed, size *and* ability increases,
+  plus the four SRD subraces), skills, conditions, languages, spells,
+  equipment, weapons, magic items, subclass progressions in **both**
+  editions, 2014 subclass spell lists, class resource columns in both
+  editions, and every casting column - slot grid, pact slots, cantrips
+  known, spells known, 2024 prepared. Drift fails a build.
 - `[!]` **Not verifiable from SRD 5.1:** the feat list and the background
   list. Checked, not assumed: the SRD 5.1 API carries exactly one of each -
   Grappler and Acolyte. Every other row in both tables is written from the
   books, and no 5.1 fixture can say otherwise. The 2024 halves are auditable
   in principle and blocked on reaching Open5e; item 2 in the live plan.
 - **Written from the books, and 2024-only:** every `CLASS_FEATURES` row
-  tagged `['2024']`, and every untagged row's 2024 behaviour. The new
-  feature check is SRD 5.1 and compares the 2014 side only; nothing
-  anywhere carries 2024 class features.
+  tagged `['2024']`, and every untagged row's 2024 behaviour. The feature
+  check is SRD 5.1 and compares the 2014 side only; nothing anywhere carries
+  2024 class features.
+- **Written from the books, and not in any SRD:** the whole **Artificer** -
+  it is TCoE, so no fixture reaches it, and the audits that pass over every
+  other class say nothing about this one. Two of its rules were wrong until
+  §47 read the book by hand: it casts from 1st level, and it rounds *up*
+  when multiclassing. Both are now flags on the class carrying that
+  provenance in a comment. Treat the rest of it as unverified.
 - `[!]` **Not verifiable:** the ~108 non-SRD subclasses. No licensed source
   carries them; the community sites that do are unlicensed copies, and the
   two open-source alternatives evaluated in 2026-08 turned out to be
@@ -193,7 +204,7 @@ forgery, and it is the parked §9.
 
 ## History
 
-Forty-six shipped sections, with the reasoning intact, live in
+Forty-seven shipped sections, with the reasoning intact, live in
 **`docs/HISTORY.md`**. Forty-four of them were split out of this file on
 2026-08-09 — forty-four numbered sections had made a *plan* unreadable, and
 a roadmap should say what is left rather than what was done. §45 was
@@ -218,4 +229,4 @@ section has gone since.
 | The full-screen game UI | 31-35 |
 | The game look, finished | 36-38 |
 | 5e core mechanics: grapple, light, surprise, the small rules | 39-42 |
-| Builder correctness, and the audits that found it | 43-46 |
+| Builder correctness, and the audits that found it | 43-47 |

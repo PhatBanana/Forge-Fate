@@ -6,6 +6,7 @@ import coreFixture from './srd/srd-2014-core.json';
 import classLevelsFixture from './srd/srd-2014-class-levels.json';
 import weapon2024Fixture from './srd/srd-2024-weapons.json';
 import subclass2024Fixture from './srd/srd-2024-subclasses.json';
+import subclass2014Fixture from './srd/srd-2014-subclasses.json';
 import class2024Fixture from './srd/srd-2024-classes.json';
 import { GEAR } from './gear';
 import { WEAPONS, weaponsFor } from './weapons';
@@ -16,9 +17,11 @@ import type { CastingTime } from './spells';
 import { CLASSES } from './classes';
 import { CLASS_FEATURES } from './classFeatures';
 import { SORCERY_POINT_SLOT_COSTS, resourcesForClass } from './classResources';
+import { heldResources } from '../engine/resources';
 import { PREPARED_2024 } from './spellSlots';
 import { computeSlots } from '../engine/spellcasting';
-import type { ClassId } from '../types';
+import { deriveBuild, emptyBuild } from '../engine/character';
+import type { Ability, ClassId } from '../types';
 import { RACES } from './races';
 import { SKILLS } from './skills';
 import { CONDITIONS } from './conditions';
@@ -105,6 +108,14 @@ const EXPECTED_SOURCE: Record<string, string> = {
   // --- A subrace that changes its lineage's speed.
   'race:Wood Elf:speed':
     'Fleet of Foot raises a Wood Elf to 35 feet; the SRD records the Elf base of 30.',
+
+  // --- A choice the source flattened into a grant.
+  'race:Variant Human:asi':
+    'dnd5eapi records +1 to all six abilities. The Variant Human gets +1 to '
+    + '*two of your choice*, which the app models as `flexibleAsi` with no '
+    + 'baked-in increase - so the app has zero where the source has six, and '
+    + 'the app is right. Taking the source literally would hand every Variant '
+    + 'Human +6 total.',
 
   // --- Subclass spell lists.
   'subclassSpells:life 7:spells':
@@ -584,11 +595,63 @@ describe('the 2024 subclasses against SRD 5.2', () => {
   });
 });
 
+/**
+ * The twelve SRD 5.1 subclasses against their own edition.
+ *
+ * §5 audited the *2024* subclass progressions and found that every one of
+ * them had been showing 2014 feature levels. The obvious follow-up - are the
+ * 2014 levels themselves right? - was never asked, and the two editions move
+ * features often enough that neither table can vouch for the other.
+ *
+ * Twelve is all SRD 5.1 carries. The other ~108 the app ships have no
+ * licensed source; they are labelled rather than verified, which is the
+ * standing decision recorded under Provenance and not something this can fix.
+ */
+describe('the 2014 subclasses against SRD 5.1', () => {
+  const srd = records<Record<string, {
+    name: string; id: string; features: { level: number; name: string }[];
+  }>>(subclass2014Fixture);
+
+  it('places every feature at the level 2014 gives it', () => {
+    const findings: Finding[] = [];
+    for (const [k, s] of Object.entries(srd)) {
+      const table = SUBCLASS_FEATURES[s.id] ?? [];
+      expect(table.length, `no app features for subclass "${s.id}"`).toBeGreaterThan(0);
+      const app = new Map(table.map((f) => [key(f.name), f.level]));
+
+      for (const feature of s.features) {
+        const fk = key(feature.name);
+        const hit = [...app].find(([n]) => n === fk || n.startsWith(fk) || fk.startsWith(n));
+        if (!hit) {
+          findings.push({
+            key: `subclass2014:${k}:${fk}`,
+            detail: `missing; the SRD grants it at level ${feature.level}`,
+          });
+        } else if (hit[1] !== feature.level) {
+          findings.push({
+            key: `subclass2014:${k}:${fk}`,
+            detail: `app level ${hit[1]}, srd level ${feature.level}`,
+          });
+        }
+      }
+    }
+    const { unexpected, stale } = reconcile(findings, ['subclass2014'], ['*']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  it('covers all twelve, so a subclass cannot pass by being absent', () => {
+    expect(Object.keys(srd)).toHaveLength(12);
+  });
+});
+
 // --------------------------------------------------------------------- core
 
 interface SrdCore {
   classes: Record<string, { name: string; hitDie: number; saves: string[]; skillPicks: number | null }>;
   races: Record<string, { name: string; speed: number; size: string; asi: Record<string, number> }>;
+  /** The four SRD 5.1 subraces, carrying their own increase only. */
+  subraces: Record<string, { name: string; parent: string | null; asi: Record<string, number> }>;
   skills: Record<string, { name: string; ability: string }>;
   sorceryPointCosts: Record<string, number>;
   conditions: string[];
@@ -644,11 +707,62 @@ describe('classes, races, skills, conditions and languages against SRD 5.1', () 
         if (s.size.toLowerCase() !== race.size.toLowerCase()) {
           findings.push({ key: `race:${key(race.name)}:size`, detail: `app ${race.size}, srd ${s.size}` });
         }
+
+        /*
+          The ability increases, which this test has claimed in its own name
+          since it was written and did not compare until 2026-08-09. They are
+          the part of a lineage that moves a number on the sheet - a wrong +2
+          is a wrong modifier, a wrong attack bonus and a wrong save DC - so
+          leaving them out made the title the least accurate line in the file.
+
+          The app flattens lineages: "Hill Dwarf" holds the Dwarf's +2
+          Constitution *and* its own +1 Wisdom, while the fixture keeps them
+          apart. So the lineage's own bonuses have to be a subset here, and
+          the subrace check below covers the other half.
+        */
+        for (const [ability, bonus] of Object.entries(s.asi)) {
+          const mine = (race.asi as Partial<Record<Ability, number>> | undefined)?.[ability as Ability] ?? 0;
+          if (mine !== bonus) {
+            findings.push({
+              key: `race:${key(race.name)}:asi`,
+              detail: `${ability}: app +${mine}, srd +${bonus}`,
+            });
+          }
+        }
       }
     }
-    const { unexpected, stale } = reconcile(findings, ['race'], ['speed', 'size']);
+    const { unexpected, stale } = reconcile(findings, ['race'], ['speed', 'size', 'asi']);
     expect(show(unexpected)).toEqual([]);
     expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  it('gives each SRD subrace its own increase on top of its lineage', () => {
+    /*
+      The other half of the flattening. SRD 5.1 carries four subraces, and for
+      each one the app's single entry must equal the lineage's bonuses plus
+      the subrace's own - no more and no less. A Hill Dwarf who lost the +2
+      Constitution, or kept it twice, fails here rather than on a sheet.
+    */
+    const wrong: string[] = [];
+    for (const sub of Object.values(srd.subraces)) {
+      const parent = sub.parent ? srd.races[key(sub.parent)] : null;
+      const want: Record<string, number> = { ...(parent?.asi ?? {}) };
+      for (const [ability, bonus] of Object.entries(sub.asi)) {
+        want[ability] = (want[ability] ?? 0) + bonus;
+      }
+      const race = RACES.find((r) => key(r.name) === key(sub.name));
+      if (!race) {
+        wrong.push(`${sub.name}: not in the app at all`);
+        continue;
+      }
+      const mine = Object.fromEntries(
+        Object.entries(race.asi ?? {}).filter(([, n]) => n),
+      );
+      if (JSON.stringify(mine) !== JSON.stringify(want)) {
+        wrong.push(`${sub.name}: app ${JSON.stringify(mine)}, srd ${JSON.stringify(want)}`);
+      }
+    }
+    expect(wrong).toEqual([]);
   });
 
   it('carries all eighteen skills against the right abilities', () => {
@@ -825,6 +939,244 @@ describe('the 2014 class feature table against SRD 5.1', () => {
       'warlock L15 Eldritch Invocations',
       'warlock L18 Eldritch Invocations',
     ]);
+  });
+});
+
+/**
+ * Spell slots, cantrips and spells known against SRD 5.1.
+ *
+ * Five tables rested on one transcription and had no source: the full-caster
+ * slot grid, the pact-slot ladder, `CANTRIPS_KNOWN`, `SPELLS_KNOWN`, and the
+ * half-caster round-*up* in `soleCasterLevel` - a rule whose comment already
+ * claimed it was "verified against the SRD 5.1 Paladin and Ranger tables at
+ * all 20 levels" with nothing in the repo doing the verifying.
+ *
+ * These are also the numbers with the longest blast radius in the app. Slots
+ * feed the Spells panel, the printed sheet, play tracking, the legality
+ * check's `topSlotLevel`, and the caster half of the damage model. A wrong
+ * row is wrong in six places at once.
+ *
+ * So the check runs `deriveBuild` rather than reading the tables: it compares
+ * what a real character of that class and level ends up holding, which is the
+ * only thing a player sees. A table that is right and a lookup that is wrong
+ * fails here, and reading `FULL_CASTER_SLOTS` directly would not notice.
+ */
+describe('spell slots, cantrips and spells known against SRD 5.1', () => {
+  const srd = records<Record<string, {
+    name: string;
+    levels: {
+      level: number;
+      casting?: { slots: number[]; cantripsKnown: number | null; spellsKnown: number | null };
+    }[];
+  }>>(classLevelsFixture);
+
+  const derive = (classId: ClassId, level: number) =>
+    deriveBuild({
+      ...emptyBuild(),
+      ruleset: '2014',
+      raceId: 'human',
+      classes: [{ classId, level }],
+    });
+
+  it('gives every class the slots its own table prints, at all twenty levels', () => {
+    const wrong: string[] = [];
+    for (const [id, table] of Object.entries(srd)) {
+      for (const row of table.levels) {
+        if (!row.casting) continue;
+        const casting = derive(id as ClassId, row.level).spellcasting;
+
+        /*
+          The Warlock is the one class whose printed row is not the slot grid:
+          the SRD prints its pact slots in the same columns as everyone else's,
+          so `spell_slots_level_5: 3` at Warlock 11 means three pact slots at
+          5th level, not three fifth-level slots from the shared pool. The app
+          keeps them apart on purpose - a Warlock 5 / Sorcerer 5 has both - so
+          the comparison is against `pact`, and this is the one place the two
+          shapes have to be reconciled rather than compared.
+        */
+        if (id === 'warlock') {
+          const level = row.casting.slots.reduce((best, n, i) => (n > 0 ? i + 1 : best), 0);
+          const count = level ? row.casting.slots[level - 1] : 0;
+          const pact = casting.pact;
+          if (!pact || pact.level !== level || pact.count !== count) {
+            wrong.push(`warlock L${row.level}: app ${pact ? `${pact.count}x${pact.level}` : 'none'}, srd ${count}x${level}`);
+          }
+          continue;
+        }
+
+        const mine = casting.bySpellLevel.join(',');
+        const theirs = row.casting.slots.join(',');
+        if (mine !== theirs) wrong.push(`${id} L${row.level}: app [${mine}], srd [${theirs}]`);
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  it('gives every class the cantrips its own table prints', () => {
+    const wrong: string[] = [];
+    for (const [id, table] of Object.entries(srd)) {
+      for (const row of table.levels) {
+        const want = row.casting?.cantripsKnown;
+        if (want == null) continue;
+        const got = derive(id as ClassId, row.level).spellcasting.cantripsKnown;
+        if (got !== want) wrong.push(`${id} L${row.level}: app ${got}, srd ${want}`);
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  it('gives the known casters the spells their table prints', () => {
+    const wrong: string[] = [];
+    for (const [id, table] of Object.entries(srd)) {
+      for (const row of table.levels) {
+        const want = row.casting?.spellsKnown;
+        if (want == null) continue;
+        const got = derive(id as ClassId, row.level).spellcasting.spellsKnown;
+        // A preparer has no known count at all, which is a different answer
+        // from zero and is why `spellsKnown` is nullable.
+        if (got !== want) wrong.push(`${id} L${row.level}: app ${got ?? 'prepares'}, srd ${want}`);
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  it('starts each caster at the level the SRD starts them', () => {
+    /*
+      The off-by-one that the round-up rule exists to get right: a 2014 Paladin
+      and Ranger have no slots at all at level 1, and the multiclass formula
+      would also give a *single-class* Paladin 5 three 1st-level slots instead
+      of four-and-two. Pinned from the fixture rather than asserted from
+      memory, both ends.
+    */
+    const first = (id: string) =>
+      srd[id].levels.find((r) => r.casting?.slots.some((n) => n > 0))?.level ?? null;
+    expect(first('paladin')).toBe(2);
+    expect(first('ranger')).toBe(2);
+    expect(first('wizard')).toBe(1);
+    expect(derive('paladin', 1).spellcasting.bySpellLevel.every((n) => n === 0)).toBe(true);
+    expect(derive('paladin', 5).spellcasting.bySpellLevel.slice(0, 2)).toEqual([4, 2]);
+  });
+});
+
+/**
+ * The 2014 class resource columns against SRD 5.1.
+ *
+ * §5 audited the *2024* resource progressions against SRD 5.2 and left their
+ * 2014 originals resting on a hand transcription - the exact asymmetry that
+ * §5's own finding warned about, since it had just caught every 2024 subclass
+ * wearing 2014 levels.
+ *
+ * Only the columns the app actually tracks as a spendable resource are
+ * compared. The SRD prints several more - sneak attack dice, the Martial Arts
+ * die, rage damage, aura range - which are numbers a feature *has* rather than
+ * a pool a player spends, and the app models those on the feature rather than
+ * in `CLASS_RESOURCES`. Comparing them here would mean inventing rows nobody
+ * ticks down.
+ */
+describe('the 2014 class resource columns against SRD 5.1', () => {
+  const srd = records<Record<string, {
+    levels: { level: number; resources?: Record<string, unknown> | null }[];
+  }>>(classLevelsFixture);
+
+  /** The SRD's column name for each resource the app tracks. */
+  const COLUMN: Record<string, string> = {
+    'barbarian:rage': 'rage_count',
+    'monk:ki': 'ki_points',
+    'fighter:action-surge': 'action_surges',
+    'fighter:indomitable': 'indomitable_uses',
+    'sorcerer:sorcery-points': 'sorcery_points',
+    'cleric:channel-divinity': 'channel_divinity_charges',
+  };
+
+  /*
+    Two SRD columns deliberately have no row above, and both were findings
+    against the test rather than the app when this was first written:
+
+    `arcane_recovery_levels` counts *slot levels recovered*, not uses. The
+    app's resource is the one use a day, which is right, and the levels are
+    `resource.detail` - checked separately below rather than mapped to a
+    count that means something else.
+
+    `favored_enemies` is the 2014 Favored Enemy, a list of creature types
+    with nothing to spend. The app's `favored-enemy` row is the *2024*
+    resource of the same name, which is free castings of Hunter's Mark - a
+    different rule that happens to share a label. Comparing them made a
+    2024-only row look like a missing 2014 one.
+  */
+
+  const mods = { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 };
+
+  it('gives every tracked resource the count its column prints, at every level', () => {
+    const wrong: string[] = [];
+    for (const [key_, column] of Object.entries(COLUMN)) {
+      const [classId, resourceId] = key_.split(':') as [ClassId, string];
+      for (const row of srd[classId].levels) {
+        const printed = row.resources?.[column];
+        if (typeof printed !== 'number') continue;
+        /*
+          The SRD encodes "unlimited" as 9999 - a Barbarian's rages at 20th
+          level. The app stops the tracker at six and says so in a note,
+          because a pip row with 9999 pips is not a tracker.
+        */
+        if (printed >= 9999) continue;
+
+        const klass = CLASSES.find((c) => c.id === classId)!;
+        const held = heldResources(
+          [{ klass, entry: { classId, level: row.level } }] as never,
+          '2014',
+          mods,
+        ).find((h) => h.resource.id === resourceId);
+        const mine = held?.max ?? 0;
+        if (mine !== printed) {
+          wrong.push(`${classId} L${row.level} ${resourceId}: app ${mine}, srd ${printed}`);
+        }
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  it('tells a Wizard how much Arcane Recovery actually gives back', () => {
+    /*
+      The column the map above deliberately skips, checked in its own terms.
+      The app tracked one use a day - correct - and left "half your level
+      rounded up" as prose in a tooltip, so a 13th-level Wizard was told the
+      formula and left to run it. `detail` computes it; this pins it against
+      the SRD's own column at every level.
+    */
+    const wrong: string[] = [];
+    for (const row of srd.wizard.levels) {
+      const printed = row.resources?.arcane_recovery_levels;
+      if (typeof printed !== 'number') continue;
+      const held = heldResources(
+        [{ klass: CLASSES.find((c) => c.id === 'wizard')!, entry: { classId: 'wizard', level: row.level } }] as never,
+        '2014',
+        mods,
+      ).find((h) => h.resource.id === 'arcane-recovery');
+      // One use a day at every level, and the levels it restores on top.
+      if (held?.max !== 1) wrong.push(`L${row.level}: ${held?.max} uses, expected 1`);
+      if (held?.detail !== `${printed} levels of slots`) {
+        wrong.push(`L${row.level}: app "${held?.detail}", srd ${printed} levels`);
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  it('starts each resource at the level the column first shows it', () => {
+    // `minLevel` is a separate field from the count table and can disagree
+    // with it - a Monk's ki column reads 0 at 1st level and 2 at 2nd.
+    const wrong: string[] = [];
+    for (const [key_, column] of Object.entries(COLUMN)) {
+      const [classId, resourceId] = key_.split(':') as [ClassId, string];
+      const rows = srd[classId].levels;
+      const firstPrinted = rows.find((r) => typeof r.resources?.[column] === 'number'
+        && (r.resources[column] as number) > 0)?.level;
+      const resource = resourcesForClass(classId, '2014').find((r) => r.id === resourceId);
+      if (!firstPrinted || !resource) continue;
+      if (resource.minLevel !== firstPrinted) {
+        wrong.push(`${classId} ${resourceId}: app from ${resource.minLevel}, srd from ${firstPrinted}`);
+      }
+    }
+    expect(wrong).toEqual([]);
   });
 });
 

@@ -24,6 +24,10 @@ export const CLASSES: CharClass[] = [
     asiLevels: STANDARD_ASI,
     castingType: 'half',
     castingAbility: 'int',
+    // TCoE's two Artificer-only departures from the half-caster rules. See
+    // `CharClass` for what each one costs when it is missing; both were.
+    castsFromLevel1: true,
+    multiclassRoundsUp: true,
     armor: 'Light, medium, shields',
     armorProficiency: ['light', 'medium', 'shield'],
     weapons: 'Simple',

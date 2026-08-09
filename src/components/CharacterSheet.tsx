@@ -1091,6 +1091,12 @@ export function CharacterSheet({
                   <div className="cs-track" key={held.key} title={held.resource.note}>
                     <span className="label">
                       {label}
+                      {/*
+                        What a use is worth, where the count does not say it -
+                        a Wizard's Arcane Recovery is one use and the number
+                        they need is how many slot levels it gives back.
+                      */}
+                      {held.detail && <em> {held.detail}</em>}
                       <em> {recharge === 'short' ? 'short rest' : 'long rest'}</em>
                     </span>
                     {held.resource.display === 'pips' ? (

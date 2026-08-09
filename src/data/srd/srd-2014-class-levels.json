@@ -10,69 +10,205 @@
      "features": [
       "Rage",
       "Unarmored Defense"
-     ]
+     ],
+     "resources": {
+      "rage_count": 2,
+      "rage_damage_bonus": 2,
+      "brutal_critical_dice": 0
+     }
     },
     {
      "level": 2,
      "features": [
       "Reckless Attack",
       "Danger Sense"
-     ]
+     ],
+     "resources": {
+      "rage_count": 2,
+      "rage_damage_bonus": 2,
+      "brutal_critical_dice": 0
+     }
+    },
+    {
+     "level": 3,
+     "features": [],
+     "resources": {
+      "rage_count": 3,
+      "rage_damage_bonus": 2,
+      "brutal_critical_dice": 0
+     }
+    },
+    {
+     "level": 4,
+     "features": [],
+     "resources": {
+      "rage_count": 3,
+      "rage_damage_bonus": 2,
+      "brutal_critical_dice": 0
+     }
     },
     {
      "level": 5,
      "features": [
       "Extra Attack",
       "Fast Movement"
-     ]
+     ],
+     "resources": {
+      "rage_count": 3,
+      "rage_damage_bonus": 2,
+      "brutal_critical_dice": 0
+     }
+    },
+    {
+     "level": 6,
+     "features": [],
+     "resources": {
+      "rage_count": 4,
+      "rage_damage_bonus": 2,
+      "brutal_critical_dice": 0
+     }
     },
     {
      "level": 7,
      "features": [
       "Feral Instinct"
-     ]
+     ],
+     "resources": {
+      "rage_count": 4,
+      "rage_damage_bonus": 2,
+      "brutal_critical_dice": 0
+     }
+    },
+    {
+     "level": 8,
+     "features": [],
+     "resources": {
+      "rage_count": 4,
+      "rage_damage_bonus": 2,
+      "brutal_critical_dice": 0
+     }
     },
     {
      "level": 9,
      "features": [
       "Brutal Critical (1 die)"
-     ]
+     ],
+     "resources": {
+      "rage_count": 4,
+      "rage_damage_bonus": 3,
+      "brutal_critical_dice": 1
+     }
+    },
+    {
+     "level": 10,
+     "features": [],
+     "resources": {
+      "rage_count": 4,
+      "rage_damage_bonus": 3,
+      "brutal_critical_dice": 1
+     }
     },
     {
      "level": 11,
      "features": [
       "Relentless Rage"
-     ]
+     ],
+     "resources": {
+      "rage_count": 4,
+      "rage_damage_bonus": 3,
+      "brutal_critical_dice": 1
+     }
+    },
+    {
+     "level": 12,
+     "features": [],
+     "resources": {
+      "rage_count": 5,
+      "rage_damage_bonus": 3,
+      "brutal_critical_dice": 1
+     }
     },
     {
      "level": 13,
      "features": [
       "Brutal Critical (2 dice)"
-     ]
+     ],
+     "resources": {
+      "rage_count": 5,
+      "rage_damage_bonus": 3,
+      "brutal_critical_dice": 2
+     }
+    },
+    {
+     "level": 14,
+     "features": [],
+     "resources": {
+      "rage_count": 5,
+      "rage_damage_bonus": 3,
+      "brutal_critical_dice": 2
+     }
     },
     {
      "level": 15,
      "features": [
       "Persistent Rage"
-     ]
+     ],
+     "resources": {
+      "rage_count": 5,
+      "rage_damage_bonus": 3,
+      "brutal_critical_dice": 2
+     }
+    },
+    {
+     "level": 16,
+     "features": [],
+     "resources": {
+      "rage_count": 5,
+      "rage_damage_bonus": 4,
+      "brutal_critical_dice": 2
+     }
     },
     {
      "level": 17,
      "features": [
       "Brutal Critical (3 dice)"
-     ]
+     ],
+     "resources": {
+      "rage_count": 6,
+      "rage_damage_bonus": 4,
+      "brutal_critical_dice": 3
+     }
     },
     {
      "level": 18,
      "features": [
       "Indomitable Might"
-     ]
+     ],
+     "resources": {
+      "rage_count": 6,
+      "rage_damage_bonus": 4,
+      "brutal_critical_dice": 3
+     }
+    },
+    {
+     "level": 19,
+     "features": [],
+     "resources": {
+      "rage_count": 6,
+      "rage_damage_bonus": 4,
+      "brutal_critical_dice": 3
+     }
     },
     {
      "level": 20,
      "features": [
       "Primal Champion"
-     ]
+     ],
+     "resources": {
+      "rage_count": 9999,
+      "rage_damage_bonus": 4,
+      "brutal_critical_dice": 3
+     }
     }
    ]
   },
@@ -84,39 +220,249 @@
      "features": [
       "Spellcasting: Bard",
       "Bardic Inspiration (d6)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 2,
+      "spellsKnown": 4
+     },
+     "resources": {
+      "bardic_inspiration_die": 6,
+      "song_of_rest_die": 0,
+      "magical_secrets_max_5": 0,
+      "magical_secrets_max_7": 0,
+      "magical_secrets_max_9": 0
+     }
     },
     {
      "level": 2,
      "features": [
       "Jack of All Trades",
       "Song of Rest (d6)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 2,
+      "spellsKnown": 5
+     },
+     "resources": {
+      "bardic_inspiration_die": 6,
+      "song_of_rest_die": 6,
+      "magical_secrets_max_5": 0,
+      "magical_secrets_max_7": 0,
+      "magical_secrets_max_9": 0
+     }
     },
     {
      "level": 3,
      "features": [
       "Expertise"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 2,
+      "spellsKnown": 6
+     },
+     "resources": {
+      "bardic_inspiration_die": 6,
+      "song_of_rest_die": 6,
+      "magical_secrets_max_5": 0,
+      "magical_secrets_max_7": 0,
+      "magical_secrets_max_9": 0
+     }
+    },
+    {
+     "level": 4,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": 7
+     },
+     "resources": {
+      "bardic_inspiration_die": 6,
+      "song_of_rest_die": 6,
+      "magical_secrets_max_5": 0,
+      "magical_secrets_max_7": 0,
+      "magical_secrets_max_9": 0
+     }
     },
     {
      "level": 5,
      "features": [
       "Bardic Inspiration (d8)",
       "Font of Inspiration"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": 8
+     },
+     "resources": {
+      "bardic_inspiration_die": 8,
+      "song_of_rest_die": 6,
+      "magical_secrets_max_5": 0,
+      "magical_secrets_max_7": 0,
+      "magical_secrets_max_9": 0
+     }
     },
     {
      "level": 6,
      "features": [
       "Countercharm"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": 9
+     },
+     "resources": {
+      "bardic_inspiration_die": 8,
+      "song_of_rest_die": 6,
+      "magical_secrets_max_5": 0,
+      "magical_secrets_max_7": 0,
+      "magical_secrets_max_9": 0
+     }
+    },
+    {
+     "level": 7,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       1,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": 10
+     },
+     "resources": {
+      "bardic_inspiration_die": 8,
+      "song_of_rest_die": 6,
+      "magical_secrets_max_5": 0,
+      "magical_secrets_max_7": 0,
+      "magical_secrets_max_9": 0
+     }
+    },
+    {
+     "level": 8,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": 11
+     },
+     "resources": {
+      "bardic_inspiration_die": 8,
+      "song_of_rest_die": 6,
+      "magical_secrets_max_5": 0,
+      "magical_secrets_max_7": 0,
+      "magical_secrets_max_9": 0
+     }
     },
     {
      "level": 9,
      "features": [
       "Song of Rest (d8)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       1,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": 12
+     },
+     "resources": {
+      "bardic_inspiration_die": 8,
+      "song_of_rest_die": 8,
+      "magical_secrets_max_5": 0,
+      "magical_secrets_max_7": 0,
+      "magical_secrets_max_9": 0
+     }
     },
     {
      "level": 10,
@@ -124,43 +470,301 @@
       "Expertise",
       "Bardic Inspiration (d10)",
       "Magical Secrets"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 14
+     },
+     "resources": {
+      "bardic_inspiration_die": 10,
+      "song_of_rest_die": 8,
+      "magical_secrets_max_5": 2,
+      "magical_secrets_max_7": 0,
+      "magical_secrets_max_9": 0
+     }
+    },
+    {
+     "level": 11,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 15
+     },
+     "resources": {
+      "bardic_inspiration_die": 10,
+      "song_of_rest_die": 8,
+      "magical_secrets_max_5": 2,
+      "magical_secrets_max_7": 0,
+      "magical_secrets_max_9": 0
+     }
+    },
+    {
+     "level": 12,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 15
+     },
+     "resources": {
+      "bardic_inspiration_die": 10,
+      "song_of_rest_die": 8,
+      "magical_secrets_max_5": 2,
+      "magical_secrets_max_7": 0,
+      "magical_secrets_max_9": 0
+     }
     },
     {
      "level": 13,
      "features": [
       "Song of Rest (d10)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 16
+     },
+     "resources": {
+      "bardic_inspiration_die": 10,
+      "song_of_rest_die": 10,
+      "magical_secrets_max_5": 2,
+      "magical_secrets_max_7": 0,
+      "magical_secrets_max_9": 0
+     }
     },
     {
      "level": 14,
      "features": [
       "Magical Secrets"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 18
+     },
+     "resources": {
+      "bardic_inspiration_die": 10,
+      "song_of_rest_die": 10,
+      "magical_secrets_max_5": 2,
+      "magical_secrets_max_7": 2,
+      "magical_secrets_max_9": 0
+     }
     },
     {
      "level": 15,
      "features": [
       "Bardic Inspiration (d12)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 19
+     },
+     "resources": {
+      "bardic_inspiration_die": 12,
+      "song_of_rest_die": 10,
+      "magical_secrets_max_5": 2,
+      "magical_secrets_max_7": 2,
+      "magical_secrets_max_9": 0
+     }
+    },
+    {
+     "level": 16,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 19
+     },
+     "resources": {
+      "bardic_inspiration_die": 12,
+      "song_of_rest_die": 10,
+      "magical_secrets_max_5": 2,
+      "magical_secrets_max_7": 2,
+      "magical_secrets_max_9": 0
+     }
     },
     {
      "level": 17,
      "features": [
       "Song of Rest (d12)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1,
+       1
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 20
+     },
+     "resources": {
+      "bardic_inspiration_die": 12,
+      "song_of_rest_die": 12,
+      "magical_secrets_max_5": 2,
+      "magical_secrets_max_7": 2,
+      "magical_secrets_max_9": 0
+     }
     },
     {
      "level": 18,
      "features": [
       "Magical Secrets"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       3,
+       1,
+       1,
+       1,
+       1
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 22
+     },
+     "resources": {
+      "bardic_inspiration_die": 12,
+      "song_of_rest_die": 12,
+      "magical_secrets_max_5": 2,
+      "magical_secrets_max_7": 2,
+      "magical_secrets_max_9": 2
+     }
+    },
+    {
+     "level": 19,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 22
+     },
+     "resources": {
+      "bardic_inspiration_die": 12,
+      "song_of_rest_die": 12,
+      "magical_secrets_max_5": 2,
+      "magical_secrets_max_7": 2,
+      "magical_secrets_max_9": 2
+     }
     },
     {
      "level": 20,
      "features": [
       "Superior Inspiration"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       3,
+       2,
+       2,
+       1,
+       1
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 22
+     },
+     "resources": {
+      "bardic_inspiration_die": 12,
+      "song_of_rest_die": 12,
+      "magical_secrets_max_5": 2,
+      "magical_secrets_max_7": 2,
+      "magical_secrets_max_9": 2
+     }
     }
    ]
   },
@@ -171,68 +775,484 @@
      "level": 1,
      "features": [
       "Spellcasting: Cleric"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 0,
+      "destroy_undead_cr": 0
+     }
     },
     {
      "level": 2,
      "features": [
       "Channel Divinity (1/rest)",
       "Channel Divinity: Turn Undead"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 1,
+      "destroy_undead_cr": 0
+     }
+    },
+    {
+     "level": 3,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 1,
+      "destroy_undead_cr": 0
+     }
+    },
+    {
+     "level": 4,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 1,
+      "destroy_undead_cr": 0
+     }
     },
     {
      "level": 5,
      "features": [
       "Destroy Undead (CR 1/2 or below)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 1,
+      "destroy_undead_cr": 0.5
+     }
     },
     {
      "level": 6,
      "features": [
       "Channel Divinity (2/rest)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 2,
+      "destroy_undead_cr": 0.5
+     }
+    },
+    {
+     "level": 7,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       1,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 2,
+      "destroy_undead_cr": 0.5
+     }
     },
     {
      "level": 8,
      "features": [
       "Destroy Undead (CR 1 or below)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 2,
+      "destroy_undead_cr": 1
+     }
+    },
+    {
+     "level": 9,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       1,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 2,
+      "destroy_undead_cr": 1
+     }
     },
     {
      "level": 10,
      "features": [
       "Divine Intervention"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 2,
+      "destroy_undead_cr": 1
+     }
     },
     {
      "level": 11,
      "features": [
       "Destroy Undead (CR 2 or below)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 2,
+      "destroy_undead_cr": 2
+     }
+    },
+    {
+     "level": 12,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 2,
+      "destroy_undead_cr": 2
+     }
+    },
+    {
+     "level": 13,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       0,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 2,
+      "destroy_undead_cr": 2
+     }
     },
     {
      "level": 14,
      "features": [
       "Destroy Undead (CR 3 or below)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       0,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 2,
+      "destroy_undead_cr": 3
+     }
+    },
+    {
+     "level": 15,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 2,
+      "destroy_undead_cr": 3
+     }
+    },
+    {
+     "level": 16,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 2,
+      "destroy_undead_cr": 3
+     }
     },
     {
      "level": 17,
      "features": [
       "Destroy Undead (CR 4 or below)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1,
+       1
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 2,
+      "destroy_undead_cr": 4
+     }
     },
     {
      "level": 18,
      "features": [
       "Channel Divinity (3/rest)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       3,
+       1,
+       1,
+       1,
+       1
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 3,
+      "destroy_undead_cr": 4
+     }
+    },
+    {
+     "level": 19,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 3,
+      "destroy_undead_cr": 4
+     }
     },
     {
      "level": 20,
      "features": [
       "Divine Intervention Improvement"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       3,
+       2,
+       2,
+       1,
+       1
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "channel_divinity_charges": 3,
+      "destroy_undead_cr": 4
+     }
     }
    ]
   },
@@ -244,38 +1264,494 @@
      "features": [
       "Spellcasting: Druid",
       "Druidic"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 2,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 0,
+      "wild_shape_swim": false,
+      "wild_shape_fly": false
+     }
     },
     {
      "level": 2,
      "features": [
       "Wild Shape (CR 1/4 or below, no flying or swim speed)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 2,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 0.25,
+      "wild_shape_swim": false,
+      "wild_shape_fly": false
+     }
+    },
+    {
+     "level": 3,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 2,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 0.25,
+      "wild_shape_swim": false,
+      "wild_shape_fly": false
+     }
     },
     {
      "level": 4,
      "features": [
       "Wild Shape (CR 1/2 or below, no flying speed)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 0.5,
+      "wild_shape_swim": true,
+      "wild_shape_fly": false
+     }
+    },
+    {
+     "level": 5,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 0.5,
+      "wild_shape_swim": true,
+      "wild_shape_fly": false
+     }
+    },
+    {
+     "level": 6,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 0.5,
+      "wild_shape_swim": true,
+      "wild_shape_fly": false
+     }
+    },
+    {
+     "level": 7,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       1,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 1,
+      "wild_shape_swim": true,
+      "wild_shape_fly": false
+     }
     },
     {
      "level": 8,
      "features": [
       "Wild Shape (CR 1 or below)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 1,
+      "wild_shape_swim": true,
+      "wild_shape_fly": true
+     }
+    },
+    {
+     "level": 9,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       1,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 1,
+      "wild_shape_swim": true,
+      "wild_shape_fly": true
+     }
+    },
+    {
+     "level": 10,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 1,
+      "wild_shape_swim": true,
+      "wild_shape_fly": true
+     }
+    },
+    {
+     "level": 11,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 1,
+      "wild_shape_swim": true,
+      "wild_shape_fly": true
+     }
+    },
+    {
+     "level": 12,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 1,
+      "wild_shape_swim": true,
+      "wild_shape_fly": true
+     }
+    },
+    {
+     "level": 13,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 1,
+      "wild_shape_swim": true,
+      "wild_shape_fly": true
+     }
+    },
+    {
+     "level": 14,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 1,
+      "wild_shape_swim": true,
+      "wild_shape_fly": true
+     }
+    },
+    {
+     "level": 15,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 1,
+      "wild_shape_swim": true,
+      "wild_shape_fly": true
+     }
+    },
+    {
+     "level": 16,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 1,
+      "wild_shape_swim": true,
+      "wild_shape_fly": true
+     }
+    },
+    {
+     "level": 17,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1,
+       1
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 1,
+      "wild_shape_swim": true,
+      "wild_shape_fly": true
+     }
     },
     {
      "level": 18,
      "features": [
       "Timeless Body",
       "Beast Spells"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       3,
+       1,
+       1,
+       1,
+       1
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 1,
+      "wild_shape_swim": true,
+      "wild_shape_fly": true
+     }
+    },
+    {
+     "level": 19,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 1,
+      "wild_shape_swim": true,
+      "wild_shape_fly": true
+     }
     },
     {
      "level": 20,
      "features": [
       "Archdruid"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       3,
+       2,
+       2,
+       1,
+       1
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "wild_shape_max_cr": 1,
+      "wild_shape_swim": true,
+      "wild_shape_fly": true
+     }
     }
    ]
   },
@@ -287,50 +1763,198 @@
      "features": [
       "Fighting Style",
       "Second Wind"
-     ]
+     ],
+     "resources": {
+      "action_surges": 0,
+      "indomitable_uses": 0,
+      "extra_attacks": 0
+     }
     },
     {
      "level": 2,
      "features": [
       "Action Surge (1 use)"
-     ]
+     ],
+     "resources": {
+      "action_surges": 1,
+      "indomitable_uses": 0,
+      "extra_attacks": 0
+     }
+    },
+    {
+     "level": 3,
+     "features": [],
+     "resources": {
+      "action_surges": 1,
+      "indomitable_uses": 0,
+      "extra_attacks": 0
+     }
+    },
+    {
+     "level": 4,
+     "features": [],
+     "resources": {
+      "action_surges": 1,
+      "indomitable_uses": 0,
+      "extra_attacks": 0
+     }
     },
     {
      "level": 5,
      "features": [
       "Extra Attack"
-     ]
+     ],
+     "resources": {
+      "action_surges": 1,
+      "indomitable_uses": 0,
+      "extra_attacks": 1
+     }
+    },
+    {
+     "level": 6,
+     "features": [],
+     "resources": {
+      "action_surges": 1,
+      "indomitable_uses": 0,
+      "extra_attacks": 1
+     }
+    },
+    {
+     "level": 7,
+     "features": [],
+     "resources": {
+      "action_surges": 1,
+      "indomitable_uses": 0,
+      "extra_attacks": 1
+     }
+    },
+    {
+     "level": 8,
+     "features": [],
+     "resources": {
+      "action_surges": 1,
+      "indomitable_uses": 0,
+      "extra_attacks": 1
+     }
     },
     {
      "level": 9,
      "features": [
       "Indomitable (1 use)"
-     ]
+     ],
+     "resources": {
+      "action_surges": 1,
+      "indomitable_uses": 1,
+      "extra_attacks": 1
+     }
+    },
+    {
+     "level": 10,
+     "features": [],
+     "resources": {
+      "action_surges": 1,
+      "indomitable_uses": 1,
+      "extra_attacks": 1
+     }
     },
     {
      "level": 11,
      "features": [
       "Extra Attack (2)"
-     ]
+     ],
+     "resources": {
+      "action_surges": 1,
+      "indomitable_uses": 1,
+      "extra_attacks": 2
+     }
+    },
+    {
+     "level": 12,
+     "features": [],
+     "resources": {
+      "action_surges": 1,
+      "indomitable_uses": 1,
+      "extra_attacks": 2
+     }
     },
     {
      "level": 13,
      "features": [
       "Indomitable (2 uses)"
-     ]
+     ],
+     "resources": {
+      "action_surges": 1,
+      "indomitable_uses": 2,
+      "extra_attacks": 2
+     }
+    },
+    {
+     "level": 14,
+     "features": [],
+     "resources": {
+      "action_surges": 1,
+      "indomitable_uses": 2,
+      "extra_attacks": 2
+     }
+    },
+    {
+     "level": 15,
+     "features": [],
+     "resources": {
+      "action_surges": 1,
+      "indomitable_uses": 2,
+      "extra_attacks": 2
+     }
+    },
+    {
+     "level": 16,
+     "features": [],
+     "resources": {
+      "action_surges": 1,
+      "indomitable_uses": 2,
+      "extra_attacks": 2
+     }
     },
     {
      "level": 17,
      "features": [
       "Action Surge (2 uses)",
       "Indomitable (3 uses)"
-     ]
+     ],
+     "resources": {
+      "action_surges": 2,
+      "indomitable_uses": 3,
+      "extra_attacks": 2
+     }
+    },
+    {
+     "level": 18,
+     "features": [],
+     "resources": {
+      "action_surges": 2,
+      "indomitable_uses": 3,
+      "extra_attacks": 2
+     }
+    },
+    {
+     "level": 19,
+     "features": [],
+     "resources": {
+      "action_surges": 2,
+      "indomitable_uses": 3,
+      "extra_attacks": 2
+     }
     },
     {
      "level": 20,
      "features": [
       "Extra Attack (3)"
-     ]
+     ],
+     "resources": {
+      "action_surges": 2,
+      "indomitable_uses": 3,
+      "extra_attacks": 3
+     }
     }
    ]
   },
@@ -342,7 +1966,15 @@
      "features": [
       "Unarmored Defense",
       "Martial Arts"
-     ]
+     ],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 4
+      },
+      "ki_points": 0,
+      "unarmored_movement": 0
+     }
     },
     {
      "level": 2,
@@ -352,81 +1984,257 @@
       "Patient Defense",
       "Step of the Wind",
       "Unarmored Movement"
-     ]
+     ],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 4
+      },
+      "ki_points": 2,
+      "unarmored_movement": 10
+     }
     },
     {
      "level": 3,
      "features": [
       "Deflect Missiles"
-     ]
+     ],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 4
+      },
+      "ki_points": 3,
+      "unarmored_movement": 10
+     }
     },
     {
      "level": 4,
      "features": [
       "Slow Fall"
-     ]
+     ],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 4
+      },
+      "ki_points": 4,
+      "unarmored_movement": 10
+     }
     },
     {
      "level": 5,
      "features": [
       "Extra Attack",
       "Stunning Strike"
-     ]
+     ],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 6
+      },
+      "ki_points": 5,
+      "unarmored_movement": 10
+     }
     },
     {
      "level": 6,
      "features": [
       "Ki Empowered Strikes"
-     ]
+     ],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 6
+      },
+      "ki_points": 6,
+      "unarmored_movement": 15
+     }
     },
     {
      "level": 7,
      "features": [
       "Evasion",
       "Stillness of Mind"
-     ]
+     ],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 6
+      },
+      "ki_points": 7,
+      "unarmored_movement": 15
+     }
+    },
+    {
+     "level": 8,
+     "features": [],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 6
+      },
+      "ki_points": 8,
+      "unarmored_movement": 15
+     }
     },
     {
      "level": 9,
      "features": [
       "Unarmored Movement"
-     ]
+     ],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 6
+      },
+      "ki_points": 9,
+      "unarmored_movement": 15
+     }
     },
     {
      "level": 10,
      "features": [
       "Purity of Body"
-     ]
+     ],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 6
+      },
+      "ki_points": 10,
+      "unarmored_movement": 20
+     }
+    },
+    {
+     "level": 11,
+     "features": [],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 8
+      },
+      "ki_points": 11,
+      "unarmored_movement": 20
+     }
+    },
+    {
+     "level": 12,
+     "features": [],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 8
+      },
+      "ki_points": 12,
+      "unarmored_movement": 20
+     }
     },
     {
      "level": 13,
      "features": [
       "Tongue of the Sun and Moon"
-     ]
+     ],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 8
+      },
+      "ki_points": 13,
+      "unarmored_movement": 20
+     }
     },
     {
      "level": 14,
      "features": [
       "Diamond Soul"
-     ]
+     ],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 8
+      },
+      "ki_points": 14,
+      "unarmored_movement": 25
+     }
     },
     {
      "level": 15,
      "features": [
       "Timeless Body"
-     ]
+     ],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 8
+      },
+      "ki_points": 15,
+      "unarmored_movement": 25
+     }
+    },
+    {
+     "level": 16,
+     "features": [],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 8
+      },
+      "ki_points": 16,
+      "unarmored_movement": 25
+     }
+    },
+    {
+     "level": 17,
+     "features": [],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 10
+      },
+      "ki_points": 17,
+      "unarmored_movement": 25
+     }
     },
     {
      "level": 18,
      "features": [
       "Empty Body"
-     ]
+     ],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 10
+      },
+      "ki_points": 18,
+      "unarmored_movement": 30
+     }
+    },
+    {
+     "level": 19,
+     "features": [],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 10
+      },
+      "ki_points": 19,
+      "unarmored_movement": 30
+     }
     },
     {
      "level": 20,
      "features": [
       "Perfect Self"
-     ]
+     ],
+     "resources": {
+      "martial_arts": {
+       "dice_count": 1,
+       "dice_value": 10
+      },
+      "ki_points": 20,
+      "unarmored_movement": 30
+     }
     }
    ]
   },
@@ -438,7 +2246,25 @@
      "features": [
       "Divine Sense",
       "Lay on Hands"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 0
+     }
     },
     {
      "level": 2,
@@ -446,50 +2272,436 @@
       "Fighting Style",
       "Spellcasting: Paladin",
       "Divine Smite"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 0
+     }
     },
     {
      "level": 3,
      "features": [
       "Divine Health",
       "Channel Divinity"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 0
+     }
+    },
+    {
+     "level": 4,
+     "features": [],
+     "casting": {
+      "slots": [
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 0
+     }
     },
     {
      "level": 5,
      "features": [
       "Extra Attack"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 0
+     }
     },
     {
      "level": 6,
      "features": [
       "Aura of Protection"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 10
+     }
+    },
+    {
+     "level": 7,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 10
+     }
+    },
+    {
+     "level": 8,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 10
+     }
+    },
+    {
+     "level": 9,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 10
+     }
     },
     {
      "level": 10,
      "features": [
       "Aura of Courage"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 10
+     }
     },
     {
      "level": 11,
      "features": [
       "Improved Divine Smite"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 10
+     }
+    },
+    {
+     "level": 12,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 10
+     }
+    },
+    {
+     "level": 13,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       1,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 10
+     }
     },
     {
      "level": 14,
      "features": [
       "Cleansing Touch"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       1,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 10
+     }
+    },
+    {
+     "level": 15,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 10
+     }
+    },
+    {
+     "level": 16,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 10
+     }
+    },
+    {
+     "level": 17,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       1,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 10
+     }
     },
     {
      "level": 18,
      "features": [
       "Aura improvements"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       1,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 30
+     }
+    },
+    {
+     "level": 19,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 30
+     }
+    },
+    {
+     "level": 20,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": null
+     },
+     "resources": {
+      "aura_range": 30
+     }
     }
    ]
   },
@@ -501,65 +2713,485 @@
      "features": [
       "Favored Enemy (1 type)",
       "Natural Explorer (1 terrain type)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 0
+     },
+     "resources": {
+      "favored_enemies": 1,
+      "favored_terrain": 1
+     }
     },
     {
      "level": 2,
      "features": [
       "Fighting Style",
       "Spellcasting: Ranger"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 2
+     },
+     "resources": {
+      "favored_enemies": 1,
+      "favored_terrain": 1
+     }
     },
     {
      "level": 3,
      "features": [
       "Primeval Awareness"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 3
+     },
+     "resources": {
+      "favored_enemies": 1,
+      "favored_terrain": 1
+     }
+    },
+    {
+     "level": 4,
+     "features": [],
+     "casting": {
+      "slots": [
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 3
+     },
+     "resources": {
+      "favored_enemies": 1,
+      "favored_terrain": 1
+     }
     },
     {
      "level": 5,
      "features": [
       "Extra Attack"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 4
+     },
+     "resources": {
+      "favored_enemies": 1,
+      "favored_terrain": 1
+     }
     },
     {
      "level": 6,
      "features": [
       "Favored Enemy (2 types)",
       "Natural Explorer (2 terrain types)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 4
+     },
+     "resources": {
+      "favored_enemies": 2,
+      "favored_terrain": 2
+     }
+    },
+    {
+     "level": 7,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 5
+     },
+     "resources": {
+      "favored_enemies": 2,
+      "favored_terrain": 2
+     }
     },
     {
      "level": 8,
      "features": [
       "Land's Stride"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 5
+     },
+     "resources": {
+      "favored_enemies": 2,
+      "favored_terrain": 2
+     }
+    },
+    {
+     "level": 9,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 6
+     },
+     "resources": {
+      "favored_enemies": 2,
+      "favored_terrain": 2
+     }
     },
     {
      "level": 10,
      "features": [
       "Natural Explorer (3 terrain types)",
       "Hide in Plain Sight"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 6
+     },
+     "resources": {
+      "favored_enemies": 2,
+      "favored_terrain": 3
+     }
+    },
+    {
+     "level": 11,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 7
+     },
+     "resources": {
+      "favored_enemies": 2,
+      "favored_terrain": 3
+     }
+    },
+    {
+     "level": 12,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 7
+     },
+     "resources": {
+      "favored_enemies": 2,
+      "favored_terrain": 3
+     }
+    },
+    {
+     "level": 13,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       1,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 8
+     },
+     "resources": {
+      "favored_enemies": 2,
+      "favored_terrain": 3
+     }
     },
     {
      "level": 14,
      "features": [
       "Favored Enemy (3 enemies)",
       "Vanish"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       1,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 8
+     },
+     "resources": {
+      "favored_enemies": 3,
+      "favored_terrain": 3
+     }
+    },
+    {
+     "level": 15,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 9
+     },
+     "resources": {
+      "favored_enemies": 3,
+      "favored_terrain": 3
+     }
+    },
+    {
+     "level": 16,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 9
+     },
+     "resources": {
+      "favored_enemies": 3,
+      "favored_terrain": 3
+     }
+    },
+    {
+     "level": 17,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       1,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 10
+     },
+     "resources": {
+      "favored_enemies": 3,
+      "favored_terrain": 3
+     }
     },
     {
      "level": 18,
      "features": [
       "Feral Senses"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       1,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 10
+     },
+     "resources": {
+      "favored_enemies": 3,
+      "favored_terrain": 3
+     }
+    },
+    {
+     "level": 19,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 11
+     },
+     "resources": {
+      "favored_enemies": 3,
+      "favored_terrain": 3
+     }
     },
     {
      "level": 20,
      "features": [
       "Foe Slayer"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": null,
+      "spellsKnown": 11
+     },
+     "resources": {
+      "favored_enemies": 3,
+      "favored_terrain": 3
+     }
     }
    ]
   },
@@ -572,61 +3204,221 @@
       "Expertise",
       "Sneak Attack",
       "Thieves' Cant"
-     ]
+     ],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 1,
+       "dice_value": 6
+      }
+     }
     },
     {
      "level": 2,
      "features": [
       "Cunning Action"
-     ]
+     ],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 1,
+       "dice_value": 6
+      }
+     }
+    },
+    {
+     "level": 3,
+     "features": [],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 2,
+       "dice_value": 6
+      }
+     }
+    },
+    {
+     "level": 4,
+     "features": [],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 2,
+       "dice_value": 6
+      }
+     }
     },
     {
      "level": 5,
      "features": [
       "Uncanny Dodge"
-     ]
+     ],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 3,
+       "dice_value": 6
+      }
+     }
     },
     {
      "level": 6,
      "features": [
       "Expertise"
-     ]
+     ],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 3,
+       "dice_value": 6
+      }
+     }
     },
     {
      "level": 7,
      "features": [
       "Evasion"
-     ]
+     ],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 4,
+       "dice_value": 6
+      }
+     }
+    },
+    {
+     "level": 8,
+     "features": [],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 4,
+       "dice_value": 6
+      }
+     }
+    },
+    {
+     "level": 9,
+     "features": [],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 5,
+       "dice_value": 6
+      }
+     }
+    },
+    {
+     "level": 10,
+     "features": [],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 5,
+       "dice_value": 6
+      }
+     }
     },
     {
      "level": 11,
      "features": [
       "Reliable Talent"
-     ]
+     ],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 6,
+       "dice_value": 6
+      }
+     }
+    },
+    {
+     "level": 12,
+     "features": [],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 6,
+       "dice_value": 6
+      }
+     }
+    },
+    {
+     "level": 13,
+     "features": [],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 7,
+       "dice_value": 6
+      }
+     }
     },
     {
      "level": 14,
      "features": [
       "Blindsense"
-     ]
+     ],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 7,
+       "dice_value": 6
+      }
+     }
     },
     {
      "level": 15,
      "features": [
       "Slippery Mind"
-     ]
+     ],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 8,
+       "dice_value": 6
+      }
+     }
+    },
+    {
+     "level": 16,
+     "features": [],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 8,
+       "dice_value": 6
+      }
+     }
+    },
+    {
+     "level": 17,
+     "features": [],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 9,
+       "dice_value": 6
+      }
+     }
     },
     {
      "level": 18,
      "features": [
       "Elusive"
-     ]
+     ],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 9,
+       "dice_value": 6
+      }
+     }
+    },
+    {
+     "level": 19,
+     "features": [],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 10,
+       "dice_value": 6
+      }
+     }
     },
     {
      "level": 20,
      "features": [
       "Stroke of Luck"
-     ]
+     ],
+     "resources": {
+      "sneak_attack": {
+       "dice_count": 10,
+       "dice_value": 6
+      }
+     }
     }
    ]
   },
@@ -637,7 +3429,27 @@
      "level": 1,
      "features": [
       "Spellcasting: Sorcerer"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 2
+     },
+     "resources": {
+      "sorcery_points": 0,
+      "metamagic_known": 0,
+      "creating_spell_slots": []
+     }
     },
     {
      "level": 2,
@@ -645,31 +3457,866 @@
       "Font of Magic",
       "Flexible Casting: Creating Spell Slots",
       "Flexible Casting: Converting Spell Slot"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 3
+     },
+     "resources": {
+      "sorcery_points": 2,
+      "metamagic_known": 0,
+      "creating_spell_slots": [
+       {
+        "spell_slot_level": 1,
+        "sorcery_point_cost": 2
+       },
+       {
+        "spell_slot_level": 2,
+        "sorcery_point_cost": 3
+       },
+       {
+        "spell_slot_level": 3,
+        "sorcery_point_cost": 5
+       },
+       {
+        "spell_slot_level": 4,
+        "sorcery_point_cost": 6
+       },
+       {
+        "spell_slot_level": 5,
+        "sorcery_point_cost": 7
+       }
+      ]
+     }
     },
     {
      "level": 3,
      "features": [
       "Metamagic"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 4
+     },
+     "resources": {
+      "sorcery_points": 3,
+      "metamagic_known": 2,
+      "creating_spell_slots": [
+       {
+        "spell_slot_level": 1,
+        "sorcery_point_cost": 2
+       },
+       {
+        "spell_slot_level": 2,
+        "sorcery_point_cost": 3
+       },
+       {
+        "spell_slot_level": 3,
+        "sorcery_point_cost": 5
+       },
+       {
+        "spell_slot_level": 4,
+        "sorcery_point_cost": 6
+       },
+       {
+        "spell_slot_level": 5,
+        "sorcery_point_cost": 7
+       }
+      ]
+     }
+    },
+    {
+     "level": 4,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": 5
+     },
+     "resources": {
+      "sorcery_points": 4,
+      "metamagic_known": 2,
+      "creating_spell_slots": [
+       {
+        "spell_slot_level": 1,
+        "sorcery_point_cost": 2
+       },
+       {
+        "spell_slot_level": 2,
+        "sorcery_point_cost": 3
+       },
+       {
+        "spell_slot_level": 3,
+        "sorcery_point_cost": 5
+       },
+       {
+        "spell_slot_level": 4,
+        "sorcery_point_cost": 6
+       },
+       {
+        "spell_slot_level": 5,
+        "sorcery_point_cost": 7
+       }
+      ]
+     }
+    },
+    {
+     "level": 5,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": 6
+     },
+     "resources": {
+      "sorcery_points": 5,
+      "metamagic_known": 2,
+      "creating_spell_slots": [
+       {
+        "spell_slot_level": 1,
+        "sorcery_point_cost": 2
+       },
+       {
+        "spell_slot_level": 2,
+        "sorcery_point_cost": 3
+       },
+       {
+        "spell_slot_level": 3,
+        "sorcery_point_cost": 5
+       },
+       {
+        "spell_slot_level": 4,
+        "sorcery_point_cost": 6
+       },
+       {
+        "spell_slot_level": 5,
+        "sorcery_point_cost": 7
+       }
+      ]
+     }
+    },
+    {
+     "level": 6,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": 7
+     },
+     "resources": {
+      "sorcery_points": 6,
+      "metamagic_known": 2,
+      "creating_spell_slots": [
+       {
+        "spell_slot_level": 1,
+        "sorcery_point_cost": 2
+       },
+       {
+        "spell_slot_level": 2,
+        "sorcery_point_cost": 3
+       },
+       {
+        "spell_slot_level": 3,
+        "sorcery_point_cost": 5
+       },
+       {
+        "spell_slot_level": 4,
+        "sorcery_point_cost": 6
+       },
+       {
+        "spell_slot_level": 5,
+        "sorcery_point_cost": 7
+       }
+      ]
+     }
+    },
+    {
+     "level": 7,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       1,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": 8
+     },
+     "resources": {
+      "sorcery_points": 7,
+      "metamagic_known": 2,
+      "creating_spell_slots": [
+       {
+        "spell_slot_level": 1,
+        "sorcery_point_cost": 2
+       },
+       {
+        "spell_slot_level": 2,
+        "sorcery_point_cost": 3
+       },
+       {
+        "spell_slot_level": 3,
+        "sorcery_point_cost": 5
+       },
+       {
+        "spell_slot_level": 4,
+        "sorcery_point_cost": 6
+       },
+       {
+        "spell_slot_level": 5,
+        "sorcery_point_cost": 7
+       }
+      ]
+     }
+    },
+    {
+     "level": 8,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": 9
+     },
+     "resources": {
+      "sorcery_points": 8,
+      "metamagic_known": 2,
+      "creating_spell_slots": [
+       {
+        "spell_slot_level": 1,
+        "sorcery_point_cost": 2
+       },
+       {
+        "spell_slot_level": 2,
+        "sorcery_point_cost": 3
+       },
+       {
+        "spell_slot_level": 3,
+        "sorcery_point_cost": 5
+       },
+       {
+        "spell_slot_level": 4,
+        "sorcery_point_cost": 6
+       },
+       {
+        "spell_slot_level": 5,
+        "sorcery_point_cost": 7
+       }
+      ]
+     }
+    },
+    {
+     "level": 9,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       1,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": 10
+     },
+     "resources": {
+      "sorcery_points": 9,
+      "metamagic_known": 2,
+      "creating_spell_slots": [
+       {
+        "spell_slot_level": 1,
+        "sorcery_point_cost": 2
+       },
+       {
+        "spell_slot_level": 2,
+        "sorcery_point_cost": 3
+       },
+       {
+        "spell_slot_level": 3,
+        "sorcery_point_cost": 5
+       },
+       {
+        "spell_slot_level": 4,
+        "sorcery_point_cost": 6
+       },
+       {
+        "spell_slot_level": 5,
+        "sorcery_point_cost": 7
+       }
+      ]
+     }
     },
     {
      "level": 10,
      "features": [
       "Metamagic"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 6,
+      "spellsKnown": 11
+     },
+     "resources": {
+      "sorcery_points": 10,
+      "metamagic_known": 3,
+      "creating_spell_slots": [
+       {
+        "spell_slot_level": 1,
+        "sorcery_point_cost": 2
+       },
+       {
+        "spell_slot_level": 2,
+        "sorcery_point_cost": 3
+       },
+       {
+        "spell_slot_level": 3,
+        "sorcery_point_cost": 5
+       },
+       {
+        "spell_slot_level": 4,
+        "sorcery_point_cost": 6
+       },
+       {
+        "spell_slot_level": 5,
+        "sorcery_point_cost": 7
+       }
+      ]
+     }
+    },
+    {
+     "level": 11,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 6,
+      "spellsKnown": 12
+     },
+     "resources": {
+      "sorcery_points": 11,
+      "metamagic_known": 3,
+      "creating_spell_slots": [
+       {
+        "spell_slot_level": 1,
+        "sorcery_point_cost": 2
+       },
+       {
+        "spell_slot_level": 2,
+        "sorcery_point_cost": 3
+       },
+       {
+        "spell_slot_level": 3,
+        "sorcery_point_cost": 5
+       },
+       {
+        "spell_slot_level": 4,
+        "sorcery_point_cost": 6
+       },
+       {
+        "spell_slot_level": 5,
+        "sorcery_point_cost": 7
+       }
+      ]
+     }
+    },
+    {
+     "level": 12,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 6,
+      "spellsKnown": 12
+     },
+     "resources": {
+      "sorcery_points": 12,
+      "metamagic_known": 3,
+      "creating_spell_slots": [
+       {
+        "spell_slot_level": 1,
+        "sorcery_point_cost": 2
+       },
+       {
+        "spell_slot_level": 2,
+        "sorcery_point_cost": 3
+       },
+       {
+        "spell_slot_level": 3,
+        "sorcery_point_cost": 5
+       },
+       {
+        "spell_slot_level": 4,
+        "sorcery_point_cost": 6
+       },
+       {
+        "spell_slot_level": 5,
+        "sorcery_point_cost": 7
+       }
+      ]
+     }
+    },
+    {
+     "level": 13,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       0,
+       0
+      ],
+      "cantripsKnown": 6,
+      "spellsKnown": 13
+     },
+     "resources": {
+      "sorcery_points": 13,
+      "metamagic_known": 3,
+      "creating_spell_slots": [
+       {
+        "spell_slot_level": 1,
+        "sorcery_point_cost": 2
+       },
+       {
+        "spell_slot_level": 2,
+        "sorcery_point_cost": 3
+       },
+       {
+        "spell_slot_level": 3,
+        "sorcery_point_cost": 5
+       },
+       {
+        "spell_slot_level": 4,
+        "sorcery_point_cost": 6
+       },
+       {
+        "spell_slot_level": 5,
+        "sorcery_point_cost": 7
+       }
+      ]
+     }
+    },
+    {
+     "level": 14,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       0,
+       0
+      ],
+      "cantripsKnown": 6,
+      "spellsKnown": 13
+     },
+     "resources": {
+      "sorcery_points": 14,
+      "metamagic_known": 3,
+      "creating_spell_slots": [
+       {
+        "spell_slot_level": 1,
+        "sorcery_point_cost": 2
+       },
+       {
+        "spell_slot_level": 2,
+        "sorcery_point_cost": 3
+       },
+       {
+        "spell_slot_level": 3,
+        "sorcery_point_cost": 5
+       },
+       {
+        "spell_slot_level": 4,
+        "sorcery_point_cost": 6
+       },
+       {
+        "spell_slot_level": 5,
+        "sorcery_point_cost": 7
+       }
+      ]
+     }
+    },
+    {
+     "level": 15,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1,
+       0
+      ],
+      "cantripsKnown": 6,
+      "spellsKnown": 14
+     },
+     "resources": {
+      "sorcery_points": 15,
+      "metamagic_known": 3,
+      "creating_spell_slots": [
+       {
+        "spell_slot_level": 1,
+        "sorcery_point_cost": 2
+       },
+       {
+        "spell_slot_level": 2,
+        "sorcery_point_cost": 3
+       },
+       {
+        "spell_slot_level": 3,
+        "sorcery_point_cost": 5
+       },
+       {
+        "spell_slot_level": 4,
+        "sorcery_point_cost": 6
+       },
+       {
+        "spell_slot_level": 5,
+        "sorcery_point_cost": 7
+       }
+      ]
+     }
+    },
+    {
+     "level": 16,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1,
+       0
+      ],
+      "cantripsKnown": 6,
+      "spellsKnown": 14
+     },
+     "resources": {
+      "sorcery_points": 16,
+      "metamagic_known": 4,
+      "creating_spell_slots": [
+       {
+        "spell_slot_level": 1,
+        "sorcery_point_cost": 2
+       },
+       {
+        "spell_slot_level": 2,
+        "sorcery_point_cost": 3
+       },
+       {
+        "spell_slot_level": 3,
+        "sorcery_point_cost": 5
+       },
+       {
+        "spell_slot_level": 4,
+        "sorcery_point_cost": 6
+       },
+       {
+        "spell_slot_level": 5,
+        "sorcery_point_cost": 7
+       }
+      ]
+     }
     },
     {
      "level": 17,
      "features": [
       "Metamagic"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1,
+       1
+      ],
+      "cantripsKnown": 6,
+      "spellsKnown": 15
+     },
+     "resources": {
+      "sorcery_points": 17,
+      "metamagic_known": 4,
+      "creating_spell_slots": [
+       {
+        "spell_slot_level": 1,
+        "sorcery_point_cost": 2
+       },
+       {
+        "spell_slot_level": 2,
+        "sorcery_point_cost": 3
+       },
+       {
+        "spell_slot_level": 3,
+        "sorcery_point_cost": 5
+       },
+       {
+        "spell_slot_level": 4,
+        "sorcery_point_cost": 6
+       },
+       {
+        "spell_slot_level": 5,
+        "sorcery_point_cost": 7
+       }
+      ]
+     }
+    },
+    {
+     "level": 18,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       3,
+       1,
+       1,
+       1,
+       1
+      ],
+      "cantripsKnown": 6,
+      "spellsKnown": 15
+     },
+     "resources": {
+      "sorcery_points": 18,
+      "metamagic_known": 4,
+      "creating_spell_slots": [
+       {
+        "spell_slot_level": 1,
+        "sorcery_point_cost": 2
+       },
+       {
+        "spell_slot_level": 2,
+        "sorcery_point_cost": 3
+       },
+       {
+        "spell_slot_level": 3,
+        "sorcery_point_cost": 5
+       },
+       {
+        "spell_slot_level": 4,
+        "sorcery_point_cost": 6
+       },
+       {
+        "spell_slot_level": 5,
+        "sorcery_point_cost": 7
+       }
+      ]
+     }
+    },
+    {
+     "level": 19,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1
+      ],
+      "cantripsKnown": 6,
+      "spellsKnown": 15
+     },
+     "resources": {
+      "sorcery_points": 19,
+      "metamagic_known": 4,
+      "creating_spell_slots": [
+       {
+        "spell_slot_level": 1,
+        "sorcery_point_cost": 2
+       },
+       {
+        "spell_slot_level": 2,
+        "sorcery_point_cost": 3
+       },
+       {
+        "spell_slot_level": 3,
+        "sorcery_point_cost": 5
+       },
+       {
+        "spell_slot_level": 4,
+        "sorcery_point_cost": 6
+       },
+       {
+        "spell_slot_level": 5,
+        "sorcery_point_cost": 7
+       }
+      ]
+     }
     },
     {
      "level": 20,
      "features": [
       "Sorcerous Restoration"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       3,
+       2,
+       2,
+       1,
+       1
+      ],
+      "cantripsKnown": 6,
+      "spellsKnown": 15
+     },
+     "resources": {
+      "sorcery_points": 20,
+      "metamagic_known": 4,
+      "creating_spell_slots": [
+       {
+        "spell_slot_level": 1,
+        "sorcery_point_cost": 2
+       },
+       {
+        "spell_slot_level": 2,
+        "sorcery_point_cost": 3
+       },
+       {
+        "spell_slot_level": 3,
+        "sorcery_point_cost": 5
+       },
+       {
+        "spell_slot_level": 4,
+        "sorcery_point_cost": 6
+       },
+       {
+        "spell_slot_level": 5,
+        "sorcery_point_cost": 7
+       }
+      ]
+     }
     }
    ]
   },
@@ -680,49 +4327,537 @@
      "level": 1,
      "features": [
       "Pact Magic"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       1,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 2,
+      "spellsKnown": 2
+     },
+     "resources": {
+      "invocations_known": 0,
+      "mystic_arcanum_level_6": 0,
+      "mystic_arcanum_level_7": 0,
+      "mystic_arcanum_level_8": 0,
+      "mystic_arcanum_level_9": 0
+     }
     },
     {
      "level": 2,
      "features": [
       "Eldritch Invocations"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 2,
+      "spellsKnown": 3
+     },
+     "resources": {
+      "invocations_known": 2,
+      "mystic_arcanum_level_6": 0,
+      "mystic_arcanum_level_7": 0,
+      "mystic_arcanum_level_8": 0,
+      "mystic_arcanum_level_9": 0
+     }
     },
     {
      "level": 3,
      "features": [
       "Pact Boon"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       0,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 2,
+      "spellsKnown": 4
+     },
+     "resources": {
+      "invocations_known": 2,
+      "mystic_arcanum_level_6": 0,
+      "mystic_arcanum_level_7": 0,
+      "mystic_arcanum_level_8": 0,
+      "mystic_arcanum_level_9": 0
+     }
+    },
+    {
+     "level": 4,
+     "features": [],
+     "casting": {
+      "slots": [
+       0,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": 5
+     },
+     "resources": {
+      "invocations_known": 3,
+      "mystic_arcanum_level_6": 0,
+      "mystic_arcanum_level_7": 0,
+      "mystic_arcanum_level_8": 0,
+      "mystic_arcanum_level_9": 0
+     }
+    },
+    {
+     "level": 5,
+     "features": [],
+     "casting": {
+      "slots": [
+       0,
+       0,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": 6
+     },
+     "resources": {
+      "invocations_known": 3,
+      "mystic_arcanum_level_6": 0,
+      "mystic_arcanum_level_7": 0,
+      "mystic_arcanum_level_8": 0,
+      "mystic_arcanum_level_9": 0
+     }
+    },
+    {
+     "level": 6,
+     "features": [],
+     "casting": {
+      "slots": [
+       0,
+       0,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": 7
+     },
+     "resources": {
+      "invocations_known": 4,
+      "mystic_arcanum_level_6": 0,
+      "mystic_arcanum_level_7": 0,
+      "mystic_arcanum_level_8": 0,
+      "mystic_arcanum_level_9": 0
+     }
+    },
+    {
+     "level": 7,
+     "features": [],
+     "casting": {
+      "slots": [
+       0,
+       0,
+       0,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": 8
+     },
+     "resources": {
+      "invocations_known": 4,
+      "mystic_arcanum_level_6": 0,
+      "mystic_arcanum_level_7": 0,
+      "mystic_arcanum_level_8": 0,
+      "mystic_arcanum_level_9": 0
+     }
+    },
+    {
+     "level": 8,
+     "features": [],
+     "casting": {
+      "slots": [
+       0,
+       0,
+       0,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": 9
+     },
+     "resources": {
+      "invocations_known": 4,
+      "mystic_arcanum_level_6": 0,
+      "mystic_arcanum_level_7": 0,
+      "mystic_arcanum_level_8": 0,
+      "mystic_arcanum_level_9": 0
+     }
+    },
+    {
+     "level": 9,
+     "features": [],
+     "casting": {
+      "slots": [
+       0,
+       0,
+       0,
+       0,
+       2,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": 10
+     },
+     "resources": {
+      "invocations_known": 5,
+      "mystic_arcanum_level_6": 0,
+      "mystic_arcanum_level_7": 0,
+      "mystic_arcanum_level_8": 0,
+      "mystic_arcanum_level_9": 0
+     }
+    },
+    {
+     "level": 10,
+     "features": [],
+     "casting": {
+      "slots": [
+       0,
+       0,
+       0,
+       0,
+       2,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 10
+     },
+     "resources": {
+      "invocations_known": 5,
+      "mystic_arcanum_level_6": 0,
+      "mystic_arcanum_level_7": 0,
+      "mystic_arcanum_level_8": 0,
+      "mystic_arcanum_level_9": 0
+     }
     },
     {
      "level": 11,
      "features": [
       "Mystic Arcanum (6th level)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       0,
+       0,
+       0,
+       0,
+       3,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 11
+     },
+     "resources": {
+      "invocations_known": 5,
+      "mystic_arcanum_level_6": 1,
+      "mystic_arcanum_level_7": 0,
+      "mystic_arcanum_level_8": 0,
+      "mystic_arcanum_level_9": 0
+     }
+    },
+    {
+     "level": 12,
+     "features": [],
+     "casting": {
+      "slots": [
+       0,
+       0,
+       0,
+       0,
+       3,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 11
+     },
+     "resources": {
+      "invocations_known": 6,
+      "mystic_arcanum_level_6": 1,
+      "mystic_arcanum_level_7": 0,
+      "mystic_arcanum_level_8": 0,
+      "mystic_arcanum_level_9": 0
+     }
     },
     {
      "level": 13,
      "features": [
       "Mystic Arcanum (7th level)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       0,
+       0,
+       0,
+       0,
+       3,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 12
+     },
+     "resources": {
+      "invocations_known": 6,
+      "mystic_arcanum_level_6": 1,
+      "mystic_arcanum_level_7": 1,
+      "mystic_arcanum_level_8": 0,
+      "mystic_arcanum_level_9": 0
+     }
+    },
+    {
+     "level": 14,
+     "features": [],
+     "casting": {
+      "slots": [
+       0,
+       0,
+       0,
+       0,
+       3,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 12
+     },
+     "resources": {
+      "invocations_known": 6,
+      "mystic_arcanum_level_6": 1,
+      "mystic_arcanum_level_7": 1,
+      "mystic_arcanum_level_8": 0,
+      "mystic_arcanum_level_9": 0
+     }
     },
     {
      "level": 15,
      "features": [
       "Mystic Arcanum (8th level)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       0,
+       0,
+       0,
+       0,
+       3,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 13
+     },
+     "resources": {
+      "invocations_known": 7,
+      "mystic_arcanum_level_6": 1,
+      "mystic_arcanum_level_7": 1,
+      "mystic_arcanum_level_8": 1,
+      "mystic_arcanum_level_9": 0
+     }
+    },
+    {
+     "level": 16,
+     "features": [],
+     "casting": {
+      "slots": [
+       0,
+       0,
+       0,
+       0,
+       3,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 13
+     },
+     "resources": {
+      "invocations_known": 7,
+      "mystic_arcanum_level_6": 1,
+      "mystic_arcanum_level_7": 1,
+      "mystic_arcanum_level_8": 1,
+      "mystic_arcanum_level_9": 0
+     }
     },
     {
      "level": 17,
      "features": [
       "Mystic Arcanum (9th level)"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       0,
+       0,
+       0,
+       0,
+       4,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 14
+     },
+     "resources": {
+      "invocations_known": 7,
+      "mystic_arcanum_level_6": 1,
+      "mystic_arcanum_level_7": 1,
+      "mystic_arcanum_level_8": 1,
+      "mystic_arcanum_level_9": 1
+     }
+    },
+    {
+     "level": 18,
+     "features": [],
+     "casting": {
+      "slots": [
+       0,
+       0,
+       0,
+       0,
+       4,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 14
+     },
+     "resources": {
+      "invocations_known": 8,
+      "mystic_arcanum_level_6": 1,
+      "mystic_arcanum_level_7": 1,
+      "mystic_arcanum_level_8": 1,
+      "mystic_arcanum_level_9": 1
+     }
+    },
+    {
+     "level": 19,
+     "features": [],
+     "casting": {
+      "slots": [
+       0,
+       0,
+       0,
+       0,
+       4,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 15
+     },
+     "resources": {
+      "invocations_known": 8,
+      "mystic_arcanum_level_6": 1,
+      "mystic_arcanum_level_7": 1,
+      "mystic_arcanum_level_8": 1,
+      "mystic_arcanum_level_9": 1
+     }
     },
     {
      "level": 20,
      "features": [
       "Eldritch Master"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       0,
+       0,
+       0,
+       0,
+       4,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": 15
+     },
+     "resources": {
+      "invocations_known": 8,
+      "mystic_arcanum_level_6": 1,
+      "mystic_arcanum_level_7": 1,
+      "mystic_arcanum_level_8": 1,
+      "mystic_arcanum_level_9": 1
+     }
     }
    ]
   },
@@ -734,19 +4869,447 @@
      "features": [
       "Spellcasting: Wizard",
       "Arcane Recovery"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 1
+     }
+    },
+    {
+     "level": 2,
+     "features": [],
+     "casting": {
+      "slots": [
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 1
+     }
+    },
+    {
+     "level": 3,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 3,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 2
+     }
+    },
+    {
+     "level": 4,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 2
+     }
+    },
+    {
+     "level": 5,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 3
+     }
+    },
+    {
+     "level": 6,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 3
+     }
+    },
+    {
+     "level": 7,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       1,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 4
+     }
+    },
+    {
+     "level": 8,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 4
+     }
+    },
+    {
+     "level": 9,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       1,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 4,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 5
+     }
+    },
+    {
+     "level": 10,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       0,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 5
+     }
+    },
+    {
+     "level": 11,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 6
+     }
+    },
+    {
+     "level": 12,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       0,
+       0,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 6
+     }
+    },
+    {
+     "level": 13,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       0,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 7
+     }
+    },
+    {
+     "level": 14,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       0,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 7
+     }
+    },
+    {
+     "level": 15,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 8
+     }
+    },
+    {
+     "level": 16,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1,
+       0
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 8
+     }
+    },
+    {
+     "level": 17,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1,
+       1
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 9
+     }
     },
     {
      "level": 18,
      "features": [
       "Spell Mastery"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       3,
+       1,
+       1,
+       1,
+       1
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 9
+     }
+    },
+    {
+     "level": 19,
+     "features": [],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       3,
+       2,
+       1,
+       1,
+       1
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 10
+     }
     },
     {
      "level": 20,
      "features": [
       "Signature Spell"
-     ]
+     ],
+     "casting": {
+      "slots": [
+       4,
+       3,
+       3,
+       3,
+       3,
+       2,
+       2,
+       1,
+       1
+      ],
+      "cantripsKnown": 5,
+      "spellsKnown": null
+     },
+     "resources": {
+      "arcane_recovery_levels": 10
+     }
     }
    ]
   }

@@ -1,6 +1,6 @@
 {
  "source": "dnd5eapi SRD 5.1",
- "refreshed": "2026-08-03",
+ "refreshed": "2026-08-09",
  "records": {
   "classes": {
    "barbarian": {
@@ -374,6 +374,36 @@
     "asi": {
      "int": 1,
      "cha": 2
+    }
+   }
+  },
+  "subraces": {
+   "high elf": {
+    "name": "High Elf",
+    "parent": "Elf",
+    "asi": {
+     "int": 1
+    }
+   },
+   "hill dwarf": {
+    "name": "Hill Dwarf",
+    "parent": "Dwarf",
+    "asi": {
+     "wis": 1
+    }
+   },
+   "lightfoot halfling": {
+    "name": "Lightfoot Halfling",
+    "parent": "Halfling",
+    "asi": {
+     "cha": 1
+    }
+   },
+   "rock gnome": {
+    "name": "Rock Gnome",
+    "parent": "Gnome",
+    "asi": {
+     "con": 1
     }
    }
   },

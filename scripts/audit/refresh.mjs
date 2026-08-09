@@ -290,6 +290,31 @@ async function subclasses2024() {
   })));
 }
 
+// ---------------------------------------------------- 2014 subclass features
+/**
+ * What each of the twelve SRD 5.1 subclasses gets, and when.
+ *
+ * The 2024 subclass progressions have been audited since §5; their 2014
+ * siblings never were, and §5's whole finding was that *every* 2024 subclass
+ * had been showing its 2014 feature levels - so the two editions' levels
+ * differ often enough that neither can stand in for the other.
+ *
+ * Twelve is all SRD 5.1 carries. The other ~108 the app ships have no
+ * licensed source and are labelled rather than verified, which is the
+ * standing decision under Provenance.
+ */
+async function subclasses2014() {
+  const index = await getJson(`${DND5EAPI}/api/2014/subclasses?limit=100`);
+  const tables = await getAll(index.results.map((r) => `${DND5EAPI}${r.url}/levels`));
+  return byKey(index.results.map((sub, i) => ({
+    name: sub.name,
+    id: sub.index,
+    features: tables[i]
+      .flatMap((row) => (row.features ?? []).map((f) => ({ level: row.level, name: f.name })))
+      .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name)),
+  })));
+}
+
 // -------------------------------------------------- 2014 class level tables
 /**
  * What each 2014 class gets at each of its twenty levels.
@@ -335,19 +360,61 @@ async function classLevels2014() {
         features: row.features
           .map((f) => f.name)
           .filter((n) => n !== 'Ability Score Improvement' && !SUBCLASS_PLACEHOLDER.test(n)),
+        ...spellcastingRow(row.spellcasting),
+        /*
+          The class's own resource columns - rages, ki, sneak attack dice,
+          Channel Divinity charges, Action Surges and the rest. §5 audited the
+          *2024* versions of these against SRD 5.2 and their 2014 originals
+          against nothing, which left the older edition's numbers resting
+          entirely on a hand transcription.
+
+          Kept raw, keys and all, because the app's `CLASS_RESOURCES` names
+          them differently and mapping belongs in the audit where the mapping
+          can carry a comment.
+        */
+        resources: row.class_specific ?? null,
       }))
-      .filter((row) => row.features.length)
+      .filter((row) => row.features.length || row.casting || row.resources)
       .sort((a, b) => a.level - b.level),
   })));
+}
+
+/**
+ * The spellcasting columns of a class's own table.
+ *
+ * Five app tables live or die on these and none of them had a source:
+ * `FULL_CASTER_SLOTS`, `PACT_SLOTS`, `CANTRIPS_KNOWN`, `SPELLS_KNOWN`, and
+ * the half-caster rounding in `soleCasterLevel`. They were transcribed by
+ * hand, which is the provenance that has been wrong fourteen times.
+ *
+ * `spell_slots_level_N` is flattened to a nine-long array so the audit can
+ * compare it to `computeSlots`'s output directly rather than field by field.
+ * A row with no `spellcasting` is a non-caster level and yields nothing, so
+ * a Fighter's table stays as short as it should be.
+ */
+function spellcastingRow(casting) {
+  if (!casting) return {};
+  const slots = Array.from({ length: 9 }, (_, i) => casting[`spell_slots_level_${i + 1}`] ?? 0);
+  return {
+    casting: {
+      slots,
+      // Absent for preparers, which is a real distinction and kept as null
+      // rather than flattened to zero - "prepares from the list" and "knows
+      // no spells" are different sentences.
+      cantripsKnown: casting.cantrips_known ?? null,
+      spellsKnown: casting.spells_known ?? null,
+    },
+  };
 }
 
 // --------------------------------------------------------------------- core
 const ABILITY = { STR: 'str', DEX: 'dex', CON: 'con', INT: 'int', WIS: 'wis', CHA: 'cha' };
 
 async function core2014() {
-  const [classes, races, skills, conditions, languages] = await Promise.all([
+  const [classes, races, subraces, skills, conditions, languages] = await Promise.all([
     getIndex('/api/2014/classes'),
     getIndex('/api/2014/races'),
+    getIndex('/api/2014/subraces'),
     getIndex('/api/2014/skills'),
     getJson(`${DND5EAPI}/api/2014/conditions?limit=100`),
     getJson(`${DND5EAPI}/api/2014/languages?limit=100`),
@@ -406,18 +473,33 @@ async function core2014() {
     });
   }
 
-  const raceRecords = [];
-  for (const r of races) {
+  const bonusesOf = (row) => {
     const asi = {};
-    for (const b of r.ability_bonuses ?? []) asi[ABILITY[b.ability_score.name]] = b.bonus;
-    raceRecords.push({ name: r.name, speed: r.speed, size: r.size, asi });
-  }
+    for (const b of row.ability_bonuses ?? []) asi[ABILITY[b.ability_score.name]] = b.bonus;
+    return asi;
+  };
+
+  const raceRecords = races.map((r) => ({
+    name: r.name, speed: r.speed, size: r.size, asi: bonusesOf(r),
+  }));
+
+  /*
+    The four subraces SRD 5.1 carries. The app flattens lineages - "Hill
+    Dwarf" is its own entry holding the Dwarf's +2 Constitution *and* its own
+    +1 Wisdom - so the audit needs both halves to check either: `parent` names
+    the lineage whose bonuses are folded in, and `asi` is the subrace's own
+    addition on top.
+  */
+  const subraceRecords = subraces.map((s) => ({
+    name: s.name, parent: s.race?.name ?? null, asi: bonusesOf(s),
+  }));
 
   return {
     classes: byKey(classRecords),
     subclasses: byKey(subclassRecords),
     sorceryPointCosts,
     races: byKey(raceRecords),
+    subraces: byKey(subraceRecords),
     skills: byKey(skills.map((s) => ({ name: s.name, ability: ABILITY[s.ability_score.name] }))),
     conditions: conditions.results.map((c) => c.name).sort(),
     languages: languages.results.map((l) => l.name).sort(),
@@ -789,6 +871,7 @@ const SETS = {
   'srd-2014-spells': spells2014,
   'srd-2014-core': core2014,
   'srd-2014-class-levels': classLevels2014,
+  'srd-2014-subclasses': subclasses2014,
   'srd-2024-weapons': weapons2024,
   'srd-2024-subclasses': subclasses2024,
   'srd-2024-classes': classes2024,

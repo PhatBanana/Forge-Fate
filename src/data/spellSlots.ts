@@ -65,11 +65,22 @@ export const PACT_SLOTS: { count: number; level: number }[] = [
  * This is the rule most builders get wrong: a Paladin 6 / Sorcerer 6 casts as a
  * 9th-level caster, not a 12th - the Paladin half rounds down to 3.
  */
-export function casterLevelContribution(castingType: CastingType, classLevel: number): number {
+export function casterLevelContribution(
+  castingType: CastingType,
+  classLevel: number,
+  /**
+   * The Artificer, and only the Artificer: its multiclassing sidebar says to
+   * add half your levels **rounded up**, where the Paladin and Ranger round
+   * down. Missing this made an Artificer 3 / Wizard 3 cast as a 4th-level
+   * caster rather than a 5th, at every odd Artificer level.
+   */
+  roundsUp = false,
+): number {
   switch (castingType) {
     case 'full':
       return classLevel;
     case 'half':
+      if (roundsUp) return Math.ceil(classLevel / 2);
       // A half caster contributes nothing until level 2, when casting starts.
       return classLevel >= 2 ? Math.floor(classLevel / 2) : 0;
     case 'third':
@@ -101,12 +112,19 @@ export function soleCasterLevel(
   castingType: CastingType,
   classLevel: number,
   ruleset: Ruleset,
+  /**
+   * The Artificer again: its own table has slots at 1st level under both
+   * editions, where the 2014 Paladin and Ranger wait until 2nd. Sharing the
+   * `'half'` casting type meant it inherited their late start and a 1st-level
+   * Artificer was shown two cantrips and no slots to cast anything with.
+   */
+  fromLevel1 = false,
 ): number {
   switch (castingType) {
     case 'full':
       return classLevel;
     case 'half': {
-      const startsAt = ruleset === '2024' ? 1 : 2;
+      const startsAt = fromLevel1 || ruleset === '2024' ? 1 : 2;
       return classLevel >= startsAt ? Math.ceil(classLevel / 2) : 0;
     }
     case 'third':

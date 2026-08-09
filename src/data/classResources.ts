@@ -58,6 +58,21 @@ export interface ClassResource {
    */
   in2024?: Partial<Pick<ClassResource, 'name' | 'max' | 'recharge' | 'minLevel' | 'note'>>;
   note?: string;
+  /**
+   * A number the resource is worth, where "how many uses" is not the number a
+   * player needs mid-game.
+   *
+   * Arcane Recovery is the case that earned this. Its `max` is 1 - one use a
+   * day, correctly - and the number a Wizard actually wants is *how many spell
+   * levels they get back*, which is half their level rounded up. That lived in
+   * a `note` that only rendered as a tooltip and only as prose, so a 13th
+   * level Wizard was told "half your level rounded up" and left to do it.
+   *
+   * A function of the class level rather than a string, because it is a
+   * progression, and progressions in this app are computed rather than typed
+   * out twenty times.
+   */
+  detail?: (classLevel: number) => string;
 }
 
 const IN_2014: Ruleset[] = ['2014'];
@@ -264,6 +279,8 @@ export const CLASS_RESOURCES: Partial<Record<ClassId, ClassResource[]>> = {
       recharge: 'long',
       display: 'pips',
       minLevel: 1,
+      // One use a day; the number that matters is how much it gives back.
+      detail: (level) => `${Math.ceil(level / 2)} levels of slots`,
       note: 'Once a day, on a short rest, recover slots totalling half your level rounded up. Restore them in the slot tracker above.',
     },
   ],

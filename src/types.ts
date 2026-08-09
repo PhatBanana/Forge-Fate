@@ -236,6 +236,25 @@ export interface CharClass {
   asiLevels: number[];
   castingType: CastingType;
   castingAbility?: Ability;
+  /**
+   * The Artificer's two documented departures from the half-caster rules,
+   * as flags rather than a third casting type - `castingType: 'half'` is
+   * compared in five places and is right about everything else.
+   *
+   * `castsFromLevel1`: a Paladin and Ranger get their first slot at 2nd level
+   * under 2014; the Artificer's own table starts at 1st. Without this the app
+   * gave a 1st-level Artificer two cantrips and no slots to go with them.
+   *
+   * `multiclassRoundsUp`: the Artificer's multiclassing sidebar says to add
+   * *half your levels rounded up*, where every other half caster rounds down.
+   * Without it an Artificer 3 / Wizard 3 casts as a 4th-level caster instead
+   * of a 5th - a whole spell level short, at every odd Artificer level.
+   *
+   * Both are TCoE, not the SRD, and unverifiable from any fixture this
+   * project ships. Written from the book, and said so.
+   */
+  castsFromLevel1?: boolean;
+  multiclassRoundsUp?: boolean;
   armor: string;
   /** Structured form of `armor`, used by the AC calculation. */
   armorProficiency: ArmorProficiency[];

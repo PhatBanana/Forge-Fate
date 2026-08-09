@@ -3356,3 +3356,86 @@ SRD 5.1 and the check compares 2014 rows only. Nothing anywhere carries
 2024 class features, so every `['2024']` row is still written from the
 books - which is now said out loud in Provenance rather than left to be
 assumed.
+
+## 47. The casting rules, the lineages, and the Artificer
+
+§46 gave the class feature table a source. This does the same for four more
+tables, and the two bugs it turned up are both in the class the SRD does not
+cover - which is exactly where an SRD audit cannot look, and the reason the
+sweep did not stop at "the fixture is green".
+
+**Four tables, one endpoint.** `/api/2014/classes/{id}/levels` carries the
+spellcasting columns as well as the features, so the same fixture now feeds:
+the full-caster slot grid, the pact-slot ladder, `CANTRIPS_KNOWN`,
+`SPELLS_KNOWN`, and the half-caster round-*up* in `soleCasterLevel` - whose
+comment already claimed it was "verified against the SRD 5.1 Paladin and
+Ranger tables at all 20 levels" with nothing in the repo doing the verifying.
+
+The check runs `deriveBuild` rather than reading the tables, because a right
+table behind a wrong lookup is still a wrong sheet. **All four are clean**,
+twelve classes at every level. The transcription was good; it just had no
+way to prove it.
+
+The Warlock needed reconciling rather than comparing: the SRD prints pact
+slots in the same columns as everyone else's, so `spell_slots_level_5: 3` at
+Warlock 11 means three pact slots at 5th level. The app keeps the two pools
+apart on purpose - a Warlock 5 / Sorcerer 5 has both - so that one row of the
+audit converts shapes instead of asserting equality.
+
+**Two real bugs, both the Artificer.** It is not in the SRD, so no fixture
+can reach it; both were found by walking the casting rules class by class and
+asking what each one's book actually says.
+
+1. **A 1st-level Artificer had no spell slots.** It shares
+   `castingType: 'half'` with the Paladin and Ranger, and so inherited their
+   2014 "casting starts at 2nd level" - but the Artificer's own table starts
+   at 1st. The giveaway was internal: the app handed that same character two
+   cantrips and nothing to cast them alongside.
+2. **A multiclassed Artificer was a spell level short at every odd level.**
+   TCoE's multiclassing sidebar says to add *half your levels rounded up*,
+   where every other half caster rounds down. An Artificer 3 / Wizard 3 was
+   casting as a 4th-level caster instead of a 5th - the difference between
+   having 3rd-level spells and not.
+
+Both are flags on `CharClass` rather than a third casting type, because
+`'half'` is compared in five places and is right about everything else.
+Both are TCoE and unverifiable from any fixture this project ships, which is
+now written on the fields themselves.
+
+**The test whose title was the least accurate line in the file.** "matches
+every 2014 lineage on speed, size and ability increases" compared speed and
+size. The increases - the part of a lineage that moves a modifier, an attack
+bonus and a save DC - were never compared, and the fixture had been carrying
+them the whole time. They are compared now, along with the four SRD subraces,
+whose combined bonuses have to equal the lineage's plus their own because the
+app flattens the two into one entry.
+
+Every lineage passes. The single finding is the Variant Human, where
+dnd5eapi records +1 to all six abilities: it flattened "+1 to two of your
+choice" into a grant. The app models the choice and has none baked in, so the
+app is right and the source is not - recorded in `EXPECTED` rather than
+"fixed".
+
+**The 2014 subclasses, and the 2014 resource columns.** §5 audited the *2024*
+subclass progressions - and its finding was that every one of them had been
+showing 2014 levels, which is precisely the argument for checking the 2014
+levels too. All twelve SRD subclasses pass. So do the resource columns that
+the app tracks as spendable pools: rages, ki, Action Surges, Indomitable,
+sorcery points, Channel Divinity.
+
+Two columns are deliberately unmapped, and both were findings against the
+*test* rather than the app:
+
+- `favored_enemies` is 2014's list of creature types. The app's row of the
+  same name is the **2024** resource - free castings of Hunter's Mark - which
+  is a different rule wearing the same label. Mapping them made a 2024-only
+  row look like a missing 2014 one.
+- `arcane_recovery_levels` counts slot levels recovered, not uses. The app
+  tracked the one use a day, correctly, and left *how much* as the words
+  "half your level rounded up" in a tooltip - so a 13th-level Wizard was
+  handed the formula and left to run it at the table. `ClassResource` grows a
+  `detail(classLevel)`, the sheet renders it beside the pip, and the audit
+  pins it against the SRD's own column at every level.
+
+**Still not verified:** everything 2024 outside the tables SRD 5.2 prints,
+and the Artificer entirely. Said in Provenance rather than left to be assumed.

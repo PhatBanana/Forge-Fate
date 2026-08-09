@@ -19,6 +19,12 @@ export interface HeldResource {
   className: string;
   resource: ClassResource;
   max: number;
+  /**
+   * What a use is worth at this level, where that is not the same question as
+   * how many uses there are. Resolved here because this is where the class
+   * level is known; `null` for the resources whose count says it all.
+   */
+  detail: string | null;
 }
 
 function resolveMax(
@@ -61,6 +67,7 @@ export function heldResources(
         className: slice.klass.name,
         resource,
         max,
+        detail: resource.detail?.(classLevel) ?? null,
       });
     }
   }

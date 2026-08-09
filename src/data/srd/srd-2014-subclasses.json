@@ -1,0 +1,302 @@
+{
+ "source": "dnd5eapi SRD 5.1",
+ "refreshed": "2026-08-09",
+ "records": {
+  "berserker": {
+   "name": "Berserker",
+   "id": "berserker",
+   "features": [
+    {
+     "level": 3,
+     "name": "Frenzy"
+    },
+    {
+     "level": 6,
+     "name": "Mindless Rage"
+    },
+    {
+     "level": 10,
+     "name": "Intimidating Presence"
+    },
+    {
+     "level": 14,
+     "name": "Retaliation"
+    }
+   ]
+  },
+  "champion": {
+   "name": "Champion",
+   "id": "champion",
+   "features": [
+    {
+     "level": 3,
+     "name": "Improved Critical"
+    },
+    {
+     "level": 7,
+     "name": "Remarkable Athlete"
+    },
+    {
+     "level": 10,
+     "name": "Additional Fighting Style"
+    },
+    {
+     "level": 15,
+     "name": "Superior Critical"
+    },
+    {
+     "level": 18,
+     "name": "Survivor"
+    }
+   ]
+  },
+  "devotion": {
+   "name": "Devotion",
+   "id": "devotion",
+   "features": [
+    {
+     "level": 3,
+     "name": "Channel Divinity: Sacred Weapon"
+    },
+    {
+     "level": 3,
+     "name": "Channel Divinity: Turn the Unholy"
+    },
+    {
+     "level": 7,
+     "name": "Aura of Devotion"
+    },
+    {
+     "level": 15,
+     "name": "Purity of Spirit"
+    },
+    {
+     "level": 20,
+     "name": "Holy Nimbus"
+    }
+   ]
+  },
+  "draconic": {
+   "name": "Draconic",
+   "id": "draconic",
+   "features": [
+    {
+     "level": 1,
+     "name": "Draconic Resilience"
+    },
+    {
+     "level": 1,
+     "name": "Dragon Ancestor"
+    },
+    {
+     "level": 6,
+     "name": "Elemental Affinity"
+    },
+    {
+     "level": 14,
+     "name": "Dragon Wings"
+    },
+    {
+     "level": 18,
+     "name": "Draconic Presence"
+    }
+   ]
+  },
+  "evocation": {
+   "name": "Evocation",
+   "id": "evocation",
+   "features": [
+    {
+     "level": 2,
+     "name": "Evocation Savant"
+    },
+    {
+     "level": 2,
+     "name": "Sculpt Spells"
+    },
+    {
+     "level": 6,
+     "name": "Potent Cantrip"
+    },
+    {
+     "level": 10,
+     "name": "Empowered Evocation"
+    },
+    {
+     "level": 14,
+     "name": "Overchannel"
+    }
+   ]
+  },
+  "fiend": {
+   "name": "Fiend",
+   "id": "fiend",
+   "features": [
+    {
+     "level": 1,
+     "name": "Dark One's Blessing"
+    },
+    {
+     "level": 6,
+     "name": "Dark One's Own Luck"
+    },
+    {
+     "level": 10,
+     "name": "Fiendish Resilience"
+    },
+    {
+     "level": 14,
+     "name": "Hurl Through Hell"
+    }
+   ]
+  },
+  "hunter": {
+   "name": "Hunter",
+   "id": "hunter",
+   "features": [
+    {
+     "level": 3,
+     "name": "Hunter's Prey"
+    },
+    {
+     "level": 7,
+     "name": "Defensive Tactics"
+    },
+    {
+     "level": 11,
+     "name": "Multiattack"
+    },
+    {
+     "level": 15,
+     "name": "Superior Hunter's Defense"
+    }
+   ]
+  },
+  "land": {
+   "name": "Land",
+   "id": "land",
+   "features": [
+    {
+     "level": 2,
+     "name": "Bonus Cantrip"
+    },
+    {
+     "level": 2,
+     "name": "Natural Recovery"
+    },
+    {
+     "level": 6,
+     "name": "Land's Stride"
+    },
+    {
+     "level": 10,
+     "name": "Nature's Ward"
+    },
+    {
+     "level": 14,
+     "name": "Nature's Sanctuary"
+    }
+   ]
+  },
+  "life": {
+   "name": "Life",
+   "id": "life",
+   "features": [
+    {
+     "level": 1,
+     "name": "Bonus Proficiency"
+    },
+    {
+     "level": 1,
+     "name": "Disciple of Life"
+    },
+    {
+     "level": 2,
+     "name": "Channel Divinity: Preserve Life"
+    },
+    {
+     "level": 6,
+     "name": "Blessed Healer"
+    },
+    {
+     "level": 8,
+     "name": "Divine Strike"
+    },
+    {
+     "level": 17,
+     "name": "Supreme Healing"
+    }
+   ]
+  },
+  "lore": {
+   "name": "Lore",
+   "id": "lore",
+   "features": [
+    {
+     "level": 3,
+     "name": "Bonus Proficiencies"
+    },
+    {
+     "level": 3,
+     "name": "Cutting Words"
+    },
+    {
+     "level": 6,
+     "name": "Additional Magical Secrets"
+    },
+    {
+     "level": 14,
+     "name": "Peerless Skill"
+    }
+   ]
+  },
+  "open hand": {
+   "name": "Open Hand",
+   "id": "open-hand",
+   "features": [
+    {
+     "level": 3,
+     "name": "Open Hand Technique"
+    },
+    {
+     "level": 6,
+     "name": "Wholeness of Body"
+    },
+    {
+     "level": 11,
+     "name": "Tranquility"
+    },
+    {
+     "level": 17,
+     "name": "Quivering Palm"
+    }
+   ]
+  },
+  "thief": {
+   "name": "Thief",
+   "id": "thief",
+   "features": [
+    {
+     "level": 3,
+     "name": "Fast Hands"
+    },
+    {
+     "level": 3,
+     "name": "Second-Story Work"
+    },
+    {
+     "level": 9,
+     "name": "Supreme Sneak"
+    },
+    {
+     "level": 13,
+     "name": "Use Magic Device"
+    },
+    {
+     "level": 17,
+     "name": "Thief's Reflexes"
+    }
+   ]
+  }
+ }
+}
