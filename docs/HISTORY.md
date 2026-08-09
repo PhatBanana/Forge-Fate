@@ -3106,8 +3106,19 @@ before it could become work.
   improvement to boons and every earlier slot to non-boons. The original
   entry said "epic boon coverage" without saying what was wrong with it;
   nothing was.
-- **Level-20 capstones** for all twelve classes - struck once already, in
-  the §42 pass, and re-checked here.
+- **Level-20 capstones** - struck once already, in the §42 pass.
+
+  *Corrected 2026-08-09.* This entry said "for all twelve classes ... and
+  re-checked here", and both halves were wrong. There are **thirteen**
+  classes, and nothing here re-checked anything: the SRD fixture carries
+  `name`, `hitDie`, `saves` and `skillPicks` per class and no per-level
+  features at all, so there was nothing to check against. Reading
+  `CLASS_FEATURES` directly afterwards: every class has a level-20 feature
+  except the Paladin, whose capstone is the Sacred Oath's - which is where
+  5e puts it, so the *data* is right. The Paladin is missing **level 18**
+  (Aura Improvements) and the Bard is missing Magical Secrets at **14 and
+  18**, which is now a named gap under the live plan's data-provenance
+  item rather than a claim of completeness.
 - **Subclass timing.** The picker appears only at the level the class
   chooses one, and switching ruleset clears a pick that is now too early,
   with a sentence saying why.
@@ -3135,9 +3146,10 @@ better shape than its provenance - and, it turned out, than its
 **enforcement**. Modelling a rule and enforcing it are different jobs, and
 this app had been doing the first well and the second by accident.
 
-**What the sweep found.** Rather than reason about it, twelve classes were
-walked at twenty levels in both rulesets with every budget deliberately
-over-spent:
+**What the sweep found.** Rather than reason about it, all thirteen classes
+were walked in both rulesets with every budget deliberately over-spent -
+every level for progression, six sampled levels for the budget sweep, which
+derives a build per over-spend:
 
 - **Progression is clean.** Proficiency bonus, ASI slots, subclass timing,
   caster slot rows and total level agree with the tables at every single

@@ -25,10 +25,16 @@ import type { SkillId } from '../data/skills';
  * the other question. A test per rule would not have found that, because
  * each rule looked fine on its own.
  *
- * So this walks the whole space instead: **twelve classes, twenty levels,
- * two rulesets**, and for each one it over-spends every budget that class
- * has by one and insists somebody notices. A seventh budget added without a
- * legality row fails here on the day it is added.
+ * So this walks the whole space instead: **thirteen classes, two rulesets**,
+ * over-spending every budget that class has by one and insisting somebody
+ * notices. A seventh budget added without a legality row fails here on the
+ * day it is added.
+ *
+ * The level coverage differs by sweep, deliberately: progression and the
+ * "a legal build is never called illegal" negative walk **all twenty**
+ * levels, because those are cheap. The budget sweep derives a build per
+ * over-spend per class and samples **six** levels (1, 3, 5, 11, 17, 20) -
+ * enough to cross every budget's on/off boundary without a minute of CPU.
  *
  * The negative half matters as much: a *legal* build at every level must
  * report nothing. A check that always fires is the same as no check, and

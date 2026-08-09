@@ -81,8 +81,9 @@ box unticked:
 
 **Checked and already done** — kept so the same items are not "found"
 again, which has now happened twice: concentration DCs, death saves,
-temporary hit points, level-20 capstones for all twelve classes, falling,
-Ready, sneak attack / divine smite / rage in the damage model, attunement,
+temporary hit points, level-20 capstones (all thirteen classes have one;
+the Paladin's is the Oath's, which is where 5e puts it), falling, Ready,
+sneak attack / divine smite / rage in the damage model, attunement,
 encumbrance with the variant thresholds, and the frightened movement
 clause.
 
@@ -101,8 +102,17 @@ misses these.
   where a background sets the ability increases *and* the origin feat — a
   wrong row moves real numbers, not flavour.
 - `[ ]` **The 2014 class feature table.** The classes check compares hit
-  die, saves and skill picks only; `CLASS_FEATURES` is checked against
-  nothing.
+  die, saves and skill picks only — the SRD fixture carries `name`,
+  `hitDie`, `saves` and `skillPicks` per class and nothing else, so
+  `CLASS_FEATURES` is checked against nothing at all.
+
+  Two holes found by reading the table by hand on 2026-08-09, which is
+  what makes this item concrete rather than precautionary:
+  **Paladin has no level 18** (Aura Improvements — the auras go 10 ft to
+  30 ft, in both editions), and **the Bard has Magical Secrets at 10
+  only**, missing the level 14 and level 18 grants. Hand-reading found two
+  in one sitting; that is the argument for a fixture rather than another
+  sitting.
 
 ### 3. Small and optional — `[ ]` **XS each**
 
@@ -179,9 +189,11 @@ forgery, and it is the parked §9.
 ## History
 
 Forty-five shipped sections, with the reasoning intact, live in
-**`docs/HISTORY.md`**. They were split out on 2026-08-09: forty-five
-numbered sections had made a *plan* unreadable, and a roadmap should say
-what is left rather than what was done.
+**`docs/HISTORY.md`**. Forty-four of them were split out of this file on
+2026-08-09 — forty-four numbered sections had made a *plan* unreadable, and
+a roadmap should say what is left rather than what was done. §45 was
+written straight into `HISTORY.md` the same day, which is where every
+section has gone since.
 
 **The numbers there are load-bearing** - code comments cite `§26.2`,
 `§32.1`, `§34.7` and friends - so nothing is renumbered, ever.
