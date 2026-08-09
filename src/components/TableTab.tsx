@@ -3564,34 +3564,81 @@ export function TableTab({
             <DungeonMap {...mapProps} />
           );
         })()}
-        {/* The camera, for the hand that is on the mouse. The keys below are
-            faster once you know them, and this is how you find out they are
-            there. */}
-        <div className="hud-zoom">
-          <div className="seg">
+        {/*
+          Everything about how the table is looking at the board, in one place
+          on the board itself.
+
+          The view toggle used to live inside the Field drawer, behind two
+          clicks and below two checkboxes, which is a strange home for the
+          control you reach for most often in a fight - and it was not findable
+          at all if you did not already know it was there. It belongs beside
+          the zoom, since both answer the same question.
+
+          Stacked rather than in a row: the hint floats along the top centre of
+          the stage, and a single wide strip of controls would run into it.
+        */}
+        <div className="hud-cam">
+          <div className="seg" role="group" aria-label="Map view">
             <button
               type="button"
-              onClick={() => setCamera((c) => clampCamera({ ...c, scale: c.scale / 1.3 }))}
-              disabled={camera.scale <= 1}
-              aria-label="Zoom out"
+              className={view === 'map' ? 'is-on' : ''}
+              aria-pressed={view === 'map'}
+              aria-label="Plan view"
+              title="Top-down. The view that prints."
+              onClick={() => setView('map')}
             >
-              −
-            </button>
-            <button type="button" onClick={() => setCamera(WHOLE_MAP)} aria-label="Fit the whole map">
-              Fit
+              Plan
             </button>
             <button
               type="button"
-              onClick={() =>
-                setCamera((c) => clampCamera({ ...c, scale: Math.min(MAX_SCALE, c.scale * 1.3) }))
-              }
-              disabled={camera.scale >= MAX_SCALE}
-              aria-label="Zoom in"
+              className={view === 'tactical' ? 'is-on' : ''}
+              aria-pressed={view === 'tactical'}
+              aria-label="Tactical view"
+              title="Isometric, the way Tactics draws a battlefield"
+              onClick={() => setView('tactical')}
             >
-              +
+              Tactical
             </button>
           </div>
-          <span className="hud-zoom-n">{camera.scale.toFixed(1)}×</span>
+          <div className="hud-cam-row">
+            <div className="seg">
+              <button
+                type="button"
+                onClick={() => setCamera((c) => clampCamera({ ...c, scale: c.scale / 1.3 }))}
+                disabled={camera.scale <= 1}
+                aria-label="Zoom out"
+              >
+                −
+              </button>
+              <button type="button" onClick={() => setCamera(WHOLE_MAP)} aria-label="Fit the whole map">
+                Fit
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setCamera((c) => clampCamera({ ...c, scale: Math.min(MAX_SCALE, c.scale * 1.3) }))
+                }
+                disabled={camera.scale >= MAX_SCALE}
+                aria-label="Zoom in"
+              >
+                +
+              </button>
+            </div>
+            <span className="hud-zoom-n">{camera.scale.toFixed(1)}×</span>
+          </div>
+          {/* Only where facing means something. The flat map has none. */}
+          {view === 'tactical' && (
+            <div className="seg">
+              <button
+                type="button"
+                aria-label="Rotate the camera"
+                title="Rotate a quarter turn — Q and E do the same"
+                onClick={() => setFacing((f) => (f + 1) % 4)}
+              >
+                Rotate ⟳
+              </button>
+            </div>
+          )}
         </div>
         {/* The keys, said once. A camera nobody can find is a camera nobody
             has - and the rotate pair only means anything in the tactical
@@ -3709,25 +3756,6 @@ export function TableTab({
           />
           <span>Fog of war</span>
         </label>
-        <button
-          type="button"
-          className={`view-toggle ${view === 'tactical' ? 'is-on' : ''}`}
-          aria-pressed={view === 'tactical'}
-          onClick={() => setView(view === 'tactical' ? 'map' : 'tactical')}
-        >
-          Tactical view
-        </button>
-        {view === 'tactical' && (
-          <button
-            type="button"
-            className="view-toggle"
-            title="Rotate the camera a quarter turn"
-            aria-label="Rotate the camera"
-            onClick={() => setFacing((facing + 1) % 4)}
-          >
-            Rotate
-          </button>
-        )}
       </div>
 
 

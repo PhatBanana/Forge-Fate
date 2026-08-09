@@ -5416,24 +5416,33 @@ dl.detail-list {
 }
 
 /*
-  The zoom control, top left.
+  The camera controls, top left: which view, how close, and which way round.
 
-  Bottom left was the obvious corner and is already taken: `.btl-tail`, the
+  Bottom left was the obvious corner and is already taken - `.btl-tail`, the
   combat log, floats there at a higher z-index and covered the widget
-  completely - found by looking at the probe's screenshot rather than by
-  reading the stylesheet, which is why the screenshot is part of the gate.
+  completely. Found by looking at the probe's screenshot rather than by reading
+  the stylesheet, which is why the screenshot is part of the gate.
 
   Top left is genuinely free: the hint is centred, the height readout is top
-  right, the legend is bottom right. It exists at all because a camera
-  reachable only from the keyboard is one most people never find out about,
-  and it reuses `.seg` from §33.6 rather than inventing a third button style
-  for three buttons.
+  right, the legend is bottom right. **Stacked, not in a row**, because the
+  hint reaches 620px across the middle of the stage and one wide strip of
+  controls would collide with it.
+
+  It reuses `.seg` from §33.6 throughout rather than inventing another button
+  style for a corner nobody would style twice.
 */
-.hud-zoom {
+.hud-cam {
   position: absolute;
   top: 8px;
   left: 10px;
   z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.hud-cam-row {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -5441,26 +5450,42 @@ dl.detail-list {
 
 /* `.seg` carries a bottom margin for the panels it was written for; floating
    over a map there is nothing below it to clear. */
-.hud-zoom .seg {
+.hud-cam .seg {
   margin-bottom: 0;
   border-color: rgba(242, 237, 226, 0.25);
 }
 
-.hud-zoom .seg button {
+.hud-cam .seg button {
   background: rgba(24, 22, 18, 0.72);
   color: rgba(242, 237, 226, 0.8);
   padding: 3px 9px;
 }
 
-.hud-zoom .seg button + button {
+.hud-cam .seg button + button {
   border-left-color: rgba(242, 237, 226, 0.25);
 }
 
-.hud-zoom .seg button:hover:not(:disabled) {
+/*
+  Which view is on. Needed explicitly: `.hud-cam .seg button` and
+  `.seg button.is-on` have the *same* specificity (0-2-1), so the later rule in
+  the file wins - and this block is thousands of lines below §33.6's. Without
+  it the darkened background here silently overrides the accent and both halves
+  of the toggle look identical, which is worse than no toggle at all.
+*/
+.hud-cam .seg button.is-on {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.hud-cam .seg button:hover:not(:disabled) {
   color: #f2ede2;
 }
 
-.hud-zoom .seg button:disabled {
+.hud-cam .seg button.is-on:hover {
+  color: var(--on-accent);
+}
+
+.hud-cam .seg button:disabled {
   color: rgba(242, 237, 226, 0.3);
   cursor: default;
 }
@@ -5480,7 +5505,7 @@ dl.detail-list {
 @media print {
   .hud-hint,
   .hud-height,
-  .hud-zoom,
+  .hud-cam,
   .hud-legend {
     display: none !important;
   }
@@ -6394,25 +6419,6 @@ dl.detail-list {
 }
 
 /* ---------------------------------------------- the tactical camera (17.3) */
-
-.view-toggle {
-  font-family: var(--mono);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 6px 12px;
-  background: var(--bg-sunken);
-  border: 1px solid var(--border);
-  color: var(--text-faint);
-  cursor: pointer;
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
-}
-
-.view-toggle.is-on {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--bg-raised);
-}
 
 /* The ground, in the flat map's ink: parchment caps over darker skirts, so
    height reads as blocks of the same paper the map is drawn on. */

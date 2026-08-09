@@ -2441,6 +2441,48 @@ describe('the pointer’s loop', () => {
       input.remove();
     });
 
+    it('offers the view toggle on the board, not behind a drawer', async () => {
+      /*
+        It used to live inside the Field drawer, two clicks in and below two
+        checkboxes - which is a strange home for the control you reach for most
+        often in a fight, and unfindable if you did not already know it existed.
+        This asserts it is on the stage: no drawer is opened here.
+      */
+      const user = userEvent.setup();
+      const view = setup(party());
+      await open(user, 'Party');
+      await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+      await user.keyboard('{Escape}');
+
+      const plan = screen.getByRole('button', { name: 'Plan view' });
+      const tactical = screen.getByRole('button', { name: 'Tactical view' });
+      expect(plan).toHaveAttribute('aria-pressed', 'true');
+      expect(document.querySelector('.isomap')).toBeNull();
+
+      await user.click(tactical);
+      expect(screen.getByRole('button', { name: 'Tactical view' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      expect(document.querySelector('.isomap')).toBeTruthy();
+
+      await user.click(screen.getByRole('button', { name: 'Plan view' }));
+      expect(document.querySelector('.isomap')).toBeNull();
+    });
+
+    it('offers Rotate only where facing means something', async () => {
+      const user = userEvent.setup();
+      const view = setup(party());
+      await open(user, 'Party');
+      await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+      await user.keyboard('{Escape}');
+
+      // The flat map has no facing, so the button is not there to be pressed.
+      expect(screen.queryByRole('button', { name: 'Rotate the camera' })).toBeNull();
+      await user.click(screen.getByRole('button', { name: 'Tactical view' }));
+      expect(screen.getByRole('button', { name: 'Rotate the camera' })).toBeInTheDocument();
+    });
+
     it('gives the mouse the same three controls, since keys are hard to find', async () => {
       const user = userEvent.setup();
       await openMap(user);

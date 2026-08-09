@@ -2622,6 +2622,14 @@ than left to be noticed.
   deleted** — 245 lines orphaned when §31.3 removed the Workspace component.
   §31.3's own commit argued that kept-but-unused code reads as load-bearing;
   it deleted the component and left the styles.
+- `[x]` **34.7 The view toggle comes out of the drawer.** Reported straight
+  after shipping: *"there is no button for Isometric / tactical view."* It
+  existed — inside the Field drawer, two clicks in and below two checkboxes,
+  which is a strange home for the control you reach for most in a fight and
+  unfindable if you did not already know it was there. Plan/Tactical and
+  Rotate now sit on the board beside the zoom, since all three answer the same
+  question. `.view-toggle` went with them; it was the last thing using that
+  style.
 
 ### A real bug fixed on the way in
 
@@ -2643,6 +2651,12 @@ could not be added without fixing it, and it was worth fixing regardless.
   was not there to be clicked. Both now fail loudly. A probe that quietly
   passes when it found nothing to click is worse than no probe, which is how
   §32.1 lived through a section.
+- **Plan and Tactical rendered identically.** `.hud-cam .seg button` and
+  `.seg button.is-on` have the *same* specificity, so the darkened background
+  written for the map overlay won on source order alone and killed the accent
+  that says which view you are in. `aria-pressed` was correct throughout, so
+  the tests were happy. The probe now compares the two halves' computed
+  background — a toggle you cannot read is worse than no toggle.
 
 ### Decisions taken without asking
 
