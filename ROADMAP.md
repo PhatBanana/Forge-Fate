@@ -96,19 +96,59 @@ modelled, most of them well:
 
 ### C. The Builder and optimizer, fully set
 
-- `[ ]` **44. The Builder completeness pass.** **M** - Audit the character
-  path end to end against the PHB's character-creation chapter the way §2
-  audited the engine: alignment and personality carried to the sheet,
-  starting wealth alternatives, epic boon coverage, and whatever else the
-  pass turns up. The outcome is a list like §2's - each item modelled, or
-  honestly labelled on screen.
+- `[ ]` **44. The Builder completeness pass.** **M** - *audit run
+  2026-08-09; every line below was checked against the code before it was
+  written down, and the list of things that turned out to be **already
+  done** is in the §44 record. Five real gaps, two optional.*
 
-  *Renumbered from 43 (2026-08-09): this section and B's item 43 both
-  carried the number, which would have made every future code comment
-  citing "§43" ambiguous. Two of its original bullets are gone from the
-  list because §43 does them - languages and tools chosen rather than
-  implied - and level-20 capstones came off because the §42 audit found
-  all twelve already present.*
+  - `[ ]` **44.1 An over-spent build is silent.** **S** - Verified by
+    probe: a level-3 Sorcerer who knows 4 spells, recorded with 12 spells
+    and 9 cantrips and holding 2 expertise slots it does not have, produces
+    **no finding about any of it**. `openSpells` and `openCantrips` are
+    `Math.max(0, known - chosen)`, so an over-spend clamps to zero and
+    disappears. Skills *are* caught, by the "not on any list" legality
+    check; spells, cantrips and expertise are not. Exactly the shape §43
+    closed for multiclassing: an illegal build no screen mentions.
+  - `[ ]` **44.2 Feats are unaudited, epic boons included.** **M** -
+    `srdAudit.test.ts` covers classes, races, skills, conditions,
+    languages, spells, equipment, weapons, magic items, 2014 subclass spell
+    lists, 2024 subclasses and 2024 class resources. It does **not** cover
+    feats, and `scripts/audit/refresh.mjs` never fetches them - there is no
+    feat fixture for either edition. 2024 feats are core rules and Open5e
+    serves `srd-2024`, so that half is auditable today. The 2014 half has
+    no licensed source (feats are optional content the 2014 SRD omits) and
+    belongs beside the `[!]` non-SRD subclasses, labelled rather than
+    verified.
+  - `[ ]` **44.3 Backgrounds are unaudited.** **M** - 29 rows, 13 `PHB` and
+    16 `PHB 2024`, and no fixture answers the verification question for any
+    of them. This matters more under 2024 than it looks: a background there
+    sets the ability increases *and* the origin feat, so a wrong row moves
+    real numbers rather than flavour. Same treatment as 44.2 - audit the
+    2024 half, label the 2014 half.
+  - `[ ]` **44.4 The 2014 class feature table is unaudited.** **S** - The
+    classes check compares hit die, saves and skill picks only.
+    `SUBCLASS_FEATURES` is audited for 2024; `CLASS_FEATURES` - the
+    per-level feature names every class panel reads - is not checked
+    against anything.
+  - `[ ]` **44.5 2014 starting wealth has no alternative.** **S**,
+    *blocked on provenance* - 2024's "or take the gold instead" **is**
+    modelled: `StartingOption.gold` carries it and a Fighter's 155 gp is in
+    the fixture. The 2014 equivalent - ignore the package, roll for gold -
+    is absent, and `srd-starting-equipment.json` has gold 0 for every 2014
+    option, which `data/startingEquipment.ts` states outright. Whether SRD
+    5.1 carries the by-class wealth table is **not verified**, and the
+    shipped SRD text fixture does not contain it, so building this means
+    hand-typing a table. Check the source before doing the work.
+
+  **Optional, and arguably decisions rather than gaps:**
+  - `[ ]` **44.6 No "roll 4d6, drop the lowest".** **XS** - Point buy,
+    standard array and free manual entry all exist, and the sheet has a
+    real dice roller, so rolled scores are already possible in two steps. A
+    button, not a capability.
+  - `[ ]` **44.7 No appearance fields** (age, height, weight, eyes, skin,
+    hair). **XS** - The PHB sheet has the box; this app has a portrait
+    instead, which does the job better. Worth recording as a decision
+    unless somebody wants the boxes.
 
 ### Parked
 
@@ -3196,6 +3236,56 @@ both are struck by the same discipline item 1.5 established: check first,
 then write it down.
 
 Gates green: `tsc`, `oxlint`, `npm run build`, and the full suite.
+
+---
+
+## 44. The Builder completeness pass — the audit
+
+Run 2026-08-09. No code changed; the deliverable is the list, and the list
+is in the live plan above as 44.1 to 44.7.
+
+The method was the one §42 and §43 arrived at the hard way: **check the code
+first, then write the item down.** That pass found two entries that had been
+written from reading the roadmap rather than the repository - lair actions,
+which no fixture carries, and the language chooser, which was already built.
+So this audit did the checking first and kept a second list: everything the
+character-creation chapter asks for that this app **already does**, struck
+before it could become work.
+
+**Struck - verified already done:**
+
+- **Alignment, personality traits, ideals, bonds, flaws, backstory and
+  player name.** All on `CharacterDetails`, all editable on the character
+  sheet, and none of them carry `cs-screen`, so all of them print. The
+  original entry read "alignment/personality carried to the sheet"; they
+  are. They are absent from the *Builder*, which is the right split - the
+  Builder is about numbers and the sheet is about the person.
+- **Hit points at level.** Maximum at 1st, then average, rolled or max by
+  the build's own `hpMode`, with the rolled list walked level by level and
+  falling back to the average for levels not yet rolled.
+- **Epic boons.** Nine of them, and `allowedInSlot` restricts the level-19
+  improvement to boons and every earlier slot to non-boons. The original
+  entry said "epic boon coverage" without saying what was wrong with it;
+  nothing was.
+- **Level-20 capstones** for all twelve classes - struck once already, in
+  the §42 pass, and re-checked here.
+- **Subclass timing.** The picker appears only at the level the class
+  chooses one, and switching ruleset clears a pick that is now too early,
+  with a sentence saying why.
+- **Point buy and standard array**, with a review finding when the base
+  scores are not legal point buy.
+- **Over-spent ASI and feat slots**, and **skill picks no list can pay
+  for** - both already errors in the build review. Which is what made 44.1
+  worth probing rather than assuming: three of the four counts are checked
+  and the fourth kind is not.
+
+**What the shape of the findings says.** Four of the five real gaps are
+*verification* rather than *behaviour* - feats, backgrounds and the 2014
+class features are all data nothing checks, and the fifth is a table whose
+licence has to be established before it can be typed. The Builder's
+behaviour is in better shape than its provenance is, and 44.2 to 44.4 are
+one job wearing three hats: extend `refresh.mjs` and `srdAudit.test.ts` to
+the three tables they never reached.
 
 ## Recently completed
 
