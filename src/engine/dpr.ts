@@ -4,6 +4,7 @@ import { MASTERY_LABELS } from '../data/weapons';
 import { masterySlots } from './attacks';
 import type { Attack } from './attacks';
 import type { Spell } from '../data/spells';
+import { hasFeatureTag } from './features';
 import type { HeldFeature } from './features';
 import type { ClassSlice } from './character';
 import type { ItemEffects } from './items';
@@ -528,7 +529,14 @@ export function computeDpr(input: DprInput): DprResult {
 
   // -- nova ------------------------------------------------------------------
   const smite = smiteDice(slices);
-  const actionSurge = features.some((f) => f.name === 'Action Surge');
+  /*
+    Read by tag, not by name. This was `f.name === 'Action Surge'` until the
+    SRD audit renamed the row "Action Surge (1 use)" to match the source's own
+    tiering - and every Fighter's nova number silently halved, because a
+    display string was load-bearing. Tags exist for exactly this; `swings`
+    above has always read `extra-attack` the same way.
+  */
+  const actionSurge = hasFeatureTag(features, 'action-surge');
 
   const novaAt = (ac: number): number => {
     let total = sustainedAt(ac);

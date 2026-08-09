@@ -182,3 +182,49 @@ describe('rolling for hit points', () => {
     expect(build.defenses.rolledHitDice).toHaveLength(4);
   });
 });
+
+/**
+ * The last leg of the audit fix.
+ *
+ * `CLASS_FEATURES` gained eight rows the SRD grants and the app did not have.
+ * A row that reaches the table but not this summary is invisible where it
+ * matters most - this is the screen a player actually reads on levelling, and
+ * for a Paladin reaching 18 it used to say the level gave them nothing at all.
+ */
+describe('the levels that used to arrive empty', () => {
+  const gained = (classId: ClassId, to: number) =>
+    levelUpSummary(at(classId, to - 1), at(classId, to))!.featuresGained.map((f) => f.name);
+
+  it('tells a Paladin their auras tripled in reach at 18', () => {
+    expect(gained('paladin', 18)).toContain('Aura Improvements');
+  });
+
+  it('tells a Monk what their ki buys, at the level it buys it', () => {
+    const two = gained('monk', 2);
+    expect(two).toEqual(expect.arrayContaining([
+      'Flurry of Blows', 'Patient Defense', 'Step of the Wind',
+    ]));
+  });
+
+  it('names a feature granted twice, both times', () => {
+    /*
+      This one predates the audit by a long way and nothing had caught it: the
+      summary keyed gained features by source and name, so a Rogue reaching 6
+      was told their level gave them nothing at all - the level-1 "Rogue:
+      Expertise" swallowed it. Every repeated grant in the game was affected.
+    */
+    expect(gained('rogue', 6)).toContain('Expertise');
+    expect(gained('bard', 10)).toContain('Expertise');
+  });
+
+  it('no longer reports a silent level where the SRD grants something', () => {
+    // Each of these levels handed the character a real feature and produced an
+    // empty "what it gave" list before the fixture was added.
+    for (const [klass, level] of [
+      ['fighter', 13], ['fighter', 17], ['bard', 14], ['bard', 18],
+      ['ranger', 3], ['cleric', 8], ['barbarian', 13],
+    ] as [ClassId, number][]) {
+      expect(gained(klass, level), `${klass} ${level}`).not.toEqual([]);
+    }
+  });
+});

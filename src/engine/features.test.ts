@@ -32,8 +32,13 @@ describe('the feature table', () => {
       'Fighting Style',
       'Second Wind',
     ]);
-    expect(classFeaturesAt('fighter', 2, '2014').map((f) => f.name)).toContain('Action Surge');
-    expect(classFeaturesAt('fighter', 1, '2014').map((f) => f.name)).not.toContain('Action Surge');
+    // Asserted by tag rather than by display name: the SRD calls this row
+    // "Action Surge (1 use)" and the app now matches, so a test spelling the
+    // name out would be testing the wording instead of the level it arrives at.
+    const tagged = (level: number) =>
+      classFeaturesAt('fighter', level, '2014').some((f) => f.tags?.includes('action-surge'));
+    expect(tagged(2)).toBe(true);
+    expect(tagged(1)).toBe(false);
   });
 
   it('respects a feature\'s ruleset', () => {
@@ -48,7 +53,7 @@ describe('the feature table', () => {
     const ctx = at('fighter', 7, 'champion');
     const remarkable = ctx.features.find((f) => f.name === 'Remarkable Athlete');
     expect(remarkable?.source).toBe('Champion');
-    expect(ctx.features.find((f) => f.name === 'Action Surge')?.source).toBe('Fighter');
+    expect(ctx.features.find((f) => f.tags?.includes('action-surge'))?.source).toBe('Fighter');
   });
 });
 
@@ -311,5 +316,74 @@ describe('subclass features', () => {
       expect(ids, id).toContain(id);
       expect(SUBCLASS_FEATURES[id]?.length ?? 0, id).toBeGreaterThan(0);
     }
+  });
+});
+
+/**
+ * The eight features the SRD audit found missing, and the journey each one has
+ * to survive to be worth adding.
+ *
+ * A row in `CLASS_FEATURES` is not the deliverable. The deliverable is a
+ * player finding out they have the thing, and there are three places that
+ * happens: the derived build (which the Builder's Class features panel and the
+ * printed sheet both render), the "what the next level brings" list, and the
+ * level-up summary that names what a level just gave you. A row that reaches
+ * the table and not those is data nobody reads.
+ *
+ * So these assert the whole path rather than the table. They are named for the
+ * gap each one closes, so a failure says which rule went missing again.
+ */
+describe('the features the 2014 audit found missing reach the player', () => {
+  const namesAt = (classId: ClassId, level: number, ruleset: Build['ruleset'] = '2014') =>
+    at(classId, level, undefined, ruleset).features.map((f) => f.name);
+
+  it("gives a level-2 Monk the three things ki is for", () => {
+    // The Ki row's own summary named all three and the table listed none of
+    // them, so the panel offered a pool of points and no way to spend it.
+    const names = namesAt('monk', 2);
+    expect(names).toContain('Flurry of Blows');
+    expect(names).toContain('Patient Defense');
+    expect(names).toContain('Step of the Wind');
+    // And they are level-2 features, not something a level-1 Monk sees.
+    expect(namesAt('monk', 1)).not.toContain('Flurry of Blows');
+  });
+
+  it('grows the Paladin auras at 18, which the list never reached', () => {
+    expect(namesAt('paladin', 17)).not.toContain('Aura Improvements');
+    expect(namesAt('paladin', 18)).toContain('Aura Improvements');
+  });
+
+  it('gives the Paladin and the Cleric their Channel Divinity', () => {
+    expect(namesAt('paladin', 3)).toContain('Channel Divinity');
+    expect(namesAt('cleric', 2)).toContain('Channel Divinity: Turn Undead');
+  });
+
+  it('names the Ranger and Sorcerer features the table skipped', () => {
+    expect(namesAt('ranger', 3)).toContain('Primeval Awareness');
+    expect(namesAt('sorcerer', 2)).toContain('Flexible Casting');
+  });
+
+  it('grants the Bard all three Magical Secrets, not just the first', () => {
+    const levelsWithIt = [10, 14, 18].filter((l) => namesAt('bard', l).includes('Magical Secrets'));
+    expect(levelsWithIt).toEqual([10, 14, 18]);
+    // 2024 folded the later two in, so a 2024 Bard has one grant and no more.
+    expect(namesAt('bard', 18, '2024').filter((n) => n === 'Magical Secrets')).toHaveLength(1);
+  });
+
+  it('stops handing a 2024 Barbarian the ladder that 2024 deleted', () => {
+    // Untagged, Brutal Critical applied to both editions - so a 2024
+    // Barbarian got Brutal Strike *and* the feature it replaced.
+    const names2024 = namesAt('barbarian', 17, '2024');
+    expect(names2024.some((n) => n.startsWith('Brutal Critical'))).toBe(false);
+    expect(names2024).toContain('Brutal Strike');
+    expect(namesAt('barbarian', 17).some((n) => n.startsWith('Brutal Critical'))).toBe(true);
+  });
+
+  it('tells a Fighter their scaling features actually scaled', () => {
+    // Every one of these was a silent level: the app said nothing new arrived
+    // at 13 or 17 because it carried only the first grant.
+    expect(namesAt('fighter', 13)).toContain('Indomitable (2 uses)');
+    expect(namesAt('fighter', 17)).toContain('Action Surge (2 uses)');
+    expect(namesAt('fighter', 17)).toContain('Indomitable (3 uses)');
   });
 });

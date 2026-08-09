@@ -3,6 +3,7 @@ import equipmentFixture from './srd/srd-2014-equipment.json';
 import magicItemFixture from './srd/srd-2014-magic-items.json';
 import spellFixture from './srd/srd-2014-spells.json';
 import coreFixture from './srd/srd-2014-core.json';
+import classLevelsFixture from './srd/srd-2014-class-levels.json';
 import weapon2024Fixture from './srd/srd-2024-weapons.json';
 import subclass2024Fixture from './srd/srd-2024-subclasses.json';
 import class2024Fixture from './srd/srd-2024-classes.json';
@@ -13,6 +14,7 @@ import { MAGIC_ITEMS } from './magicItems';
 import { SPELLS, SPELLS_BY_ID } from './spells';
 import type { CastingTime } from './spells';
 import { CLASSES } from './classes';
+import { CLASS_FEATURES } from './classFeatures';
 import { SORCERY_POINT_SLOT_COSTS, resourcesForClass } from './classResources';
 import { PREPARED_2024 } from './spellSlots';
 import { computeSlots } from '../engine/spellcasting';
@@ -684,6 +686,145 @@ describe('classes, races, skills, conditions and languages against SRD 5.1', () 
     const languages = new Set(LANGUAGES.map((l) => key(l.name)));
     const missingLanguages = srd.languages.filter((l) => !languages.has(key(l)));
     expect(missingLanguages).toEqual([]);
+  });
+});
+
+/**
+ * The 2014 class feature table against SRD 5.1.
+ *
+ * The check above compares hit die, saves and skill picks - the only three
+ * fields `srd-2014-core.json` carries - and for a long time that was the whole
+ * of "the classes are audited". `CLASS_FEATURES` was checked against nothing,
+ * and it is the table the Builder's Class features panel, the printed sheet's
+ * Features and Traits box and the level-up summary all read from. When this
+ * fixture was finally added it found **eight features the app did not have**,
+ * including all three things a Monk spends ki on and the Paladin's level-18
+ * aura expansion, plus a Barbarian ladder that a 2024 character was getting
+ * on top of the feature that replaced it.
+ *
+ * ## What is compared, and what is not
+ *
+ * Names are matched on their **base**: the trailing parenthetical is dropped,
+ * so "Brutal Critical (2 dice)" and "Brutal Critical (1 die)" are the same
+ * feature - and then matched *per level*, so the app still has to carry a row
+ * at 9, 13 and 17 to satisfy a source that grants it three times. That is the
+ * shape that tells a scaling tier apart from a missing grant while letting the
+ * two tables word the parenthetical differently.
+ *
+ * The fixture has already dropped the rows this table is not meant to hold:
+ * Ability Score Improvements (they live on `CharClass.asiLevels`), subclass
+ * placeholders, and the per-subclass repeats of every level. See
+ * `classLevels2014` in the refresh script.
+ *
+ * Only 2014-applicable rows are compared, because the app's table serves both
+ * editions off one list. **The 2024 half of this table is still unverified** -
+ * no fixture anywhere carries 2024 class features - so a row tagged `['2014']`
+ * here is a claim about SRD 5.1 only, and rows added for 2024 are still
+ * written from the books.
+ */
+describe('the 2014 class feature table against SRD 5.1', () => {
+  const srd = records<Record<string, { name: string; levels: { level: number; features: string[] }[] }>>(
+    classLevelsFixture,
+  );
+
+  /**
+   * Where the two tables name the same feature differently.
+   *
+   * Deliberately tiny. `key` already flattens punctuation, so the SRD's "Ki
+   * Empowered Strikes" and the app's "Ki-Empowered Strikes" match with no
+   * entry here; only a genuine difference in words needs one.
+   */
+  const ALIAS_SOURCE: Record<string, string> = {
+    // SRD 5.1 prints the Wizard capstone singular; the PHB does not.
+    'signature spell': 'signature spells',
+    // The SRD splits Flexible Casting into its two directions. The app lists
+    // the feature once, which is how the PHB prints it.
+    'flexible casting creating spell slots': 'flexible casting',
+    'flexible casting converting spell slot': 'flexible casting',
+  };
+  const ALIAS: Record<string, string> = Object.fromEntries(
+    Object.entries(ALIAS_SOURCE).map(([from, to]) => [key(from), key(to)]),
+  );
+
+  /** The comparable form of a feature name: no tier, no class suffix, aliased. */
+  const base = (name: string) => {
+    const stripped = name
+      // "Spellcasting: Bard" is the SRD disambiguating twelve rows that the
+      // app never needs to tell apart - each one sits under its own class.
+      .replace(/^Spellcasting:.*/, 'Spellcasting')
+      .replace(/\s*\([^)]*\)\s*$/, '');
+    const k = key(stripped);
+    return ALIAS[k] ?? k;
+  };
+
+  it('grants every feature the SRD grants, at the level the SRD grants it', () => {
+    const findings: Finding[] = [];
+    for (const [id, table] of Object.entries(srd)) {
+      const mine = (CLASS_FEATURES[id as ClassId] ?? []).filter(
+        (f) => !f.rulesets || f.rulesets.includes('2014'),
+      );
+      for (const row of table.levels) {
+        for (const feature of row.features) {
+          const want = base(feature);
+          if (mine.some((f) => f.level === row.level && base(f.name) === want)) continue;
+          findings.push({
+            key: `classFeature:${id} ${row.level}:missing`,
+            detail: `the SRD grants ${table.name} "${feature}" at level ${row.level}; the app has nothing by that name there`,
+          });
+        }
+      }
+    }
+    const { unexpected, stale } = reconcile(findings, ['classFeature'], ['missing']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  it('covers every SRD class, so a class cannot go unchecked by being absent', () => {
+    // The check above iterates the fixture, so a class the fixture lost would
+    // pass it in silence. The artificer is the one deliberate absence: it is
+    // not in the SRD at all.
+    const inFixture = new Set(Object.keys(srd));
+    const unchecked = CLASSES.map((c) => c.id).filter((id) => id !== 'artificer' && !inFixture.has(id));
+    expect(unchecked).toEqual([]);
+    expect(inFixture.size).toBe(12);
+  });
+
+  it('puts nothing at a level the SRD leaves empty, except where 2024 owns it', () => {
+    /*
+      The other direction, and the one that caught a live bug: a 2014-legal
+      feature at a level the SRD's 2014 table does not mention. Extra rows are
+      allowed - the app models the Warlock's invocation count as features where
+      the SRD puts it in a table column - so this reports rather than fails,
+      and the list is pinned so a new one has to be looked at.
+    */
+    const extra: string[] = [];
+    for (const [id, table] of Object.entries(srd)) {
+      const granted = new Map(table.levels.map((r) => [r.level, r.features.map(base)]));
+      for (const f of CLASS_FEATURES[id as ClassId] ?? []) {
+        if (f.rulesets && !f.rulesets.includes('2014')) continue;
+        if (granted.get(f.level)?.includes(base(f.name))) continue;
+        extra.push(`${id} L${f.level} ${f.name}`);
+      }
+    }
+    expect(extra).toEqual([
+      // `classLevels2014` strips subclass placeholders, which is right for
+      // "Divine Domain feature" at level 6 and wrong for the level the
+      // subclass is *chosen* at - the app keeps a row there because that row
+      // is the Builder's prompt to pick one. Only the two classes that choose
+      // at 1st level land here; the rest choose at 2 or 3, where the SRD names
+      // the choice without the word "feature" and both tables agree.
+      'cleric L1 Divine Domain',
+      'warlock L1 Otherworldly Patron',
+      // The SRD prints Invocations Known as a column on the Warlock table; the
+      // app makes each increase a feature so the level-up summary can say
+      // "a fifth invocation" instead of nothing.
+      'warlock L5 Eldritch Invocations',
+      'warlock L7 Eldritch Invocations',
+      'warlock L9 Eldritch Invocations',
+      'warlock L12 Eldritch Invocations',
+      'warlock L15 Eldritch Invocations',
+      'warlock L18 Eldritch Invocations',
+    ]);
   });
 });
 

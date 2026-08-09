@@ -105,8 +105,17 @@ export function levelUpSummary(before: Build, after: Build): LevelUpSummary | nu
 
   // --- what it gave -------------------------------------------------------
 
-  const had = new Set(wasCtx.features.map((f) => `${f.source}:${f.name}`));
-  const featuresGained = nowCtx.features.filter((f) => !had.has(`${f.source}:${f.name}`));
+  /*
+    Keyed by level as well as by name, and the level is the whole point: a
+    class can grant the same feature more than once. Without it, "Rogue:
+    Expertise" from level 1 matched the second grant at 6, and this screen -
+    the one thing that tells a player what a level gave them - said the level
+    gave them nothing. The same silence covered the Bard's second and third
+    Magical Secrets and every scaling tier the SRD audit added.
+  */
+  const stamp = (f: HeldFeature) => `${f.source}:${f.level}:${f.name}`;
+  const had = new Set(wasCtx.features.map(stamp));
+  const featuresGained = nowCtx.features.filter((f) => !had.has(stamp(f)));
 
   const hpGained = nowCtx.hp.total - wasCtx.hp.total;
 

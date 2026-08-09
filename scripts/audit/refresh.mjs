@@ -290,6 +290,57 @@ async function subclasses2024() {
   })));
 }
 
+// -------------------------------------------------- 2014 class level tables
+/**
+ * What each 2014 class gets at each of its twenty levels.
+ *
+ * The gap this closes: `core2014` compares hit die, saves and skill picks and
+ * stops, so `CLASS_FEATURES` - the table the Builder panel, the printed sheet
+ * and the level-up summary all read from - was checked against nothing at
+ * all. Reading it by hand against this endpoint found eight features the app
+ * simply did not have, including the Monk's entire level-2 kit.
+ *
+ * Three kinds of row are dropped here rather than in the audit, because they
+ * are not features the app's table is supposed to carry:
+ *
+ *   `subclass` rows        The endpoint repeats every level once per subclass
+ *                          to carry that subclass's own progression. Those
+ *                          belong to `subclasses2024`'s 2014 sibling and to
+ *                          `SUBCLASS_FEATURES`, not here.
+ *   Ability Score          Lives on `CharClass.asiLevels`, which drives the
+ *   Improvement            planner. Repeating it as a feature would double it
+ *                          in every list that renders both.
+ *   Subclass placeholders  "Sacred Oath feature", "Path feature" and friends
+ *                          are the endpoint's way of saying *your subclass
+ *                          gives you something here*. The app renders the
+ *                          actual subclass feature instead.
+ *
+ * Everything else is kept verbatim, parentheticals included, because
+ * "Brutal Critical (2 dice)" versus "Brutal Critical (1 die)" is exactly the
+ * distinction the audit needs to tell a scaling tier from a fresh grant.
+ */
+const SUBCLASS_PLACEHOLDER =
+  /(\bfeature$)|^(Primal Path|Bard College|Divine Domain|Druid Circle|Martial Archetype|Monastic Tradition|Sacred Oath|Ranger Archetype|Roguish Archetype|Sorcerous Origin|Otherworldly Patron|Arcane Tradition|Domain Spells|Oath Spells)$/;
+
+async function classLevels2014() {
+  const index = await getJson(`${DND5EAPI}/api/2014/classes?limit=100`);
+  const tables = await getAll(index.results.map((r) => `${DND5EAPI}${r.url}/levels`));
+  return byKey(index.results.map((klass, i) => ({
+    name: klass.name,
+    levels: tables[i]
+      // A row with a `subclass` is that subclass's progression, not the class's.
+      .filter((row) => !row.subclass)
+      .map((row) => ({
+        level: row.level,
+        features: row.features
+          .map((f) => f.name)
+          .filter((n) => n !== 'Ability Score Improvement' && !SUBCLASS_PLACEHOLDER.test(n)),
+      }))
+      .filter((row) => row.features.length)
+      .sort((a, b) => a.level - b.level),
+  })));
+}
+
 // --------------------------------------------------------------------- core
 const ABILITY = { STR: 'str', DEX: 'dex', CON: 'con', INT: 'int', WIS: 'wis', CHA: 'cha' };
 
@@ -737,6 +788,7 @@ const SETS = {
   'srd-2014-magic-items': magicItems2014,
   'srd-2014-spells': spells2014,
   'srd-2014-core': core2014,
+  'srd-2014-class-levels': classLevels2014,
   'srd-2024-weapons': weapons2024,
   'srd-2024-subclasses': subclasses2024,
   'srd-2024-classes': classes2024,

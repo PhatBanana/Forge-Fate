@@ -718,3 +718,40 @@ describe('going up a level', () => {
     expect(levelPanel()).toBeNull();
   });
 });
+
+/**
+ * The Class features panel is where a player finds out what they have.
+ *
+ * The SRD audit added eight features `CLASS_FEATURES` was missing, and the
+ * point of adding them is this panel and the printed sheet - not the table.
+ * This asserts the panel end to end, from the data row to rendered text, so a
+ * row that stops arriving here fails rather than going quiet.
+ */
+describe('the Class features panel shows what the SRD grants', () => {
+  /*
+    The panel lives in the contextual rail and renders only while the reader is
+    in the Class options section (§33.7's scroll-spy). jsdom has no scrolling,
+    so the test gets there the way a reader does: by clicking the rail's own
+    anchor, which is what sets the section either way.
+  */
+  const openFeatures = async () => {
+    // The rail renders twice - the anchor strip and the Next choices list both
+    // link to the section - so either one is the reader's route in.
+    await userEvent.click(screen.getAllByRole('link', { name: /skills & options/i })[0]);
+    return screen.getByText('Class features').closest('.panel') as HTMLElement;
+  };
+
+  it('lists the three things a level-2 Monk spends ki on', async () => {
+    setup(buildOf({ classes: [{ classId: 'monk', level: 2 }] }));
+    const panel = await openFeatures();
+    for (const name of ['Flurry of Blows', 'Patient Defense', 'Step of the Wind']) {
+      expect(within(panel).getByText(name), name).toBeInTheDocument();
+    }
+  });
+
+  it('shows a level-18 Paladin the aura growth their list used to stop short of', async () => {
+    setup(buildOf({ classes: [{ classId: 'paladin', level: 18 }] }));
+    const panel = await openFeatures();
+    expect(within(panel).getByText('Aura Improvements')).toBeInTheDocument();
+  });
+});

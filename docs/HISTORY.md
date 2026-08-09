@@ -3274,3 +3274,85 @@ conclusion below is what survived them, and they have since been deleted.
   one 50-record page at a time, so the "gap" column did not follow from
   anything. Counting is what `npm run audit` and `readmeCounts.test.ts` are
   for, and they run on every commit.
+
+## 46. The 2014 class feature table gets a source
+
+The live plan's data-provenance item named three tables nothing verified.
+This closes the third, and the other two turned out to be a different
+problem than the item claimed.
+
+**What it is.** `srd-2014-class-levels.json`, distilled from dnd5eapi's
+`/api/2014/classes/{id}/levels`, and a check in `srdAudit.test.ts` that
+walks it. The classes check next door compares hit die, saves and skill
+picks - the only three fields the core fixture carries - so `CLASS_FEATURES`
+had been checked against nothing since the day it was written, and it is
+the table the Builder's Class features panel, the printed sheet's Features
+and Traits box and the level-up summary all read from.
+
+**What it found, immediately.** Eight features the SRD grants and the app
+did not have:
+
+| Class | Level | Missing |
+|---|---|---|
+| Monk | 2 | Flurry of Blows, Patient Defense, Step of the Wind |
+| Paladin | 3 | Channel Divinity |
+| Paladin | 18 | Aura Improvements |
+| Cleric | 2 | Channel Divinity: Turn Undead |
+| Ranger | 3 | Primeval Awareness |
+| Sorcerer | 2 | Flexible Casting |
+
+The Monk's is the one worth staring at. The Ki row's own summary read
+"Points for Flurry of Blows, Patient Defense and Step of the Wind" and the
+table listed none of the three - so a level-2 Monk was shown a pool of
+points and, anywhere the app lists what you have, nothing to spend it on.
+The Paladin's list simply stopped at 14, so the strongest defensive aura in
+the game never grew.
+
+Plus every scaling tier: Brutal Critical at 13 and 17, the Bard's
+inspiration and Song of Rest dice, Magical Secrets at 14 and 18, Destroy
+Undead's four CR steps, Channel Divinity's use count, Wild Shape's CR cap,
+Indomitable and Action Surge. Each of those was a level that arrived and
+said nothing.
+
+**And a bug in the other direction.** Brutal Critical carried no `rulesets`
+tag, so it applied to both editions - and 2024 replaced it with Brutal
+Strike. A 2024 Barbarian was being handed the feature *and* its
+replacement. That is what the audit's "puts nothing at a level the SRD
+leaves empty" half is for, and it is why that half pins its allowed list
+rather than being skipped as noise.
+
+**Two bugs found on the way out**, both older than this section and both
+the same shape - a fact travelling as a display string:
+
+1. **The damage model read `f.name === 'Action Surge'`.** Renaming the row
+   to "Action Surge (1 use)", which is what the SRD calls it, halved every
+   Fighter's nova number in silence. Tags exist for exactly this; there is
+   an `action-surge` tag now, and `dpr.ts` reads it the way `swings` has
+   always read `extra-attack`. The regression snapshots caught this, which
+   is the one time this session that an existing test earned its keep.
+2. **The level-up summary keyed gained features by source and name.** So a
+   feature granted twice matched itself: a Rogue reaching 6 was told the
+   level gave them nothing, because "Rogue:Expertise" from level 1 was
+   already in the set. Every repeated grant in the game was affected and
+   nothing had ever noticed. The key carries the level now.
+
+**Wired, not filed.** A row in a data table is not the deliverable - a
+player finding out they have the thing is. So the tests assert the path
+rather than the table: the derived build, the Builder's Class features
+panel (reached the way a reader reaches it, by clicking the section rail,
+because the panel lives in the scroll-spy'd contextual column), the printed
+sheet, and the level-up summary that names what a level just gave you.
+
+**What the other two items actually are.** Checked rather than assumed:
+`dnd5eapi/api/feats` returns **one** record and `/api/backgrounds` returns
+**one**. SRD 5.1 does not carry the feat list or the background list, so
+those halves are not unaudited - they are unauditable, and they moved to
+**Provenance** beside the non-SRD subclasses. The 2024 halves are auditable
+in principle and blocked on Open5e, which was unreachable from this
+container all session while dnd5eapi answered instantly.
+
+**Still not verified:** the 2024 side of `CLASS_FEATURES`. This fixture is
+SRD 5.1 and the check compares 2014 rows only. Nothing anywhere carries
+2024 class features, so every `['2024']` row is still written from the
+books - which is now said out loud in Provenance rather than left to be
+assumed.

@@ -120,7 +120,10 @@ describe('what a paper sheet has a box for', () => {
     setup(fighter());
     const features = screen.getByText('Features & traits').closest('.cs-box') as HTMLElement;
     expect(within(features).getByText('Second Wind')).toBeInTheDocument();
-    expect(within(features).getByText('Action Surge')).toBeInTheDocument();
+    // The SRD tiers this one - "Action Surge (1 use)" - so match the feature
+    // rather than the use count. What is being asserted is that a class
+    // feature reaches the printed box at all.
+    expect(within(features).getByText(/^Action Surge/)).toBeInTheDocument();
   });
 
   it('gives a caster a spell page with their slots and their spells', () => {

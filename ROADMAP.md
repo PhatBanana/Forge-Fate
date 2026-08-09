@@ -14,8 +14,8 @@ from the books" is an honest provenance and a weaker one than "verified against
 the SRD" — the audits exist because the difference turned out to matter
 fourteen times over. See **Provenance** below.
 
-The shipped history — forty-five sections with their reasoning — moved to
-**`docs/HISTORY.md`** so this file could go back to being a plan.
+The shipped history — forty-six sections with their reasoning — lives in
+**`docs/HISTORY.md`** so this file can be a plan.
 
 ---
 
@@ -31,8 +31,8 @@ full-bleed board and a pan/zoom/rotate camera.
 
 **The state.** Tests, lint, types and the build are clean, deployed from
 `main` to GitHub Pages. The data tables are diffed against the SRD 5.1 and
-5.2 APIs inside `npm test`, so drift fails a build - for twelve tables;
-three more have no fixture yet and are item 2 below.
+5.2 APIs inside `npm test`, so drift fails a build - for thirteen tables.
+Two more have no fixture, and item 2 says why neither is simply work.
 
 **What is not finished.** The core 5e mechanics are close but not complete,
 and the box stays unticked until they are. See the live plan.
@@ -87,32 +87,29 @@ sneak attack / divine smite / rage in the damage model, attunement,
 encumbrance with the variant thresholds, and the frightened movement
 clause.
 
-### 2. Data provenance — `[ ]` three tables nothing verifies **M**
+### 2. Data provenance — `[~]` one of three tables done **M**
 
 One job wearing three hats: extend `refresh.mjs` and `srdAudit.test.ts` to
-the tables they never reached. The audit covers twelve tables today and
-misses these.
+the tables they never reached. Thirteen tables are audited now; two are
+left, and both are blocked on the same missing source rather than on work.
 
-- `[ ]` **Feats, epic boons included.** No fixture for either edition, and
-  the refresh script never fetches them. 2024 feats are core rules and
-  Open5e serves `srd-2024`, so that half is auditable now; the 2014 half
-  has no licensed source and belongs beside the non-SRD subclasses,
-  labelled rather than verified.
-- `[ ]` **Backgrounds.** 29 rows, none verified. Matters more under 2024,
-  where a background sets the ability increases *and* the origin feat — a
-  wrong row moves real numbers, not flavour.
-- `[ ]` **The 2014 class feature table.** The classes check compares hit
-  die, saves and skill picks only — the SRD fixture carries `name`,
-  `hitDie`, `saves` and `skillPicks` per class and nothing else, so
-  `CLASS_FEATURES` is checked against nothing at all.
-
-  Two holes found by reading the table by hand on 2026-08-09, which is
-  what makes this item concrete rather than precautionary:
-  **Paladin has no level 18** (Aura Improvements — the auras go 10 ft to
-  30 ft, in both editions), and **the Bard has Magical Secrets at 10
-  only**, missing the level 14 and level 18 grants. Hand-reading found two
-  in one sitting; that is the argument for a fixture rather than another
-  sitting.
+- `[x]` **The 2014 class feature table.** Done — `srd-2014-class-levels`
+  and the check that reads it. See §46. It found eight features the app
+  did not have, a Barbarian ladder a 2024 character was getting on top of
+  its replacement, and two bugs on the way out.
+- `[!]` **Feats, epic boons included** — *blocked on 2024, closed on 2014.*
+  Checked rather than assumed on 2026-08-09: `dnd5eapi /api/feats` returns
+  **one** record, Grappler. So SRD 5.1 does not carry the feat list at all,
+  and the 2014 half is not "unaudited" — it is unauditable, and belongs
+  beside the non-SRD subclasses under **Provenance**. The 2024 half needs
+  Open5e's `srd-2024`, which was unreachable from this container all
+  session (every request past 110s, while dnd5eapi answered in one). Retry
+  the fetch before assuming it needs work.
+- `[!]` **Backgrounds** — *same shape.* `dnd5eapi /api/backgrounds` returns
+  **one** record, Acolyte, so 28 of the app's 29 rows have no 5.1 source.
+  The 2024 half matters more anyway — a background sets the ability
+  increases *and* the origin feat there, so a wrong row moves real numbers
+  — and it is behind the same unreachable Open5e endpoint.
 
 ### 3. Small and optional — `[ ]` **XS each**
 
@@ -169,9 +166,17 @@ difference turned out to matter fourteen times over.
 
 - **Verified in `npm test`:** classes, races, skills, conditions, languages,
   spells, equipment, weapons, magic items, 2014 subclass spell lists, 2024
-  subclasses, 2024 class resources. Drift fails a build.
-- **Not verified yet:** feats and epic boons, backgrounds, the 2014 class
-  feature table. Item 2 in the live plan.
+  subclasses, 2024 class resources, and the 2014 class feature table. Drift
+  fails a build.
+- `[!]` **Not verifiable from SRD 5.1:** the feat list and the background
+  list. Checked, not assumed: the SRD 5.1 API carries exactly one of each -
+  Grappler and Acolyte. Every other row in both tables is written from the
+  books, and no 5.1 fixture can say otherwise. The 2024 halves are auditable
+  in principle and blocked on reaching Open5e; item 2 in the live plan.
+- **Written from the books, and 2024-only:** every `CLASS_FEATURES` row
+  tagged `['2024']`, and every untagged row's 2024 behaviour. The new
+  feature check is SRD 5.1 and compares the 2014 side only; nothing
+  anywhere carries 2024 class features.
 - `[!]` **Not verifiable:** the ~108 non-SRD subclasses. No licensed source
   carries them; the community sites that do are unlicensed copies, and the
   two open-source alternatives evaluated in 2026-08 turned out to be
@@ -188,7 +193,7 @@ forgery, and it is the parked §9.
 
 ## History
 
-Forty-five shipped sections, with the reasoning intact, live in
+Forty-six shipped sections, with the reasoning intact, live in
 **`docs/HISTORY.md`**. Forty-four of them were split out of this file on
 2026-08-09 — forty-four numbered sections had made a *plan* unreadable, and
 a roadmap should say what is left rather than what was done. §45 was
@@ -213,4 +218,4 @@ section has gone since.
 | The full-screen game UI | 31-35 |
 | The game look, finished | 36-38 |
 | 5e core mechanics: grapple, light, surprise, the small rules | 39-42 |
-| Builder correctness, and the audits that found it | 43-45 |
+| Builder correctness, and the audits that found it | 43-46 |

@@ -1,0 +1,754 @@
+{
+ "source": "dnd5eapi SRD 5.1",
+ "refreshed": "2026-08-09",
+ "records": {
+  "barbarian": {
+   "name": "Barbarian",
+   "levels": [
+    {
+     "level": 1,
+     "features": [
+      "Rage",
+      "Unarmored Defense"
+     ]
+    },
+    {
+     "level": 2,
+     "features": [
+      "Reckless Attack",
+      "Danger Sense"
+     ]
+    },
+    {
+     "level": 5,
+     "features": [
+      "Extra Attack",
+      "Fast Movement"
+     ]
+    },
+    {
+     "level": 7,
+     "features": [
+      "Feral Instinct"
+     ]
+    },
+    {
+     "level": 9,
+     "features": [
+      "Brutal Critical (1 die)"
+     ]
+    },
+    {
+     "level": 11,
+     "features": [
+      "Relentless Rage"
+     ]
+    },
+    {
+     "level": 13,
+     "features": [
+      "Brutal Critical (2 dice)"
+     ]
+    },
+    {
+     "level": 15,
+     "features": [
+      "Persistent Rage"
+     ]
+    },
+    {
+     "level": 17,
+     "features": [
+      "Brutal Critical (3 dice)"
+     ]
+    },
+    {
+     "level": 18,
+     "features": [
+      "Indomitable Might"
+     ]
+    },
+    {
+     "level": 20,
+     "features": [
+      "Primal Champion"
+     ]
+    }
+   ]
+  },
+  "bard": {
+   "name": "Bard",
+   "levels": [
+    {
+     "level": 1,
+     "features": [
+      "Spellcasting: Bard",
+      "Bardic Inspiration (d6)"
+     ]
+    },
+    {
+     "level": 2,
+     "features": [
+      "Jack of All Trades",
+      "Song of Rest (d6)"
+     ]
+    },
+    {
+     "level": 3,
+     "features": [
+      "Expertise"
+     ]
+    },
+    {
+     "level": 5,
+     "features": [
+      "Bardic Inspiration (d8)",
+      "Font of Inspiration"
+     ]
+    },
+    {
+     "level": 6,
+     "features": [
+      "Countercharm"
+     ]
+    },
+    {
+     "level": 9,
+     "features": [
+      "Song of Rest (d8)"
+     ]
+    },
+    {
+     "level": 10,
+     "features": [
+      "Expertise",
+      "Bardic Inspiration (d10)",
+      "Magical Secrets"
+     ]
+    },
+    {
+     "level": 13,
+     "features": [
+      "Song of Rest (d10)"
+     ]
+    },
+    {
+     "level": 14,
+     "features": [
+      "Magical Secrets"
+     ]
+    },
+    {
+     "level": 15,
+     "features": [
+      "Bardic Inspiration (d12)"
+     ]
+    },
+    {
+     "level": 17,
+     "features": [
+      "Song of Rest (d12)"
+     ]
+    },
+    {
+     "level": 18,
+     "features": [
+      "Magical Secrets"
+     ]
+    },
+    {
+     "level": 20,
+     "features": [
+      "Superior Inspiration"
+     ]
+    }
+   ]
+  },
+  "cleric": {
+   "name": "Cleric",
+   "levels": [
+    {
+     "level": 1,
+     "features": [
+      "Spellcasting: Cleric"
+     ]
+    },
+    {
+     "level": 2,
+     "features": [
+      "Channel Divinity (1/rest)",
+      "Channel Divinity: Turn Undead"
+     ]
+    },
+    {
+     "level": 5,
+     "features": [
+      "Destroy Undead (CR 1/2 or below)"
+     ]
+    },
+    {
+     "level": 6,
+     "features": [
+      "Channel Divinity (2/rest)"
+     ]
+    },
+    {
+     "level": 8,
+     "features": [
+      "Destroy Undead (CR 1 or below)"
+     ]
+    },
+    {
+     "level": 10,
+     "features": [
+      "Divine Intervention"
+     ]
+    },
+    {
+     "level": 11,
+     "features": [
+      "Destroy Undead (CR 2 or below)"
+     ]
+    },
+    {
+     "level": 14,
+     "features": [
+      "Destroy Undead (CR 3 or below)"
+     ]
+    },
+    {
+     "level": 17,
+     "features": [
+      "Destroy Undead (CR 4 or below)"
+     ]
+    },
+    {
+     "level": 18,
+     "features": [
+      "Channel Divinity (3/rest)"
+     ]
+    },
+    {
+     "level": 20,
+     "features": [
+      "Divine Intervention Improvement"
+     ]
+    }
+   ]
+  },
+  "druid": {
+   "name": "Druid",
+   "levels": [
+    {
+     "level": 1,
+     "features": [
+      "Spellcasting: Druid",
+      "Druidic"
+     ]
+    },
+    {
+     "level": 2,
+     "features": [
+      "Wild Shape (CR 1/4 or below, no flying or swim speed)"
+     ]
+    },
+    {
+     "level": 4,
+     "features": [
+      "Wild Shape (CR 1/2 or below, no flying speed)"
+     ]
+    },
+    {
+     "level": 8,
+     "features": [
+      "Wild Shape (CR 1 or below)"
+     ]
+    },
+    {
+     "level": 18,
+     "features": [
+      "Timeless Body",
+      "Beast Spells"
+     ]
+    },
+    {
+     "level": 20,
+     "features": [
+      "Archdruid"
+     ]
+    }
+   ]
+  },
+  "fighter": {
+   "name": "Fighter",
+   "levels": [
+    {
+     "level": 1,
+     "features": [
+      "Fighting Style",
+      "Second Wind"
+     ]
+    },
+    {
+     "level": 2,
+     "features": [
+      "Action Surge (1 use)"
+     ]
+    },
+    {
+     "level": 5,
+     "features": [
+      "Extra Attack"
+     ]
+    },
+    {
+     "level": 9,
+     "features": [
+      "Indomitable (1 use)"
+     ]
+    },
+    {
+     "level": 11,
+     "features": [
+      "Extra Attack (2)"
+     ]
+    },
+    {
+     "level": 13,
+     "features": [
+      "Indomitable (2 uses)"
+     ]
+    },
+    {
+     "level": 17,
+     "features": [
+      "Action Surge (2 uses)",
+      "Indomitable (3 uses)"
+     ]
+    },
+    {
+     "level": 20,
+     "features": [
+      "Extra Attack (3)"
+     ]
+    }
+   ]
+  },
+  "monk": {
+   "name": "Monk",
+   "levels": [
+    {
+     "level": 1,
+     "features": [
+      "Unarmored Defense",
+      "Martial Arts"
+     ]
+    },
+    {
+     "level": 2,
+     "features": [
+      "Ki",
+      "Flurry of Blows",
+      "Patient Defense",
+      "Step of the Wind",
+      "Unarmored Movement"
+     ]
+    },
+    {
+     "level": 3,
+     "features": [
+      "Deflect Missiles"
+     ]
+    },
+    {
+     "level": 4,
+     "features": [
+      "Slow Fall"
+     ]
+    },
+    {
+     "level": 5,
+     "features": [
+      "Extra Attack",
+      "Stunning Strike"
+     ]
+    },
+    {
+     "level": 6,
+     "features": [
+      "Ki Empowered Strikes"
+     ]
+    },
+    {
+     "level": 7,
+     "features": [
+      "Evasion",
+      "Stillness of Mind"
+     ]
+    },
+    {
+     "level": 9,
+     "features": [
+      "Unarmored Movement"
+     ]
+    },
+    {
+     "level": 10,
+     "features": [
+      "Purity of Body"
+     ]
+    },
+    {
+     "level": 13,
+     "features": [
+      "Tongue of the Sun and Moon"
+     ]
+    },
+    {
+     "level": 14,
+     "features": [
+      "Diamond Soul"
+     ]
+    },
+    {
+     "level": 15,
+     "features": [
+      "Timeless Body"
+     ]
+    },
+    {
+     "level": 18,
+     "features": [
+      "Empty Body"
+     ]
+    },
+    {
+     "level": 20,
+     "features": [
+      "Perfect Self"
+     ]
+    }
+   ]
+  },
+  "paladin": {
+   "name": "Paladin",
+   "levels": [
+    {
+     "level": 1,
+     "features": [
+      "Divine Sense",
+      "Lay on Hands"
+     ]
+    },
+    {
+     "level": 2,
+     "features": [
+      "Fighting Style",
+      "Spellcasting: Paladin",
+      "Divine Smite"
+     ]
+    },
+    {
+     "level": 3,
+     "features": [
+      "Divine Health",
+      "Channel Divinity"
+     ]
+    },
+    {
+     "level": 5,
+     "features": [
+      "Extra Attack"
+     ]
+    },
+    {
+     "level": 6,
+     "features": [
+      "Aura of Protection"
+     ]
+    },
+    {
+     "level": 10,
+     "features": [
+      "Aura of Courage"
+     ]
+    },
+    {
+     "level": 11,
+     "features": [
+      "Improved Divine Smite"
+     ]
+    },
+    {
+     "level": 14,
+     "features": [
+      "Cleansing Touch"
+     ]
+    },
+    {
+     "level": 18,
+     "features": [
+      "Aura improvements"
+     ]
+    }
+   ]
+  },
+  "ranger": {
+   "name": "Ranger",
+   "levels": [
+    {
+     "level": 1,
+     "features": [
+      "Favored Enemy (1 type)",
+      "Natural Explorer (1 terrain type)"
+     ]
+    },
+    {
+     "level": 2,
+     "features": [
+      "Fighting Style",
+      "Spellcasting: Ranger"
+     ]
+    },
+    {
+     "level": 3,
+     "features": [
+      "Primeval Awareness"
+     ]
+    },
+    {
+     "level": 5,
+     "features": [
+      "Extra Attack"
+     ]
+    },
+    {
+     "level": 6,
+     "features": [
+      "Favored Enemy (2 types)",
+      "Natural Explorer (2 terrain types)"
+     ]
+    },
+    {
+     "level": 8,
+     "features": [
+      "Land's Stride"
+     ]
+    },
+    {
+     "level": 10,
+     "features": [
+      "Natural Explorer (3 terrain types)",
+      "Hide in Plain Sight"
+     ]
+    },
+    {
+     "level": 14,
+     "features": [
+      "Favored Enemy (3 enemies)",
+      "Vanish"
+     ]
+    },
+    {
+     "level": 18,
+     "features": [
+      "Feral Senses"
+     ]
+    },
+    {
+     "level": 20,
+     "features": [
+      "Foe Slayer"
+     ]
+    }
+   ]
+  },
+  "rogue": {
+   "name": "Rogue",
+   "levels": [
+    {
+     "level": 1,
+     "features": [
+      "Expertise",
+      "Sneak Attack",
+      "Thieves' Cant"
+     ]
+    },
+    {
+     "level": 2,
+     "features": [
+      "Cunning Action"
+     ]
+    },
+    {
+     "level": 5,
+     "features": [
+      "Uncanny Dodge"
+     ]
+    },
+    {
+     "level": 6,
+     "features": [
+      "Expertise"
+     ]
+    },
+    {
+     "level": 7,
+     "features": [
+      "Evasion"
+     ]
+    },
+    {
+     "level": 11,
+     "features": [
+      "Reliable Talent"
+     ]
+    },
+    {
+     "level": 14,
+     "features": [
+      "Blindsense"
+     ]
+    },
+    {
+     "level": 15,
+     "features": [
+      "Slippery Mind"
+     ]
+    },
+    {
+     "level": 18,
+     "features": [
+      "Elusive"
+     ]
+    },
+    {
+     "level": 20,
+     "features": [
+      "Stroke of Luck"
+     ]
+    }
+   ]
+  },
+  "sorcerer": {
+   "name": "Sorcerer",
+   "levels": [
+    {
+     "level": 1,
+     "features": [
+      "Spellcasting: Sorcerer"
+     ]
+    },
+    {
+     "level": 2,
+     "features": [
+      "Font of Magic",
+      "Flexible Casting: Creating Spell Slots",
+      "Flexible Casting: Converting Spell Slot"
+     ]
+    },
+    {
+     "level": 3,
+     "features": [
+      "Metamagic"
+     ]
+    },
+    {
+     "level": 10,
+     "features": [
+      "Metamagic"
+     ]
+    },
+    {
+     "level": 17,
+     "features": [
+      "Metamagic"
+     ]
+    },
+    {
+     "level": 20,
+     "features": [
+      "Sorcerous Restoration"
+     ]
+    }
+   ]
+  },
+  "warlock": {
+   "name": "Warlock",
+   "levels": [
+    {
+     "level": 1,
+     "features": [
+      "Pact Magic"
+     ]
+    },
+    {
+     "level": 2,
+     "features": [
+      "Eldritch Invocations"
+     ]
+    },
+    {
+     "level": 3,
+     "features": [
+      "Pact Boon"
+     ]
+    },
+    {
+     "level": 11,
+     "features": [
+      "Mystic Arcanum (6th level)"
+     ]
+    },
+    {
+     "level": 13,
+     "features": [
+      "Mystic Arcanum (7th level)"
+     ]
+    },
+    {
+     "level": 15,
+     "features": [
+      "Mystic Arcanum (8th level)"
+     ]
+    },
+    {
+     "level": 17,
+     "features": [
+      "Mystic Arcanum (9th level)"
+     ]
+    },
+    {
+     "level": 20,
+     "features": [
+      "Eldritch Master"
+     ]
+    }
+   ]
+  },
+  "wizard": {
+   "name": "Wizard",
+   "levels": [
+    {
+     "level": 1,
+     "features": [
+      "Spellcasting: Wizard",
+      "Arcane Recovery"
+     ]
+    },
+    {
+     "level": 18,
+     "features": [
+      "Spell Mastery"
+     ]
+    },
+    {
+     "level": 20,
+     "features": [
+      "Signature Spell"
+     ]
+    }
+   ]
+  }
+ }
+}
