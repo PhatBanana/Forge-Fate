@@ -8,6 +8,8 @@ import type { Square } from '../encounter';
 import { keyOf, squareOf } from '../terrain';
 import type { ElevationMap, TerrainMap } from '../terrain';
 import type { Token } from './DungeonMap';
+import type { Camera, Frame } from '../engine/camera';
+import { useMapCamera } from './useMapCamera';
 
 /**
  * The tactical camera: the same battlefield, projected the way Final Fantasy
@@ -76,6 +78,8 @@ export function IsoMap({
   onHover,
   onTokenClick,
   onTokenOpen,
+  camera,
+  onCamera,
 }: {
   dungeon: Dungeon;
   tokens?: Token[];
@@ -98,6 +102,10 @@ export function IsoMap({
   onHover?: (at: Square | null) => void;
   onTokenClick?: (id: string) => void;
   onTokenOpen?: (id: string) => void;
+  /** Where the camera is looking. Omitted means the whole map. */
+  camera?: Camera;
+  /** Present to make the map pannable and zoomable. See `useMapCamera`. */
+  onCamera?: (next: Camera) => void;
 }) {
   const svg = useRef<SVGSVGElement>(null);
   const dragging = useRef<string | null>(null);
@@ -151,18 +159,25 @@ export function IsoMap({
   const h = vy(gw, gh) + pad + Math.abs(minZ) * ZH + LIP + 14;
 
   /*
-    What part of the drawing is on screen. The whole of it, for now - §34 makes
-    this the camera. One object rather than two, because `squareAt` and the
-    `viewBox` attribute have to be the same rectangle: they were written
-    separately once and drifted, and §32.1 was the click that landed six
-    squares away. See `engine/letterbox.ts`.
+    The frame the camera moves around inside, and the part of it on screen.
+    One object rather than two, because `squareAt` and the `viewBox` attribute
+    have to be the same rectangle: they were written separately once and
+    drifted, and §32.1 was the click that landed six squares away. See
+    `engine/letterbox.ts`.
 
     The y origin is `-pad`, the headroom this projection reserves above the
     drawing for tall terrain. `minX` is *not* the x origin - the polygons are
     drawn already shifted by it, so the viewBox starts at zero and `squareAt`
     adds it back after the conversion.
+
+    Rotating the camera changes `w`, `h`, `minX` and `pad` all at once, which
+    is exactly why the camera is stored as a fraction of the frame rather than
+    a coordinate in it: the middle of the board stays the middle through a
+    quarter turn.
   */
-  const view: ViewBox = { x: 0, y: -pad, width: w, height: h };
+  const frame: Frame = { x0: 0, y0: -pad, w, h };
+  const cam = useMapCamera(svg, frame, camera, onCamera);
+  const view: ViewBox = cam.view;
 
   /** The four corners of a cell's top face at height z, as a points string. */
   const facePoints = (at: Square, z: number): string => {
@@ -331,8 +346,12 @@ export function IsoMap({
       style={{ '--map-ratio': `${w} / ${h}` } as CSSProperties}
       role="img"
       aria-label={`Tactical view of the map from seed ${dungeon.seed}`}
+      onContextMenu={cam.onContextMenu}
       onPointerDown={(e) => {
-        if (!onPaint || dragging.current) return;
+        // The camera first, and only for a right-drag, a middle-drag or a
+        // second finger. Left button still paints; see `useMapCamera`.
+        if (!dragging.current && cam.onPointerDown(e)) return;
+        if (!onPaint || dragging.current || e.button !== 0) return;
         const at = squareAt(e.clientX, e.clientY);
         if (!at) return;
         brushDown.current = true;
@@ -340,6 +359,7 @@ export function IsoMap({
         onPaint(at);
       }}
       onPointerMove={(e) => {
+        if (cam.onPointerMove(e)) return;
         const at = squareAt(e.clientX, e.clientY);
         if (onHover) {
           const key = at ? keyOf(at) : null;
@@ -362,12 +382,17 @@ export function IsoMap({
         lastPainted.current = key;
         onPaint(at);
       }}
-      onPointerUp={() => {
+      onPointerUp={(e) => {
+        cam.onPointerUp(e);
         dragging.current = null;
         brushDown.current = false;
         lastPainted.current = null;
       }}
+      onPointerCancel={cam.onPointerUp}
       onPointerLeave={() => {
+        // A captured pan is meant to survive leaving the element - that is
+        // what the capture is for. It ends on pointerup, wherever that lands.
+        if (cam.active()) return;
         dragging.current = null;
         brushDown.current = false;
         lastPainted.current = null;

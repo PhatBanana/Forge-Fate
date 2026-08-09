@@ -4811,6 +4811,13 @@ dl.detail-list {
   background: var(--paper);
   border: 1px solid var(--rule);
   border-radius: var(--radius);
+  /*
+    The map handles its own touch gestures - one finger paints or drags a
+    token, two pan and pinch (§34). Without this the browser claims both for
+    scrolling and page zoom before a single pointer event is delivered, so the
+    map would simply never see them.
+  */
+  touch-action: none;
 }
 
 /* The grid is a guide, not a feature: visible enough to count squares against

@@ -5,6 +5,8 @@ import type { Dungeon } from '../engine/dungeon';
 import type { Square } from '../encounter';
 import { toUserSpace, viewBoxAttr } from '../engine/letterbox';
 import type { ViewBox } from '../engine/letterbox';
+import type { Camera, Frame } from '../engine/camera';
+import { useMapCamera } from './useMapCamera';
 import { squareOf } from '../terrain';
 import type { ElevationMap, TerrainKind, TerrainMap } from '../terrain';
 
@@ -162,6 +164,8 @@ export function DungeonMap({
   onHover,
   onTokenClick,
   onTokenOpen,
+  camera,
+  onCamera,
 }: {
   dungeon: Dungeon;
   tokens?: Token[];
@@ -212,20 +216,31 @@ export function DungeonMap({
   onTokenClick?: (id: string) => void;
   /** A token was double-clicked: open the full thing. */
   onTokenOpen?: (id: string) => void;
+  /** Where the camera is looking. Omitted means the whole map, which is what
+      the Dungeons editor wants and what every existing test assumes. */
+  camera?: Camera;
+  /** Present to make the map pannable and zoomable. Without it there are no
+      gestures at all - no wheel listener, no suppressed context menu. */
+  onCamera?: (next: Camera) => void;
 }) {
   const w = dungeon.width * CELL;
   const h = dungeon.height * CELL;
-  /*
-    What part of the drawing is on screen. The whole of it, for now - §34
-    makes this the camera, and the reason it is a named object rather than two
-    template strings is that `squareAt` below and the `viewBox` attribute have
-    to be the *same* rectangle. When they were written separately they drifted,
-    and a click landed six squares from where it was made. See
-    `engine/letterbox.ts`.
-  */
-  const view: ViewBox = { x: 0, y: 0, width: w, height: h };
 
   const svg = useRef<SVGSVGElement>(null);
+
+  /*
+    What part of the drawing is on screen. One object, not two: `squareAt`
+    below and the `viewBox` attribute have to be the *same* rectangle, and
+    when they were written separately they drifted and a click landed six
+    squares from where it was made. See `engine/letterbox.ts`.
+
+    At the default camera this is exactly `0 0 w h` - the rectangle the map
+    rendered before the camera existed, which is why the tests that stub this
+    element's box and click through raw coordinates are untouched.
+  */
+  const frame: Frame = { x0: 0, y0: 0, w, h };
+  const cam = useMapCamera(svg, frame, camera, onCamera);
+  const view: ViewBox = cam.view;
   const dragging = useRef<string | null>(null);
   const brushDown = useRef(false);
   /** The last square painted this stroke, so dragging inside one square is one paint. */
@@ -284,10 +299,18 @@ export function DungeonMap({
       style={{ '--map-ratio': `${w} / ${h}` } as CSSProperties}
       role="img"
       aria-label={`Dungeon map from seed ${dungeon.seed}: ${dungeon.rooms.length} rooms`}
+      onContextMenu={cam.onContextMenu}
       onPointerDown={(e) => {
-        // A pointer that went down on a token is a drag; the token's own
-        // handler has already claimed it by the time this bubbles.
-        if (!onPaint || dragging.current) return;
+        /*
+          The camera looks first, and only ever claims a right-drag, a
+          middle-drag or a second finger. A token drag still wins outright:
+          the token's own handler has claimed the pointer by the time this
+          bubbles, so a pan cannot start underneath one.
+        */
+        if (!dragging.current && cam.onPointerDown(e)) return;
+        // Left button only. Without this check a right-click placed or walked
+        // the selected token, on top of opening the browser's menu.
+        if (!onPaint || dragging.current || e.button !== 0) return;
         const at = squareAt(e.clientX, e.clientY);
         if (!at) return;
         brushDown.current = true;
@@ -295,6 +318,7 @@ export function DungeonMap({
         onPaint(at);
       }}
       onPointerMove={(e) => {
+        if (cam.onPointerMove(e)) return;
         const at = squareAt(e.clientX, e.clientY);
         if (onHover) {
           const key = at ? `${at.x},${at.y}` : null;
@@ -318,12 +342,20 @@ export function DungeonMap({
         lastPainted.current = key;
         onPaint(at);
       }}
-      onPointerUp={() => {
+      onPointerUp={(e) => {
+        cam.onPointerUp(e);
         dragging.current = null;
         brushDown.current = false;
         lastPainted.current = null;
       }}
+      onPointerCancel={cam.onPointerUp}
       onPointerLeave={() => {
+        /*
+          Not the camera's cue to stop: a captured pan is *meant* to survive
+          leaving the element, which is the whole reason for the capture. It
+          ends on pointerup, wherever that happens.
+        */
+        if (cam.active()) return;
         dragging.current = null;
         brushDown.current = false;
         lastPainted.current = null;
