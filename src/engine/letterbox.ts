@@ -38,6 +38,25 @@ export interface ViewBox {
 }
 
 /**
+ * The `viewBox` attribute for a ViewBox.
+ *
+ * Trivial, and the point is entirely that it exists. Both maps used to write
+ * their viewBox **twice** - once as a template string in the JSX and once as
+ * an object literal inside `squareAt` - with nothing but discipline keeping
+ * the two in agreement. §32.1 is what happens when they disagree: a click
+ * resolved six squares from where it landed, and no test saw it.
+ *
+ * With this, a map computes one `ViewBox`, renders it through here, and hands
+ * the same object to `toUserSpace`. They cannot drift apart because there is
+ * only one of them - which is what makes §34's camera a change to a single
+ * expression rather than a change that has to be made identically in four
+ * places.
+ */
+export function viewBoxAttr(view: ViewBox): string {
+  return `${view.x} ${view.y} ${view.width} ${view.height}`;
+}
+
+/**
  * A client point in the SVG's own user units, or null when the box has no
  * size to divide by.
  *

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toUserSpace } from './letterbox';
+import { toUserSpace, viewBoxAttr } from './letterbox';
 
 /**
  * The maths behind a click on a map.
@@ -88,4 +88,29 @@ describe('nothing to divide by', () => {
       expect(toUserSpace(box, grid, 10, 10)).toBeNull();
     },
   );
+});
+
+describe('the attribute and the maths read the same rectangle', () => {
+  /*
+    The whole reason `viewBoxAttr` exists. Both maps used to write their
+    viewBox twice - a template string in the JSX, an object literal in
+    `squareAt` - and §32.1 is what happened when the two drifted. This is the
+    cheapest possible statement that they now cannot.
+  */
+  it('renders a ViewBox in the order SVG reads it', () => {
+    expect(viewBoxAttr(grid)).toBe('0 0 672 504');
+  });
+
+  it('carries a negative origin through, which the isometric map has', () => {
+    expect(viewBoxAttr({ x: 0, y: -40, width: 600, height: 400 })).toBe('0 -40 600 400');
+  });
+
+  it('describes the same rectangle the conversion uses', () => {
+    // Corner to corner: the attribute's origin is the point a click at the
+    // element's top-left resolves to.
+    const view = { x: 12, y: -8, width: 300, height: 200 };
+    const box = { left: 0, top: 0, width: 300, height: 200 };
+    expect(viewBoxAttr(view).startsWith(`${view.x} ${view.y}`)).toBe(true);
+    expect(toUserSpace(box, view, 0, 0)).toEqual({ x: 12, y: -8 });
+  });
 });

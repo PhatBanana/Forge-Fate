@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import type { CSSProperties } from 'react';
-import { toUserSpace } from '../engine/letterbox';
+import { toUserSpace, viewBoxAttr } from '../engine/letterbox';
+import type { ViewBox } from '../engine/letterbox';
 import { corridorSquares } from '../engine/dungeon';
 import type { Dungeon } from '../engine/dungeon';
 import type { Square } from '../encounter';
@@ -149,6 +150,20 @@ export function IsoMap({
   const w = vx(gw, 0) - minX;
   const h = vy(gw, gh) + pad + Math.abs(minZ) * ZH + LIP + 14;
 
+  /*
+    What part of the drawing is on screen. The whole of it, for now - §34 makes
+    this the camera. One object rather than two, because `squareAt` and the
+    `viewBox` attribute have to be the same rectangle: they were written
+    separately once and drifted, and §32.1 was the click that landed six
+    squares away. See `engine/letterbox.ts`.
+
+    The y origin is `-pad`, the headroom this projection reserves above the
+    drawing for tall terrain. `minX` is *not* the x origin - the polygons are
+    drawn already shifted by it, so the viewBox starts at zero and `squareAt`
+    adds it back after the conversion.
+  */
+  const view: ViewBox = { x: 0, y: -pad, width: w, height: h };
+
   /** The four corners of a cell's top face at height z, as a points string. */
   const facePoints = (at: Square, z: number): string => {
     const lift = z * ZH;
@@ -191,12 +206,7 @@ export function IsoMap({
       polygons are drawn already shifted by it (`facePoints`), so the viewBox
       starts at zero, while the inverse below wants an unshifted vertex.
     */
-    const at = toUserSpace(
-      svg.current?.getBoundingClientRect(),
-      { x: 0, y: -pad, width: w, height: h },
-      clientX,
-      clientY,
-    );
+    const at = toUserSpace(svg.current?.getBoundingClientRect(), view, clientX, clientY);
     if (!at) return null;
     const sx = at.x + minX;
     const sy = at.y;
@@ -313,7 +323,7 @@ export function IsoMap({
     <svg
       ref={svg}
       className="dmap isomap"
-      viewBox={`0 ${-pad} ${w} ${h}`}
+      viewBox={viewBoxAttr(view)}
       /* An intrinsic size and the shape it implies, so the element can be
          fitted rather than stretched - see `DungeonMap.tsx`. */
       width={w}

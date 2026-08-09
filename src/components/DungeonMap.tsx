@@ -3,7 +3,8 @@ import type { CSSProperties } from 'react';
 import { corridorSquares } from '../engine/dungeon';
 import type { Dungeon } from '../engine/dungeon';
 import type { Square } from '../encounter';
-import { toUserSpace } from '../engine/letterbox';
+import { toUserSpace, viewBoxAttr } from '../engine/letterbox';
+import type { ViewBox } from '../engine/letterbox';
 import { squareOf } from '../terrain';
 import type { ElevationMap, TerrainKind, TerrainMap } from '../terrain';
 
@@ -214,6 +215,16 @@ export function DungeonMap({
 }) {
   const w = dungeon.width * CELL;
   const h = dungeon.height * CELL;
+  /*
+    What part of the drawing is on screen. The whole of it, for now - §34
+    makes this the camera, and the reason it is a named object rather than two
+    template strings is that `squareAt` below and the `viewBox` attribute have
+    to be the *same* rectangle. When they were written separately they drifted,
+    and a click landed six squares from where it was made. See
+    `engine/letterbox.ts`.
+  */
+  const view: ViewBox = { x: 0, y: 0, width: w, height: h };
+
   const svg = useRef<SVGSVGElement>(null);
   const dragging = useRef<string | null>(null);
   const brushDown = useRef(false);
@@ -239,12 +250,7 @@ export function DungeonMap({
     of a wide stage. See `engine/letterbox.ts`.
   */
   const squareAt = (clientX: number, clientY: number): Square | null => {
-    const at = toUserSpace(
-      svg.current?.getBoundingClientRect(),
-      { x: 0, y: 0, width: w, height: h },
-      clientX,
-      clientY,
-    );
+    const at = toUserSpace(svg.current?.getBoundingClientRect(), view, clientX, clientY);
     if (!at) return null;
     const x = Math.floor(at.x / CELL);
     const y = Math.floor(at.y / CELL);
@@ -265,7 +271,7 @@ export function DungeonMap({
     <svg
       ref={svg}
       className="dmap"
-      viewBox={`0 0 ${w} ${h}`}
+      viewBox={viewBoxAttr(view)}
       /*
         An intrinsic size and the shape it implies. The stylesheet cannot know
         how many squares this dungeon is, and the battle stage needs the shape
