@@ -75,17 +75,47 @@ say on the screen that the table has to rule it.
 - `[ ]` **41. Surprise.** **S** - Absent. Stealth and hiding landed in
   §19.3, but initiative has no surprised state; an ambush and a doorway
   fight start identically.
-- `[ ]` **42. The smaller combat rules, audited and closed one by one.**
-  **M** - Partial or unverified, each needs a look before a decision:
-  three-quarters cover (+5 - only half cover's +2 is modelled today), lair
-  actions (legendary actions are tracked, lair are parsed and dropped),
-  frightened's movement half (the roll half has teeth; "cannot willingly
-  approach" may not gate movement), concentration checks on damage (the
-  concentration *slot* is tracked; verify a hit prompts the CON save),
-  heroic inspiration (absent; a one-checkbox model), ritual casting (tagged
-  on spells; verify it is surfaced anywhere it matters), multiclass ability
-  prerequisites in the Builder (verify they are enforced or at least
-  flagged).
+- `[ ]` **42. The smaller combat rules, one by one.** **M** - the list below
+  is *verified against the code* (2026-08-09), not guessed. Several items
+  this section originally carried were already done and have been struck; a
+  roadmap that invents work is the failure mode item 1.5 was about.
+  - **Three-quarters cover (+5)** - absent. Only half cover's +2 exists
+    (`TableTab.tsx`, `effectiveAc`). Total cover is handled by sight.
+  - **Lair actions** - parsed off the stat block and dropped. Legendary
+    actions are tracked and spent; their sibling is not.
+  - **Frightened's movement clause** - partial. The disadvantage half has
+    teeth (`advantage.ts`); "cannot willingly move closer" does not gate
+    pathing.
+  - **Heroic inspiration** - absent. A one-flag model on `PlayState`.
+  - **The bonus-action spell rule** - absent. Nothing stops a leveled spell
+    as a bonus action plus a second leveled spell as the action.
+  - **Ritual casting** - `Spell.ritual` is on every spell and is surfaced
+    **nowhere**. Data with no reader.
+- `[ ]` **43. Two Builder correctness gaps, found in the same audit.** **S**
+  - **Multiclass ability prerequisites are not enforced or flagged.** A
+    Wizard 5 with Strength 8 can take a Fighter level. `checkPrereq` exists
+    and covers *feats* only. The build review is the natural home - this is
+    a legality question, and §2's discipline says model it or say so on
+    screen.
+  - **Open language and tool slots are counted but never chosen.**
+    `Proficiencies.languages` carries what the lineage and background
+    *grant*; the Builder prints "2 extra languages to choose" and offers no
+    way to choose them, so the pick never reaches the sheet.
+
+**Struck from this section after checking the code** - each was already
+modelled, most of them well:
+  - Concentration checks on damage: `concentrationDc`, the CON save is
+    rolled and logged with its DC, in both the attack and the zone paths.
+  - Death saves: damage at 0 is a failure, a natural 20 is up on one hit
+    point, a natural 1 is two failures.
+  - Temporary hit points: spent first, never stacked, not healed back.
+  - Level-20 capstones: present for all twelve classes.
+  - Falling: §26.2, through `shove.ts`, which states its feet-per-step.
+  - Ready as an action; sneak attack, divine smite and rage in the damage
+    model; attunement; encumbrance with the variant thresholds.
+  - **Massive damage** stays deliberately unmodelled with a comment saying
+    so - it is a table call, and that is a decision rather than a gap.
+
 - `[–]` **Mounted combat, underwater combat, chase rules.** Declared out of
   scope for a tabletop aid at this table's scale - the DM rules them. A
   decision, recorded here so it stays one.
