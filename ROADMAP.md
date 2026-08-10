@@ -66,20 +66,46 @@ that bite; reactions; stealth, fog and activation; elevation, falling and
 high ground; rests, hit dice and every class resource.
 
 **Still missing, each with its reason** — this is the list that keeps the
-box unticked:
+box unticked. Surveyed against both SRDs on 2026-08-09; every line below was
+checked in the code, not recalled.
 
+- `[ ]` **2024 exhaustion is the 2014 ladder.** **S**, and the most
+  consequential gap left. SRD 5.2 replaced the six-step track outright:
+  every level is **−2 on all D20 tests and −5 feet of Speed**, cumulative,
+  death at 6. `EXHAUSTION_LEVELS` ships the 2014 ladder with no ruleset
+  branch, so a 2024 character gets "disadvantage on ability checks" at level
+  1 instead of a flat −2 on everything. Same shape as the Brutal Critical
+  bug in §46: a 2014 rule silently applied to 2024.
+- `[ ]` **2024 condition text.** **S**. Both editions have the same fifteen
+  conditions, and 2024 rewrote several of them - Invisible now grants
+  advantage on Initiative and no longer works the way the 2014 wording says;
+  Prone spells out crawling versus half your Speed to stand. `Condition` has
+  one `summary` and no ruleset dimension, so a 2024 player is reading 2014
+  text on every screen that shows it.
 - `[!]` **Lair actions** — *blocked, no licensed data.* No fixture carries
   them; the phrase appears in the SRD only inside other abilities' prose.
   Building it means authoring content this project has no source for. See
   §42.
 - `[ ]` **2014 starting wealth** ("ignore the package, roll for gold").
-  **S**, *blocked on provenance* — 2024's equivalent is modelled; the 2014
-  table is not in any fixture the app ships, and whether SRD 5.1 carries it
-  is unverified. Check the source before doing the work. See §44.
+  **S** — 2024's equivalent is modelled; the 2014 table is not in any
+  fixture the app ships. Now that `/api/2014/classes/{id}` is known to carry
+  the class record whole, check it there before assuming the table is
+  absent. See §44 and §49.
+- `[ ]` **Spell components (V/S/M).** **M**. Not on the spell record at all,
+  so nothing can say a silenced caster loses their verbal spells or that a
+  hand is needed. Arguably a DM ruling, but it is currently *unmodelled*
+  rather than *decided against* - and the difference is this list.
+- `[ ]` **Jumping, climbing, swimming, crawling as movement costs.** **S**.
+  Climb and swim *speeds* exist as race traits and the map spends a movement
+  budget, but the extra cost of climbing or swimming without a speed, and
+  long/high jump distances, are not modelled.
 - `[–]` **Four rules ruled out on purpose** — mounted and underwater combat,
   chases, and massive damage. Listed once, under **Decisions on record**;
   they count toward "every line is a recorded decision" rather than toward
   work left.
+- `[–]` **Suffocation, lifestyle expenses and downtime** — absent, and
+  deliberately: none of them happen in a fight or on a character sheet, which
+  is what this app is. Recorded here so the next survey stops finding them.
 
 **Checked and already done** — kept so the same items are not "found"
 again, which has now happened twice: concentration DCs, death saves,
