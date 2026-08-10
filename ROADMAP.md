@@ -14,7 +14,7 @@ from the books" is an honest provenance and a weaker one than "verified against
 the SRD" — the audits exist because the difference turned out to matter
 fourteen times over. See **Provenance** below.
 
-The shipped history — fifty-one sections with their reasoning — lives in
+The shipped history — fifty-two sections with their reasoning — lives in
 **`docs/HISTORY.md`** so this file can be a plan.
 
 ---
@@ -262,7 +262,7 @@ forgery, and it is the parked §9.
 
 ## History
 
-Fifty-one shipped sections, with the reasoning intact, live in
+Fifty-two shipped sections, with the reasoning intact, live in
 **`docs/HISTORY.md`**. Forty-four of them were split out of this file on
 2026-08-09 — forty-four numbered sections had made a *plan* unreadable, and
 a roadmap should say what is left rather than what was done. §45 was
@@ -287,4 +287,4 @@ section has gone since.
 | The full-screen game UI | 31-35 |
 | The game look, finished | 36-38 |
 | 5e core mechanics: grapple, light, surprise, the small rules | 39-42 |
-| Builder correctness, and the audits that found it | 43-51 |
+| Builder correctness, and the audits that found it | 43-52 |

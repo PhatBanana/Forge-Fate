@@ -3652,3 +3652,56 @@ fixture; comfortable alone, tight with eighty-five files in parallel.
 Raised to five seconds, then four runs of the file and two full suites, all
 green. Worth doing properly rather than re-running until it passed: a flaky
 gate means every "tests green" in this history was two-thirds of a claim.
+
+## 52. The gate is fixed, and it was not the helper
+
+§51 raised one `waitFor` timeout, called the suite stable on the strength of
+two green runs, and shipped. Five runs later it failed again. The fix was too
+small and the evidence was thinner than the claim, in that order, and the
+second is the worse of the two.
+
+**Measured before touching anything.** Five full suites: green, green,
+**fail**, green, one cut short. So roughly one run in four, still, after
+§51's patch. "I ran it twice and it passed" is not a measurement of something
+that fails a quarter of the time.
+
+**The cause was never that call site.** testing-library's `asyncUtilTimeout`
+defaults to one second and governs *every* async query - eight `waitFor`
+calls across two files, every `findBy*`, and every `userEvent` interaction
+that waits for a re-render. §51 patched the one helper that had been caught
+in the act, which is chasing whichever test loses the race rather than fixing
+the race.
+
+**One lever.** `configure({ asyncUtilTimeout: 5000 })` in
+`src/test/setup.ts`, and the per-call patch removed so there is a single
+place that decides.
+
+**Why this is a fix and not a mask.** Nothing is hidden underneath. The
+bestiary is a deliberate dynamic import of a ~500 kB fixture through
+`persist`; it is quick in a browser and slow only when vitest runs
+eighty-five files in parallel on a shared box. One second was an arbitrary
+default that happened to sit just above that load time on an idle machine and
+just below it on a busy one. And the timeout is a **ceiling, not a delay** -
+`waitFor` polls and returns the moment its assertion holds, so a green run
+costs nothing and only a genuinely failing one pays the five seconds. No
+assertion was weakened; no app code was touched.
+
+**The result, and how much it is worth.** Six consecutive full-suite runs,
+1899 tests, all green. Against a prior failure rate of roughly one in three
+to one in four, six clean runs would happen by luck about nine to eighteen
+percent of the time - so this is *strong evidence rather than proof*, and
+what actually carries it is that the mechanism is understood and the fix
+addresses it directly. Said plainly here because the temptation to write
+"fixed, verified" over six green runs is exactly the temptation that made
+§51 wrong.
+
+**Checked and cleared while looking.** `encounter.test.ts` is the only other
+file that names `Math.random`, and it is in a comment - its rolls run on a
+seeded `always(10)`. No cross-file state leakage either: `setup.ts` already
+resets `persist` and unmounts the tree after every test.
+
+**What this changes retroactively.** Every "gates green" in this log from the
+introduction of these component tests up to §51 was a two-thirds to
+three-quarters claim rather than a whole one. None of the findings in §46-§51
+rest on it - they are data audits and engine tests, which are deterministic -
+but the phrase meant less than it read as, and now it means what it says.
