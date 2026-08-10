@@ -143,12 +143,25 @@ they are not, and cannot be, verified. See **Provenance**.
   PHB sheet has the box; this app has a portrait instead. Probably a
   decision to record rather than work to do.
 
+### 4. The app's own content — done
+
+Section 9 argued that the missing published content cannot be added and that
+**different** content covering the same ground can. Sections 53 and 56 built
+both halves.
+
+- `[x]` **9.2 The originals switch** (§53, §56). Built, gated across all six
+  catalogues, and - as of §56 - actually reachable: §53 never called
+  `loadOriginals()` at boot, so the setting existed and could not be turned
+  on. There is a control on the menu now.
+- `[x]` **9.3 Original subclasses** (§56). Nineteen of them, sized by the
+  roster rather than by a round number: the 2014 spread was 4-14, and the
+  additions raise the floor to nine while keeping the 2024 roster flat.
+
 ### Parked
 
 - `[!]` **Non-SRD subclasses** (~108) - no licensed source; inventing them
-  would be worse than the gap.
-- `[ ]` **9.2 The originals switch / 9.3 Twelve original subclasses** -
-  parked by the project owner after 9.1.
+  would be worse than the gap. Unchanged by the above: the app's own rows
+  fill the *count*, not the gap, and are never offered as the missing ones.
 
 ---
 

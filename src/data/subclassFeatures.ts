@@ -1,4 +1,5 @@
 import type { ClassFeature } from './classFeatures';
+import { FORGE_SUBCLASS_FEATURES } from './forge/subclasses';
 
 /**
  * What each subclass gives you, level by level.
@@ -25,6 +26,13 @@ function f(level: number, name: string, summary: string): ClassFeature {
 }
 
 export const SUBCLASS_FEATURES: Record<string, ClassFeature[]> = {
+  /*
+    The app's own, spread in first so a published id could never be shadowed
+    by one of ours - if a Forge row ever collided with a book's, the book wins
+    and the collision test in `forge.test.ts` says so.
+  */
+  ...FORGE_SUBCLASS_FEATURES,
+
   // ------------------------------------------------------------- barbarian
   'totem-warrior': [
     f(3, 'Spirit Seeker', 'Beast sense and speak with animals as rituals.'),

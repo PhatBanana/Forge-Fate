@@ -44,12 +44,15 @@ describe('the source vocabulary', () => {
 
   it('has no code nothing uses', () => {
     /*
-      A stale member is not harmless: it reads as a book the app covers. The
-      one exception is `Forge`, which is declared before the content it will
-      label exists - that is the point of building the layer first.
+      A stale member is not harmless: it reads as a book the app covers.
+
+      `Forge` was the one exception while the layer existed and the content did
+      not. Section 56 wrote the content, so the exception is gone and the
+      general rule covers it - which is the outcome the exception was waiting
+      for rather than a rule that got weaker.
     */
     const used = new Set<string>(everySource);
-    const orphans = Object.keys(SOURCE_LABELS).filter((c) => c !== 'Forge' && !used.has(c));
+    const orphans = Object.keys(SOURCE_LABELS).filter((c) => !used.has(c));
     expect(orphans).toEqual([]);
   });
 });
@@ -57,7 +60,10 @@ describe('the source vocabulary', () => {
 describe('telling this project’s own content apart', () => {
   it('counts only Forge as original', () => {
     expect(isOriginal('Forge')).toBe(true);
-    for (const source of everySource) {
+    // Every *published* code answers no. `everySource` now genuinely contains
+    // Forge rows, so the loop names what it is checking rather than assuming
+    // the tables hold nothing of ours - which is what it used to assume.
+    for (const source of everySource.filter((s) => s !== 'Forge')) {
       expect(isOriginal(source), source).toBe(false);
     }
   });

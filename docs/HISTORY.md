@@ -3705,3 +3705,169 @@ introduction of these component tests up to §51 was a two-thirds to
 three-quarters claim rather than a whole one. None of the findings in §46-§51
 rest on it - they are data audits and engine tests, which are deterministic -
 but the phrase meant less than it read as, and now it means what it says.
+
+---
+
+## 55. Per-encounter recharge
+
+`Recharge` had been `'short' | 'long'` since class resources became data, and
+those two describe every published class. They are not enough to *fix*
+anything, and the Warlock is the reason to want a third.
+
+The Warlock's slots come back on a short rest. That sounds generous and means
+the class's power level is set by how many short rests the table takes — a
+number the player does not control and the DM rarely decides on purpose. With
+no short rests in a day a Warlock casts like an Eldritch Knight; with two they
+cast like a full caster. Nothing else in 5e swings that far on a scheduling
+decision, and the discussion of it is old and settled
+([EN World](https://www.enworld.org/threads/warlocks-pact-magic-and-a-proposal-now-updated.697474/)).
+
+A per-encounter resource removes the variable: you have it at the start of
+every fight, so the class is the same class in a six-room dungeon and in a
+single set-piece.
+
+**Where it lands.** `startOfEncounter` in `play.ts` is deliberately the
+narrowest of the three restore functions — it touches `resourcesSpent` and
+nothing else. A fight beginning is not a rest, and a character who walks into
+round one at four hit points still has four hit points.
+
+The battle screen presses it on the transition into round one — "was not
+running, now is" — rather than on `round === 1`, which is true again on the
+second fight of the evening and would have made the resource infinite.
+
+**Both rests return it too**, and that is the part with a rule behind it:
+anything you get back every fight you certainly have after an hour, and a
+party that short-rests between two fights must not end up worse off than one
+that walked straight into the second. Which is why the four call sites asking
+`rechargeFor(...) === 'short'` are now one `restoredKeys` helper asking
+`!== 'long'`. The old comparison became silently wrong the moment the union
+grew, and it was spelled out in four separate places to be wrong in.
+
+The sheet gains a **New fight** button, shown only to characters who have such
+a resource. A sheet that says "each fight" and offers no way to start one
+would be a rule the app states and cannot apply.
+
+---
+
+## 56. The subclass roster, levelled — and the switch that was never wired up
+
+The ask: *"do the same so that the roster is flushed out with a balanced set
+of choices. not one class having too many more subclasses."*
+
+### The measurement, before anything was written
+
+Under **2024** the roster was already flat. The Player's Handbook prints four
+subclasses per class and the app carries exactly those four, so every 2024
+character picked from the same size list.
+
+Under **2014** it was not flat at all:
+
+```
+cleric 14 · wizard 13 · monk 10 · barbarian 9 · fighter 9 · paladin 9
+rogue 9 · warlock 9 · bard 8 · ranger 8 · sorcerer 8 · druid 7 · artificer 4
+```
+
+A spread of ten. It is not a judgement about the classes — it is an accident
+of publishing. The Cleric got a domain in nearly every book; the Artificer
+arrived late in one. A player choosing a Druid or an Artificer was choosing
+between a third as many things as the player beside them, for reasons that
+have nothing to do with either class.
+
+Published rows cannot be cut, so the only lever is the floor.
+
+### The arithmetic, which is the whole design
+
+Nineteen subclasses, and every row's `rulesets` tag chosen to hit two targets
+at once:
+
+- **2014** — no class below nine, the old median. The classes already at or
+  above it are not inflated to chase the Cleric: the goal is that nobody is
+  starved, not that everybody is identical.
+- **2024** — every class gains exactly one, so flat-at-four becomes
+  flat-at-five. Adding only where 2014 needed it would have broken the roster
+  that was already balanced in order to fix the one that was not.
+
+After:
+
+```
+2014  artificer 9 · barbarian 10 · bard 9 · cleric 15 · druid 9 · fighter 10
+      monk 11 · paladin 10 · ranger 9 · rogue 10 · sorcerer 10 · warlock 10
+      wizard 14
+2024  five each, all twelve
+```
+
+Spread six where it was ten; floor nine where it was four. The Cleric and the
+Wizard are still the tall ones and always will be — those are published rows.
+
+`forge/forge.test.ts` measures both rosters rather than trusting the paragraph
+above, including the *before* numbers with the switch off, so a later edit
+cannot quietly claim an improvement it did not make.
+
+### What they are, and what they are not
+
+None is a reworded published subclass. §9 settled that: a table that wants the
+Hexblade wants *the Hexblade*, and a renamed copy is both useless to them and
+not ours to ship. Each fills ground the printed list leaves empty — a Fighter
+who can actually hold a line, a Wild Shape that stays useful past tier two, a
+Ranger who prepares the ground before the fight rather than naming a favoured
+enemy at level one and hoping ([Mythcreants on the Ranger's
+problem](https://mythcreants.com/blog/dd-5e-class-rework-ranger-part1/)). The
+design note on each row says which hole it fills.
+
+### The defect this found, which is the real story
+
+§53 built the originals switch, gated all six catalogues, and tested the lot.
+It never called `loadOriginals()` at boot.
+
+So the setting existed, persisted correctly, and **could not be turned on from
+the running app** — no matter what was in storage, every catalogue answered as
+though it were off. There was also no control anywhere to set it with.
+
+Every unit test passed throughout, and would have kept passing forever, because
+they all set the flag directly through `withOriginalsForTests`. The accessors
+consult module-level state during render rather than a hook, so nothing in the
+React tree reads the store and nothing would ever have complained.
+
+What caught it was the browser probe asking the built page for a Forge subclass
+by name — and it only caught it on the *third* attempt, because the first two
+assertions were worthless:
+
+- `/Forge/` — satisfied by the app's own wordmark, "Forge&Fate".
+- `/Forge original/` — satisfied by the **toggle's own label** once the toggle
+  existed.
+- `"Warden (Forge)"` — in the Fighter's subclass picker and nowhere else.
+
+Only the third can be true unless the switch is read at boot, the rows are
+folded into the class, the accessor lets them through, and the picker prints
+the provenance. Two of those four were broken, and the two loose assertions
+were green over both of them.
+
+That is the same failure §53 was warned about in the standing instruction —
+*wired in everywhere it needs to be, not in one spot being useless* — and it
+was written by the section that quoted it. A probe that matches a substring is
+not a probe; it is a spellcheck.
+
+**The switch now has a control**, on the menu beside the theme, quiet when off
+because off is the app's claim about itself. It reloads the page on change, and
+that is not laziness: the accessors are read during render with nothing
+subscribed, so a flip without a reload would leave every already-rendered
+picker showing the old list until something unrelated re-rendered it. A page
+that half-changed would be worse to ship than one that took a second.
+
+### Cost
+
+The `data` chunk grew ~21 kB (about 3 kB over the wire — the text is
+repetitive and gzip knows it). Paid rather than made lazy, for a structural
+reason: `classes.ts` folds the Forge rows in at module load because
+`subclassesFor` is synchronous and called during render. Splitting them out
+would mean the class list changing shape after first paint.
+
+### Still open
+
+The two **full original classes** — the Reckoner and the Harrier, in Warlock
+and Ranger design space — are designed and not built. §55's per-encounter
+recharge exists because the Reckoner needs it. The groundwork that landed here
+is `CharClass.drawsSpellsFrom`, which lets a new class draw a published class's
+spell list without touching several hundred spell rows, and the `listId` on
+`CastingSource` that makes every "is this on your list?" test ask the right
+question.

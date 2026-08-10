@@ -7631,6 +7631,37 @@ dl.detail-list {
   position: absolute;
   top: 16px;
   right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/*
+  §56. The originals switch, beside the theme and deliberately quieter than it.
+
+  Off is the app's claim - that it plays the rules as printed - so the control
+  reads as off until somebody turns it on, and only then takes the accent. A
+  pill that looked pressed either way would make "on" the resting state of a
+  setting whose whole point is that it is not.
+*/
+.originals-toggle {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 5px 12px;
+}
+
+.originals-toggle:hover {
+  color: var(--text);
+}
+
+.originals-toggle.is-on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
 }
 
 .title-inner {

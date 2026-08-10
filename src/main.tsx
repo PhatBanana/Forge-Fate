@@ -6,6 +6,7 @@ import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { UpdatePrompt } from './components/UpdatePrompt.tsx'
 import { ROSTER_KEY } from './storage.ts'
 import { flush, hydrate } from './persist.ts'
+import { loadOriginals } from './originals.ts'
 
 /*
   Storage is read once, here, before anything renders.
@@ -18,6 +19,23 @@ import { flush, hydrate } from './persist.ts'
   remember.
 */
 await hydrate()
+
+/*
+  And the originals switch, read straight after, because it is the one store
+  that is not a React state.
+
+  `subclassesFor`, `classesFor` and the four other accessors are pure functions
+  called during render; they consult module-level state rather than a hook, so
+  nothing in the tree reads this and nothing would have complained about its
+  absence. Section 53 built the switch, gated every accessor and tested the
+  lot - and never called this, so the setting was unreachable from the running
+  app no matter what was in storage. The unit tests passed throughout, because
+  they set the flag directly.
+
+  The probe caught it: asking the built page for a Forge subclass by name is a
+  question only the whole chain can answer.
+*/
+loadOriginals()
 
 /*
   A page being closed may be holding writes that have not been carried across

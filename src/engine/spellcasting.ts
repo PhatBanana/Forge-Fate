@@ -48,6 +48,14 @@ export interface SpellSlots {
  */
 export interface CastingSource {
   classId: ClassId;
+  /**
+   * Whose spell list this source draws from, which is `classId` for every
+   * published class and something else for a class that borrows one - see
+   * `CharClass.drawsSpellsFrom`. Every "is this spell on your list?" test asks
+   * this rather than `classId`; `learnedFrom` still records the *class*,
+   * because which class taught it is what decides the DC.
+   */
+  listId: ClassId;
   className: string;
   ability: Ability;
   saveDc: number;
@@ -243,7 +251,7 @@ export function sourceForSpell(
   sources: CastingSource[],
   learnedFrom?: ClassId,
 ): { source: CastingSource | null; assumed: boolean } {
-  const eligible = sources.filter((source) => spell.classes.includes(source.classId));
+  const eligible = sources.filter((source) => spell.classes.includes(source.listId));
 
   const recorded = learnedFrom && eligible.find((s) => s.classId === learnedFrom);
   if (recorded) return { source: recorded, assumed: false };
@@ -309,7 +317,7 @@ export function availableSpells(slices: ClassSlice[], highestLevel: number): Spe
   const classIds = new Set<ClassId>();
   for (const slice of slices) {
     const castingType = slice.subclass?.castingType ?? slice.klass.castingType;
-    if (castingType !== 'none') classIds.add(slice.klass.id);
+    if (castingType !== 'none') classIds.add(slice.klass.drawsSpellsFrom ?? slice.klass.id);
   }
 
   return SPELLS.filter(
@@ -334,6 +342,7 @@ export function computeSpellcasting(input: SpellcastingInput): SpellcastingResul
     if (!ability) continue;
     sources.push({
       classId: slice.klass.id,
+      listId: slice.klass.drawsSpellsFrom ?? slice.klass.id,
       className: slice.klass.name,
       ability,
       saveDc: 8 + proficiency + mods[ability],

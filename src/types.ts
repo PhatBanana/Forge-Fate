@@ -255,6 +255,23 @@ export interface CharClass {
    */
   castsFromLevel1?: boolean;
   multiclassRoundsUp?: boolean;
+  /**
+   * The published class list this one draws its spells from.
+   *
+   * Every spell in `spells.ts` carries a `classes` array, so a class's list is
+   * held by the spells rather than by the class. That is the right shape for
+   * the thirteen published classes and the wrong shape for a fourteenth: a new
+   * class would mean touching a few hundred spell rows, and the diff would be
+   * unreviewable for a fact - "the Reckoner can cast Hex" - that is one
+   * sentence when written down once.
+   *
+   * So a class may point at another class's list instead. It is not a fudge;
+   * it is what the design actually says. The Reckoner is Warlock design space
+   * and casts from the Warlock list, the Harrier from the Ranger list, and
+   * both say so out loud on the class page. When a class has its own list this
+   * is absent and the spells answer as before.
+   */
+  drawsSpellsFrom?: ClassId;
   armor: string;
   /** Structured form of `armor`, used by the AC calculation. */
   armorProficiency: ArmorProficiency[];

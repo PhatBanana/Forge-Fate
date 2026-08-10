@@ -7,6 +7,7 @@ import { BACKGROUNDS, backgroundsFor } from '../backgrounds';
 import { CLASS_OPTIONS, optionsFor } from '../classOptions';
 import type { ClassOptionKind } from '../classFeatures';
 import { isOriginal } from '../sources';
+import { SUBCLASS_FEATURES } from '../subclassFeatures';
 import { withOriginalsForTests } from '../../originals';
 
 /**
@@ -126,5 +127,106 @@ describe('the originals switch', () => {
     const after = everythingOffered().length;
     on();
     expect(after).toBeGreaterThanOrEqual(before);
+  });
+
+  it('never shadows a published id', () => {
+    /*
+      Ours are appended to each class's list and spread *first* into the
+      feature table, so a collision resolves in the book's favour rather than
+      ours. That is the right resolution and a silent one, which is why it is
+      asserted here: a Forge row that quietly replaced a published subclass's
+      features would look like the app getting the Player's Handbook wrong.
+    */
+    const seen = new Map<string, string>();
+    const clashes: string[] = [];
+    for (const klass of CLASSES) {
+      for (const sub of klass.subclasses) {
+        const already = seen.get(sub.id);
+        if (already) clashes.push(`${sub.id}: ${already} and ${klass.name}`);
+        else seen.set(sub.id, klass.name);
+      }
+    }
+    expect(clashes).toEqual([]);
+  });
+});
+
+/**
+ * Section 56. How many choices each class offers, which was the complaint.
+ *
+ * Counted with the switch **on**, because that is the roster this section
+ * built. With it off the numbers are the published ones and the spread is the
+ * one the books shipped with - nothing here can change that, and the first
+ * test below pins it so a later edit cannot pretend to.
+ */
+describe('the subclass roster', () => {
+  const countsFor = (ruleset: '2014' | '2024') =>
+    new Map(
+      CLASSES
+        .filter((k) => (k.rulesets ?? ['2014', '2024']).includes(ruleset))
+        .map((k) => [k.id, subclassesFor(k, ruleset).length]),
+    );
+
+  const spread = (counts: Map<string, number>) => {
+    const values = [...counts.values()];
+    return { low: Math.min(...values), high: Math.max(...values) };
+  };
+
+  it('was uneven before this section, and the published rows still are', () => {
+    /*
+      The measurement the work started from. Thirteen classes under 2014 with
+      counts running from four to fourteen - a spread of ten that is an
+      accident of publishing rather than a statement about the classes.
+    */
+    const restore = withOriginalsForTests(false);
+    try {
+      const published = spread(countsFor('2014'));
+      expect(published).toEqual({ low: 4, high: 14 });
+    } finally {
+      restore();
+    }
+  });
+
+  it('gives no 2014 class fewer than nine once ours are on', () => {
+    const restore = withOriginalsForTests(true);
+    try {
+      const counts = countsFor('2014');
+      const starved = [...counts].filter(([, n]) => n < 9).map(([id, n]) => `${id}: ${n}`);
+      expect(starved, 'below the floor the section set').toEqual([]);
+      // And the spread is genuinely narrower, not merely shifted upward.
+      const { low, high } = spread(counts);
+      expect(high - low).toBeLessThanOrEqual(6);
+    } finally {
+      restore();
+    }
+  });
+
+  it('keeps the 2024 roster flat, which it already was', () => {
+    /*
+      2024 never had the problem: the Player's Handbook prints four per class
+      and the app carries exactly four. Adding originals only where 2014 needed
+      them would have broken the balanced roster to fix the unbalanced one, so
+      every class gains exactly one and flat-at-four becomes flat-at-five.
+    */
+    const restore = withOriginalsForTests(true);
+    try {
+      const { low, high } = spread(countsFor('2024'));
+      expect({ low, high }).toEqual({ low: 5, high: 5 });
+    } finally {
+      restore();
+    }
+  });
+
+  it('gives every one of ours a feature list, same as the published rows', () => {
+    // `features.test.ts` asserts this across the whole table; repeated here so
+    // a Forge row added without features fails in the file that owns it.
+    const bare: string[] = [];
+    for (const klass of CLASSES) {
+      for (const sub of klass.subclasses) {
+        if (!isOriginal(sub.source)) continue;
+        const total = (SUBCLASS_FEATURES[sub.id] ?? []).length + (sub.features ?? []).length;
+        if (total < 4) bare.push(`${klass.id}/${sub.id}: ${total}`);
+      }
+    }
+    expect(bare).toEqual([]);
   });
 });

@@ -348,7 +348,7 @@ describe('save DC and attack bonus', () => {
   it('gives a single-class caster exactly one source', () => {
     const wizard = cast(build({ classes: [{ classId: 'wizard', level: 5 }] }));
     expect(wizard.sources).toEqual([
-      { classId: 'wizard', className: 'Wizard', ability: 'int', saveDc: 14, attackBonus: 6 },
+      { classId: 'wizard', listId: 'wizard', className: 'Wizard', ability: 'int', saveDc: 14, attackBonus: 6 },
     ]);
   });
 
@@ -369,8 +369,8 @@ describe('save DC and attack bonus', () => {
     );
     // Proficiency +4 at character level 10; WIS 14 is +2, INT 20 is +5.
     expect(mixed.sources).toEqual([
-      { classId: 'cleric', className: 'Cleric', ability: 'wis', saveDc: 14, attackBonus: 6 },
-      { classId: 'wizard', className: 'Wizard', ability: 'int', saveDc: 17, attackBonus: 9 },
+      { classId: 'cleric', listId: 'cleric', className: 'Cleric', ability: 'wis', saveDc: 14, attackBonus: 6 },
+      { classId: 'wizard', listId: 'wizard', className: 'Wizard', ability: 'int', saveDc: 17, attackBonus: 9 },
     ]);
     // The headline number is the best of them, not the first.
     expect(mixed.saveDc).toBe(17);
@@ -496,8 +496,8 @@ describe('how many spells a 2024 caster prepares', () => {
 
 describe('which DC a particular spell is cast at', () => {
   const sources = [
-    { classId: 'cleric' as const, className: 'Cleric', ability: 'wis' as const, saveDc: 14, attackBonus: 6 },
-    { classId: 'wizard' as const, className: 'Wizard', ability: 'int' as const, saveDc: 17, attackBonus: 9 },
+    { classId: 'cleric' as const, listId: 'cleric' as const, className: 'Cleric', ability: 'wis' as const, saveDc: 14, attackBonus: 6 },
+    { classId: 'wizard' as const, listId: 'wizard' as const, className: 'Wizard', ability: 'int' as const, saveDc: 17, attackBonus: 9 },
   ];
 
   it('uses the class whose list actually carries the spell', () => {

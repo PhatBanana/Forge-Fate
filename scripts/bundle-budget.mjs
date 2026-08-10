@@ -39,7 +39,18 @@ const BUDGETS = {
     the file is highly repetitive, for a panel on the Builder's Equipment
     section that should feel instant. Paid rather than made lazy.
   */
-  'data': 500_000,
+  /*
+    Raised 500 -> 530 kB by section 56's nineteen subclasses and their feature
+    tables, which is ~21 kB of prose and about 3 kB over the wire once gzip has
+    seen how repetitive it is.
+
+    Paid rather than made lazy, and the reason is structural rather than
+    thrifty: `classes.ts` folds the Forge rows into each class at module load,
+    because `subclassesFor` is a synchronous function called during render and
+    cannot await a chunk. Splitting them out would mean the class list changing
+    shape after first paint, which is a worse thing to ship than 3 kB.
+  */
+  'data': 530_000,
   'vendor': 210_000, // React
   'index': 180_000, // the app itself
   'srd-2014-text': 560_000, // lazy: fetched on the first "Full description"

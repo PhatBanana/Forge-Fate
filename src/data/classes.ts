@@ -3,6 +3,7 @@ import { ALL_SKILL_IDS } from './skills';
 import { isOriginal } from './sources';
 import type { Source } from './sources';
 import { visible } from '../originals';
+import { FORGE_SUBCLASSES_BY_CLASS } from './forge/subclasses';
 
 const STANDARD_ASI = [4, 8, 12, 16, 19];
 
@@ -444,6 +445,21 @@ export const CLASSES: CharClass[] = [
     note: 'The biggest spell list in the game and rituals for free. d6 hit die means CON and concentration protection are not optional.',
   },
 ];
+
+/*
+  The app's own subclasses, folded in at the end of each class's list.
+
+  Appended rather than interleaved, and held in `forge/` rather than typed into
+  the table above, for the same reason the switch exists at all: what this
+  project wrote and what the books printed must stay separable by looking at
+  the code, not only by reading a `source` field. `subclassesFor` drops them
+  when the switch is off, so the published list above is exactly what an
+  unmodified table sees.
+*/
+for (const klass of CLASSES) {
+  const own = FORGE_SUBCLASSES_BY_CLASS[klass.id];
+  if (own) klass.subclasses = [...klass.subclasses, ...own];
+}
 
 export const CLASSES_BY_ID: Record<ClassId, CharClass> = Object.fromEntries(
   CLASSES.map((c) => [c.id, c]),

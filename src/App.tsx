@@ -1,4 +1,6 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { flush } from './persist';
+import { originalsShown, setOriginalsShown } from './originals';
 import { RULESETS, RULESET_LABELS } from './types';
 import type { Build, ClassId, Ruleset } from './types';
 import { CLASSES_BY_ID } from './data/classes';
@@ -201,6 +203,43 @@ function ThemeToggle({
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * The originals switch, in the menu's corner beside the theme.
+ *
+ * Here rather than in the Builder because it is a settings act - it changes
+ * what every catalogue in the app offers, not what this character has - and
+ * because the menu is the one screen you pass through on the way to anything.
+ *
+ * The reload is not laziness. `classesFor`, `subclassesFor` and the other four
+ * accessors read module-level state during render; nothing subscribes to it,
+ * so flipping the flag would leave every already-rendered picker showing the
+ * old list until something unrelated happened to re-render it. A page that
+ * half-changed would be worse than one that took a second. Storage is written
+ * first, so the reload comes back with the new answer.
+ */
+function OriginalsToggle() {
+  const shown = originalsShown();
+  return (
+    <button
+      type="button"
+      className={`originals-toggle ${shown ? 'is-on' : ''}`}
+      aria-pressed={shown}
+      title={
+        shown
+          ? 'Forge originals are on the table. Turn them off to see only what the books print.'
+          : 'Show this project’s own classes and subclasses alongside the published ones. Never presented as official.'
+      }
+      onClick={async () => {
+        setOriginalsShown(!shown);
+        await flush();
+        location.reload();
+      }}
+    >
+      Forge originals: {shown ? 'on' : 'off'}
+    </button>
   );
 }
 
@@ -609,7 +648,12 @@ export default function App() {
           campaign={playing ? playing.name : null}
           groups={groups}
           onPick={(id) => setTab(id as Tab)}
-          aside={<ThemeToggle choice={themeChoice} onChange={chooseTheme} />}
+          aside={
+            <>
+              <OriginalsToggle />
+              <ThemeToggle choice={themeChoice} onChange={chooseTheme} />
+            </>
+          }
         />
       </div>
     );

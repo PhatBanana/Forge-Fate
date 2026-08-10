@@ -53,7 +53,7 @@ marks the live ones. Every other preparer draws from their whole class list, so
 what they record already *is* the prepared list. Cantrips are never prepared.
 
 **Class features and options.** Every class's features by level, and every
-subclass's — 120 subclasses across 589 entries — with the next level shown so you
+subclass's — 139 subclasses across 686 entries — with the next level shown so you
 can see what is coming. The choices a feature hands you (Fighting Styles, Pact
 Boons, Invocations, Metamagic, maneuvers) are ranked against your build: best
 three shown, the rest one click away, and what you have taken never truncated.
@@ -362,9 +362,10 @@ reported rather than silently dropped. You can export any character to a file to
 **What the licence covers.** The SRD is what can be checked; everything past it
 is written from the books, and the app says which is which.
 
-- **All 120 subclasses have their features, but only twelve are verified.** The
-  twelve the SRD covers are checked against it in both editions; the other 108
-  come from books no licensed source carries.
+- **All 120 published subclasses have their features, but only twelve are
+  verified.** The twelve the SRD covers are checked against it in both editions;
+  the other 108 come from books no licensed source carries. The 19 beyond those
+  are this project's own, off by default, and never presented as published.
 - **Subclass spell lists are granted for 2014 only.** A Life Cleric, Devotion
   Paladin and Fiend Warlock get theirs. 2024 revised every one of those lists
   and no licensed source carries the revisions, so a 2024 character is granted
