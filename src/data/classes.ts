@@ -2,6 +2,7 @@ import type { CharClass, ClassId, Ruleset, SkillChoice, Subclass } from '../type
 import { ALL_SKILL_IDS } from './skills';
 import { isOriginal } from './sources';
 import type { Source } from './sources';
+import { visible } from '../originals';
 
 const STANDARD_ASI = [4, 8, 12, 16, 19];
 
@@ -449,7 +450,7 @@ export const CLASSES_BY_ID: Record<ClassId, CharClass> = Object.fromEntries(
 ) as Record<ClassId, CharClass>;
 
 export function classesFor(ruleset: Ruleset): CharClass[] {
-  return CLASSES.filter((c) => (c.rulesets ?? ['2014', '2024']).includes(ruleset));
+  return visible(CLASSES.filter((c) => (c.rulesets ?? ['2014', '2024']).includes(ruleset)));
 }
 
 /**
@@ -477,7 +478,7 @@ export function skillChoicesFor(klass: CharClass, ruleset: Ruleset): SkillChoice
  * character does not lose their subclass when the rules switch.
  */
 export function subclassesFor(klass: CharClass, ruleset: Ruleset): Subclass[] {
-  return klass.subclasses.filter((s) => (s.rulesets ?? ['2014']).includes(ruleset));
+  return visible(klass.subclasses.filter((s) => (s.rulesets ?? ['2014']).includes(ruleset)));
 }
 
 export function subclassName(subclass: Subclass, ruleset: Ruleset): string {

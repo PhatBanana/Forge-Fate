@@ -1,5 +1,7 @@
 import type { CastingType, ClassId, Condition, Loadout, Ruleset, ScoreRule, WeaponStyle } from '../types';
 import type { ClassOptionKind } from './classFeatures';
+import type { Source } from './sources';
+import { visible } from '../originals';
 
 // Same condition builders as the feat table, for the same reason: the rules
 // below should read like sentences.
@@ -29,7 +31,7 @@ export interface ClassOption {
   kind: ClassOptionKind;
   /** Which class's feature offers it. */
   classId: ClassId;
-  source: string;
+  source: Source;
   /** Absent means both rulesets. */
   rulesets?: Ruleset[];
   summary: string;
@@ -652,8 +654,10 @@ export const CLASS_OPTIONS_BY_ID: Record<string, ClassOption> = Object.fromEntri
 
 /** Options of a kind that a given class can choose from, in this ruleset. */
 export function optionsFor(kind: ClassOptionKind, ruleset: Ruleset): ClassOption[] {
-  return CLASS_OPTIONS.filter(
-    (o) => o.kind === kind && (o.rulesets ?? ['2014', '2024']).includes(ruleset),
+  return visible(
+    CLASS_OPTIONS.filter(
+      (o) => o.kind === kind && (o.rulesets ?? ['2014', '2024']).includes(ruleset),
+    ),
   );
 }
 

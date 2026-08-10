@@ -1,6 +1,7 @@
 import type { Ability, Ruleset } from '../types';
 import type { SkillId } from './skills';
 import type { Source } from './sources';
+import { visible } from '../originals';
 
 /**
  * Backgrounds do very different jobs in the two rulesets.
@@ -357,5 +358,5 @@ export const BACKGROUNDS_BY_ID: Record<string, Background> = Object.fromEntries(
 );
 
 export function backgroundsFor(ruleset: Ruleset): Background[] {
-  return BACKGROUNDS.filter((b) => b.rulesets.includes(ruleset));
+  return visible(BACKGROUNDS.filter((b) => b.rulesets.includes(ruleset)));
 }

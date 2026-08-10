@@ -1,5 +1,6 @@
 import type { Race, Ruleset } from '../types';
 import { SPECIES_2024 } from './species2024';
+import { visible } from '../originals';
 
 /**
  * Lineages are flattened: each subrace is its own entry with a `parent`, so the
@@ -729,7 +730,7 @@ export function rulesetsOf(record: { rulesets?: Ruleset[] }): Ruleset[] {
 }
 
 export function racesFor(ruleset: Ruleset): Race[] {
-  return RACES.filter((r) => rulesetsOf(r).includes(ruleset));
+  return visible(RACES.filter((r) => rulesetsOf(r).includes(ruleset)));
 }
 
 export function raceLineages(ruleset: Ruleset): { parent: string; races: Race[] }[] {

@@ -9,6 +9,7 @@ import type {
   WeaponStyle,
 } from '../types';
 import type { ArmorCategory } from './armor';
+import { visible } from '../originals';
 
 // --- tiny condition builders, purely for readability of the table below ------
 const cls = (...ids: ClassId[]): Condition => ({ kind: 'class', ids });
@@ -1485,7 +1486,7 @@ function forRuleset(feat: Feat, ruleset: Ruleset): Feat {
 }
 
 export function featsFor(ruleset: Ruleset): Feat[] {
-  return FEATS.filter((f) => (f.rulesets ?? ['2014']).includes(ruleset)).map((f) =>
+  return visible(FEATS.filter((f) => (f.rulesets ?? ['2014']).includes(ruleset))).map((f) =>
     forRuleset(f, ruleset),
   );
 }
