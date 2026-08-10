@@ -44,19 +44,16 @@ export const CONDITIONS_BY_ID: Record<string, Condition> = Object.fromEntries(
  * Each level keeps every effect below it, so level 3 is disadvantage on
  * attacks *and* half speed *and* disadvantage on checks.
  */
-export const EXHAUSTION_LEVELS: string[] = [
-  'None.',
-  'Disadvantage on ability checks.',
-  'Your speed is halved.',
-  'Disadvantage on attack rolls and saving throws.',
-  'Your hit point maximum is halved.',
-  'Your speed drops to 0.',
-  'Death.',
-];
-
-export const MAX_EXHAUSTION = 6;
-
-/** Every effect at this level and below, which is how the track actually works. */
-export function exhaustionEffects(level: number): string[] {
-  return EXHAUSTION_LEVELS.slice(1, Math.max(0, Math.min(MAX_EXHAUSTION, level)) + 1);
-}
+/**
+ * Exhaustion moved to `engine/exhaustion.ts` in §51.
+ *
+ * It lived here as a six-line array with no ruleset dimension, which meant a
+ * 2024 character was shown the 2014 ladder - the wrong rule at every level.
+ * The two editions do different enough things that the answer is a computed
+ * object rather than a list of strings, so it belongs with the engine and not
+ * beside the conditions it is no longer shaped like.
+ *
+ * Re-exported here for the callers that still say `from '../data/conditions'`,
+ * and for the fact that a reader looking for exhaustion looks here first.
+ */
+export { MAX_EXHAUSTION, exhaustionEffect, exhaustionLines } from '../engine/exhaustion';

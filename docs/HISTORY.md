@@ -3600,3 +3600,55 @@ ruleset-aware lookup the Builder actually uses - with its epic-boon category
 and its level-19 prerequisite, and asserted *absent* under 2014, because a
 2014 character being quietly handed an epic boon would be the obvious way to
 get this wrong.
+
+## 51. Exhaustion learns which edition it is in
+
+The first of §50's survey findings, fixed. Also a flaky test file that had
+been quietly devaluing every "gates green" in this log.
+
+**The bug.** `EXHAUSTION_LEVELS` was a six-line array with no ruleset
+dimension, so the 2014 ladder was applied to 2024 characters. SRD 5.2
+replaced that ladder outright: every level is **−2 on all D20 tests and −5
+feet of Speed**, cumulative, death at 6. A 2024 character was being told
+"disadvantage on ability checks" at level 1 and having their speed halved at
+2 - neither of which is their rule. Verified against
+`/api/2024/conditions/exhaustion` rather than recalled.
+
+This is the third instance of one pattern: **a 2014 rule applied to both
+editions because the data had nowhere to say which edition it belonged to.**
+§46 found it in Brutal Critical, §47 in the Artificer's casting, this in
+exhaustion. Worth naming as a category - the next one will not be the last.
+
+**The shape of the fix.** `engine/exhaustion.ts` answers the whole question
+in one call: `exhaustionEffect(level, ruleset)` returns the d20 penalty, the
+speed penalty, whether speed halves or stops, whether hit points halve,
+whether it grants disadvantage, whether you are dead, and the lines to
+render. Three places used to each remember one rung; now they all read this.
+
+Wired, not filed - all four consumers moved:
+
+- **The sheet** renders `exhaustionLines(level, ruleset)`, so a 2024 player
+  reads their own rule.
+- **Speed** goes through `speedUnderExhaustion(speed, level, ruleset)`, which
+  is now a thin re-export over the new module.
+- **Advantage** asks `exhaustionEffect(...).disadvantage`, which is true only
+  under 2014. `Exchange` grew a `ruleset` for it, defaulting to 2014 so every
+  existing caller keeps its behaviour.
+- **The attack roll** subtracts the 2024 penalty from the bonus rather than
+  the dice, and says so in the ruling notes. It has to be the bonus: a flat
+  −2 is not disadvantage, and asking `circumstances` for it as well would
+  apply it twice.
+
+`data/conditions.ts` keeps a re-export, because a reader looking for
+exhaustion looks there first.
+
+**The flaky file.** While running the gates, `TableTab.test.tsx` failed - a
+different test each time, about one run in three. Checked against stashed
+pre-change code before blaming the change: **it flaked there too.** The cause
+is `bestiaryReady()` using testing-library's default one-second `waitFor`
+while the bestiary hydrates from `persist` and pulls a ~500 kB monster
+fixture; comfortable alone, tight with eighty-five files in parallel.
+
+Raised to five seconds, then four runs of the file and two full suites, all
+green. Worth doing properly rather than re-running until it passed: a flaky
+gate means every "tests green" in this history was two-thirds of a claim.

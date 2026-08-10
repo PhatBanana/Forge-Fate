@@ -14,7 +14,8 @@ import type { BuildContext } from '../engine/character';
 import { describeSpell } from '../engine/spellRecommend';
 import { heldResources, rechargeFor } from '../engine/resources';
 import { SORCERY_POINT_SLOT_COSTS } from '../data/classResources';
-import { CONDITIONS, MAX_EXHAUSTION, exhaustionEffects } from '../data/conditions';
+import { CONDITIONS } from '../data/conditions';
+import { MAX_EXHAUSTION, exhaustionLines } from '../engine/exhaustion';
 import { RulesDisclosure } from './RulesText';
 import { consumeItem, isConsumable, quantityOf } from '../engine/items';
 import { Portrait } from './Portrait';
@@ -937,7 +938,7 @@ export function CharacterSheet({
                 </p>
               ))}
             {play.exhaustion > 0 &&
-              exhaustionEffects(play.exhaustion).map((effect, i) => (
+              exhaustionLines(play.exhaustion, ctx.build.ruleset).map((effect, i) => (
                 <p className="cs-para" key={i}>
                   <b>Exhaustion {i + 1}.</b> {effect}
                 </p>

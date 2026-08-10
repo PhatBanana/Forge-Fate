@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { Monster } from '../data/monsters';
+import type { Ruleset } from '../types';
+import { exhaustionEffect } from '../engine/exhaustion';
 import { formatCr, legendaryCost, monsterMod, monsterSummary, parseUsage, searchMonsters } from '../data/monsters';
 import { isCustom, mergeBestiary } from '../bestiary';
 import { useMonsters } from './useMonsters';
@@ -1228,6 +1230,19 @@ export function TableTab({
       ? (roster.entries.find((e) => e.id === c.rosterId)?.play.exhaustion ?? 0)
       : 0;
 
+  /*
+    Which edition this combatant is played under. Exhaustion is the first rule
+    where the two disagree *in play* rather than at build time - 2014 halves
+    speed at rung two and hands out disadvantage at three, 2024 takes five feet
+    and two off the roll per level - so the fight has to ask. A monster has no
+    ruleset of its own and reads as 2014, which is the app's default
+    everywhere else.
+  */
+  const rulesetOf = (c: Combatant): Ruleset =>
+    (c.kind === 'character'
+      ? roster.entries.find((e) => e.id === c.rosterId)?.build.ruleset
+      : undefined) ?? '2014';
+
   /** A combatant's speed in feet, from whichever side owns it. */
   const speedOf = (combatant: Combatant): number => {
     const base =
@@ -1251,7 +1266,7 @@ export function TableTab({
     const stopped = speedUnderConditions(base, conditionsOf(combatant));
     // Exhaustion halves it from level two and stops it at five - the two
     // levels that are a movement question rather than a roll.
-    const walking = speedUnderExhaustion(stopped, exhaustionOf(combatant));
+    const walking = speedUnderExhaustion(stopped, exhaustionOf(combatant), rulesetOf(combatant));
     // Hauling somebody costs half your pace, unless they are two or more
     // sizes smaller, in which case they weigh nothing worth counting.
     const dragging = heldBy(combatant);
@@ -1565,6 +1580,9 @@ export function TableTab({
         ...(attacker ? { conditionSources: sourcesOf(attacker) } : {}),
         ...(attacker ? { exhaustion: exhaustionOf(attacker) } : {}),
       },
+      // Which edition decides what that exhaustion does: disadvantage in
+      // 2014, a flat penalty in 2024 that is applied to the bonus instead.
+      ...(attacker ? { ruleset: rulesetOf(attacker) } : {}),
       // Dodging is the target's own doing rather than something done to them,
       // which is why it rides beside the conditions instead of inside them.
       target: { conditions: conditionsOf(target), dodging: stanceOf(target) === 'dodge' },
@@ -1634,9 +1652,19 @@ export function TableTab({
     */
     const rulingNotes = new Set<string>();
 
+    /*
+      2024's exhaustion is a flat penalty rather than disadvantage, so it goes
+      into the bonus rather than into `odds.mode`. `circumstances` deliberately
+      leaves it alone under 2024 - asking both would apply it twice.
+    */
+    const wornDown = attacker
+      ? exhaustionEffect(exhaustionOf(attacker), rulesetOf(attacker)).d20Penalty
+      : 0;
+    if (wornDown) rulingNotes.add(`exhaustion −${wornDown} to the roll`);
+
     for (const strike of strikes) {
       const d20 = rollD20(
-        strike.toHit + highGround + attackerGround.toHit,
+        strike.toHit + highGround + attackerGround.toHit - wornDown,
         odds.mode,
         defaultRng,
       );

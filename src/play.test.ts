@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { exhaustionEffects } from './data/conditions';
+import { exhaustionLines } from './data/conditions';
 import { deriveBuild, emptyBuild } from './engine/character';
 import {
   applyDeathSaveRoll,
@@ -594,9 +594,14 @@ describe('conditions and exhaustion', () => {
 
   /** Each level keeps the ones below it, which is the part people get wrong. */
   it('reports every effect at and below the level reached', () => {
-    expect(exhaustionEffects(0)).toEqual([]);
-    expect(exhaustionEffects(3)).toHaveLength(3);
-    expect(exhaustionEffects(3)[1]).toMatch(/speed is halved/i);
+    // §51 gave exhaustion a ruleset, because the two editions do it
+    // completely differently. This test is the 2014 ladder it always was.
+    expect(exhaustionLines(0, '2014')).toEqual([]);
+    expect(exhaustionLines(3, '2014')).toHaveLength(3);
+    expect(exhaustionLines(3, '2014')[1]).toMatch(/speed is halved/i);
+    // And the same level under 2024 is one flat penalty, not three rungs.
+    expect(exhaustionLines(3, '2024')).toHaveLength(2);
+    expect(exhaustionLines(3, '2024')[0]).toMatch(/−6 on every D20 test/);
   });
 
   /**

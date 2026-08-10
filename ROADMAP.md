@@ -14,7 +14,7 @@ from the books" is an honest provenance and a weaker one than "verified against
 the SRD" — the audits exist because the difference turned out to matter
 fourteen times over. See **Provenance** below.
 
-The shipped history — fifty sections with their reasoning — lives in
+The shipped history — fifty-one sections with their reasoning — lives in
 **`docs/HISTORY.md`** so this file can be a plan.
 
 ---
@@ -69,13 +69,10 @@ high ground; rests, hit dice and every class resource.
 box unticked. Surveyed against both SRDs on 2026-08-09; every line below was
 checked in the code, not recalled.
 
-- `[ ]` **2024 exhaustion is the 2014 ladder.** **S**, and the most
-  consequential gap left. SRD 5.2 replaced the six-step track outright:
-  every level is **−2 on all D20 tests and −5 feet of Speed**, cumulative,
-  death at 6. `EXHAUSTION_LEVELS` ships the 2014 ladder with no ruleset
-  branch, so a 2024 character gets "disadvantage on ability checks" at level
-  1 instead of a flat −2 on everything. Same shape as the Brutal Critical
-  bug in §46: a 2014 rule silently applied to 2024.
+- `[x]` **2024 exhaustion** — done in §51. `engine/exhaustion.ts` answers
+  the whole question per edition, and all four consumers read it: the
+  sheet's effect list, the movement budget, the advantage engine and the
+  attack roll.
 - `[ ]` **2024 condition text.** **S**. Both editions have the same fifteen
   conditions, and 2024 rewrote several of them - Invisible now grants
   advantage on Initiative and no longer works the way the 2014 wording says;
@@ -265,7 +262,7 @@ forgery, and it is the parked §9.
 
 ## History
 
-Fifty shipped sections, with the reasoning intact, live in
+Fifty-one shipped sections, with the reasoning intact, live in
 **`docs/HISTORY.md`**. Forty-four of them were split out of this file on
 2026-08-09 — forty-four numbered sections had made a *plan* unreadable, and
 a roadmap should say what is left rather than what was done. §45 was
@@ -290,4 +287,4 @@ section has gone since.
 | The full-screen game UI | 31-35 |
 | The game look, finished | 36-38 |
 | 5e core mechanics: grapple, light, surprise, the small rules | 39-42 |
-| Builder correctness, and the audits that found it | 43-50 |
+| Builder correctness, and the audits that found it | 43-51 |

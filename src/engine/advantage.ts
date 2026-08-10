@@ -1,4 +1,6 @@
 import type { D20Mode } from './dice';
+import type { Ruleset } from '../types';
+import { exhaustionEffect, speedAfterExhaustion } from './exhaustion';
 
 /**
  * Whether an attack rolls one die, two and takes the best, or two and takes
@@ -58,6 +60,12 @@ export interface Combatant {
 export interface Exchange {
   attacker: Combatant;
   target: Combatant;
+  /**
+   * Which edition's rules to read. It matters for exactly one circumstance so
+   * far - exhaustion, which is disadvantage in 2014 and a flat penalty in
+   * 2024 - and defaults to 2014 so every existing caller keeps its behaviour.
+   */
+  ruleset?: Ruleset;
   /** True when the attacker is within five feet — prone cuts both ways on it. */
   adjacent: boolean;
   /**
@@ -101,7 +109,7 @@ const STOPS_A_DODGE = ['incapacitated', 'paralyzed', 'petrified', 'stunned', 'un
  * it is left alone rather than guessed at.
  */
 export function circumstances(exchange: Exchange): Circumstance[] {
-  const { attacker, target, adjacent } = exchange;
+  const { attacker, target, adjacent, ruleset = '2014' } = exchange;
   const out: Circumstance[] = [];
 
   // --- what helps the attacker
@@ -151,7 +159,14 @@ export function circumstances(exchange: Exchange): Circumstance[] {
   if (frightenedInSight(exchange)) {
     out.push({ label: 'frightened, and it is watching', gives: 'disadvantage' });
   }
-  if ((attacker.exhaustion ?? 0) >= 3) {
+  /*
+    2014 turns exhaustion into disadvantage at rung three. 2024 does not use
+    advantage for this at all - it is a flat −2 per level, applied to the roll
+    rather than to the dice, which is `exhaustionEffect().d20Penalty` and is
+    added by the caller that owns the bonus. Asking for it here would double
+    it, so this branch is 2014's alone.
+  */
+  if (exhaustionEffect(attacker.exhaustion ?? 0, ruleset).disadvantage) {
     out.push({ label: `exhaustion ${attacker.exhaustion}`, gives: 'disadvantage' });
   }
 
@@ -200,17 +215,20 @@ export function mayApproach(
 }
 
 /**
- * What exhaustion does to a speed, in the SRD's own steps: halved from level
- * two, and nothing at all from level five, where the creature cannot move.
+ * What exhaustion does to a speed.
  *
- * Levels one and four touch ability checks and hit point maximum, neither of
- * which is a movement question - so this function is deliberately about the
- * two that are.
+ * Kept as a re-export so the callers that ask a movement question keep asking
+ * it here, but the rule itself lives in `engine/exhaustion.ts` now: the two
+ * editions do completely different things, and this function used to know
+ * only 2014's - halving at two, stopping at five - which it then applied to
+ * 2024 characters as well. See §51.
  */
-export function speedUnderExhaustion(speed: number, exhaustion: number): number {
-  if (exhaustion >= 5) return 0;
-  if (exhaustion >= 2) return Math.floor(speed / 2);
-  return speed;
+export function speedUnderExhaustion(
+  speed: number,
+  exhaustion: number,
+  ruleset: Ruleset = '2014',
+): number {
+  return speedAfterExhaustion(speed, exhaustion, ruleset);
 }
 
 /**
