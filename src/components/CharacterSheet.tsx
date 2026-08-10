@@ -12,7 +12,7 @@ import { ARMOR_CATEGORY_LABEL } from '../data/armor';
 import { armorProficiencies } from '../engine/defense';
 import type { BuildContext } from '../engine/character';
 import { describeSpell } from '../engine/spellRecommend';
-import { heldResources, rechargeFor } from '../engine/resources';
+import { RECHARGE_LABEL, heldResources, rechargeFor, restoredKeys } from '../engine/resources';
 import { SORCERY_POINT_SLOT_COSTS } from '../data/classResources';
 import { CONDITIONS } from '../data/conditions';
 import { MAX_EXHAUSTION, exhaustionLines } from '../engine/exhaustion';
@@ -38,6 +38,7 @@ import {
   setExhaustion,
   setTempHp,
   shortRest,
+  startOfEncounter,
   toggleCondition,
   ammoLeft,
   spendAmmo,
@@ -424,11 +425,10 @@ export function CharacterSheet({
 
   const ammo = ammunitionCarried(build);
   const resources = heldResources(ctx.slices, build.ruleset, ctx.mods);
-  const levelOf = (classId: string) =>
+  const levelOf = (classId: ClassId) =>
     ctx.slices.find((s) => s.klass.id === classId)?.entry.level ?? 0;
-  const shortRechargeKeys = resources
-    .filter((held) => rechargeFor(held, levelOf(held.classId)) === 'short')
-    .map((held) => held.key);
+  const shortRechargeKeys = restoredKeys(resources, levelOf, 'short');
+  const encounterKeys = restoredKeys(resources, levelOf, 'encounter');
 
   const spellsByLevel = new Map<number, typeof casting.chosen>();
   const grantedIds = new Set(casting.granted.map((s) => s.id));
@@ -1098,7 +1098,7 @@ export function CharacterSheet({
                         they need is how many slot levels it gives back.
                       */}
                       {held.detail && <em> {held.detail}</em>}
-                      <em> {recharge === 'short' ? 'short rest' : 'long rest'}</em>
+                      <em> {RECHARGE_LABEL[recharge]}</em>
                     </span>
                     {held.resource.display === 'pips' ? (
                       <Pips
@@ -1266,6 +1266,24 @@ export function CharacterSheet({
             >
               Long rest
             </button>
+            {/*
+              The third moment, shown only to the characters who have one.
+
+              The battle screen presses this by itself when a fight starts, so
+              a table running combat on the map never needs the button. It is
+              here for the table that does not: a sheet whose Reckonings say
+              "each fight" and offer no way to start a fight would be a rule
+              the app states and cannot apply.
+            */}
+            {encounterKeys.length > 0 && (
+              <button
+                className="btn btn-sm"
+                onClick={() => onPlayChange(startOfEncounter(play, encounterKeys))}
+                title="Hand back everything that recharges every fight."
+              >
+                New fight
+              </button>
+            )}
             <span className="muted">
               {isFresh(play, max) ? 'Nothing spent.' : 'Spent this session.'}
             </span>

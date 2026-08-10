@@ -1,6 +1,6 @@
 import type { Ability, ClassId, Ruleset } from '../types';
 import { resourcesForClass } from '../data/classResources';
-import type { ClassResource, ResourceMax } from '../data/classResources';
+import type { ClassResource, Recharge, ResourceMax } from '../data/classResources';
 import type { ClassSlice } from './character';
 
 /**
@@ -80,7 +80,39 @@ export function heldResources(
  * Font of Inspiration at 5th turns it from once a day into once a short rest.
  * Everything else recharges the same way at every level.
  */
-export function rechargeFor(held: HeldResource, classLevel: number): 'short' | 'long' {
+export function rechargeFor(held: HeldResource, classLevel: number): Recharge {
   if (held.resource.id === 'bardic-inspiration' && classLevel >= 5) return 'short';
   return held.resource.recharge;
 }
+
+/**
+ * The keys a given moment hands back, for one character.
+ *
+ * Two rules live here rather than at the four call sites that used to spell
+ * them out, because they were spelled out as `=== 'short'` and that comparison
+ * quietly became wrong the moment `'encounter'` joined the union - a
+ * per-encounter resource would have been treated as once-a-day by every rest
+ * button in the app.
+ *
+ * - A short rest returns anything that is not long-rest-only.
+ * - The start of a fight returns exactly the per-encounter ones.
+ */
+export function restoredKeys(
+  held: HeldResource[],
+  levelOf: (classId: ClassId) => number,
+  moment: 'encounter' | 'short',
+): string[] {
+  return held
+    .filter((h) => {
+      const recharge = rechargeFor(h, levelOf(h.classId));
+      return moment === 'short' ? recharge !== 'long' : recharge === 'encounter';
+    })
+    .map((h) => h.key);
+}
+
+/** What to call this recharge on a sheet. */
+export const RECHARGE_LABEL: Record<Recharge, string> = {
+  short: 'short rest',
+  long: 'long rest',
+  encounter: 'each fight',
+};

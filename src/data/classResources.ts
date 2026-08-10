@@ -21,7 +21,35 @@ import type { Ability, ClassId, Ruleset } from '../types';
  * this file always had: a number that cannot be sourced is not written down.
  */
 
-export type Recharge = 'short' | 'long';
+/**
+ * Which moment hands a resource back.
+ *
+ * `'short'` and `'long'` are the two the published classes use, and for a long
+ * time they were the only two the engine could express. `'encounter'` is the
+ * third, and it exists because of a real design problem rather than a missing
+ * enum member.
+ *
+ * The Warlock's slots come back on a short rest, which sounds generous and is
+ * not: the class's whole power level is a function of how many short rests the
+ * table takes, a number the player does not control and the DM rarely thinks
+ * about. Zero short rests a day and a Warlock casts like an Eldritch Knight;
+ * two and they cast like a full caster. Nothing else in the game swings that
+ * far on a scheduling decision.
+ *
+ * A per-encounter resource takes that variable out. You get it at the start of
+ * every fight, so the class is the same class in a dungeon crawl and in a
+ * single set-piece boss. `forge/reckoner.ts` is built on it.
+ *
+ * ## What restores it
+ *
+ * The start of a fight, obviously. **Both rests as well** - anything you get
+ * back every fight you certainly have on hand after an hour's rest, and a
+ * character who short-rests between two fights should not end up with less
+ * than one who walked straight into the second. Every place that asks "does a
+ * short rest return this?" therefore asks `!== 'long'` rather than
+ * `=== 'short'`.
+ */
+export type Recharge = 'short' | 'long' | 'encounter';
 
 /**
  * How a maximum is worked out. Three shapes cover every class resource in the

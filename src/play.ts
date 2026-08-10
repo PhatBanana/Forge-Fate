@@ -571,9 +571,39 @@ export function convertSlotToPoints(
 }
 
 /**
+ * The fight begins: hand back everything that recharges per encounter.
+ *
+ * The narrowest of the three restore functions, and deliberately so. It
+ * touches `resourcesSpent` and nothing else - not hit points, not slots, not
+ * the turn - because "a fight started" is not a rest and must not read like
+ * one. A character who walks into round one at four hit points still has four
+ * hit points.
+ *
+ * Returns `play` unchanged when there is nothing to give back, so the battle
+ * screen can call it on every combatant at the top of every fight without
+ * writing a new object per character for no reason.
+ */
+export function startOfEncounter(play: PlayState, encounterKeys: string[]): PlayState {
+  if (!encounterKeys.length) return play;
+  const resourcesSpent = { ...play.resourcesSpent };
+  let gaveBack = false;
+  for (const key of encounterKeys) {
+    if (key in resourcesSpent) {
+      delete resourcesSpent[key];
+      gaveBack = true;
+    }
+  }
+  return gaveBack ? { ...play, resourcesSpent } : play;
+}
+
+/**
  * A short rest returns Pact Magic and nothing else here. Hit dice are spent
  * *during* a short rest rather than restored by one, which is the part of the
  * rules a tracker most easily gets backwards.
+ *
+ * `shortRechargeKeys` is whatever the caller says comes back, which now
+ * includes per-encounter resources - see `restoredKeys` for why an hour's rest
+ * must not leave you with less than walking straight into the next fight would.
  */
 export function shortRest(
   play: PlayState,

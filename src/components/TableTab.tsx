@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { Monster } from '../data/monsters';
-import type { Ruleset } from '../types';
+import type { ClassId, Ruleset } from '../types';
 import { exhaustionEffect } from '../engine/exhaustion';
 import { formatCr, legendaryCost, monsterMod, monsterSummary, parseUsage, searchMonsters } from '../data/monsters';
 import { isCustom, mergeBestiary } from '../bestiary';
@@ -94,7 +94,7 @@ import {
   speedUnderExhaustion,
 } from '../engine/advantage';
 import { ammunitionCarried } from '../engine/inventory';
-import { heldResources, rechargeFor } from '../engine/resources';
+import { heldResources, restoredKeys } from '../engine/resources';
 import { describeSpoils, spoilsFor } from '../engine/spoils';
 import {
   activeCampaign,
@@ -111,7 +111,7 @@ import { SURFACE_KINDS } from '../zones';
 import type { SurfaceKind } from '../zones';
 import { deriveBuild } from '../engine/character';
 import { forecast } from '../engine/forecast';
-import { concentrationDc, damage, dash, emptyPlay, heal, hpNow, moveBy, movementLeft, awardXp, longRest, newTurn, setPlayConditionSource, setTurnSlot, shortRest, tickConditions, toggleCondition, spendAmmo, applyDeathSaveRoll } from '../play';
+import { concentrationDc, damage, dash, emptyPlay, heal, hpNow, moveBy, movementLeft, awardXp, longRest, newTurn, setPlayConditionSource, setTurnSlot, shortRest, startOfEncounter, tickConditions, toggleCondition, spendAmmo, applyDeathSaveRoll } from '../play';
 import { defaultRng, expectedTotal, parseNotation, rollD20, rollDamage, rollNotation } from '../engine/dice';
 import { CONDITIONS, CONDITIONS_BY_ID } from '../data/conditions';
 import { damageDice } from '../data/weapons';
@@ -2796,6 +2796,35 @@ export function TableTab({
     const wrapped = stepped.round > encNow.round && encNow.round > 0;
     const next = wrapped ? tickMonsterConditions(tickZones(stepped)) : stepped;
     let updated = updateEncounter(base, next);
+
+    /*
+      Round one begins, and every per-encounter resource comes back.
+
+      Detected as the transition rather than as `round === 1`, because the
+      round number is one again on the second fight of the evening and a
+      refresh that fired on every advance would make the resource infinite.
+      `nextTurn` starts the encounter when it was not running, so "was not
+      running, now is" is exactly the moment.
+    */
+    if (!isRunning(encNow) && isRunning(next)) {
+      updated = {
+        ...updated,
+        entries: updated.entries.map((entry) => {
+          const info = derived.get(entry.id);
+          if (!info) return entry;
+          const levelOf = (classId: ClassId) =>
+            info.ctx.slices.find((sl) => sl.klass.id === classId)?.entry.level ?? 0;
+          const keys = restoredKeys(
+            heldResources(info.ctx.slices, entry.build.ruleset, info.ctx.mods),
+            levelOf,
+            'encounter',
+          );
+          const play = startOfEncounter(entry.play, keys);
+          return play === entry.play ? entry : { ...entry, play };
+        }),
+      };
+    }
+
     if (wrapped) {
       const inFight = new Set(
         next.combatants.filter((c) => c.kind === 'character').map((c) => c.rosterId),
@@ -3949,11 +3978,13 @@ export function TableTab({
         them - a Warlock's pact slots come back on a short rest, a Fighter's
         Second Wind does, and which is which depends on the class level.
       */
-      const levelOf = (classId: string) =>
+      const levelOf = (classId: ClassId) =>
         info.ctx.slices.find((sl) => sl.klass.id === classId)?.entry.level ?? 0;
-      const shortKeys = heldResources(info.ctx.slices, entry.build.ruleset, info.ctx.mods)
-        .filter((held) => rechargeFor(held, levelOf(held.classId)) === 'short')
-        .map((held) => held.key);
+      const shortKeys = restoredKeys(
+        heldResources(info.ctx.slices, entry.build.ruleset, info.ctx.mods),
+        levelOf,
+        'short',
+      );
       const hitDice = Object.fromEntries(
         info.ctx.slices.map((sl) => [sl.klass.id, sl.entry.level]),
       );

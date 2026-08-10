@@ -53,6 +53,7 @@ import {
   concentrationDc,
   startConcentration,
   tickConditions,
+  startOfEncounter,
 } from './play';
 import type { CustomResource } from './types';
 
@@ -560,6 +561,29 @@ describe('class resources', () => {
     it('still returns Pact Magic on a short rest with no class resources', () => {
       const play = spendPact(emptyPlay(), 2);
       expect(shortRest(play).pactSpent).toBe(0);
+    });
+  });
+
+  describe('the start of a fight', () => {
+    const RECKONING = 'reckoner:reckoning';
+
+    it('hands back the per-encounter resources and nothing else', () => {
+      let play = spendResource(emptyPlay(), RECKONING, 3, 3);
+      play = spendResource(play, RAGE, 3, 2);
+      play = { ...play, currentHp: 4, pactSpent: 1 };
+
+      const fresh = startOfEncounter(play, [RECKONING]);
+      expect(resourceLeft(fresh, RECKONING, 3)).toBe(3);
+      // Not a rest: the Rage stays spent, and so do the hit points.
+      expect(resourceLeft(fresh, RAGE, 3)).toBe(1);
+      expect(fresh.currentHp).toBe(4);
+      expect(fresh.pactSpent).toBe(1);
+    });
+
+    it('is the same object when there was nothing to give back', () => {
+      const play = spendResource(emptyPlay(), RAGE, 3, 1);
+      expect(startOfEncounter(play, [RECKONING])).toBe(play);
+      expect(startOfEncounter(play, [])).toBe(play);
     });
   });
 
