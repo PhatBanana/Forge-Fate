@@ -1,8 +1,33 @@
 import { afterEach, beforeEach } from 'vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { resetForTests } from '../persist';
 import type { PersistAdapter } from '../persist';
+
+/**
+ * Every async query gets five seconds instead of testing-library's one.
+ *
+ * ## Why this is global rather than per-call
+ *
+ * The suite failed about one run in three - a *different* test each time,
+ * which is the signature of a timeout rather than a bug. §51 raised the one
+ * helper that had been caught doing it and the suite still failed one run in
+ * four, because the helper was never the problem: the default applies to
+ * every `waitFor`, every `findBy*`, and every `user.click` that waits for a
+ * re-render, and there were nine more of them.
+ *
+ * One second is generous when a file runs alone and tight when vitest is
+ * running eighty-five in parallel and one of them is hydrating a ~500 kB
+ * monster fixture through `persist`. Raising it costs nothing on a passing
+ * run - `waitFor` polls and returns the moment the assertion holds, so the
+ * timeout is a ceiling and not a delay - and it costs five seconds on a
+ * genuinely failing one, which is a fair price for a gate that means what it
+ * says.
+ *
+ * Patching call sites one at a time would have been chasing whichever test
+ * happened to lose the race that run. This is the lever.
+ */
+configure({ asyncUtilTimeout: 5000 });
 
 /**
  * Component tests share one jsdom document per file, so anything left mounted

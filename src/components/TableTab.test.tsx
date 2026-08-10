@@ -89,20 +89,10 @@ const open = async (user: ReturnType<typeof userEvent.setup>, label: string) => 
     now it is behind a button, so this opens the drawer before it waits. */
 const bestiaryReady = () => {
   openSync('Bestiary');
-  /*
-    Five seconds rather than testing-library's default one.
-
-    This file flaked roughly one run in three - a different test each time,
-    which is the signature of a timeout rather than a bug. The bestiary
-    hydrates from `persist` and pulls in a ~500 kB monster fixture, and one
-    second is comfortable alone and tight when vitest is running eighty-four
-    files in parallel on a loaded box. A flaky gate is worse than a slow one:
-    every "tests green" in this project's history was two-thirds of a claim
-    while this stood.
-  */
-  return waitFor(() => expect(screen.getByText(/from SRD 5\.1/)).toBeInTheDocument(), {
-    timeout: 5000,
-  });
+  // No explicit timeout: `src/test/setup.ts` raises the global one for every
+  // async query, which is where the fix belongs. §51 patched this call site
+  // alone and the suite still flaked, because it was never this call site.
+  return waitFor(() => expect(screen.getByText(/from SRD 5\.1/)).toBeInTheDocument());
 };
 
 const party = () => rosterOf(fighter(), wizard());
