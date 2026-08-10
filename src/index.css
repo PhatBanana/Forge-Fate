@@ -7469,12 +7469,25 @@ dl.detail-list {
   toggles a panel over the fight; this one leaves the screen, so it takes
   less width and drops the fill - a door, not a cupboard.
 */
+/*
+  The ways out of the fight: Sheet, Builder, Menu.
+
+  Dashed and unfilled so they read as a different kind of thing from the
+  drawers to their left - a drawer puts something over the board, these leave
+  it - and pushed to the far end by the auto margin on the first of them, so
+  the run of drawers stays a run and nobody clicks Menu reaching for Terrain.
+*/
 .btl-cmd-home {
   flex: 0 0 auto;
   padding-left: 14px;
   padding-right: 14px;
   background: none;
   border-style: dashed;
+}
+
+.btl-cmd-home:first-of-type,
+.btl-cmd:not(.btl-cmd-home) + .btl-cmd-home {
+  margin-left: auto;
 }
 
 .btl-cmd:hover {

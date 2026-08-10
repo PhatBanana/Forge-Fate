@@ -213,6 +213,8 @@ export function TableTab({
   bestiary,
   ruleset,
   onHome,
+  onEdit,
+  onSheet,
 }: {
   roster: Roster;
   onChange: (roster: Roster) => void;
@@ -223,6 +225,21 @@ export function TableTab({
       the whole window - so its way home is a Menu command in its own bar,
       which is where a tactics game keeps it. */
   onHome?: () => void;
+  /**
+   * Out of the fight and into the Builder, and into the sheet.
+   *
+   * §35 gave the battle one exit, the Menu, on the reasoning that a tactics
+   * game puts it there and the title screen is the only global nav. That is
+   * right about the *menu* and wrong about these two: the Builder and the
+   * sheet are not destinations you navigate to from a fight, they are the
+   * same character seen a different way, and going through the hub to reach
+   * them is the two-systems problem §35 deleted, wearing a different hat.
+   *
+   * Every other pair in the app already carries a door to its partner. This
+   * is that rule finished rather than a new one.
+   */
+  onEdit?: () => void;
+  onSheet?: () => void;
 }) {
   const { monsters: srd, loading } = useMonsters();
 
@@ -5685,6 +5702,33 @@ export function TableTab({
               {d.label}
             </button>
           ))}
+          {/*
+            The three ways out, grouped at the end and styled apart from the
+            drawers beside them - a drawer opens something over the board, and
+            these leave it. Every one of them keeps the fight: the encounter
+            lives on the roster, so coming back finds the same round, the same
+            initiative and the same hit points.
+          */}
+          {onSheet && (
+            <button
+              type="button"
+              className="btl-cmd btl-cmd-home"
+              title="The character sheet for whoever is loaded. The fight stays on the table."
+              onClick={onSheet}
+            >
+              Sheet
+            </button>
+          )}
+          {onEdit && (
+            <button
+              type="button"
+              className="btl-cmd btl-cmd-home"
+              title="Edit the loaded character. The fight stays on the table."
+              onClick={onEdit}
+            >
+              Builder
+            </button>
+          )}
           {onHome && (
             <button
               type="button"

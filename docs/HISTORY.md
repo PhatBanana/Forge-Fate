@@ -3871,3 +3871,63 @@ is `CharClass.drawsSpellsFrom`, which lets a new class draw a published class's
 spell list without touching several hundred spell rows, and the `listId` on
 `CastingSource` that makes every "is this on your list?" test ask the right
 question.
+
+---
+
+## 57. The door between the Builder and the fight
+
+Reported: *"no easy way to bounce between builder and play. I see there is a
+menu in play area but no menu button to go back to play"*.
+
+Both halves are true, and the second is the sharper one. §35 gave the battle
+screen a **Menu** command — one way out, to the hub — and gave the Builder and
+the sheet a door to each other. It gave nothing a door to the fight. So the
+route people actually walk during a session, Builder to battle and back, was
+the only route in the app with a screen in the middle of it.
+
+### Why §35 got it wrong, precisely
+
+Its rule was: *the right side of the game bar holds the screen's own actions,
+never global navigation*. That rule is correct and was applied one step too
+widely. Builder, sheet and battle are not three destinations you navigate
+between — they are **one character seen three ways**. Sending someone through
+the hub to get from one to another is the two-navigation-systems problem §35
+existed to delete, wearing a different hat.
+
+The Builder⇄sheet pair already had its doors, and the reasoning written beside
+them at the time was *"the pair people flip between, so each carries a door to
+the other rather than a trip through the menu"*. That reasoning was right and
+simply stopped one screen short.
+
+### What landed
+
+Three screens, doors between all of them, and nothing else changed:
+
+| From | Offers |
+|---|---|
+| Builder | Character sheet → · Battle → |
+| Sheet | ← Edit in Builder · Battle → |
+| Battle | Sheet · Builder · Menu |
+
+The battle's three sit at the end of its command bar, dashed and unfilled and
+pushed right by an auto margin, so they read as a different kind of control
+from the drawers beside them — a drawer puts something over the board; these
+leave it. Nobody should click **Menu** reaching for **Terrain**.
+
+Every one of them keeps the fight. The encounter lives on the roster, so
+coming back finds the same round, the same initiative and the same hit points.
+
+The rule survives intact: a screen offers its **neighbours**, not the whole
+map. Dungeons, Characters, Campaign and Species still carry only their own
+actions, because nobody flips between those mid-fight.
+
+### The probe, and what it had to be careful about
+
+`run57.mjs` walks the whole trip in both themes and presses buttons rather
+than asserting about them. The distinction matters here more than usual:
+every one of these screens was already *reachable* before this section — the
+complaint was never "I cannot get there", it was "it takes a detour". A test
+that checked reachability would have been green over the entire defect. So
+each hop asserts it is **one press from the screen you are on**, and the last
+check confirms the wordmark still reaches the hub — the doors are between
+neighbours, not a second navigation system growing back.

@@ -689,7 +689,22 @@ export default function App() {
         present, correct, and underneath something else.
 
         The battle screen renders none of this: the map takes the whole
-        window, and its way home is the Menu command in its own bar.
+        window, and its ways out are commands at the end of its own bar.
+
+        ## The one correction §35 needed
+
+        "Never global navigation" was the right rule and was applied one step
+        too widely. Builder, sheet and battle are not three destinations - they
+        are one character seen three ways, and during a session you move
+        between them constantly. §35 gave Builder and sheet a door to each
+        other and left the battle reachable only through the hub, so the most
+        travelled route in the app was the one with a screen in the middle of
+        it. Reported, and fair.
+
+        So the three carry doors to each other, and nothing else does. The rule
+        is unchanged: a screen offers its *neighbours*, not the whole map. The
+        Dungeons, Characters, Campaign and Species screens still hold only
+        their own actions, because nobody flips between those mid-fight.
       */}
       {tab !== 'table' && (
         <header className="gbar">
@@ -721,12 +736,20 @@ export default function App() {
                 <button className="btn btn-sm" onClick={() => setTab('sheet')}>
                   Character sheet →
                 </button>
+                <button className="btn btn-sm" onClick={() => setTab('table')}>
+                  Battle →
+                </button>
               </>
             )}
             {tab === 'sheet' && (
-              <button className="btn btn-sm" onClick={() => setTab('builder')}>
-                ← Edit in Builder
-              </button>
+              <>
+                <button className="btn btn-sm" onClick={() => setTab('builder')}>
+                  ← Edit in Builder
+                </button>
+                <button className="btn btn-sm" onClick={() => setTab('table')}>
+                  Battle →
+                </button>
+              </>
             )}
           </span>
         </header>
@@ -810,6 +833,8 @@ export default function App() {
             bestiary={bestiary}
             ruleset={build.ruleset}
             onHome={() => setTab('title')}
+            onEdit={() => setTab('builder')}
+            onSheet={() => setTab('sheet')}
           />
         )}
         {tab === 'characters' && (
