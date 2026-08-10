@@ -37,7 +37,8 @@ src/
   types.ts              domain types and the condition language
   data/
     races.ts            43 lineages, flattened so subraces rate separately
-    classes.ts          13 classes, ~120 published subclasses, ability priorities
+    classes.ts          13 published classes + 4 of the app's own, ~120
+                        published subclasses, ability priorities
     skills.ts           the 18 skills and what each is actually for
     spells.ts           344 spells, with the damage the calculator reads
     feats.ts            75 feats for 2014, 70 for 2024, with prerequisites,

@@ -60,8 +60,16 @@ describe('what each class starts with', () => {
     const missing = CLASSES.filter((klass) => !startingEquipmentFor(klass.id, ruleset)).map(
       (klass) => klass.id,
     );
-    // The Artificer is in neither SRD, which is the same reason its subclass
-    // features are unverified. Nothing is invented for it.
+    /*
+      The Artificer is in neither SRD, which is the same reason its subclass
+      features are unverified. Nothing is invented for it.
+
+      Still exactly one, after four classes were added. The app's own four
+      carry hand-written kits held beside the classes themselves - see
+      `FORGE_STARTING_EQUIPMENT` for why that is a different case from the
+      Artificer's rather than the same one - so "which classes have no kit"
+      remains a one-item list and this assertion still means something.
+    */
     expect(missing).toEqual(['artificer']);
   });
 

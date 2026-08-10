@@ -272,6 +272,25 @@ export interface CharClass {
    * is absent and the spells answer as before.
    */
   drawsSpellsFrom?: ClassId;
+  /**
+   * A damage die this class adds to one hit a turn - the Sneak Attack shape.
+   *
+   * Written as data rather than as another branch in `dpr.ts` because it was
+   * about to become the fourth: Sneak Attack, Rage and Divine Smite are each a
+   * hand-written function reading `klass.id`, and adding a class meant adding
+   * a fifth and a sixth. The damage model reads this table for any class that
+   * has one, so a new striker is a row rather than a code path.
+   *
+   * The published three stay where they are. They each carry conditions this
+   * cannot express - Rage wants Strength and melee, Smite spends a slot, Sneak
+   * Attack wants finesse and an ally - and rewriting them to fit would be
+   * bending three correct implementations around a fourth's convenience.
+   */
+  oncePerTurn?: {
+    name: string;
+    die: number;
+    byLevel: { level: number; count: number }[];
+  };
   armor: string;
   /** Structured form of `armor`, used by the AC calculation. */
   armorProficiency: ArmorProficiency[];
@@ -365,7 +384,21 @@ export type ClassId =
   | 'rogue'
   | 'sorcerer'
   | 'warlock'
-  | 'wizard';
+  | 'wizard'
+  /*
+    The app's own four, in `data/forge/classes.ts`. Members of the same union
+    as the published thirteen on purpose: a Forge class has to resolve by id
+    from a saved character whatever the originals switch says, and a separate
+    id space would have meant every lookup in the app growing a second branch
+    that was wrong half the time.
+
+    They are told apart by `source`, which is what `isOriginal` reads and what
+    the switch filters on - one field, checked in one place.
+  */
+  | 'reckoner'
+  | 'harrier'
+  | 'marshal'
+  | 'adept';
 
 export type FeatTag =
   | 'damage'

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { ClassId, Ruleset } from '../types';
-import { CLASSES } from '../data/classes';
+import { CLASSES, classesFor } from '../data/classes';
 import { RACES_BY_ID, racesFor } from '../data/races';
 import { BACKGROUNDS_BY_ID } from '../data/backgrounds';
 import { skillName } from '../data/skills';
@@ -94,7 +94,7 @@ export function RacesTab({
             label="Class"
             value={selectedClass}
             onChange={(value) => setSelectedClass(value as ClassId)}
-            options={CLASSES.map((c) => ({ value: c.id, label: c.name }))}
+            options={classesFor(ruleset).map((c) => ({ value: c.id, label: c.name }))}
           />
           <p className="note">{CLASSES.find((c) => c.id === selectedClass)?.note}</p>
           {bestBackgroundsFor(selectedClass, 16).map((cell, index) => {
@@ -131,7 +131,7 @@ export function RacesTab({
             label="Class"
             value={selectedClass}
             onChange={(value) => setSelectedClass(value as ClassId)}
-            options={CLASSES.map((c) => ({ value: c.id, label: c.name }))}
+            options={classesFor(ruleset).map((c) => ({ value: c.id, label: c.name }))}
           />
           <p className="note">{CLASSES.find((c) => c.id === selectedClass)?.note}</p>
           {bestRacesFor(selectedClass, 12, ruleset).map((cell, index) => {
@@ -182,7 +182,7 @@ export function RacesTab({
             }))}
           />
           <p className="note">{RACES_BY_ID[selectedRace]?.note}</p>
-          {bestClassesFor(selectedRace, 13, ruleset).map((cell, index) => {
+          {bestClassesFor(selectedRace, classesFor(ruleset).length, ruleset).map((cell, index) => {
             const klass = CLASSES.find((c) => c.id === cell.classId)!;
             return (
               <details className={`suggestion ${index === 0 ? 'is-top' : ''}`} key={cell.classId}>
@@ -233,23 +233,31 @@ function Matrix({
   onPick: (raceId: string, classId: ClassId) => void;
 }) {
   const races = racesFor(ruleset);
+  /*
+    Through `classesFor` rather than over `CLASSES`, so the matrix respects
+    both the ruleset and the originals switch. Over the raw list it printed an
+    Artificer column under 2024 - a class that does not exist there - and, once
+    the app had classes of its own, four more columns to a player who had never
+    turned them on.
+  */
+  const klasses = classesFor(ruleset);
   const rows = useMemo(
     () =>
       races.map((race) => ({
         race,
-        cells: CLASSES.map((klass) => cellFor(race.id, klass.id, ruleset)!),
+        cells: klasses.map((klass) => cellFor(race.id, klass.id, ruleset)!),
       })),
-    [races, ruleset],
+    [races, klasses, ruleset],
   );
 
   return (
-    <Panel title={`Full matrix — ${races.length} species × ${CLASSES.length} classes`}>
+    <Panel title={`Full matrix — ${races.length} species × ${klasses.length} classes`}>
       <div className="matrix-wrap">
         <table className="matrix">
           <thead>
             <tr>
               <th>Species</th>
-              {CLASSES.map((klass) => (
+              {klasses.map((klass) => (
                 <th key={klass.id}>{klass.name.slice(0, 4)}</th>
               ))}
             </tr>

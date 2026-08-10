@@ -156,6 +156,14 @@ both halves.
 - `[x]` **9.3 Original subclasses** (§56). Nineteen of them, sized by the
   roster rather than by a round number: the 2014 spread was 4-14, and the
   additions raise the floor to nine while keeping the 2024 roster flat.
+- `[x]` **9.4 Original classes** (§58). Four - the **Reckoner** (the
+  Warlock's short-rest clock), the **Harrier** (Favored Enemy named in play),
+  the **Marshal** (the non-magical commander 5e never replaced) and the
+  **Adept** (psionics as a chassis rather than a subclass) - each with nine
+  subclasses under 2014 and five under 2024, so §56's floors hold with
+  seventeen classes on the table. `forge/balance.test.ts` measures the
+  published band at run time and fails any of the four that falls outside it,
+  or that tops it.
 
 ### Parked
 

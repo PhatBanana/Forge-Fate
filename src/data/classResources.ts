@@ -1,4 +1,5 @@
 import type { Ability, ClassId, Ruleset } from '../types';
+import { FORGE_CLASS_RESOURCES } from './forge/classes';
 
 /**
  * The things a class spends and gets back on a rest.
@@ -38,7 +39,7 @@ import type { Ability, ClassId, Ruleset } from '../types';
  *
  * A per-encounter resource takes that variable out. You get it at the start of
  * every fight, so the class is the same class in a dungeon crawl and in a
- * single set-piece boss. `forge/reckoner.ts` is built on it.
+ * single set-piece boss. `forge/classes.ts` builds four classes on it.
  *
  * ## What restores it
  *
@@ -113,6 +114,10 @@ const steps = (...pairs: [number, number][]): ResourceMax => ({
 });
 
 export const CLASS_RESOURCES: Partial<Record<ClassId, ClassResource[]>> = {
+  // The app's own four, every one of them per-encounter - which is what §54
+  // added `'encounter'` to the union for.
+  ...FORGE_CLASS_RESOURCES,
+
   barbarian: [
     {
       id: 'rage',

@@ -1,4 +1,5 @@
 import type { Ability, ClassId, Ruleset } from '../types';
+import { FORGE_CLASS_FEATURES } from './forge/classes';
 
 /**
  * What each class gives you, level by level.
@@ -64,6 +65,18 @@ export interface ClassFeature {
  * class gives you is here.
  */
 export const CLASS_FEATURES: Record<ClassId, ClassFeature[]> = {
+  /*
+    The app's own four. Spread in rather than typed here so that `forge/` stays
+    the one directory you delete to remove every trace of them - the same rule
+    the subclasses follow.
+
+    This record is the only hard `Record<ClassId, ...>` in the app, which is
+    why a new class cannot be added without landing here: TypeScript refuses
+    the file until all seventeen keys are present. That is the check working,
+    not an obstacle.
+  */
+  ...(FORGE_CLASS_FEATURES as Record<'reckoner' | 'harrier' | 'marshal' | 'adept', ClassFeature[]>),
+
   artificer: [
     { level: 1, name: 'Magical Tinkering', summary: 'Give tiny properties to objects: light, a recorded message, a smell.' },
     { level: 1, name: 'Spellcasting', summary: 'Half caster on Intelligence, preparing from the Artificer list.' },

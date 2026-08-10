@@ -1,5 +1,6 @@
 import type { ClassFeature } from './classFeatures';
 import { FORGE_SUBCLASS_FEATURES } from './forge/subclasses';
+import { FORGE_CLASS_SUBCLASS_FEATURES } from './forge/classSubclasses';
 
 /**
  * What each subclass gives you, level by level.
@@ -32,6 +33,7 @@ export const SUBCLASS_FEATURES: Record<string, ClassFeature[]> = {
     and the collision test in `forge.test.ts` says so.
   */
   ...FORGE_SUBCLASS_FEATURES,
+  ...FORGE_CLASS_SUBCLASS_FEATURES,
 
   // ------------------------------------------------------------- barbarian
   'totem-warrior': [

@@ -3,6 +3,7 @@ import { GEAR_BY_ID } from './gear';
 import { ARMOR_BY_ID } from './armor';
 import { weaponsFor } from './weapons';
 import raw from './srd/srd-starting-equipment.json';
+import { FORGE_STARTING_EQUIPMENT } from './forge/classes';
 
 /**
  * What a 1st-level character of each class starts with.
@@ -80,12 +81,30 @@ export interface StartingEquipment {
 
 const TABLE = (raw as { records: Record<string, Record<string, StartingEquipment>> }).records;
 
-/** Null for a class the SRD does not carry, which is only the Artificer. */
+/**
+ * A kit, or null for a class that has none.
+ *
+ * Two sources, and the split is the provenance rule this project runs on.
+ * `TABLE` is the SRD's own structured data, diffed against the source by the
+ * audit. `FORGE_STARTING_EQUIPMENT` is written by hand, for classes that have
+ * no book to check against because this project wrote them - so they are kept
+ * out of the verified table rather than mixed into it, and consulted only
+ * after it has had its say.
+ *
+ * Null is left for the **Artificer** alone. Its kit exists in a book this
+ * project cannot read, and writing one would be putting words in the
+ * publisher's mouth. That reasoning does not reach the app's own classes:
+ * there is no book to misquote, and a class that cannot tell a first-level
+ * player what they are holding is half a class.
+ *
+ * The same kit under both rulesets for the Forge four, because nothing about
+ * them changed between editions - there was no earlier edition of them.
+ */
 export function startingEquipmentFor(
   classId: string,
   ruleset: Ruleset,
 ): StartingEquipment | null {
-  return TABLE[ruleset]?.[classId] ?? null;
+  return TABLE[ruleset]?.[classId] ?? FORGE_STARTING_EQUIPMENT[classId] ?? null;
 }
 
 // ------------------------------------------------------- resolving the items

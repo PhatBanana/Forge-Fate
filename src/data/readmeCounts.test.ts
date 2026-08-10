@@ -6,6 +6,7 @@ import { SPELLS } from './spells';
 import { MAGIC_ITEMS } from './magicItems';
 import { SKILLS } from './skills';
 import { CLASSES, classesFor, subclassesFor } from './classes';
+import { isOriginal } from './sources';
 import { racesFor } from './races';
 import { featsFor } from './feats';
 import { backgroundsFor } from './backgrounds';
@@ -55,7 +56,13 @@ const CLAIMS: { what: string; pattern: RegExp; actual: number }[] = [
   { what: 'subclasses', pattern: /(\d+) subclasses across \d+ entries/, actual: CLASSES.flatMap((c) => c.subclasses).length },
   { what: 'subclass features', pattern: /\d+ subclasses across (\d+) entries/, actual: subclassFeatureCount },
   { what: 'lineages (matrix)', pattern: /matrix — (\d+) lineages × \d+ classes/, actual: racesFor('2014').length },
-  { what: 'classes (matrix)', pattern: /\d+ lineages × (\d+) classes/, actual: CLASSES.length },
+  /*
+    The published thirteen, not `CLASSES.length`. The matrix respects the
+    originals switch, so what a reader sees by default is what the books
+    print - and a README that counted the app's own four in would be claiming
+    seventeen published classes.
+  */
+  { what: 'classes (matrix)', pattern: /\d+ lineages × (\d+) classes/, actual: classesFor('2014').length },
   { what: 'lineages (file map)', pattern: /races\.ts\s+(\d+) lineages/, actual: racesFor('2014').length },
   { what: '2014 feats', pattern: /feats\.ts\s+(\d+) feats for 2014/, actual: featsFor('2014').length },
   { what: '2024 feats', pattern: /feats for 2014, (\d+) for 2024/, actual: featsFor('2024').length },
@@ -63,7 +70,12 @@ const CLAIMS: { what: string; pattern: RegExp; actual: number }[] = [
   { what: '2024 backgrounds', pattern: /backgrounds for 2014, (\d+) for 2024/, actual: backgroundsFor('2024').length },
   { what: '2014 weapons', pattern: /weapons\.ts\s+(\d+) weapons in 2014/, actual: weaponsFor('2014').length },
   { what: '2024 weapons', pattern: /weapons in 2014 and (\d+) in 2024/, actual: weaponsFor('2024').length },
-  { what: '2024 classes (file map)', pattern: /classes\.ts\s+(\d+) classes/, actual: classesFor('2014').length },
+  { what: 'classes (file map)', pattern: /classes\.ts\s+(\d+) published classes/, actual: classesFor('2014').length },
+  {
+    what: "the app's own classes (file map)",
+    pattern: /(\d+) of the app's own/,
+    actual: CLASSES.filter((c) => isOriginal(c.source)).length,
+  },
   {
     what: '2014 subclasses (ruleset table)',
     pattern: /Every published one, (\d+) in all/,

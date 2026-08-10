@@ -159,12 +159,15 @@ describe('the originals switch', () => {
  * test below pins it so a later edit cannot pretend to.
  */
 describe('the subclass roster', () => {
+  /*
+    Counted through `classesFor`, which respects the switch, rather than over
+    `CLASSES`. With the switch off the app's own classes are not on the table
+    at all, and counting their subclasses as zero would report a spread nobody
+    can see - which is exactly what the raw list did once there were Forge
+    classes to count.
+  */
   const countsFor = (ruleset: '2014' | '2024') =>
-    new Map(
-      CLASSES
-        .filter((k) => (k.rulesets ?? ['2014', '2024']).includes(ruleset))
-        .map((k) => [k.id, subclassesFor(k, ruleset).length]),
-    );
+    new Map(classesFor(ruleset).map((k) => [k.id, subclassesFor(k, ruleset).length]));
 
   const spread = (counts: Map<string, number>) => {
     const values = [...counts.values()];

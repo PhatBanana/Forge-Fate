@@ -1,4 +1,5 @@
 import type { CastingType, Ruleset } from '../types';
+import { FORGE_SPELLS_KNOWN } from './forge/classes';
 
 /**
  * Spell slot progressions.
@@ -166,6 +167,11 @@ export const CANTRIPS_KNOWN: Record<string, number[]> = {
  * because they prepare instead.
  */
 export const SPELLS_KNOWN: Record<string, number[]> = {
+  // The app's own two casters. Both are half casters drawing on a published
+  // list rather than carrying one, so a known column rather than a prepared
+  // one - a borrowed list is already generous enough without free preparation.
+  ...FORGE_SPELLS_KNOWN,
+
   //          1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20
   bard:      [4, 5, 6, 7, 8, 9,10,11,12,14,15,15,16,18,19,19,20,22,22,22],
   ranger:    [0, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9,10,10,11,11],

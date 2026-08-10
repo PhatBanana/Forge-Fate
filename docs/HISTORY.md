@@ -3931,3 +3931,145 @@ that checked reachability would have been green over the entire defect. So
 each hop asserts it is **one press from the screen you are on**, and the last
 check confirms the wordmark still reaches the hub — the doors are between
 neighbours, not a second navigation system growing back.
+
+---
+
+## 58. Four classes of our own
+
+The ask: *"now build the reckoner and harrier, as well as other original
+classes to help fill the missing roster."*
+
+§56 levelled the subclass roster and left the class list alone. That was the
+right order and half the job: the class list has holes too, and they are not
+holes of count — thirteen is plenty — but of design space the published
+thirteen leave empty or handle badly enough that the argument never stops.
+
+### The four, and why each one
+
+**The Reckoner** — the Warlock's recovery clock. Pact Magic comes back on a
+short rest, so the class's power level is set by how many short rests the
+table takes: none in a day and a Warlock casts like an Eldritch Knight, two and
+they cast like a full caster. Nothing else in 5e swings that far on a
+scheduling decision. The Reckoner's currency comes back at the **start of every
+fight**, which is why §54 taught the engine a third kind of recharge before
+this section existed. It is a half caster on Charisma rather than a pact
+caster, deliberately: inheriting Pact Magic would have been the bug with a new
+name on it. The ceiling is kept — half-caster slots stop at 5th level, exactly
+where Pact Magic does — and the clock is not.
+
+**The Harrier** — Favored Enemy. It asks a 1st-level character to guess what
+the campaign is about, gives no combat benefit when the guess is right, and has
+been reworked three times without being fixed
+([Mythcreants](https://mythcreants.com/blog/dd-5e-class-rework-ranger-part1/)).
+The Harrier names its quarry *in the fight*, renames it every fight, and the
+naming does something.
+
+**The Marshal** — the commander. 4e had the Warlord and 5e never replaced it:
+the Battle Master gestures at it with a handful of dice, and every other way to
+help an ally in this game is a spell. It is missing because it is hard to
+balance, not because nobody wants it.
+
+**The Adept** — psionics. Wizards of the Coast attempted a psionic class at
+least four times and shipped none, settling for subclasses that borrow the
+flavour and none of the chassis. The Adept spends dice, has no spell list,
+prepares nothing, and cannot be counterspelled.
+
+### The balance gate, which changed the design twice
+
+`forge/balance.test.ts` builds every class at levels 5, 11 and 17 in both
+rulesets — same point buy, same equipment logic, its first subclass — and
+measures the band the *published* classes occupy. Every Forge class has to sit
+inside it, and none may top it.
+
+The band is **measured at run time rather than pinned**. A pinned number goes
+stale the moment `computeDpr` changes and then the test passes for the wrong
+reason; this one moves with the model.
+
+It caught two things, and both were real:
+
+1. **The Harrier came out above every published class at 5th under 2024.** A
+   once-per-turn rider bolted onto a class that already swings twice: second
+   attacks and flat riders multiply, they do not add. Its steps moved to 7, 13
+   and 19.
+2. **The Adept edged past the Fighter at 11th**, by a tenth of a point — still
+   outside the band, still a fail, and the right call. One attack a turn means
+   a step of the rider is worth more there than on a class with Extra Attack.
+   Its middle steps moved later.
+
+The final numbers, sustained damage, 2014 (`*` = ours):
+
+```
+L5   Barbarian 15.1 · Fighter 12.7 · Paladin 12.7 · *Marshal 12.7 · Rogue 11.6
+     *Reckoner 10.6 · *Harrier 10.6 · *Adept 9.3 · Ranger 7.6
+L11  Fighter 17.5 · Rogue 17 · Barbarian 15 · *Adept 14.6 · *Harrier 12.6
+     *Reckoner 12.5 · Paladin 11.7 · *Marshal 11.7 · Ranger 7
+L17  Rogue 25.2 · Fighter 19 · *Adept 18.8 · Barbarian 17.5 · *Harrier 16.5
+     *Reckoner 16.4 · Paladin 12.7 · *Marshal 12.7 · Ranger 7.6
+```
+
+**One fixture bug found on the way.** The band's floor was zero, because the
+fixture arms each class from `defaultWeaponStyle` and a Wizard's is `'spell'` —
+no weapon in hand, casting branch, no spells recorded, zero. That is the
+fixture being silent about casters, not the model saying a Wizard deals no
+damage, and a floor of zero is a floor nothing can fall through. Zeroes are
+dropped now, and the band starts at a real number.
+
+**What the gate cannot see, said out loud.** The Marshal's whole output is
+other people's turns — an ally attacking off a Field Order does that ally's
+damage on that ally's sheet — so it sits at the bottom of the band by
+construction and its class note says the number understates it badly. No damage
+model can price a granted attack. Inventing a rider so the number looked right
+would have been worse than saying so.
+
+### Two engine additions, and one refusal
+
+`CharClass.oncePerTurn` makes the Sneak Attack shape data. It was about to
+become the fourth hand-written `klass.id` branch in `dpr.ts` after Sneak
+Attack, Rage and Divine Smite — and the published three **stay where they
+are**, because each carries a condition this cannot express (finesse and an
+ally, Strength and melee, a spent slot). Bending three correct implementations
+around a fourth's convenience is not a refactor.
+
+`CharClass.drawsSpellsFrom` lets a class borrow a published spell list. Every
+spell carries its own `classes` array, which is the right shape for thirteen
+classes and the wrong one for a fourteenth: adding one meant touching several
+hundred spell rows for a fact that is one sentence written once. `CastingSource`
+gained `listId` so every "is this on your list?" test asks the borrowed list
+while `learnedFrom` still records the class — which is what decides the DC.
+
+### Starting equipment, and why this is the one place the rule bends
+
+`startingEquipment.ts` is a *verified* table diffed against the SRD, and there
+is no source to diff four invented classes against. They could have shipped
+with none, the way the Artificer does.
+
+That would have been the wrong lesson to copy. The Artificer's kit exists in a
+book this project cannot read, and writing one would be putting words in the
+publisher's mouth. There is no book here, so there is nobody to misquote — and
+a class that cannot tell a 1st-level player what they are holding is half a
+class. The kits are held in `forge/classes.ts`, beside the classes, rather than
+mixed into a table whose whole value is that everything in it was checked.
+
+### What the tests had assumed
+
+Four failed the moment a fourteenth class existed, and each was assuming
+"thirteen" without saying so: the SRD feature audit, the starting-equipment
+coverage check, the README counts, and §56's own roster spread — which counted
+over the raw `CLASSES` list and so reported Forge classes as having zero
+subclasses when the switch was off. All four now filter on `source` or count
+through `classesFor`, which means a fifth class would be handled automatically
+and a *published* class could never be excluded by accident.
+
+The species × class matrix had the same shape of bug in the UI: it walked
+`CLASSES` directly, so it printed an Artificer column under 2024 — a class that
+does not exist there — and, once there were Forge classes, four more columns to
+someone who had never turned them on.
+
+### Cost
+
+The `data` chunk went 530 → 575 kB, about 8 kB over the wire. Paid rather than
+made lazy for the same structural reason as §56: `classes.ts` folds the rows in
+at module load because `subclassesFor` is synchronous and called during render.
+The budget file now carries a note saying that if this is raised a *third*
+time, the reasoning should be re-examined rather than repeated — a lazily
+loaded content pack behind the switch is the right answer at some size.

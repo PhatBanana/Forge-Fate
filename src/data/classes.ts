@@ -4,6 +4,8 @@ import { isOriginal } from './sources';
 import type { Source } from './sources';
 import { visible } from '../originals';
 import { FORGE_SUBCLASSES_BY_CLASS } from './forge/subclasses';
+import { FORGE_CLASSES } from './forge/classes';
+import { FORGE_CLASS_SUBCLASSES } from './forge/classSubclasses';
 
 const STANDARD_ASI = [4, 8, 12, 16, 19];
 
@@ -456,9 +458,14 @@ export const CLASSES: CharClass[] = [
   when the switch is off, so the published list above is exactly what an
   unmodified table sees.
 */
+CLASSES.push(...FORGE_CLASSES);
+
 for (const klass of CLASSES) {
-  const own = FORGE_SUBCLASSES_BY_CLASS[klass.id];
-  if (own) klass.subclasses = [...klass.subclasses, ...own];
+  const own = [
+    ...(FORGE_SUBCLASSES_BY_CLASS[klass.id] ?? []),
+    ...(FORGE_CLASS_SUBCLASSES[klass.id] ?? []),
+  ];
+  if (own.length) klass.subclasses = [...klass.subclasses, ...own];
 }
 
 export const CLASSES_BY_ID: Record<ClassId, CharClass> = Object.fromEntries(

@@ -16,6 +16,7 @@ import { MAGIC_ITEMS } from './magicItems';
 import { SPELLS, SPELLS_BY_ID } from './spells';
 import type { CastingTime } from './spells';
 import { CLASSES } from './classes';
+import { isOriginal } from './sources';
 import { CLASS_FEATURES } from './classFeatures';
 import { SORCERY_POINT_SLOT_COSTS, resourcesForClass } from './classResources';
 import { heldResources } from '../engine/resources';
@@ -1165,7 +1166,14 @@ describe('the 2014 class feature table against SRD 5.1', () => {
     // pass it in silence. The artificer is the one deliberate absence: it is
     // not in the SRD at all.
     const inFixture = new Set(Object.keys(srd));
-    const unchecked = CLASSES.map((c) => c.id).filter((id) => id !== 'artificer' && !inFixture.has(id));
+    const unchecked = CLASSES
+      // An SRD audit has nothing to say about content that was never in a
+      // book. The app's own classes are excluded by `source` rather than by
+      // name, so a fifth would be excluded automatically and a *published*
+      // class could never be excluded by accident.
+      .filter((c) => !isOriginal(c.source))
+      .map((c) => c.id)
+      .filter((id) => id !== 'artificer' && !inFixture.has(id));
     expect(unchecked).toEqual([]);
     expect(inFixture.size).toBe(12);
   });

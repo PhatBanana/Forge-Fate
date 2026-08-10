@@ -291,6 +291,30 @@ function sneakAttackDice(slices: ClassSlice[]): number {
   return rogue > 0 ? Math.ceil(rogue / 2) : 0;
 }
 
+/**
+ * The table-driven once-per-turn rider, for the classes that carry one as data.
+ *
+ * Sneak Attack, Rage and Divine Smite are each a hand-written function above,
+ * because each has a condition this cannot express - finesse and an ally, or
+ * Strength and melee, or a spent slot. A class whose rider is simply "one hit a
+ * turn deals extra dice" does not need a fourth function, and `oncePerTurn` on
+ * the class record is where it goes instead.
+ *
+ * Summed across slices, so a Reckoner 5 / Harrier 5 is two entries rather than
+ * one wrong one - they are different dice and neither is the other's.
+ */
+function tabledRiders(slices: ClassSlice[]): { name: string; die: number; dice: number }[] {
+  const out: { name: string; die: number; dice: number }[] = [];
+  for (const slice of slices) {
+    const rider = slice.klass.oncePerTurn;
+    if (!rider) continue;
+    const reached = rider.byLevel.filter((step) => slice.entry.level >= step.level);
+    const dice = reached.length ? reached[reached.length - 1].count : 0;
+    if (dice > 0) out.push({ name: rider.name, die: rider.die, dice });
+  }
+  return out;
+}
+
 /** Rage adds a flat amount to every Strength melee hit. */
 function rageDamage(slices: ClassSlice[]): number {
   const barbarian = slices
@@ -434,6 +458,7 @@ export function computeDpr(input: DprInput): DprResult {
 
   // -- once-per-turn riders --------------------------------------------------
   const sneakDice = sneakAttackDice(slices);
+  const tabled = tabledRiders(slices);
   // These are spells, so they count when the character actually has them - not
   // merely because they are the right class.
   const spells = new Set(build.spellIds);
@@ -490,10 +515,14 @@ export function computeDpr(input: DprInput): DprResult {
     // Speed does. One swing, at the same odds as the others.
     if (itemExtraBonusAttack) total += perSwing(ac, power, toHit);
 
+    // Once per turn, so it lands on the first attack that connects.
+    const chanceAnyHits = 1 - (1 - odds.hit) ** swings;
     if (sneakDice) {
-      // Once per turn, so it lands on the first attack that connects.
-      const chanceAnyHits = 1 - (1 - odds.hit) ** swings;
       total += chanceAnyHits * averageDice(sneakDice, 6) + odds.crit * averageDice(sneakDice, 6);
+    }
+    for (const rider of tabled) {
+      const amount = averageDice(rider.dice, rider.die);
+      total += chanceAnyHits * amount + odds.crit * amount;
     }
 
     if (off) {
@@ -604,6 +633,14 @@ export function computeDpr(input: DprInput): DprResult {
     lines.push({
       label: `Sneak Attack ${sneakDice}d6`,
       value: round(chanceAnyHits * averageDice(sneakDice, 6) + odds.crit * averageDice(sneakDice, 6)),
+      detail: 'Once per turn, on the first attack that lands.',
+    });
+  }
+  for (const rider of tabled) {
+    const amount = averageDice(rider.dice, rider.die);
+    lines.push({
+      label: `${rider.name} ${rider.dice}d${rider.die}`,
+      value: round((1 - (1 - odds.hit) ** swings) * amount + odds.crit * amount),
       detail: 'Once per turn, on the first attack that lands.',
     });
   }

@@ -38,19 +38,24 @@ const BUDGETS = {
     starting-equipment table arrived, which is 2.6 kB over the wire because
     the file is highly repetitive, for a panel on the Builder's Equipment
     section that should feel instant. Paid rather than made lazy.
-  */
-  /*
-    Raised 500 -> 530 kB by section 56's nineteen subclasses and their feature
-    tables, which is ~21 kB of prose and about 3 kB over the wire once gzip has
-    seen how repetitive it is.
+
+    Raised twice for the app's own content: 500 -> 530 kB for §56's nineteen
+    subclasses, and 530 -> 575 kB for §58's four classes and their thirty-six.
+    That is ~65 kB of prose in total and roughly 8 kB over the wire, since the
+    text is repetitive and gzip knows it.
 
     Paid rather than made lazy, and the reason is structural rather than
     thrifty: `classes.ts` folds the Forge rows into each class at module load,
     because `subclassesFor` is a synchronous function called during render and
     cannot await a chunk. Splitting them out would mean the class list changing
-    shape after first paint, which is a worse thing to ship than 3 kB.
+    shape after first paint, which is a worse thing to ship than 8 kB.
+
+    If this is raised a third time, that reasoning should be re-examined rather
+    than repeated - a lazily loaded content pack behind the switch is the right
+    answer at some size, and this is the note that should stop somebody nudging
+    the number instead of thinking about it.
   */
-  'data': 530_000,
+  'data': 575_000,
   'vendor': 210_000, // React
   'index': 180_000, // the app itself
   'srd-2014-text': 560_000, // lazy: fetched on the first "Full description"
