@@ -4205,3 +4205,66 @@ off** (an Adept token decodes with class and subclass intact, which was the
 data-loss risk), the sheet renders `Commands EACH FIGHT 3/3` with its New fight
 button, and `analyze`, `recommendNext` and `planProgression` all produce
 sensible output for all four.
+
+### 59.5 The bundle budget was a change detector wearing a limit's name
+
+Asked why the `data` budget was 580 kB, and why there was a constraint at all.
+The first half has no good answer and the second half does.
+
+**Why 580.** Nothing principled. The file said so itself — *"the current sizes
+plus a little headroom, not aspirations"* — and it had ratcheted 500 → 530 →
+575 → 580, every raise reactive, every one because content grew and the number
+was in the way. By the last of them:
+
+```
+data chunk: 579,966 bytes | budget 580,000 | headroom 34 bytes
+```
+
+Thirty-four bytes, set in the same commit as a note lecturing the next reader
+about not nudging the number. The next sentence written into a class note
+would have failed the build.
+
+It was never defending a measurable target either. First paint is ~237 kB
+gzipped across `data`, `vendor` and `index`, on a PWA whose service worker
+precaches — repeat visits are free. No part of 580 kB was a performance
+decision.
+
+**Why the constraint at all.** The chunking, not the size. `vite.config.ts`
+keeps two fixtures out of `data` because both are dynamically imported and most
+visitors fetch neither:
+
+```
+srd-2014-text.json      ~537 kB   rules descriptions
+srd-2014-monsters.json  ~519 kB   stat blocks
+```
+
+`data` is downloaded by every visitor on first paint. If that exclusion is lost
+— or somebody adds a *static* import of a heavy fixture from a data file — half
+a megabyte moves in front of everyone and **nothing visibly breaks**. No test
+fails, no page looks wrong. That is the regression worth a build gate.
+
+**What changed.** `data` gets a ceiling of 1 MB, roughly the size of either
+fixture, so it fires on "half a megabyte moved" and stays quiet on "somebody
+wrote three more sentences". The two lazy chunks gain a **floor**: a fixture can
+only leave one of them by going somewhere, and the only somewhere is `data`.
+Whether it takes the whole chunk or most of it, the floor catches it.
+
+That is the invariant checked as itself, rather than proxied by a number that
+gets edited whenever it becomes inconvenient.
+
+**Verified by breaking it.** The floor was proved by truncating the monsters
+chunk to 26 bytes in a copy of `dist` and running the script:
+
+```
+srd-2014-monsters: 0.0 kB is below its 390.6 kB floor - its fixture has left
+this chunk, almost certainly into `data`, where every visitor pays for it
+```
+
+A guard nobody has watched fire is a comment.
+
+**The failure message changed too.** It used to open *"Raise the budget in
+scripts/bundle-budget.mjs if the growth is real"* — advice that was taken every
+single time, which is most of how the ratchet happened. It now says the
+ceilings are alarms rather than diets, points at `manualChunks` and at static
+imports, and asks for a commit that says what moved before any number is
+touched.
