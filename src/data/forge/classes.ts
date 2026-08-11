@@ -399,6 +399,54 @@ export const FORGE_SPELLS_KNOWN: Record<string, number[]> = {
 };
 
 /**
+ * The same counts again, as 2024's prepared column.
+ *
+ * §59.4, and it was a decision made by omission rather than on purpose: with
+ * no row here, both classes used a *known* list under 2024 while every
+ * published caster in that edition prepares from a printed column. A 2024
+ * character who could not swap a spell on a long rest, in the edition whose
+ * headline caster change is that everybody can, is the app quietly playing
+ * 2014 rules under a 2024 heading.
+ *
+ * The numbers are their own 2014 columns rather than the borrowed class's.
+ * Taking the Warlock's or the Ranger's 2024 prepared column would have handed
+ * a half caster several more spells in one edition than the other for no
+ * reason except which table was nearest - `drawsSpellsFrom` borrows *which*
+ * spells exist, not how many you hold.
+ */
+export const FORGE_PREPARED_2024: Record<string, number[]> = {
+  reckoner: FORGE_SPELLS_KNOWN.reckoner,
+  harrier: FORGE_SPELLS_KNOWN.harrier,
+};
+
+/**
+ * Cantrips, for the Reckoner alone.
+ *
+ * The other half of §59.4's omission, and the two classes land on opposite
+ * answers for the same reason - what the borrowed list is made of.
+ *
+ * The **Reckoner** draws on the Warlock list, and a large share of that list's
+ * usefulness before 5th level is its cantrips. Zero of them left a 1st-level
+ * Reckoner with two spells, two slots and a rapier: a third of the list it was
+ * given was unreachable. It gets the Warlock's own column.
+ *
+ * Eldritch Blast on a Reckoner is *not* Eldritch Blast on a Warlock, which is
+ * what keeps this from being a free upgrade: Agonizing Blast is an invocation,
+ * and the Reckoner has no invocations, so the beams carry no Charisma. At 5th
+ * that is about 6.6 damage a round against the class's own 10.6 with a weapon
+ * and a Reckoning die - a fallback at range rather than a replacement for the
+ * class.
+ *
+ * The **Harrier** gets none, and that is not an oversight either. It draws on
+ * the Ranger list, which has no cantrips at all in either edition; a cantrip
+ * count would be a column with nothing to spend it on.
+ */
+export const FORGE_CANTRIPS_KNOWN: Record<string, number[]> = {
+  //         1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20
+  reckoner: [2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+};
+
+/**
  * What each of the four starts with.
  *
  * Written by hand, which is a departure worth naming. `startingEquipment.ts`

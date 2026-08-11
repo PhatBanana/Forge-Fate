@@ -4073,3 +4073,135 @@ at module load because `subclassesFor` is synchronous and called during render.
 The budget file now carries a note saying that if this is raised a *third*
 time, the reasoning should be re-examined rather than repeated — a lazily
 loaded content pack behind the switch is the right answer at some size.
+
+---
+
+## 59. The wiring audit, and two defects older than the thing that exposed them
+
+Asked what else needed wiring up, I built each of the four classes at level 8
+in both rulesets and traced every table a class touches. Four gaps, in the
+order they mattered.
+
+### 59.1 The 2024 fighting style went nowhere
+
+2024 turned fighting styles into feats, so every row in `classOptions.ts` is
+tagged `['2014']`. The class **feature** that grants the slot did not move. So
+`optionGroups` reported a slot to fill and `optionsFor` had nothing to fill it
+from, and the Builder rendered, verbatim:
+
+```
+fighting styles
+0 of 1 chosen · 1 to choose
+nothing chosen yet
+```
+
+I found it looking at the Marshal. It was never a Marshal bug — the 2024
+Fighter, Paladin and Ranger had it too, and had had it since the app grew a
+2024 mode.
+
+The quieter half was worse. Because the styles are feats, they were in the
+**ability score improvement** list: a 2024 Fighter 5 could spend an improvement
+on Archery, which the class hands over free at 1st level. Four were eligible
+when measured.
+
+`optionsFor('fighting-style', '2024')` now projects the feat rows into the
+option shape — one place each style is written down, and the ids match across
+editions exactly as the file's own comment had promised for months.
+`allowedInSlot` refuses them as improvement picks.
+
+**A test asserted the broken half.** It read *"keeps 2014 fighting styles out of
+2024, where they are feats instead"* and asserted the 2024 list was empty. Both
+halves of that title are true and the conclusion was wrong. A test can enshrine
+a defect as neatly as it can catch one, and this one had. It is rewritten with
+that said out loud, because the next person to read it deserves to know the
+assertion was once the bug.
+
+### 59.2 The matrix knew nothing about four classes
+
+`needsFor` was seven hardcoded lists of published class ids plus two fields
+derived from the class record. Invisible while thirteen classes was all there
+was. The moment the app had four of its own they came back `featHungry` and
+`frail` and **false for everything else** — so the species × class matrix and
+the feat scorer were rating them on two bits of information.
+
+The symptom was visible and silly: the recommender's top feat for a
+Dexterity-and-bows Harrier, and for an unarmoured Intelligence Adept, was
+**Great Weapon Master**.
+
+Fixed by deriving rather than by adding four ids to seven lists, which is the
+same mistake with a longer runway and a fifth class waiting to repeat it. The
+lists stay authoritative for the classes they were written about — they
+disagree with the derivation on purpose in places, the Druid curated as
+stealthy for Wild Shape rather than its skill list, the Rogue as social for
+Expertise rather than its ability priorities — and anything else reads its own
+record.
+
+**The sweep found a published class with the same problem.** The **Artificer**
+appears in none of the seven lists. It arrived after they were written and
+nobody added it, so it has been rated on hit die and casting type alone for as
+long as it has been in this app. It derives now, which gives it
+`weaponStarved` — true, simple weapons only — and its species matrix scores
+move because they were wrong.
+
+### 59.3 The feat catalogue had nothing behind the switch
+
+§53 gated `featsFor` along with five other catalogues. §56 and §58 filled two
+of them. This one was empty: the gate worked perfectly on nothing, which is the
+quietest kind of unfinished, and it was part of the original ask.
+
+Eight feats, each naming a gap rather than reskinning a published one:
+
+- **Nothing in 5e makes healing better.** Healer works off a kit, Inspiring
+  Leader hands out temporary hit points; no feat improves the spells a healer
+  actually spends their turns on. → *Field Medic*
+- **Nothing lets you help an ally's saving throw.** Lucky rerolls your own,
+  Bless is a spell, Aura of Protection is a class feature. → *Standing Order*
+- **The reaction is the least-used economy in the game** and no feat gives you
+  another. → *Quick to Answer*
+- **Nothing rewards standing still.** Every mobility feat pays you to move. →
+  *Set*
+- **Knowledge skills do nothing in combat.** → *Field Analysis*
+- **Concentration has advantage and proficiency and no floor.** → *Unbroken
+  Focus*
+- **The exploration pillar has no feats with teeth.** → *Trailwise*
+- **Breaking enemy concentration means Counterspell or nothing.** → *Disruptor*
+
+`forge/feats.test.ts` sizes them against the published catalogue's own
+distribution rather than a typed constant, and checks the floor as well as the
+ceiling: a feat scored so low the recommender never surfaces it is content
+nobody will see, which is a quieter waste than an overtuned one.
+
+### 59.4 Two decisions the casters were making by omission
+
+Neither threw. Both were the app answering a question nobody had asked, the way
+a missing table always answers: with zero.
+
+**The Reckoner had no cantrips.** It draws the Warlock list, a large share of
+whose early usefulness *is* cantrips — so a 1st-level Reckoner held two spells,
+two slots and a rapier, with a third of its own list unreachable. It gets the
+Warlock's column. This is not a free upgrade: Agonizing Blast is an invocation
+and the Reckoner has none, so Eldritch Blast carries no Charisma — about 6.6
+damage a round at 5th against the class's own 10.6 with a weapon and a
+Reckoning die. A fallback at range, not a replacement.
+
+**The Harrier gets none**, and that is the same reasoning reaching the opposite
+answer: the Ranger list has no cantrips in either edition, so a count would be
+a column with nothing to spend it on.
+
+**Neither prepared under 2024.** Every published caster in that edition
+prepares from a printed column and can swap on a long rest; without a
+`PREPARED_2024` row these two knew a fixed list — the app playing 2014 rules
+under a 2024 heading. Both have one now, holding **their own** 2014 counts
+rather than the borrowed class's: `drawsSpellsFrom` borrows *which* spells
+exist, not how many you hold, and taking the Warlock's or the Ranger's column
+would have handed a half caster several more spells in one edition than the
+other for no reason except which table was nearest.
+
+### What the audit cleared
+
+Worth recording so the list above is not read as everything being broken.
+Verified working before any of this: share links round-trip **with the switch
+off** (an Adept token decodes with class and subclass intact, which was the
+data-loss risk), the sheet renders `Commands EACH FIGHT 3/3` with its New fight
+button, and `analyze`, `recommendNext` and `planProgression` all produce
+sensible output for all four.

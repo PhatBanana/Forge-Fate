@@ -1508,7 +1508,17 @@ describe('the 2024 class resources against SRD 5.2', () => {
    */
   it('matches the printed Prepared Spells column for every caster', () => {
     const findings: Finding[] = [];
+    /*
+      The app's own classes are excluded, by `source` rather than by name, for
+      the reason every other exclusion in this file has: an SRD audit has
+      nothing to say about a class that was never in a book. Filtering here
+      rather than at the table means a Forge caster still gets a prepared
+      column - it just is not diffed against a fixture that could not contain
+      it. A *published* caster can never be excluded by accident.
+    */
+    const own = new Set(CLASSES.filter((c) => isOriginal(c.source)).map((c) => c.id as string));
     for (const [classId, table] of Object.entries(PREPARED_2024)) {
+      if (own.has(classId)) continue;
       const book = srd[classId]?.['Prepared Spells'];
       if (!book) {
         findings.push({ key: `prepared:${classId}:missing`, detail: 'no column in the fixture' });

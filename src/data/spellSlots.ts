@@ -1,5 +1,5 @@
 import type { CastingType, Ruleset } from '../types';
-import { FORGE_SPELLS_KNOWN } from './forge/classes';
+import { FORGE_CANTRIPS_KNOWN, FORGE_PREPARED_2024, FORGE_SPELLS_KNOWN } from './forge/classes';
 
 /**
  * Spell slot progressions.
@@ -151,6 +151,10 @@ export function pactSlotsFor(warlockLevel: number): { count: number; level: numb
  * their class - a Paladin and Ranger have no cantrips at all.
  */
 export const CANTRIPS_KNOWN: Record<string, number[]> = {
+  // The Reckoner, which borrows the Warlock list and would otherwise be handed
+  // a third of it with no way to cast it. See `FORGE_CANTRIPS_KNOWN`.
+  ...FORGE_CANTRIPS_KNOWN,
+
   //          1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20
   bard:      [2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
   cleric:    [3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
@@ -193,6 +197,10 @@ export const SPELLS_KNOWN: Record<string, number[]> = {
  * checked against them by the data audit.
  */
 export const PREPARED_2024: Record<string, number[]> = {
+  // The app's own two casters, so a 2024 character of theirs prepares like
+  // every other 2024 caster rather than knowing a fixed list.
+  ...FORGE_PREPARED_2024,
+
   //          1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20
   bard:      [4, 5, 6, 7, 9,10,11,12,14,15,16,16,17,17,18,18,19,20,21,22],
   cleric:    [4, 5, 6, 7, 9,10,11,12,14,15,16,16,17,17,18,18,19,20,21,22],

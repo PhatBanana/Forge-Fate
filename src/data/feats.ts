@@ -10,6 +10,7 @@ import type {
 } from '../types';
 import type { ArmorCategory } from './armor';
 import { visible } from '../originals';
+import { FORGE_FEATS } from './forge/feats';
 
 // --- tiny condition builders, purely for readability of the table below ------
 const cls = (...ids: ClassId[]): Condition => ({ kind: 'class', ids });
@@ -37,6 +38,15 @@ const ADVANTAGE_ENGINES = ['samurai', 'vengeance', 'assassin', 'gloom-stalker', 
 const CRIT_BUILDS = ['champion', 'assassin', 'vengeance', 'zealot', 'hexblade'];
 
 export const FEATS: Feat[] = [
+  /*
+    The app's own, first in the array and held in `forge/` for the same reason
+    the subclasses and classes are: what this project wrote and what the books
+    printed stay separable by looking at the directory, not only by reading a
+    field. `featsFor` drops them when the switch is off, so everything below
+    this line is exactly what an unmodified table offers.
+  */
+  ...FORGE_FEATS,
+
   // ------------------------------------------------------------- generalist
   {
     id: 'lucky',
