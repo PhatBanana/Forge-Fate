@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { Build } from '../types';
+import type { Build, ClassId, Ruleset } from '../types';
 import { CLASS_OPTIONS, optionById, optionsFor } from '../data/classOptions';
 import { deriveBuild, emptyBuild, weaponsForProfile } from './character';
 import { optionGroups, reconcileClassOptions, scoreOption, slotsFor } from './classOptions';
 import { analyze } from './analyze';
+import { recommendFeats } from './recommend';
 
 function build(overrides: Partial<Build> = {}): Build {
   return {
@@ -39,12 +40,31 @@ describe('the options table', () => {
     }
   });
 
-  it('keeps 2014 fighting styles out of 2024, where they are feats instead', () => {
+  it('offers a fighting style under both editions, from each one\u2019s own table', () => {
+    /*
+      This test used to read *"keeps 2014 fighting styles out of 2024, where
+      they are feats instead"* and assert that the 2024 list was empty. Both
+      halves of that sentence were true and the conclusion was wrong: the
+      styles did move to `feats.ts`, and the class *feature* that grants the
+      slot did not move at all. So a 2024 Fighter, Paladin, Ranger and Marshal
+      each had a slot to fill and an empty list to fill it from - and this
+      assertion pinned that as intended.
+
+      A test can enshrine a defect as neatly as it can catch one. §59.1 found
+      this by building each class and looking at what the Builder would render,
+      which is a question the assertion below was not asking.
+
+      The rows now come from `feats.ts` under 2024, projected into the option
+      shape, so there is still exactly one place each style is written down.
+    */
     expect(optionsFor('fighting-style', '2014').length).toBe(10);
-    expect(optionsFor('fighting-style', '2024').length).toBe(0);
-    // Same ids as the 2024 feat records, so switching rules keeps your style.
+    expect(optionsFor('fighting-style', '2024').length).toBe(10);
+    // Same ids either way, so switching rules keeps your style.
     expect(optionById('archery')!.id).toBe('archery');
     expect(optionById('defense')!.id).toBe('defense');
+    for (const id of ['archery', 'defense', 'dueling']) {
+      expect(optionsFor('fighting-style', '2024').map((o) => o.id), id).toContain(id);
+    }
   });
 });
 
@@ -272,5 +292,50 @@ describe('the Defense fighting style', () => {
         ...extra,
       }));
     expect(unarmored({ classOptionIds: ['defense'] }).ac.total).toBe(unarmored({}).ac.total);
+  });
+});
+
+describe('fighting styles under 2024', () => {
+  /*
+    §59.1. 2024 turned fighting styles into feats, and the class feature that
+    grants the slot did not move - so `optionsFor('fighting-style', '2024')`
+    answered with nothing while `optionGroups` still reported a slot to fill.
+    The Builder showed "0 of 1 chosen · 1 to choose" over an empty list, on
+    every 2024 class that grants a style.
+
+    Both directions are asserted, because each half was broken on its own.
+  */
+  const at = (classId: ClassId, level: number, ruleset: Ruleset) =>
+    deriveBuild({ ...emptyBuild(), ruleset, classes: [{ classId, level }] });
+
+  it('offers a style to every 2024 class that grants a slot', () => {
+    const empty: string[] = [];
+    for (const classId of ['fighter', 'paladin', 'ranger'] as ClassId[]) {
+      const group = optionGroups(at(classId, 5, '2024')).find((g) => g.kind === 'fighting-style');
+      if (!group) empty.push(`${classId}: no group at all`);
+      else if (group.suggestions.length === 0) empty.push(`${classId}: ${group.slots} slots, 0 options`);
+    }
+    expect(empty).toEqual([]);
+  });
+
+  it('keeps the same ids in both editions, so switching rules keeps your style', () => {
+    const ids = (ruleset: Ruleset) =>
+      optionsFor('fighting-style', ruleset).map((o) => o.id).sort();
+    // Not identical lists - 2024 dropped some and added others - but every
+    // style that exists in both must answer to the same id.
+    const shared = ids('2014').filter((id) => ids('2024').includes(id));
+    expect(shared.length, 'no style survives the edition change by id').toBeGreaterThan(3);
+  });
+
+  it('never offers a fighting style as an ability score improvement', () => {
+    /*
+      The quieter half. A 2024 Fighter could spend an improvement on Archery,
+      which the class hands over for free - four of them were eligible when
+      this was measured.
+    */
+    const spent = recommendFeats(at('fighter', 5, '2024'), { limit: 60 })
+      .filter((s) => s.feat.category === 'fighting-style')
+      .map((s) => s.feat.name);
+    expect(spent).toEqual([]);
   });
 });

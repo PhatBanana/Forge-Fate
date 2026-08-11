@@ -1,5 +1,6 @@
 import { ABILITIES, ABILITY_NAMES } from '../types';
 import type { Ability, CharClass, ClassId, Rating } from '../types';
+import { CLASS_FEATURES } from '../data/classFeatures';
 
 /**
  * Machinery shared by the two "which origin suits which class" matrices.
@@ -61,19 +62,87 @@ export interface ClassNeeds {
   castingAbility?: Ability;
 }
 
-export function needsFor(klass: CharClass): ClassNeeds {
-  const armorStarved = ['wizard', 'sorcerer', 'bard', 'warlock', 'rogue', 'monk'].includes(klass.id);
+/**
+ * The thirteen these lists were written for.
+ *
+ * Every list below names published classes and only published classes, which
+ * was invisible while thirteen was all there was. It stopped being invisible
+ * the moment the app had classes of its own: a Reckoner, Harrier, Marshal and
+ * Adept came out of `needsFor` with `featHungry` and `frail` - the only two
+ * fields derived rather than listed - and **false for everything else**.
+ *
+ * So the whole species x class matrix and the feat scorer were rating four
+ * classes on almost no information. It showed: the feat recommender's top pick
+ * for a Dexterity-and-bows Harrier, and for an unarmoured Intelligence Adept,
+ * was Great Weapon Master.
+ *
+ * The fix is not four more ids in seven lists - that is the same mistake with
+ * a longer runway, and the fifth class would repeat it. Instead the lists stay
+ * authoritative **for the classes they were written about**, and anything else
+ * is derived from the class record.
+ */
+const CURATED = new Set<ClassId>([
+  /*
+    Twelve, not thirteen. The **Artificer is deliberately absent**, and finding
+    that out is what the sweep in `matrix.test.ts` was worth.
+
+    It arrived after these lists were written and was never added to any of
+    them, so it had exactly the problem the app's own four had, for exactly as
+    long as it has been in the app: rated on hit die and casting type and
+    nothing else. Deriving gives it `weaponStarved`, which is true - simple
+    weapons only - and false everywhere else, which is also true. It is a
+    correction, and the species matrix scores for the Artificer move because
+    they were wrong.
+  */
+  'barbarian', 'bard', 'cleric', 'druid', 'fighter', 'monk',
+  'paladin', 'ranger', 'rogue', 'sorcerer', 'warlock', 'wizard',
+]);
+
+/**
+ * What the class record itself says, for a class no list mentions.
+ *
+ * Deliberately not applied to the published thirteen even where it agrees with
+ * them, and it agrees in most places - `melee` derives to exactly the curated
+ * list, `armorStarved` to exactly the curated list. It disagrees in a handful:
+ * the Druid is curated as stealthy on the strength of Wild Shape rather than
+ * its skill list, and the Rogue as social on the strength of Expertise rather
+ * than its ability priorities. Those are judgements the derivation cannot
+ * make, and overriding thirteen tuned rows to save a `Set` lookup would move
+ * ratings nobody asked to move.
+ */
+function derivedNeeds(klass: CharClass): Omit<ClassNeeds, 'featHungry' | 'frail' | 'castingAbility'> {
+  const armor = new Set(klass.armorProficiency);
+  const features = CLASS_FEATURES[klass.id] ?? [];
   return {
-    armorStarved,
-    unarmoredAc: ['monk', 'barbarian', 'sorcerer', 'wizard'].includes(klass.id),
+    armorStarved: !armor.has('medium') && !armor.has('heavy'),
+    // Read from the feature that grants it, which is where every published
+    // unarmored defence already declares itself to the AC calculation.
+    unarmoredAc: features.some((f) => f.tags?.includes('unarmored-defense')),
+    stealthy: klass.skillChoices.from.includes('stealth'),
+    melee: ['str-melee', 'dex-melee', 'unarmed'].includes(klass.defaultWeaponStyle),
+    ranged: klass.defaultWeaponStyle === 'dex-ranged',
+    social: klass.abilityPriority.cha >= 2,
+    weaponStarved: !klass.weaponProficiency.categories.includes('martial'),
+  };
+}
+
+export function needsFor(klass: CharClass): ClassNeeds {
+  const listed = CURATED.has(klass.id);
+  const own = derivedNeeds(klass);
+  const pick = (ids: ClassId[], field: keyof typeof own) =>
+    listed ? ids.includes(klass.id) : own[field];
+
+  return {
+    armorStarved: pick(['wizard', 'sorcerer', 'bard', 'warlock', 'rogue', 'monk'], 'armorStarved'),
+    unarmoredAc: pick(['monk', 'barbarian', 'sorcerer', 'wizard'], 'unarmoredAc'),
     // Martials have spare ASIs and their feats are build-defining.
     featHungry: klass.castingType === 'none' || klass.castingType === 'half',
-    stealthy: ['rogue', 'ranger', 'monk', 'bard', 'druid'].includes(klass.id),
-    melee: ['barbarian', 'fighter', 'monk', 'paladin', 'rogue'].includes(klass.id),
-    ranged: ['ranger', 'fighter', 'rogue'].includes(klass.id),
+    stealthy: pick(['rogue', 'ranger', 'monk', 'bard', 'druid'], 'stealthy'),
+    melee: pick(['barbarian', 'fighter', 'monk', 'paladin', 'rogue'], 'melee'),
+    ranged: pick(['ranger', 'fighter', 'rogue'], 'ranged'),
     frail: klass.hitDie <= 8,
-    social: ['bard', 'warlock', 'sorcerer', 'paladin', 'rogue'].includes(klass.id),
-    weaponStarved: ['wizard', 'sorcerer', 'druid', 'warlock', 'cleric', 'monk'].includes(klass.id),
+    social: pick(['bard', 'warlock', 'sorcerer', 'paladin', 'rogue'], 'social'),
+    weaponStarved: pick(['wizard', 'sorcerer', 'druid', 'warlock', 'cleric', 'monk'], 'weaponStarved'),
     castingAbility: klass.castingAbility,
   };
 }

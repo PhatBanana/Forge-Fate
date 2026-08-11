@@ -1,6 +1,7 @@
 import type { CastingType, ClassId, Condition, Loadout, Ruleset, ScoreRule, WeaponStyle } from '../types';
 import type { ClassOptionKind } from './classFeatures';
 import type { Source } from './sources';
+import { FEATS } from './feats';
 import { visible } from '../originals';
 
 // Same condition builders as the feat table, for the same reason: the rules
@@ -653,12 +654,62 @@ export const CLASS_OPTIONS_BY_ID: Record<string, ClassOption> = Object.fromEntri
 );
 
 /** Options of a kind that a given class can choose from, in this ruleset. */
+/**
+ * The 2024 fighting styles, which live in `feats.ts` and are picked here.
+ *
+ * ## The bug this fixes
+ *
+ * 2024 turned fighting styles into feats, so every row above is tagged
+ * `['2014']` and `optionsFor('fighting-style', '2024')` returned nothing. The
+ * class feature that grants the slot did not move, though - a 2024 Fighter,
+ * Paladin, Ranger and Marshal all still have one - so the Builder showed
+ * **"0 of 1 chosen · 1 to choose" above an empty list**, on four classes,
+ * under the edition this app treats as current.
+ *
+ * The other half was worse and quieter: because the styles are feats, they
+ * were being offered as *ability score improvement* picks. A 2024 Fighter
+ * could spend an improvement on Archery, which the class hands over for free.
+ * `allowedInSlot` in `recommend.ts` now refuses them; this is where they went
+ * instead.
+ *
+ * ## Why a projection rather than ten more rows
+ *
+ * The comment above already promised the ids match - *"so a character
+ * switching ruleset keeps the same style"* - and duplicating ten rows would
+ * make that promise something two files have to keep agreeing about. The feat
+ * records are the source; this reshapes them.
+ *
+ * `Feat` and `ClassOption` differ in exactly two fields that matter here, and
+ * both are constants for this kind: `kind` is `'fighting-style'` and `classId`
+ * is whichever class granted the slot - which no consumer of a fighting style
+ * reads, since the slot is what gates it. Everything the scorer touches -
+ * `base`, `rules`, `prereq`, `summary` - is shared shape already.
+ */
+function fightingStyleFeats(): ClassOption[] {
+  return FEATS.filter(
+    (feat) => feat.category === 'fighting-style' && (feat.rulesets ?? ['2014']).includes('2024'),
+  ).map((feat) => ({
+    id: feat.id,
+    name: feat.name,
+    kind: 'fighting-style' as const,
+    // The slot decides who may take it, not this. Named for the class that
+    // printed the list, the way the 2014 rows are.
+    classId: 'fighter' as const,
+    source: feat.source,
+    rulesets: ['2024'] as Ruleset[],
+    summary: feat.summary,
+    prereq: feat.prereq?.note ? { note: feat.prereq.note } : undefined,
+    base: feat.base,
+    rules: feat.rules,
+  }));
+}
+
 export function optionsFor(kind: ClassOptionKind, ruleset: Ruleset): ClassOption[] {
-  return visible(
-    CLASS_OPTIONS.filter(
-      (o) => o.kind === kind && (o.rulesets ?? ['2014', '2024']).includes(ruleset),
-    ),
+  const rows = CLASS_OPTIONS.filter(
+    (o) => o.kind === kind && (o.rulesets ?? ['2014', '2024']).includes(ruleset),
   );
+  if (kind === 'fighting-style' && ruleset === '2024') rows.push(...fightingStyleFeats());
+  return visible(rows);
 }
 
 export function optionById(id: string): ClassOption | undefined {

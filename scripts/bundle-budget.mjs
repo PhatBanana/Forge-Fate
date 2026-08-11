@@ -50,12 +50,17 @@ const BUDGETS = {
     cannot await a chunk. Splitting them out would mean the class list changing
     shape after first paint, which is a worse thing to ship than 8 kB.
 
-    If this is raised a third time, that reasoning should be re-examined rather
-    than repeated - a lazily loaded content pack behind the switch is the right
-    answer at some size, and this is the note that should stop somebody nudging
-    the number instead of thinking about it.
+    If this is raised again *for content*, that reasoning should be re-examined
+    rather than repeated - a lazily loaded content pack behind the switch is
+    the right answer at some size, and this is the note that should stop
+    somebody nudging the number instead of thinking about it.
+
+    575 -> 580 kB in §59.1 is not that. It is 78 bytes: the function that
+    projects the 2024 fighting-style feats into the option shape. Named here so
+    the next reader can tell a rounding error from a content drop, which is the
+    whole point of the note above.
   */
-  'data': 575_000,
+  'data': 580_000,
   'vendor': 210_000, // React
   'index': 180_000, // the app itself
   'srd-2014-text': 560_000, // lazy: fetched on the first "Full description"

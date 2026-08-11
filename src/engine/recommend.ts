@@ -243,6 +243,18 @@ export interface RecommendOptions {
 /** Which feat categories can fill a given improvement slot. */
 function allowedInSlot(feat: Feat, ctx: BuildContext, slotLevel: number | undefined): boolean {
   if (ctx.build.ruleset !== '2024') return true;
+  /*
+    A fighting style is never bought with an improvement.
+
+    2024 prints them as feats, so they were sitting in this list and a Fighter
+    could spend an ability score improvement on Archery - which the class hands
+    over for free at 1st level. Four of them were eligible for a 2024 Fighter 5
+    when this was measured.
+
+    They are chosen where the slot is, in Class options, which is where
+    `optionsFor('fighting-style', '2024')` now puts them.
+  */
+  if (feat.category === 'fighting-style') return false;
   const isBoon = feat.category === 'epic-boon';
   // Without a known slot we are answering "what is worth taking generally",
   // where a Boon is only relevant to a character who has reached 19.
