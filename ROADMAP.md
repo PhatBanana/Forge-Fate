@@ -156,10 +156,6 @@ both halves.
 - `[x]` **9.3 Original subclasses** (§56). Nineteen of them, sized by the
   roster rather than by a round number: the 2014 spread was 4-14, and the
   additions raise the floor to nine while keeping the 2024 roster flat.
-- `[x]` **9.5 Original feats** (§59.3). Eight, each naming a hole the printed
-  list leaves - no feat improves healing, none helps an ally's saving throw,
-  none gives you a second reaction, none rewards standing still. Sized against
-  the published catalogue's own spread by `forge/feats.test.ts`.
 - `[x]` **9.4 Original classes** (§58). Four - the **Reckoner** (the
   Warlock's short-rest clock), the **Harrier** (Favored Enemy named in play),
   the **Marshal** (the non-magical commander 5e never replaced) and the
@@ -168,6 +164,10 @@ both halves.
   seventeen classes on the table. `forge/balance.test.ts` measures the
   published band at run time and fails any of the four that falls outside it,
   or that tops it.
+- `[x]` **9.5 Original feats** (§59.3). Eight, each naming a hole the printed
+  list leaves - no feat improves healing, none helps an ally's saving throw,
+  none gives you a second reaction, none rewards standing still. Sized against
+  the published catalogue's own spread by `forge/feats.test.ts`.
 
 ### Parked
 
