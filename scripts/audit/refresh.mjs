@@ -979,6 +979,49 @@ async function monsters2014() {
 }
 
 // ---------------------------------------------------------------------- main
+
+/**
+ * The fifteen conditions, both editions, in one fixture.
+ *
+ * 2024 rewrote every one of them - but almost entirely as *prose*. The new
+ * format opens "While you have the X condition, you experience the following
+ * effects" and gives each clause a bolded heading, so a text diff reports
+ * fifteen changes and tells you nothing: fourteen of them say the same rule in
+ * a different voice.
+ *
+ * That is the trap this fixture exists to make visible rather than to hide. It
+ * carries both texts side by side so `srdAudit.test.ts` can ask a question a
+ * diff cannot - does the 2024 text contain the specific clause the app's own
+ * 2024 summary claims it does - and so a reader can see the two paragraphs
+ * next to each other and judge for themselves.
+ *
+ * The two editions also use different field names for the same thing, which is
+ * worth writing down because it produced a wrong answer on the first attempt:
+ * 2014 returns `desc` as an array of bullet strings, 2024 returns
+ * `description` as one string. Reading `desc` on both compared real text
+ * against `undefined` and reported every condition as changed.
+ */
+async function conditions() {
+  const list = await getJson(`${DND5EAPI}/api/2014/conditions?limit=100`);
+  const records = {};
+  for (const entry of list.results) {
+    // Exhaustion is a track rather than a state and lives in
+    // `engine/exhaustion.ts`, checked by its own tests.
+    if (entry.index === 'exhaustion') continue;
+    const [older, newer] = await Promise.all([
+      getJson(`${DND5EAPI}/api/2014/conditions/${entry.index}`),
+      getJson(`${DND5EAPI}/api/2024/conditions/${entry.index}`),
+    ]);
+    records[entry.index] = {
+      name: entry.name,
+      '2014': (older.desc ?? []).join(' ').replace(/\s+/g, ' ').trim(),
+      // See above: 2024 says `description`, and it is a string.
+      '2024': (newer.description ?? (newer.desc ?? []).join(' ')).replace(/\s+/g, ' ').trim(),
+    };
+  }
+  return records;
+}
+
 const SETS = {
   'srd-2014-equipment': equipment2014,
   'srd-2014-magic-items': magicItems2014,
@@ -993,6 +1036,7 @@ const SETS = {
   'srd-2014-text': text2014,
   'srd-2014-monsters': monsters2014,
   'srd-starting-equipment': startingEquipment,
+  'srd-conditions': conditions,
 };
 
 const wanted = process.argv.slice(2);
@@ -1013,6 +1057,9 @@ for (const [name, build] of chosen) {
       : name === 'srd-feats-backgrounds'
         // The one fixture that spans both editions, keyed by edition inside.
         ? 'dnd5eapi SRD 5.1 and 5.2'
+        : name === 'srd-conditions'
+          // The other fixture spanning both editions, keyed by edition inside.
+          ? 'dnd5eapi SRD 5.1 and 5.2'
         : name.startsWith('srd-2024') ? 'dnd5eapi SRD 5.2' : 'dnd5eapi SRD 5.1',
     refreshed: new Date().toISOString().slice(0, 10),
     records: await build(),

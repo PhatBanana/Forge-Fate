@@ -14,7 +14,7 @@ import type { BuildContext } from '../engine/character';
 import { describeSpell } from '../engine/spellRecommend';
 import { RECHARGE_LABEL, heldResources, rechargeFor, restoredKeys } from '../engine/resources';
 import { SORCERY_POINT_SLOT_COSTS } from '../data/classResources';
-import { CONDITIONS } from '../data/conditions';
+import { CONDITIONS, conditionText } from '../data/conditions';
 import { MAX_EXHAUSTION, exhaustionLines } from '../engine/exhaustion';
 import { RulesDisclosure } from './RulesText';
 import { consumeItem, isConsumable, quantityOf } from '../engine/items';
@@ -899,7 +899,7 @@ export function CharacterSheet({
                     key={condition.id}
                     className={`cs-cond ${on ? 'is-on' : ''}`}
                     aria-pressed={on}
-                    title={condition.summary}
+                    title={conditionText(condition, build.ruleset)}
                     onClick={() => onPlayChange(toggleCondition(play, condition.id))}
                   >
                     {condition.name}
@@ -934,7 +934,7 @@ export function CharacterSheet({
             {play.conditions.length > 0 &&
               CONDITIONS.filter((c) => play.conditions.includes(c.id)).map((c) => (
                 <p className="cs-para" key={c.id}>
-                  <b>{c.name}.</b> {c.summary}
+                  <b>{c.name}.</b> {conditionText(c, build.ruleset)}
                 </p>
               ))}
             {play.exhaustion > 0 &&

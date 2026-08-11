@@ -113,7 +113,7 @@ import { deriveBuild } from '../engine/character';
 import { forecast } from '../engine/forecast';
 import { concentrationDc, damage, dash, emptyPlay, heal, hpNow, moveBy, movementLeft, awardXp, longRest, newTurn, setPlayConditionSource, setTurnSlot, shortRest, startOfEncounter, tickConditions, toggleCondition, spendAmmo, applyDeathSaveRoll } from '../play';
 import { defaultRng, expectedTotal, parseNotation, rollD20, rollDamage, rollNotation } from '../engine/dice';
-import { CONDITIONS, CONDITIONS_BY_ID } from '../data/conditions';
+import { CONDITIONS, CONDITIONS_BY_ID, conditionTextFor } from '../data/conditions';
 import { damageDice } from '../data/weapons';
 import { hitChance } from '../engine/dpr';
 import { flanked, heightAdvantage } from '../engine/tactics';
@@ -220,7 +220,13 @@ export function TableTab({
   onChange: (roster: Roster) => void;
   /** Monsters you made, from their own store. See `src/bestiary.ts`. */
   bestiary: Monster[];
-  ruleset: string;
+  /**
+   * The edition this table is running, from the loaded character. §60 tightened
+   * it from `string`: a monster's condition text and exhaustion both read it,
+   * and `string` let a typo through to a comparison that would silently answer
+   * "not 2024".
+   */
+  ruleset: Ruleset;
   /** Back to the title screen. The battle wears no game bar - the map takes
       the whole window - so its way home is a Menu command in its own bar,
       which is where a tactics game keeps it. */
@@ -1251,14 +1257,22 @@ export function TableTab({
     Which edition this combatant is played under. Exhaustion is the first rule
     where the two disagree *in play* rather than at build time - 2014 halves
     speed at rung two and hands out disadvantage at three, 2024 takes five feet
-    and two off the roll per level - so the fight has to ask. A monster has no
-    ruleset of its own and reads as 2014, which is the app's default
-    everywhere else.
+    and two off the roll per level - so the fight has to ask.
+
+    §60 changed what a *monster* answers. It used to be a flat `'2014'`, on the
+    reasoning that a monster has no edition of its own - true, and the wrong
+    conclusion. A table runs one edition; the DM who built a 2024 party is
+    running 2024, and their monsters were reading the 2014 exhaustion ladder.
+    That is the same defect this section came here to fix, one layer down, and
+    it was mechanical rather than cosmetic.
+
+    So a monster reads the table's edition, which is the loaded character's.
+    Falling back to 2014 only when there is no table at all.
   */
   const rulesetOf = (c: Combatant): Ruleset =>
     (c.kind === 'character'
       ? roster.entries.find((e) => e.id === c.rosterId)?.build.ruleset
-      : undefined) ?? '2014';
+      : ruleset) ?? '2014';
 
   /** A combatant's speed in feet, from whichever side owns it. */
   const speedOf = (combatant: Combatant): number => {
@@ -5140,7 +5154,7 @@ export function TableTab({
               key={id}
               type="button"
               className="tag hud-condition"
-              title={`${CONDITIONS_BY_ID[id]?.summary ?? ''} — press to remove`}
+              title={`${conditionTextFor(id, rulesetOf(selected))} — press to remove`}
               onClick={() => setEncounter(toggleMonsterCondition(encounter, selected.id, id))}
             >
               {CONDITIONS_BY_ID[id]?.name ?? id} ×

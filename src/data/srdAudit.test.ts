@@ -29,7 +29,8 @@ import { featById, featsFor } from './feats';
 import { BACKGROUNDS } from './backgrounds';
 import { RACES } from './races';
 import { SKILLS } from './skills';
-import { CONDITIONS } from './conditions';
+import { CONDITIONS, conditionText } from './conditions';
+import conditionsFixture from './srd/srd-conditions.json';
 import { LANGUAGES } from './languages';
 import { SUBCLASS_FEATURES, SUBCLASS_FEATURES_2024 } from './subclassFeatures';
 import { key, srdKey } from './srd/names';
@@ -1600,6 +1601,107 @@ describe('the 2024 class resources against SRD 5.2', () => {
     for (const classId of ['barbarian', 'bard', 'cleric', 'fighter', 'monk', 'paladin',
                            'ranger', 'sorcerer', 'warlock', 'wizard'] as ClassId[]) {
       expect(resourcesForClass(classId, '2024').length, classId).toBeGreaterThan(0);
+    }
+  });
+});
+
+/**
+ * §60. The 2024 condition rules, against the text they claim to summarise.
+ *
+ * ## Why this is not a diff
+ *
+ * All fourteen conditions differ between the two SRDs, and a diff that reports
+ * fourteen changes is worth nothing: 2024 rewrote the *format* - every one now
+ * opens "While you have the X condition..." with a bolded heading per clause -
+ * so identical rules read as changes. The first attempt at this survey said
+ * "all fourteen changed" and it was true and useless.
+ *
+ * (It was also arrived at wrongly: 2014 returns `desc` as an array, 2024
+ * returns `description` as a string, and reading `desc` on both compared real
+ * text against `undefined`. A false result reached by a broken method, which
+ * happened to agree with the right one. Recorded because it is exactly the
+ * kind of agreement that stops somebody checking.)
+ *
+ * ## What it checks instead
+ *
+ * Each 2024 summary the app writes rests on a specific clause in the 2024 SRD.
+ * This asserts that clause is present in the fixture. If the source changes and
+ * a clause disappears, the summary claiming it fails - which is a question a
+ * prose diff cannot ask and a coverage count cannot either.
+ */
+const conditionFixture = (conditionsFixture as {
+  records: Record<string, { name: string; '2014': string; '2024': string }>;
+}).records;
+
+describe('the 2024 condition rules against SRD 5.2', () => {
+  const has = (text: string, phrase: string) =>
+    text.toLowerCase().replace(/\s+/g, ' ').includes(phrase.toLowerCase());
+
+  /**
+   * The clause each 2024 summary stands on, and nothing more.
+   *
+   * Deliberately short phrases rather than sentences: the point is to fail when
+   * the *rule* leaves the source, not when a comma moves.
+   */
+  const RESTS_ON: Record<string, string[]> = {
+    grappled: ['disadvantage on attack rolls against any target other than the grappler', 'costs it 1 extra foot'],
+    incapacitated: ['bonus action', 'concentration is broken', "can't speak", 'disadvantage on the roll'],
+    invisible: ['advantage on the roll', 'concealed', "can somehow see you, you don't gain this benefit"],
+    paralyzed: ['your speed is 0', 'automatically fail strength and dexterity'],
+    petrified: ['immunity to the poisoned condition', 'your speed is 0'],
+    prone: ['half your speed', "you can't right yourself"],
+    stunned: ['you have the incapacitated condition'],
+    unconscious: ['you remain prone', 'you drop whatever'],
+  };
+
+  it('carries both editions of every condition the app models', () => {
+    const missing = CONDITIONS.filter((c) => !conditionFixture[c.id]).map((c) => c.id);
+    expect(missing, 'no fixture row').toEqual([]);
+    const empty = CONDITIONS.filter(
+      (c) => !conditionFixture[c.id]?.['2014'] || !conditionFixture[c.id]?.['2024'],
+    ).map((c) => c.id);
+    expect(empty, 'a fixture row with a blank edition').toEqual([]);
+  });
+
+  it('backs every 2024 summary with the clause it rests on', () => {
+    const unsupported: string[] = [];
+    for (const [id, phrases] of Object.entries(RESTS_ON)) {
+      const text = conditionFixture[id]?.['2024'] ?? '';
+      for (const phrase of phrases) {
+        if (!has(text, phrase)) unsupported.push(`${id}: SRD 5.2 no longer says "${phrase}"`);
+      }
+    }
+    expect(unsupported).toEqual([]);
+  });
+
+  it('writes a 2024 line for exactly the conditions whose rule changed', () => {
+    /*
+      The absence of a `summaryIn2024` is a claim - "the two editions say the
+      same thing" - and an unchecked claim is how the 2014 text ended up on
+      every 2024 screen. So both directions are asserted against the list
+      above, which is the record of what was read rather than diffed.
+    */
+    const declared = new Set(Object.keys(RESTS_ON));
+    const wrong: string[] = [];
+    for (const condition of CONDITIONS) {
+      const written = condition.summaryIn2024 !== undefined;
+      if (written && !declared.has(condition.id)) {
+        wrong.push(`${condition.id}: has a 2024 line with no clause recorded for it`);
+      }
+      if (!written && declared.has(condition.id)) {
+        wrong.push(`${condition.id}: a clause was recorded but no 2024 line was written`);
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  it('leaves the six unchanged conditions sharing one text', () => {
+    // Named, so that "unchanged" is a decision somebody made rather than a
+    // row nobody got to.
+    for (const id of ['blinded', 'charmed', 'deafened', 'frightened', 'poisoned', 'restrained']) {
+      const condition = CONDITIONS.find((c) => c.id === id)!;
+      expect(condition.summaryIn2024, `${id} was read as unchanged`).toBeUndefined();
+      expect(conditionText(condition, '2024')).toBe(condition.summary);
     }
   });
 });

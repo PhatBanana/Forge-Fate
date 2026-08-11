@@ -16,7 +16,7 @@ import {
   toggleTurnSlot,
 } from '../play';
 import { damageDice } from '../data/weapons';
-import { CONDITIONS, CONDITIONS_BY_ID } from '../data/conditions';
+import { CONDITIONS, CONDITIONS_BY_ID, conditionTextFor } from '../data/conditions';
 import { defaultRng, rollD20 } from '../engine/dice';
 import { useState } from 'react';
 import type { Build } from '../types';
@@ -320,7 +320,7 @@ export function PlayCard({
               key={id}
               type="button"
               className="tag hud-condition"
-              title={`${CONDITIONS_BY_ID[id]?.summary ?? ''} — press to remove`}
+              title={`${conditionTextFor(id, ctx.build.ruleset)} — press to remove`}
               onClick={() => onPlayChange(toggleCondition(play, id))}
             >
               {CONDITIONS_BY_ID[id]?.name ?? id} ×

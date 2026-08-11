@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { TableTab } from './TableTab';
 import { activeEncounter } from '../storage';
 import type { Roster } from '../storage';
+import type { Ruleset } from '../types';
 import { emptyPlay, hpNow } from '../play';
 import { deriveBuild } from '../engine/character';
 import { hitChance } from '../engine/dpr';
@@ -37,11 +38,11 @@ import { DEFAULT_SEED, MAP_SIZES, generateDungeon } from '../engine/dungeon';
  *      a turn began.
  */
 
-function setup(initial: Roster, bestiary: Monster[] = []) {
+function setup(initial: Roster, bestiary: Monster[] = [], ruleset: Ruleset = '2014') {
   const onChange = vi.fn();
   let roster = initial;
 
-  const props = () => ({ roster, onChange, bestiary, ruleset: '2014' });
+  const props = () => ({ roster, onChange, bestiary, ruleset });
   const view = render(<TableTab {...props()} />);
   onChange.mockImplementation((next: Roster) => {
     roster = next;

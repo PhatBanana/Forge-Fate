@@ -73,12 +73,21 @@ checked in the code, not recalled.
   the whole question per edition, and all four consumers read it: the
   sheet's effect list, the movement budget, the advantage engine and the
   attack roll.
-- `[ ]` **2024 condition text.** **S**. Both editions have the same fifteen
-  conditions, and 2024 rewrote several of them - Invisible now grants
-  advantage on Initiative and no longer works the way the 2014 wording says;
-  Prone spells out crawling versus half your Speed to stand. `Condition` has
-  one `summary` and no ruleset dimension, so a 2024 player is reading 2014
-  text on every screen that shows it.
+- `[x]` **2024 condition text** — done in §60. `Condition` gained
+  `summaryIn2024`, and `conditionText(condition, ruleset)` is the only way
+  any screen reads one, so the sheet, the play card and the Table all answer
+  per edition. Eight of the fourteen carry a 2024 line; the six without one
+  are a claim rather than an omission, and `srdAudit.test.ts` checks each
+  written line against the clause in SRD 5.2 it rests on.
+
+  Two things found on the way, both recorded rather than quietly folded in:
+  the fixture diff that says "all fourteen changed" is measuring 2024's new
+  *prose format*, not its rules - read rather than diffed, five rules moved;
+  and `TableTab`'s `rulesetOf` defaulted a monster to `'2014'`, which is the
+  same defect one layer down but **mechanical** - a 2024 table's monsters
+  were running the 2014 exhaustion ladder. Fixed here because leaving a
+  known wrong rule in place to keep a section's scope tidy is not a trade
+  worth making.
 - `[!]` **Lair actions** — *blocked, no licensed data.* No fixture carries
   them; the phrase appears in the SRD only inside other abilities' prose.
   Building it means authoring content this project has no source for. See
