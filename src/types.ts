@@ -68,11 +68,67 @@ export type Loadout =
   | 'ranged'
   | 'none';
 
+/**
+ * What a feature, feat, invocation or item does to your eyes.
+ *
+ * §63. One shape carried by every record that can grant a sense, so
+ * `engine/senses.ts` reads them all the same way and a new source is a line
+ * of data rather than another branch in the resolver. That is the lesson §61
+ * kept relearning: the fact belongs on the record, not in a list at the use
+ * site.
+ *
+ * All ranges are in feet, and the best of every source wins - Goggles of
+ * Night on a dwarf is one darkvision, not two.
+ */
+export interface SightGrant {
+  /** Darkness reads as dim, dim as bright - one step, within this range. */
+  darkvision?: number;
+  /**
+   * Sight that **magical** darkness does not stop, to this range.
+   *
+   * The Warlock's Devil's Sight is the SRD's one example: "you can see
+   * normally in darkness, both magical and nonmagical". Ordinary darkvision
+   * explicitly cannot do this - the Darkness spell says so in as many words -
+   * which is why it is a separate number rather than a bigger one.
+   */
+  magical?: number;
+  /** Blindsight or truesight: light is irrelevant inside this range. */
+  blindsight?: number;
+  /**
+   * This source *extends* darkvision you already have rather than replacing
+   * it - "60 feet, or 60 feet further if you already have it".
+   *
+   * Two SRD records say exactly this, in exactly this shape: Goggles of Night
+   * and the Gloom Stalker's Umbral Sight. Without it the resolver takes the
+   * best single grant and a dwarf in goggles sees 60 feet, which is the one
+   * answer neither reading of the rule gives.
+   *
+   * `darkvision` beside it is what you get with no other source; this is what
+   * is added when there is one. Two extenders do not compound - each says
+   * "from another source", and stacking them is a table ruling rather than a
+   * rule.
+   */
+  extendsBy?: number;
+}
+
 export interface Trait {
   name: string;
   text: string;
   /** Machine-readable hooks used by the race/class matrix. */
   tags?: TraitTag[];
+  /**
+   * The range this sense reaches, in feet.
+   *
+   * §63. Until this existed the battle screen read a darkvision range out of
+   * the trait's *display name* - `feetIn('Darkvision 60 ft.')` - which made a
+   * UI string load-bearing for a rule. Reword a trait and that species goes
+   * blind in the dark with nothing failing; write the 2024 phrasing ("you can
+   * see within 60 feet…") and there is no "ft." token to find at all.
+   *
+   * Only meaningful beside a sense tag. Monsters keep the prose read, because
+   * their upstream stat blocks genuinely are prose - see `engine/senses.ts`.
+   */
+  feet?: number;
 }
 
 export type TraitTag =
@@ -455,6 +511,16 @@ export interface Feat {
   base: number;
   /** Proficiencies this feat hands out, beyond its ability increase. */
   grants?: FeatGrants;
+  /**
+   * What this feat does to your eyes, if anything.
+   *
+   * No SRD feat in either edition grants a sense, so this is empty across the
+   * shipped catalogue - and it exists anyway, because "unless a feat says
+   * otherwise" is the rule magical darkness is written around, and a feat
+   * that says otherwise should be a line of data rather than a new branch in
+   * `engine/senses.ts`. The Forge catalogue can use it today.
+   */
+  sight?: SightGrant;
   rules?: ScoreRule[];
   /**
    * What changes about this feat under 2024, merged over the base record. Many

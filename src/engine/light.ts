@@ -44,10 +44,17 @@ import type { Square } from '../encounter';
  * Nothing here can tell one from the other, so it stays a ruling.
  */
 
-/** The three levels, darkest last, so a comparison is an index. */
-export type LightLevel = 'bright' | 'dim' | 'dark';
+/**
+ * The four levels, darkest last, so a comparison is an index.
+ *
+ * `magical-dark` is the Darkness spell, and it is a genuinely different state
+ * rather than "very dark": nonmagical light cannot illuminate it and
+ * darkvision cannot see through it. Both of those are things the SRD says in
+ * as many words, and neither can be expressed by making a square darker.
+ */
+export type LightLevel = 'bright' | 'dim' | 'dark' | 'magical-dark';
 
-const LADDER: LightLevel[] = ['bright', 'dim', 'dark'];
+const LADDER: LightLevel[] = ['bright', 'dim', 'dark', 'magical-dark'];
 
 /** How dark it is, as a number, so "one step brighter" is subtraction. */
 const rankOfLight = (level: LightLevel): number => LADDER.indexOf(level);
@@ -76,6 +83,19 @@ export interface LightSource {
   bright: number;
   /** Feet of dim light *beyond* the bright radius, as the book states it. */
   dim: number;
+  /**
+   * This source emits **magical darkness** to this radius instead of light.
+   *
+   * The Darkness spell, modelled here rather than as a zone, and the reason
+   * is `carriedBy`: Darkness is routinely cast on an object somebody holds -
+   * a pebble in a pocket, a coin in a fist - and a zone sits at a fixed
+   * square. Putting it in the light model means a carried Darkness moves with
+   * its bearer for free, through the same `placeLights` a torch uses.
+   *
+   * `bright` and `dim` are ignored when this is set; the presets carry zeroes
+   * so nothing has to remember that twice.
+   */
+  darkness?: number;
   /** Snuffed without being deleted: the same lamp, currently out. */
   out?: boolean;
 }
@@ -86,6 +106,8 @@ export const LIGHT_KINDS: {
   label: string;
   bright: number;
   dim: number;
+  /** Set instead of bright/dim for the one entry that darkens. */
+  darkness?: number;
   hint: string;
 }[] = [
   { id: 'candle', label: 'Candle', bright: 5, dim: 5, hint: '5 ft bright, 5 dim — one hour of it' },
@@ -102,6 +124,19 @@ export const LIGHT_KINDS: {
   { id: 'light', label: 'Light (cantrip)', bright: 20, dim: 20, hint: '20 ft bright, 20 dim — an hour, on an object' },
   { id: 'daylight', label: 'Daylight', bright: 60, dim: 60, hint: '60 ft bright, 60 dim — the third-level spell' },
   { id: 'fire', label: 'Campfire', bright: 20, dim: 20, hint: '20 ft bright, 20 dim — scenery that happens to be lit' },
+  /*
+    The one that takes light away. Listed here rather than in the zone palette
+    because it belongs to the light model - see `LightSource.darkness` - and
+    because a table reaches for it in the same breath as a torch.
+  */
+  {
+    id: 'darkness',
+    label: 'Darkness (magical)',
+    bright: 0,
+    dim: 0,
+    darkness: 15,
+    hint: '15 ft sphere — no light reaches inside it and darkvision does not help',
+  },
 ];
 
 /**
@@ -116,12 +151,33 @@ export const LIGHT_KINDS: {
 export function lightAt(sources: LightSource[], at: Square, ambient: LightLevel = 'bright'): LightLevel {
   let level = ambient;
   for (const source of sources) {
-    if (source.out || !source.at) continue;
+    if (source.out || !source.at || source.darkness) continue;
     const feet = distanceBetween(source.at, at);
     // Bright is the top of the ladder, so inside a bright radius the answer
     // is bright no matter what was there before.
     if (feet <= source.bright) level = 'bright';
     else if (feet <= source.bright + source.dim) level = brighter(level, 'dim');
+  }
+  /*
+    Magical darkness last, and unconditionally.
+
+    "A creature with darkvision can't see through this darkness, and
+    nonmagical light can't illuminate it." The second half is why this is a
+    second pass rather than another source in the loop above: a torch inside
+    the sphere would otherwise win on brightness, which is precisely the thing
+    the spell says cannot happen. Held apart, a torch in a Darkness lights
+    nothing at all - which is the rule, and the reason the spell is worth a
+    slot.
+
+    Not modelled: Daylight dispelling a lower-level Darkness. That is a
+    spell-versus-spell interaction with a level comparison this layer has no
+    access to, and it ends with the darkness *gone* - which a DM expresses by
+    removing it, one click, rather than by the app guessing which spell made
+    which sphere.
+  */
+  for (const source of sources) {
+    if (source.out || !source.at || !source.darkness) continue;
+    if (distanceBetween(source.at, at) <= source.darkness) return 'magical-dark';
   }
   return level;
 }
@@ -161,6 +217,16 @@ export interface Eyes {
    * they see through, and this module is about light.
    */
   blindsight?: number;
+  /**
+   * Feet within which **magical** darkness is no obstacle - you see normally
+   * in it, as the Warlock's Devil's Sight puts it.
+   *
+   * Separate from `darkvision` because the two are separate rules and the
+   * Darkness spell exists to say so: ordinary darkvision is explicitly
+   * stopped by it, and this is explicitly not. Making it a larger darkvision
+   * would have made every 120-foot drow see through a Warlock's Darkness.
+   */
+  magicalSight?: number;
 }
 
 /**
@@ -172,7 +238,22 @@ export interface Eyes {
  */
 export function seenAs(eyes: Eyes, at: Square, level: LightLevel): LightLevel {
   const feet = distanceBetween(eyes.at, at);
+  // Blindsight does not care about light at all, magical or otherwise: it is
+  // not sight, and the ladder simply does not apply to it.
   if (eyes.blindsight && feet <= eyes.blindsight) return 'bright';
+  /*
+    Magical darkness, and the one thing that beats it. Devil's Sight sees
+    *normally* - the whole way to bright, not one step - which is what makes
+    the Warlock's Darkness a weapon rather than a wall. Everything else stops
+    here: a creature with 120 feet of darkvision standing in a Darkness sees
+    exactly as much as a creature with none.
+  */
+  if (level === 'magical-dark') {
+    return eyes.magicalSight && feet <= eyes.magicalSight ? 'bright' : 'magical-dark';
+  }
+  // Devil's Sight covers the ordinary dark too, and again it sees normally
+  // rather than one step - so it outruns darkvision inside its range.
+  if (eyes.magicalSight && feet <= eyes.magicalSight) return 'bright';
   if (eyes.darkvision && feet <= eyes.darkvision) return oneBrighter(level);
   return level;
 }
@@ -186,7 +267,8 @@ export function seenAs(eyes: Eyes, at: Square, level: LightLevel): LightLevel {
  * roll Perception at disadvantage, which is `perceptionPenalty` below.
  */
 export function canSeeInto(eyes: Eyes, at: Square, level: LightLevel): boolean {
-  return seenAs(eyes, at, level) !== 'dark';
+  const seen = seenAs(eyes, at, level);
+  return seen !== 'dark' && seen !== 'magical-dark';
 }
 
 /**

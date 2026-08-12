@@ -1,4 +1,4 @@
-import type { Ability, Build } from '../types';
+import type { Ability, Build, SightGrant } from '../types';
 import { ATTUNEMENT_LIMIT, magicItemById } from '../data/magicItems';
 import type { ItemEffect, MagicItem } from '../data/magicItems';
 
@@ -82,6 +82,13 @@ export interface ResolvedItem {
 }
 
 export interface ItemEffects {
+  /**
+   * Sense grants from worn items, unresolved. A list rather than a number
+   * because `engine/senses.ts` owns the resolution - an extending grant needs
+   * to know what the rest of the character already has, which this layer
+   * cannot see.
+   */
+  sight: SightGrant[];
   ac: number;
   saves: number;
   weaponBonus: number;
@@ -114,6 +121,7 @@ export interface ItemEffects {
 
 function emptyEffects(): ItemEffects {
   return {
+    sight: [],
     ac: 0,
     saves: 0,
     weaponBonus: 0,
@@ -187,6 +195,14 @@ export function resolveItems(
 
 function applyEffect(into: ItemEffects, effect: ItemEffect, name: string): void {
   const parts: string[] = [];
+
+  if (effect.sight) {
+    into.sight.push(effect.sight);
+    const { darkvision, magical, blindsight, extendsBy } = effect.sight;
+    if (darkvision) parts.push(extendsBy ? `darkvision +${extendsBy} ft` : `darkvision ${darkvision} ft`);
+    if (magical) parts.push(`sight in magical darkness ${magical} ft`);
+    if (blindsight) parts.push(`blindsight ${blindsight} ft`);
+  }
 
   if (effect.ac) {
     into.ac += effect.ac;

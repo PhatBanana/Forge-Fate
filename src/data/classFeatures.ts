@@ -1,4 +1,4 @@
-import type { Ability, ClassId, Ruleset } from '../types';
+import type { Ability, ClassId, Ruleset, SightGrant } from '../types';
 import { FORGE_CLASS_FEATURES } from './forge/classes';
 
 /**
@@ -57,6 +57,15 @@ export interface ClassFeature {
    * does not.
    */
   unarmored?: { extra: Ability; allowsShield: boolean };
+  /**
+   * What this feature does to your eyes: the subclasses that hand out
+   * darkvision, and any that see through the magical kind.
+   *
+   * On the feature rather than in a list keyed by subclass id, so a feature
+   * that arrives at 6th level starts working at 6th level for free - the
+   * progression is already computed, and the sense rides along with it.
+   */
+  sight?: SightGrant;
 }
 
 /**

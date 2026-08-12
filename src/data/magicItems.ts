@@ -1,4 +1,4 @@
-import type { Ability } from '../types';
+import type { Ability, SightGrant } from '../types';
 import type { ArmorCategory } from './armor';
 
 /**
@@ -70,6 +70,8 @@ export const KIND_ORDER: ItemKind[] = [
 ];
 
 export interface ItemEffect {
+  /** What wearing it does to your eyes: Goggles of Night and its kind. */
+  sight?: SightGrant;
   /** Flat armor class, over and above what your armor gives. */
   ac?: number;
   /** Saving throws, which several protective items grant alongside AC. */
@@ -707,7 +709,7 @@ export const MAGIC_ITEMS: MagicItem[] = [
   m('gloves-of-missile-snaring', 'Gloves of Missile Snaring', 'wondrous', 'uncommon', true, 'Reduce ranged weapon damage by 1d10 + Dexterity, and catch the missile if it drops to nothing.'),
   m('gloves-of-swimming-and-climbing', 'Gloves of Swimming and Climbing', 'wondrous', 'uncommon', true, 'Climbing and swimming cost no extra movement, and +5 on Athletics to do either.'),
   m('gloves-of-thievery', 'Gloves of Thievery', 'wondrous', 'uncommon', false, '+5 on Sleight of Hand and on picking locks.'),
-  m('goggles-of-night', 'Goggles of Night', 'wondrous', 'uncommon', false, 'Darkvision to 60 feet, or 60 feet further if you already have it.'),
+  m('goggles-of-night', 'Goggles of Night', 'wondrous', 'uncommon', false, 'Darkvision to 60 feet, or 60 feet further if you already have it.', { effect: { sight: { darkvision: 60, extendsBy: 60 } } }),
   m('hat-of-disguise', 'Hat of Disguise', 'wondrous', 'uncommon', true, 'Disguise self at will.'),
   m('helm-of-brilliance', 'Helm of Brilliance', 'wondrous', 'very-rare', true, 'Daylight, fireball, prismatic spray and scorching ray, from the gems set in it.'),
   m('helm-of-comprehending-languages', 'Helm of Comprehending Languages', 'wondrous', 'uncommon', false, 'Comprehend languages at will.'),

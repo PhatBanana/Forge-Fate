@@ -123,13 +123,13 @@ import { surprisedAtStart } from '../engine/surprise';
 import {
   LIGHT_KINDS,
   canSeeInto,
-  feetIn,
   lightAt,
   perceptionPenalty,
   placeLights,
   seenAs,
 } from '../engine/light';
 import type { Eyes, LightLevel } from '../engine/light';
+import { sensesFor, sensesForMonster } from '../engine/senses';
 import { Panel } from './shared';
 import { MonsterCard } from './MonsterCard';
 import { PopOut } from './PopOut';
@@ -497,8 +497,18 @@ export function TableTab({
       if (kind) {
         setEncounter(
           appendLog(
-            addLight(encounter, { label: kind.label, at, bright: kind.bright, dim: kind.dim }),
-            `A ${kind.label.toLowerCase()} is lit.`,
+            addLight(encounter, {
+              label: kind.label,
+              at,
+              bright: kind.bright,
+              dim: kind.dim,
+              ...(kind.darkness ? { darkness: kind.darkness } : {}),
+            }),
+            // One entry on that row takes light away rather than giving it,
+            // and "a darkness (magical) is lit" would read as a bug.
+            kind.darkness
+              ? `Magical darkness falls — no light reaches inside it.`
+              : `A ${kind.label.toLowerCase()} is lit.`,
           ),
         );
       }
@@ -973,7 +983,7 @@ export function TableTab({
    */
   const gloom = useMemo(() => {
     if (ambient === 'bright' && !lights.length) return {};
-    const out: Record<string, 'dim' | 'dark'> = {};
+    const out: Record<string, 'dim' | 'dark' | 'magical-dark'> = {};
     for (let y = 0; y < dungeon.height; y++) {
       for (let x = 0; x < dungeon.width; x++) {
         const level = litAt({ x, y });
@@ -987,32 +997,22 @@ export function TableTab({
    * What a creature's eyes are worth: where they are, and what they can see
    * in the dark.
    *
-   * Both sides of the table state the range in prose - a species trait is
-   * "Darkvision 60 ft." and a stat block is `{ darkvision: 60 }` - and both
-   * are read here rather than in the fog, because the fog should not have to
-   * know that characters and monsters keep their senses in different places.
+   * The position is this component's business; everything else is
+   * `engine/senses.ts`, which gathers a character's sight from all five
+   * places it can come from - species, features, invocations, feats and worn
+   * items - and a monster's from the stat block's prose. §63.
+   *
+   * This used to scrape a range out of a species trait's *display name* and
+   * know about nothing else, so a Twilight Cleric, a Gloom Stalker and a
+   * Warlock with Devil's Sight were all as blind as a human.
    */
   const eyesOf = (c: Combatant): Eyes | null => {
     if (!c.at) return null;
     if (c.kind === 'monster') {
-      const monster = byId.get(c.monsterId);
-      const senses = monster?.senses ?? {};
-      const feet = (key: string) => {
-        const value = senses[key];
-        return typeof value === 'number' ? value : typeof value === 'string' ? feetIn(value) : 0;
-      };
-      const blind = Math.max(feet('blindsight'), feet('truesight'));
-      return {
-        at: c.at,
-        ...(feet('darkvision') ? { darkvision: feet('darkvision') } : {}),
-        ...(blind ? { blindsight: blind } : {}),
-      };
+      return { at: c.at, ...sensesForMonster(byId.get(c.monsterId)?.senses) };
     }
-    const traits = derived.get(c.rosterId)?.ctx.race.traits ?? [];
-    const dark = traits
-      .filter((t) => t.tags?.includes('darkvision'))
-      .reduce((most, t) => Math.max(most, feetIn(t.name) || feetIn(t.text)), 0);
-    return { at: c.at, ...(dark ? { darkvision: dark } : {}) };
+    const ctx = derived.get(c.rosterId)?.ctx;
+    return { at: c.at, ...(ctx ? sensesFor(ctx) : {}) };
   };
 
   /*
@@ -4571,8 +4571,14 @@ export function TableTab({
                     carriedBy: selected.id,
                     bright: kind.bright,
                     dim: kind.dim,
+                    // Darkness cast on a held object is the way the spell is
+                    // actually used - a pebble in a fist - and dropping this
+                    // would hand somebody a light with no radius at all.
+                    ...(kind.darkness ? { darkness: kind.darkness } : {}),
                   }),
-                  `${nameOf(selected)} lights a ${kind.label.toLowerCase()}.`,
+                  kind.darkness
+                    ? `${nameOf(selected)} carries the darkness with them.`
+                    : `${nameOf(selected)} lights a ${kind.label.toLowerCase()}.`,
                 ),
               );
             }}
@@ -4593,7 +4599,7 @@ export function TableTab({
                 <b>{light.label}</b>
                 <span className="muted">
                   {' '}
-                  {light.bright}/{light.dim} ft ·{' '}
+                  {light.darkness ? `${light.darkness} ft sphere` : `${light.bright}/${light.dim} ft`} ·{' '}
                   {bearer
                     ? `carried by ${nameOf(bearer)}`
                     : light.at

@@ -19,7 +19,7 @@ const RACES_2014: Race[] = [
     speed: 25,
     asi: { con: 2, wis: 1 },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Dwarven Resilience', text: 'Advantage on saves vs poison, resistance to poison damage.', tags: ['advantage-saves', 'resistance'] },
       { name: 'Dwarven Toughness', text: '+1 max HP per level.', tags: ['extra-hp'] },
       { name: 'Dwarven Combat Training', text: 'Proficient with battleaxe, handaxe, throwing hammer, warhammer.', tags: ['weapon-prof'] },
@@ -37,7 +37,7 @@ const RACES_2014: Race[] = [
     speed: 25,
     asi: { str: 2, con: 2 },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Dwarven Resilience', text: 'Advantage on saves vs poison, resistance to poison damage.', tags: ['advantage-saves', 'resistance'] },
       { name: 'Dwarven Armor Training', text: 'Proficient with light and medium armor.', tags: ['armor-prof'] },
       { name: 'Dwarven Combat Training', text: 'Proficient with battleaxe, handaxe, throwing hammer, warhammer.', tags: ['weapon-prof'] },
@@ -58,7 +58,7 @@ const RACES_2014: Race[] = [
     skillGrants: { fixed: ['perception'] },
     weaponProficiency: { categories: [], specific: ['longsword', 'shortsword', 'shortbow', 'longbow'] },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Fey Ancestry', text: 'Advantage vs charm, immune to magical sleep.', tags: ['advantage-saves'] },
       { name: 'Trance', text: '4-hour meditation instead of 8-hour sleep.', tags: ['no-sleep'] },
       { name: 'Keen Senses', text: 'Perception proficiency.', tags: ['skill-prof'] },
@@ -78,7 +78,7 @@ const RACES_2014: Race[] = [
     skillGrants: { fixed: ['perception'] },
     weaponProficiency: { categories: [], specific: ['longsword', 'shortsword', 'shortbow', 'longbow'] },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Fey Ancestry', text: 'Advantage vs charm, immune to magical sleep.', tags: ['advantage-saves'] },
       { name: 'Trance', text: '4-hour meditation instead of 8-hour sleep.', tags: ['no-sleep'] },
       { name: 'Keen Senses', text: 'Perception proficiency.', tags: ['skill-prof'] },
@@ -98,7 +98,7 @@ const RACES_2014: Race[] = [
     skillGrants: { fixed: ['perception'] },
     weaponProficiency: { categories: [], specific: ['longsword', 'shortsword', 'shortbow', 'longbow'] },
     traits: [
-      { name: 'Superior Darkvision 120 ft.', text: 'Double-range darkvision.', tags: ['darkvision'] },
+      { name: 'Superior Darkvision 120 ft.', text: 'Double-range darkvision.', tags: ['darkvision'], feet: 120 },
       { name: 'Fey Ancestry', text: 'Advantage vs charm, immune to magical sleep.', tags: ['advantage-saves'] },
       { name: 'Trance', text: '4-hour meditation instead of 8-hour sleep.', tags: ['no-sleep'] },
       { name: 'Sunlight Sensitivity', text: 'Disadvantage on attacks and Perception in direct sunlight.' },
@@ -193,7 +193,7 @@ const RACES_2014: Race[] = [
     speed: 25,
     asi: { int: 2, dex: 1 },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Gnome Cunning', text: 'Advantage on INT, WIS and CHA saves vs magic.', tags: ['advantage-saves'] },
       { name: 'Natural Illusionist', text: 'Minor Illusion cantrip, cast with Intelligence.', tags: ['free-spells', 'innate-caster-int'] },
       { name: 'Speak with Small Beasts', text: 'Communicate simple ideas to small animals.' },
@@ -209,7 +209,7 @@ const RACES_2014: Race[] = [
     speed: 25,
     asi: { int: 2, con: 1 },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Gnome Cunning', text: 'Advantage on INT, WIS and CHA saves vs magic.', tags: ['advantage-saves'] },
       { name: "Artificer's Lore", text: 'Double proficiency on History for magic/tech/alchemy items.' },
       { name: 'Tinker', text: "Build tiny clockwork devices with tinker's tools." },
@@ -228,7 +228,7 @@ const RACES_2014: Race[] = [
     bonusSkills: 2,
     skillGrants: { choose: { count: 2 } },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Fey Ancestry', text: 'Advantage vs charm, immune to magical sleep.', tags: ['advantage-saves'] },
       { name: 'Skill Versatility', text: 'Two extra skill proficiencies.', tags: ['skill-prof'] },
     ],
@@ -244,7 +244,7 @@ const RACES_2014: Race[] = [
     asi: { str: 2, con: 1 },
     skillGrants: { fixed: ['intimidation'] },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Relentless Endurance', text: 'Drop to 1 HP instead of 0, once per long rest.', tags: ['survivability'] },
       { name: 'Savage Attacks', text: 'Extra weapon damage die on a melee critical hit.' },
       { name: 'Menacing', text: 'Intimidation proficiency.', tags: ['skill-prof'] },
@@ -260,7 +260,7 @@ const RACES_2014: Race[] = [
     speed: 30,
     asi: { cha: 2, int: 1 },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Hellish Resistance', text: 'Resistance to fire damage.', tags: ['resistance'] },
       { name: 'Infernal Legacy', text: 'Thaumaturgy; Hellish Rebuke at 3rd; Darkness at 5th, cast with Charisma.', tags: ['free-spells', 'innate-caster-cha'] },
     ],
@@ -276,7 +276,7 @@ const RACES_2014: Race[] = [
     speed: 30,
     asi: { cha: 2, wis: 1 },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Celestial Resistance', text: 'Resistance to necrotic and radiant damage.', tags: ['resistance'] },
       { name: 'Healing Hands', text: 'Heal a creature for your level, once per long rest.' },
       { name: 'Light Bearer', text: 'Light cantrip, cast with Charisma.', tags: ['free-spells'] },
@@ -293,7 +293,7 @@ const RACES_2014: Race[] = [
     speed: 30,
     asi: { cha: 2, con: 1 },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Celestial Resistance', text: 'Resistance to necrotic and radiant damage.', tags: ['resistance'] },
       { name: 'Healing Hands', text: 'Heal a creature for your level, once per long rest.' },
       { name: 'Radiant Consumption', text: 'From 3rd: radiant aura damaging you and everything nearby.' },
@@ -343,7 +343,7 @@ const RACES_2014: Race[] = [
     asi: { dex: 2, cha: 1 },
     skillGrants: { fixed: ['perception', 'stealth'] },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: "Feline Agility", text: 'Double your speed for a turn; recharge by not moving for a turn.', tags: ['mobility'] },
       { name: 'Cat’s Claws', text: '20 ft. climb speed, 1d4 unarmed strikes.', tags: ['natural-weapon'] },
       { name: "Cat's Talent", text: 'Perception and Stealth proficiency.', tags: ['skill-prof', 'stealth'] },
@@ -392,7 +392,7 @@ const RACES_2014: Race[] = [
     speed: 30,
     asi: { str: 1, con: 1, cha: 1 },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Control Air and Water', text: 'Fog Cloud at 1st, Gust of Wind at 3rd, Wall of Water at 5th, cast with Charisma.', tags: ['free-spells', 'innate-caster-cha'] },
       { name: 'Emissary of the Sea', text: 'Communicate with water-breathing creatures.' },
       { name: 'Guardians of the Depths', text: 'Cold resistance, adapted to deep water.', tags: ['resistance', 'swim'] },
@@ -408,7 +408,7 @@ const RACES_2014: Race[] = [
     speed: 30,
     asi: { dex: 2, con: 1 },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Fury of the Small', text: 'Extra damage equal to your level against a larger creature, once per short rest.' },
       { name: 'Nimble Escape', text: 'Disengage or Hide as a bonus action, every turn.', tags: ['mobility', 'stealth', 'action-economy'] },
       { name: 'Fey Ancestry', text: 'Advantage vs charm, immune to magical sleep.', tags: ['advantage-saves'] },
@@ -424,7 +424,7 @@ const RACES_2014: Race[] = [
     asi: { con: 2, int: 1 },
     weaponProficiency: { categories: ['martial'] },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Saving Face', text: 'Add +1 per ally within 30 ft. (max +5) to a missed roll, once per short rest.' },
       { name: 'Martial Training', text: 'Two martial weapons and light armor.', tags: ['weapon-prof', 'light-armor-prof'] },
       { name: 'Fey Ancestry', text: 'Advantage vs charm, immune to magical sleep.', tags: ['advantage-saves'] },
@@ -441,7 +441,7 @@ const RACES_2014: Race[] = [
     asi: { str: 2, dex: 1 },
     skillGrants: { fixed: ['stealth'] },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Long-Limbed', text: '+5 ft. reach on melee attacks on your turn.', tags: ['reach'] },
       { name: 'Surprise Attack', text: '+2d6 damage on your first hit against a surprised creature.' },
       { name: 'Powerful Build', text: 'Count as one size larger for carrying and lifting.', tags: ['carry-capacity'] },
@@ -457,7 +457,7 @@ const RACES_2014: Race[] = [
     speed: 30,
     asi: { dex: 2 },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Pack Tactics', text: 'Advantage on attacks when an ally is within 5 ft. of the target.', tags: ['extra-attack-ish'] },
       { name: 'Sunlight Sensitivity', text: 'Disadvantage on attacks and Perception in direct sunlight.' },
       { name: 'Grovel, Cower and Beg', text: 'Give allies advantage against nearby enemies, once per short rest.' },
@@ -473,7 +473,7 @@ const RACES_2014: Race[] = [
     speed: 30,
     asi: { str: 2, con: 1 },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Adrenaline Rush', text: 'Bonus action Dash plus temp HP, proficiency bonus times per long rest.', tags: ['mobility'] },
       { name: 'Relentless Endurance', text: 'Drop to 1 HP instead of 0, once per long rest.' },
       { name: 'Powerful Build', text: 'Count as one size larger for carrying and lifting.', tags: ['carry-capacity'] },
@@ -489,7 +489,7 @@ const RACES_2014: Race[] = [
     speed: 30,
     asi: { cha: 2, int: 1 },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Magic Resistance', text: 'Advantage on all saving throws against spells and magical effects.', tags: ['advantage-saves'] },
       { name: 'Poison Immunity', text: 'Immune to poison damage and the poisoned condition.', tags: ['resistance'] },
       { name: 'Innate Spellcasting', text: 'Poison Spray; Animal Friendship at will; Suggestion once per long rest.', tags: ['free-spells', 'innate-caster-cha'] },
@@ -534,7 +534,7 @@ const RACES_2014: Race[] = [
     speed: 30,
     asi: { con: 2, int: 1 },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Fire Resistance', text: 'Resistance to fire damage.', tags: ['resistance'] },
       { name: 'Reach to the Blaze', text: 'Produce Flame; Burning Hands at 3rd, cast with Intelligence.', tags: ['free-spells', 'innate-caster-int'] },
     ],
@@ -662,7 +662,7 @@ const RACES_2014: Race[] = [
     skillGrants: { fixed: ['stealth'] },
     traits: [
       { name: 'Flight', text: '30 ft. flying speed while not wearing heavy armor.', tags: ['flight'] },
-      { name: 'Superior Darkvision 120 ft.', text: 'Double-range darkvision.', tags: ['darkvision'] },
+      { name: 'Superior Darkvision 120 ft.', text: 'Double-range darkvision.', tags: ['darkvision'], feet: 120 },
       { name: 'Silent Feathers', text: 'Stealth proficiency.', tags: ['skill-prof', 'stealth'] },
     ],
     note: 'Flying, floating ASIs, 120 ft. darkvision and free Stealth. The best generic ranged-attacker lineage if flight is allowed.',
@@ -679,7 +679,16 @@ const RACES_2014: Race[] = [
     bonusFeat: true,
     traits: [
       { name: 'Feat', text: 'One feat of your choice at 1st level.', tags: ['bonus-feat'] },
-      { name: 'Variable Trait', text: 'Darkvision 60 ft. or proficiency bonus to initiative.', tags: ['darkvision'] },
+      /*
+        A choice, recorded as the darkvision half. This lineage picks either
+        60 ft of darkvision *or* its proficiency bonus to initiative, and the
+        build model has nowhere to store which - so the battle screen assumes
+        the darkvision, exactly as it did when the range was scraped out of
+        this same sentence. Written down here rather than left as an accident
+        of parsing: a DM whose player took the initiative half turns the
+        darkvision off on the token.
+      */
+      { name: 'Variable Trait', text: 'Darkvision 60 ft. or proficiency bonus to initiative.', tags: ['darkvision'], feet: 60 },
     ],
     note: 'A clean +2 to any stat plus a level 1 feat. The strictly-optimal choice when the DM allows Tasha\'s and you want a specific feat online at level 1.',
   },
@@ -706,7 +715,7 @@ const RACES_2014: Race[] = [
     asi: {},
     flexibleAsi: { amounts: [2, 1] },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Spider Climb', text: 'Climb speed equal to walking speed; climb sheer surfaces from level 3.', tags: ['mobility'] },
       { name: 'Vampiric Bite', text: 'Unarmed bite that heals you and grants a bonus once per long rest.', tags: ['natural-weapon'] },
       { name: 'Deathless Nature', text: 'No need to breathe.' },

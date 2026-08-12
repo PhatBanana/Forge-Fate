@@ -59,9 +59,9 @@ below is empty or every line on it is a recorded decision.
 them: the action economy; movement as a spent budget with difficult ground
 and opportunity attacks; advantage/disadvantage as one non-stacking rule;
 cover at both degrees; grapple, shove and trip with the escape and the
-drag; light, darkness and darkvision; surprise; the fifteen conditions,
-with the six that stop movement actually stopping it; concentration checks
-with real DCs; death saves; damage through resistances; areas of effect
+drag; light, darkness, darkvision and the magical darkness it cannot beat;
+surprise; the fifteen conditions, with the six that stop movement actually
+stopping it; concentration checks with real DCs; death saves; damage through resistances; areas of effect
 that bite; reactions; stealth, fog and activation; elevation, falling and
 high ground; rests, hit dice and every class resource.
 
@@ -88,6 +88,30 @@ checked in the code, not recalled.
   were running the 2014 exhaustion ladder. Fixed here because leaving a
   known wrong rule in place to keep a section's scope tidy is not a trade
   worth making.
+- `[x]` **Darkvision, wired from every source** — done in §63. It had one
+  source (a species trait) and read the range out of that trait's *display
+  name*, which §61 flagged and could only afford to pin. Now every record
+  that grants a sense carries a `SightGrant` - species, class and subclass
+  features, invocations, feats and worn items - and `engine/senses.ts`
+  resolves them, including the "60 feet, or 60 further if you already have
+  it" rule that Goggles of Night and Umbral Sight both use and that a
+  best-wins resolver gets wrong in both directions.
+
+  **Magical darkness** came with it: a fourth light level that nonmagical
+  light cannot lift and darkvision cannot see through, placeable on the map
+  and carried on a held object the way the spell is actually cast. Devil's
+  Sight is the one thing that beats it, and it beats it *generically* - the
+  engine reads a field, so a feat that says otherwise is a line of data.
+
+  Four things recorded rather than guessed, each an absence that is a claim:
+  three of the seven subclass features mentioning darkvision actually grant
+  it (the rest cast it for ki, summon it, or offer it as one option of
+  several); a monster's devil's sight has no structured home on a stat block
+  and stays the DM's ruling; the 2024 lineage whose trait is "darkvision *or*
+  initiative" is recorded as the darkvision half because the build model has
+  nowhere to store the choice; and Daylight dispelling a lower-level Darkness
+  is a spell-versus-spell interaction the light layer cannot see, so it is
+  one click for the DM instead.
 - `[!]` **Lair actions** — *blocked, no licensed data.* No fixture carries
   them; the phrase appears in the SRD only inside other abilities' prose.
   Building it means authoring content this project has no source for. See

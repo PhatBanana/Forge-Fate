@@ -380,6 +380,7 @@ describe('an increase with a ceiling', () => {
       ammunitionBonus: 0,
       noStealthDisadvantage: false,
       noStrengthRequirement: false,
+      sight: [],
       lines: [],
     } satisfies ItemEffects;
     expect(applySetAbilities({ str: 10, dex: 10, con: 10, int: 19, wis: 10, cha: 10 }, effects).int).toBe(20);

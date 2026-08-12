@@ -113,7 +113,7 @@ export function IsoMap({
   fog?: { visible: Set<string>; explored: Set<string> } | null;
   /** How dark each square is, by key - only the ones that are not bright.
       Drawn as tinted top faces, the same shape the fog uses. */
-  gloom?: Record<string, 'dim' | 'dark'>;
+  gloom?: Record<string, 'dim' | 'dark' | 'magical-dark'>;
   onMove?: (id: string, to: Square) => void;
   onPaint?: (at: Square) => void;
   onHover?: (at: Square | null) => void;

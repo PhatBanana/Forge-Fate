@@ -6408,6 +6408,21 @@ dl.detail-list {
   opacity: 0.28;
 }
 
+/*
+  Magical darkness, §63. Read apart from the ordinary dark at a glance,
+  because the two play completely differently: a dwarf walks through one and
+  is blind in the other, and a DM who cannot tell which square is which is
+  back to ruling it from memory.
+
+  Darker than dark and faintly violet - the colour does the telling, the
+  opacity does the "nothing gets in". Both cameras pick this up from the one
+  rule: `DungeonMap` and `IsoMap` both write `dmap-gloom is-{level}`.
+*/
+.dmap-gloom.is-magical-dark {
+  fill: #14061f;
+  opacity: 0.86;
+}
+
 @media print {
   /* The printed map is the DM's copy; the fog is a screen thing. */
   .dmap-fog {

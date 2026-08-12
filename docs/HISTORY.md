@@ -4497,3 +4497,91 @@ absent and the SRD's own coin option still offered. The control got its own
 `.start-coin` rather than borrowing `.row` — whose `> *` rule stretches a
 three-digit field across the panel — and `.hud-rounds`, which belongs to the
 battle HUD.
+
+## 63. Darkvision, wired from everywhere — and the dark it cannot beat
+
+*"work on getting Darkvision 100% wired up. Also ensure that magical darkness
+is respected unless a feat states otherwise."*
+
+The audit came first, and it split the ask cleanly: everything *downstream*
+of darkvision was already sound — the fog, the spotting checks and the attack
+odds all consult one pair of eyes and one light level — and everything
+*upstream* was wrong. Darkvision had exactly one source and read its range
+out of a display string; magical darkness did not exist in the model at all.
+
+**The scrape, and what it was hiding.** §61's review flagged this line as the
+same defect the damage model had when it matched the string "Action Surge":
+
+```ts
+traits.filter((t) => t.tags?.includes('darkvision'))
+      .reduce((most, t) => Math.max(most, feetIn(t.name) || feetIn(t.text)), 0)
+```
+
+That is fragile — reword a trait and the species goes blind, silently. But
+the bigger problem was that it was the *only* source. A Twilight Cleric with
+300 feet of Eyes of Night, a Shadow Sorcerer with 120, a Gloom Stalker, a
+character wearing Goggles of Night, and a Warlock with Devil's Sight were all
+as blind in a dark corridor as a human.
+
+**The fix is one shape carried by five kinds of record.** `SightGrant` sits
+on species traits, class and subclass features, invocations, feats and worn
+item effects; `engine/senses.ts` gathers and resolves them. A new source is a
+line of data rather than a branch — §61's lesson, applied before the fact
+instead of after.
+
+The resolution has one real subtlety, and it is worth the field it cost.
+Goggles of Night and Umbral Sight both say *"60 feet, or N feet further if
+you already have it"*, which a best-wins resolver gets wrong in both
+directions: a human Gloom Stalker should get 60 and a drow one 150. So
+`extendsBy` exists, and two extending grants deliberately do not compound —
+each says "from another source", and reading that as "from each other" is a
+table ruling.
+
+**What the data does *not* claim.** Seven features in the file mention
+darkvision and only three grant it: Shadow Arts *casts* the spell for ki,
+Visage of the Astral Self lasts only while summoned, and The Third Eye and
+Transmuter's Stone each offer it as one option among several that the build
+model does not record. Tagging all seven would have handed a Monk a permanent
+sense they have to pay for. The four absences are a claim, in the same way a
+missing `summaryIn2024` is, and the tests pin two of them — verified
+non-vacuous by printing the features, since a test asserting *absence* passes
+just as happily against a typo'd subclass id.
+
+**Magical darkness is a fourth light level, not a darker third.** Two
+sentences of the spell make that necessary: "a creature with darkvision can't
+see through this darkness, and nonmagical light can't illuminate it." The
+second is why `lightAt` runs darkness as a *second pass* — a torch inside the
+sphere would otherwise win on brightness, which is precisely what the spell
+forbids. Held apart, a torch in a Darkness lights nothing, which is the rule
+and the reason the spell is worth a slot.
+
+Modelled as a light source rather than a zone, and the reason is `carriedBy`:
+Darkness is routinely cast on a held object, and a zone sits at a fixed
+square. In the light model a carried Darkness walks with its bearer through
+the same `placeLights` a torch uses — the payoff that made the placement
+choice more than a preference.
+
+**"Unless a feat states otherwise" is generic.** `Eyes.magicalSight` is a
+range, fed by any record carrying `sight.magical`. Devil's Sight is the SRD's
+only example and it is an invocation rather than a feat — but `Feat` carries
+the field regardless, because the rule the ask names is "something says
+otherwise", and when something does it should be data.
+
+**Recorded rather than guessed**, each stated where it is decided: a
+monster's devil's sight has no structured home on a stat block and stays the
+DM's ruling; the 2024 lineage whose trait is "darkvision *or* initiative" is
+recorded as the darkvision half, since the build model has nowhere to store
+the choice; and Daylight dispelling a lower-level Darkness is a
+spell-versus-spell interaction this layer cannot see, so it stays one click.
+
+**Two mistakes the gates caught.** The first sweep gave structured ranges to
+24 traits and missed twelve — the entire 2024 species file is a separate
+module, and the new test fired on exactly that. And giving Goggles of Night a
+computed effect moved a README count from 88 to 89, which `readmeCounts`
+caught; the count is now right.
+
+**Gates.** 1976 tests / 91 files, tsc, oxlint, build in budget. `run63.mjs`
+at 1360 in both themes places the sphere and counts `.dmap-gloom` elements by
+class — 49 squares, which is a 7×7 block and exactly a 15-foot Chebyshev
+radius — proves it draws as magical rather than ordinary dark, then drops a
+torch inside it and asserts the count does not move.

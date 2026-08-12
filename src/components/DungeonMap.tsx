@@ -216,7 +216,7 @@ export function DungeonMap({
    * and the gloom is what is *there*, so an unexplored square reads as
    * unexplored rather than as unlit. Both layers ignore the pointer.
    */
-  gloom?: Record<string, 'dim' | 'dark'>;
+  gloom?: Record<string, 'dim' | 'dark' | 'magical-dark'>;
   onMove?: (id: string, to: Square) => void;
   /**
    * Present while a terrain brush is selected. Clicking or dragging across

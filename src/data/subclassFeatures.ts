@@ -1,4 +1,5 @@
 import type { ClassFeature } from './classFeatures';
+import type { SightGrant } from '../types';
 import { FORGE_SUBCLASS_FEATURES } from './forge/subclasses';
 import { FORGE_CLASS_SUBCLASS_FEATURES } from './forge/classSubclasses';
 
@@ -22,9 +23,29 @@ import { FORGE_CLASS_SUBCLASS_FEATURES } from './forge/classSubclasses';
  */
 
 /** Terse constructor: a level, a name and a line. */
-function f(level: number, name: string, summary: string): ClassFeature {
-  return { level, name, summary };
+function f(level: number, name: string, summary: string, sight?: SightGrant): ClassFeature {
+  return sight ? { level, name, summary, sight } : { level, name, summary };
 }
+
+/*
+  ## §63: which of these actually grant darkvision
+
+  Seven features in this file mention darkvision and only three *have* it.
+  The rest are one of three other things, and tagging them all would have
+  handed a Monk permanent darkvision they have to spend ki on:
+
+  - **Shadow Arts** (Shadow Monk) casts the *darkvision spell* for ki. A
+    resource spent, not a sense owned.
+  - **Visage of the Astral Self** (Astral Self Monk) grants it only while the
+    visage is summoned - a duration this build model has nowhere to put.
+  - **The Third Eye** (Divination Wizard) and **Transmuter's Stone**
+    (Transmutation Wizard) each offer it as *one of several* options chosen
+    after a rest, and the build model does not record which was taken.
+
+  The three that are unconditional carry `sight` below. The four that are not
+  carry nothing, and **that absence is the claim** - the same way a missing
+  `summaryIn2024` means the rule did not change.
+*/
 
 export const SUBCLASS_FEATURES: Record<string, ClassFeature[]> = {
   /*
@@ -260,7 +281,7 @@ export const SUBCLASS_FEATURES: Record<string, ClassFeature[]> = {
   ],
   twilight: [
     f(1, 'Bonus Proficiencies', 'Martial weapons and heavy armor.'),
-    f(1, 'Eyes of Night', 'Darkvision to 300 feet, and you can share it.'),
+    f(1, 'Eyes of Night', 'Darkvision to 300 feet, and you can share it.', { darkvision: 300 }),
     f(1, 'Vigilant Blessing', 'Give a creature advantage on its next initiative roll.'),
     f(2, 'Channel Divinity: Twilight Sanctuary', 'An aura granting temporary hit points or ending charm and fear each turn.'),
     f(6, 'Steps of Night', 'A flying speed in dim light or darkness.'),
@@ -534,7 +555,7 @@ export const SUBCLASS_FEATURES: Record<string, ClassFeature[]> = {
   ],
   'gloom-stalker': [
     f(3, 'Dread Ambusher', 'Bonus initiative, an extra attack and extra damage on your first turn.'),
-    f(3, 'Umbral Sight', 'Darkvision, and you are invisible to anything relying on it.'),
+    f(3, 'Umbral Sight', 'Darkvision, and you are invisible to anything relying on it.', { darkvision: 60, extendsBy: 30 }),
     f(7, 'Iron Mind', 'Wisdom saves, or Intelligence or Charisma.'),
     f(11, 'Stalker’s Flurry', 'Reroll a miss once a turn.'),
     f(15, 'Shadowy Dodge', 'Impose disadvantage on an attack as a reaction.'),
@@ -670,7 +691,7 @@ export const SUBCLASS_FEATURES: Record<string, ClassFeature[]> = {
     f(18, 'Unearthly Recovery', 'Heal half your maximum when you drop below it.'),
   ],
   'shadow-magic': [
-    f(1, 'Eyes of the Dark', 'Darkvision to 120 feet, and darkness as a sorcerer spell.'),
+    f(1, 'Eyes of the Dark', 'Darkvision to 120 feet, and darkness as a sorcerer spell.', { darkvision: 120 }),
     f(1, 'Strength of the Grave', 'Stay at 1 hit point on a Charisma save when you drop.'),
     f(6, 'Hound of Ill Omen', 'A dire wolf of shadow that hounds one creature.'),
     f(14, 'Shadow Walk', 'Teleport 120 feet in dim light or darkness.'),

@@ -3687,6 +3687,57 @@ describe('light and darkness', () => {
     expect(dimSquares()).toBeGreaterThan(0);
   });
 
+  /*
+    §63. Magical darkness on the map, which is a different square from the
+    ordinary dark and has to draw as one - a DM who cannot tell them apart is
+    back to ruling darkvision from memory.
+  */
+  const magicalSquares = () => document.querySelectorAll('.dmap-gloom.is-magical-dark').length;
+
+  it('draws magical darkness apart from the ordinary kind', async () => {
+    const user = userEvent.setup();
+    const { view } = await field(user);
+    // Deliberately NOT dark: on a bright map the only dark squares can be the
+    // ones the spell made, so the count is the claim.
+    expect(magicalSquares()).toBe(0);
+
+    await user.click(screen.getByRole('button', { name: /darkness \(magical\)/i }));
+    boxMap();
+    fireEvent.pointerDown(mapEl(), { clientX: 20.5 * 10, clientY: 20.5 * 10 });
+
+    expect(magicalSquares()).toBeGreaterThan(0);
+    expect(view.encounter.lights?.[0].darkness).toBe(15);
+    expect((view.encounter.log ?? [])[0].text).toMatch(/magical darkness falls/i);
+  });
+
+  it('is not lit by a torch standing inside it', async () => {
+    const user = userEvent.setup();
+    await field(user);
+    await user.click(screen.getByRole('button', { name: /darkness \(magical\)/i }));
+    boxMap();
+    fireEvent.pointerDown(mapEl(), { clientX: 20.5 * 10, clientY: 20.5 * 10 });
+    const dark = magicalSquares();
+
+    // The same square, now with a torch on it. "Nonmagical light can't
+    // illuminate it" - so the count must not move.
+    await user.click(screen.getByRole('button', { name: 'Torch' }));
+    fireEvent.pointerDown(mapEl(), { clientX: 20.5 * 10, clientY: 20.5 * 10 });
+    expect(magicalSquares()).toBe(dark);
+  });
+
+  it('walks with whoever is carrying it, the way the spell is actually cast', async () => {
+    const user = userEvent.setup();
+    const { view } = await field(user);
+    await user.click(screen.getByRole('button', { name: /darkness \(magical\)/i }));
+    await user.click(screen.getByRole('button', { name: /^Give it to/ }));
+
+    // The radius has to survive being handed over: a carried Darkness that
+    // lost it would be a light with no radius at all, drawing nothing.
+    expect(view.encounter.lights?.[0].darkness).toBe(15);
+    expect(view.encounter.lights?.[0].at).toBeUndefined();
+    expect(magicalSquares()).toBeGreaterThan(0);
+  });
+
   it('reaches the dice: swinging at what you cannot see', async () => {
     const user = userEvent.setup();
     const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });

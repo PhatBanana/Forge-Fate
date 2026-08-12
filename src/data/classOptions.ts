@@ -1,4 +1,4 @@
-import type { CastingType, ClassId, Condition, Loadout, Ruleset, ScoreRule, WeaponStyle } from '../types';
+import type { CastingType, ClassId, Condition, Loadout, Ruleset, ScoreRule, SightGrant, WeaponStyle } from '../types';
 import type { ClassOptionKind } from './classFeatures';
 import type { Source } from './sources';
 import { FEATS } from './feats';
@@ -46,6 +46,12 @@ export interface ClassOption {
   /** Baseline power, 0-10, before build-specific adjustments. */
   base: number;
   rules?: ScoreRule[];
+  /**
+   * What taking this option does to your eyes. Devil's Sight is the SRD's
+   * only one, and it is the reason magical darkness needs a second number:
+   * ordinary darkvision is explicitly stopped by it, and this is not.
+   */
+  sight?: SightGrant;
 }
 
 export const CLASS_OPTIONS: ClassOption[] = [
@@ -207,6 +213,14 @@ export const CLASS_OPTIONS: ClassOption[] = [
     source: 'PHB',
     summary: 'See normally in magical and non-magical darkness out to 120 feet.',
     base: 8,
+    /*
+      Both halves, and they are different rules. `darkvision` is the ordinary
+      kind, which the Darkness spell stops; `magical` is the part that makes
+      this invocation the one build in the game that fights inside its own
+      Darkness. Same range, two fields, because a reader of `senses.ts` should
+      not have to know that 120 happens to serve twice.
+    */
+    sight: { darkvision: 120, magical: 120 },
     rules: [
       { when: casting('pact', 'full'), delta: 2, why: 'Paired with Darkness this is advantage on every attack and disadvantage on theirs.' },
     ],

@@ -18,7 +18,7 @@ export const SPECIES_2024: Race[] = [
     speed: 30,
     asi: {},
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Celestial Resistance', text: 'Resistance to necrotic and radiant damage.', tags: ['resistance'] },
       { name: 'Healing Hands', text: 'Heal a creature for d4s equal to your proficiency bonus, once per long rest.' },
       { name: 'Light Bearer', text: 'You know the Light cantrip, cast with Charisma.', tags: ['free-spells', 'innate-caster-cha'] },
@@ -35,7 +35,7 @@ export const SPECIES_2024: Race[] = [
     speed: 30,
     asi: {},
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Breath Weapon', text: 'Replace one attack with a cone or line, scaling to 4d10, proficiency bonus times per long rest.', tags: ['breath-weapon'] },
       { name: 'Damage Resistance', text: 'Resistance to your ancestry damage type.', tags: ['resistance'] },
       { name: 'Draconic Flight', text: 'From 5th level, sprout wings for a minute once per long rest.', tags: ['flight'] },
@@ -51,7 +51,7 @@ export const SPECIES_2024: Race[] = [
     speed: 30,
     asi: {},
     traits: [
-      { name: 'Darkvision 120 ft.', text: 'Double-range darkvision.', tags: ['darkvision'] },
+      { name: 'Darkvision 120 ft.', text: 'Double-range darkvision.', tags: ['darkvision'], feet: 120 },
       { name: 'Dwarven Resilience', text: 'Resistance to poison damage, advantage on saves against poison.', tags: ['resistance', 'advantage-saves'] },
       { name: 'Dwarven Toughness', text: '+1 max HP per level.', tags: ['extra-hp'] },
       { name: 'Stonecunning', text: 'Bonus action tremorsense 60 ft. for 10 minutes, proficiency bonus times per long rest.' },
@@ -69,7 +69,7 @@ export const SPECIES_2024: Race[] = [
     asi: {},
     skillGrants: { choose: { count: 1, from: ['insight', 'perception', 'survival'] } },
     traits: [
-      { name: 'Darkvision 120 ft.', text: 'Double-range darkvision, and no sunlight sensitivity.', tags: ['darkvision'] },
+      { name: 'Darkvision 120 ft.', text: 'Double-range darkvision, and no sunlight sensitivity.', tags: ['darkvision'], feet: 120 },
       { name: 'Fey Ancestry', text: 'Advantage on saves against being charmed.', tags: ['advantage-saves'] },
       { name: 'Keen Senses', text: 'Insight, Perception or Survival proficiency.', tags: ['skill-prof'] },
       { name: 'Trance', text: 'Finish a long rest in 4 hours.', tags: ['no-sleep'] },
@@ -88,7 +88,7 @@ export const SPECIES_2024: Race[] = [
     asi: {},
     skillGrants: { choose: { count: 1, from: ['insight', 'perception', 'survival'] } },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Fey Ancestry', text: 'Advantage on saves against being charmed.', tags: ['advantage-saves'] },
       { name: 'Keen Senses', text: 'Insight, Perception or Survival proficiency.', tags: ['skill-prof'] },
       { name: 'Trance', text: 'Finish a long rest in 4 hours.', tags: ['no-sleep'] },
@@ -107,7 +107,7 @@ export const SPECIES_2024: Race[] = [
     asi: {},
     skillGrants: { choose: { count: 1, from: ['insight', 'perception', 'survival'] } },
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Fey Ancestry', text: 'Advantage on saves against being charmed.', tags: ['advantage-saves'] },
       { name: 'Keen Senses', text: 'Insight, Perception or Survival proficiency.', tags: ['skill-prof'] },
       { name: 'Trance', text: 'Finish a long rest in 4 hours.', tags: ['no-sleep'] },
@@ -126,7 +126,7 @@ export const SPECIES_2024: Race[] = [
     speed: 30,
     asi: {},
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Gnomish Cunning', text: 'Advantage on Intelligence, Wisdom and Charisma saving throws.', tags: ['advantage-saves'] },
       { name: 'Forest Gnome Magic', text: 'Minor Illusion; Speak with Animals free proficiency-bonus times per long rest.', tags: ['free-spells'] },
     ],
@@ -142,7 +142,7 @@ export const SPECIES_2024: Race[] = [
     speed: 30,
     asi: {},
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Gnomish Cunning', text: 'Advantage on Intelligence, Wisdom and Charisma saving throws.', tags: ['advantage-saves'] },
       { name: 'Tinker', text: 'Tinker\'s tools proficiency, and build small clockwork devices.' },
       { name: 'Rock Gnome Magic', text: 'Prestidigitation, and Mending as a ritual.', tags: ['free-spells'] },
@@ -208,7 +208,7 @@ export const SPECIES_2024: Race[] = [
     asi: {},
     traits: [
       { name: 'Adrenaline Rush', text: 'Bonus action Dash plus temporary HP, proficiency bonus times per long rest, recovering on a short rest.', tags: ['mobility', 'action-economy'] },
-      { name: 'Darkvision 120 ft.', text: 'Double-range darkvision.', tags: ['darkvision'] },
+      { name: 'Darkvision 120 ft.', text: 'Double-range darkvision.', tags: ['darkvision'], feet: 120 },
       { name: 'Relentless Endurance', text: 'Drop to 1 HP instead of 0, once per long rest.', tags: ['survivability'] },
     ],
     note: 'Adrenaline Rush now recharges on a short rest, so the temporary hit points come back every fight. 120 ft. darkvision on top.',
@@ -223,7 +223,7 @@ export const SPECIES_2024: Race[] = [
     speed: 30,
     asi: {},
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Otherworldly Presence', text: 'Thaumaturgy, cast with your choice of Intelligence, Wisdom or Charisma.', tags: ['free-spells'] },
       { name: 'Abyssal Legacy', text: 'Poison resistance; Poison Spray; Ray of Sickness at 3rd; Hold Person at 5th.', tags: ['resistance', 'free-spells'] },
     ],
@@ -239,7 +239,7 @@ export const SPECIES_2024: Race[] = [
     speed: 30,
     asi: {},
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Otherworldly Presence', text: 'Thaumaturgy, cast with your choice of Intelligence, Wisdom or Charisma.', tags: ['free-spells'] },
       { name: 'Chthonic Legacy', text: 'Necrotic resistance; Chill Touch; False Life at 3rd; Ray of Enfeeblement at 5th.', tags: ['resistance', 'free-spells'] },
     ],
@@ -255,7 +255,7 @@ export const SPECIES_2024: Race[] = [
     speed: 30,
     asi: {},
     traits: [
-      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'] },
+      { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: 'Otherworldly Presence', text: 'Thaumaturgy, cast with your choice of Intelligence, Wisdom or Charisma.', tags: ['free-spells'] },
       { name: 'Infernal Legacy', text: 'Fire resistance; Fire Bolt; Hellish Rebuke at 3rd; Darkness at 5th.', tags: ['resistance', 'free-spells'] },
     ],
