@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { Monster } from '../data/monsters';
-import type { ClassId, Ruleset } from '../types';
-import { exhaustionEffect } from '../engine/exhaustion';
+import type { Ruleset } from '../types';
+import { exhaustionEffect, speedAfterExhaustion } from '../engine/exhaustion';
 import { formatCr, legendaryCost, monsterMod, monsterSummary, parseUsage, searchMonsters } from '../data/monsters';
 import { isCustom, mergeBestiary } from '../bestiary';
 import { useMonsters } from './useMonsters';
@@ -91,7 +91,6 @@ import {
   mayAttack,
   oddsFor,
   speedUnderConditions,
-  speedUnderExhaustion,
 } from '../engine/advantage';
 import { ammunitionCarried } from '../engine/inventory';
 import { heldResources, restoredKeys } from '../engine/resources';
@@ -1095,15 +1094,15 @@ export function TableTab({
           if (level === 'dark') return null;
           return info.ctx.proficiencies.passivePerception + perceptionPenalty(level);
         };
-        let score: number | null = null;
         const spotter = watchers.find((watcher) => {
           const passive = passiveOf(watcher);
           if (passive === null || passive < c.hidden!) return false;
-          if (!lineOfSight(sightContext, watcher.at!, c.at!).visible) return false;
-          score = passive;
-          return true;
+          return lineOfSight(sightContext, watcher.at!, c.at!).visible;
         });
-        if (spotter && score !== null) {
+        if (spotter) {
+          // Recomputed rather than smuggled out of the predicate; litAt is
+          // memoized, so the second look costs a map read.
+          const score = passiveOf(spotter);
           enc = appendLog(
             setDormant(setHidden(enc, c.id, undefined), c.id, false),
             `${nameOf(spotter)} notices ${c.label} — passive Perception ${score} against Stealth ${c.hidden}.`,
@@ -1121,10 +1120,7 @@ export function TableTab({
       if (c.kind !== 'character' || c.hidden === undefined || !c.at) continue;
       const spotter = encounter.combatants.find((m) => {
         if (m.kind !== 'monster' || !m.at || m.dormant || (hpOf(m)?.now ?? 0) === 0) return false;
-        const monster = byId.get(m.monsterId);
-        const passive =
-          monster?.passivePerception ?? (monster ? 10 + monsterMod(monster.scores.wis) : 10);
-        return passive >= c.hidden! && lineOfSight(sightContext, m.at!, c.at!).visible;
+        return passivePerceptionOf(m) >= c.hidden! && lineOfSight(sightContext, m.at!, c.at!).visible;
       });
       if (spotter) {
         enc = appendLog(
@@ -1208,9 +1204,15 @@ export function TableTab({
       ? c.conditionSources
       : roster.entries.find((e) => e.id === c.rosterId)?.play.conditionSources) ?? {};
 
-  /** A creature's size, for the rules that compare two of them. */
+  /**
+   * A creature's size, for the rules that compare two of them. A character's
+   * comes off their species - a halfling is Small, and Small cannot grapple
+   * Large - rather than a flat 'Medium' that made every party mid-sized.
+   */
   const sizeOf = (c: Combatant): string =>
-    c.kind === 'monster' ? (byId.get(c.monsterId)?.size ?? 'Medium') : 'Medium';
+    c.kind === 'monster'
+      ? (byId.get(c.monsterId)?.size ?? 'Medium')
+      : (derived.get(c.rosterId)?.ctx.race.size ?? 'Medium');
 
   /**
    * The two ends of a grapple, read off the condition and its source.
@@ -1297,7 +1299,7 @@ export function TableTab({
     const stopped = speedUnderConditions(base, conditionsOf(combatant));
     // Exhaustion halves it from level two and stops it at five - the two
     // levels that are a movement question rather than a roll.
-    const walking = speedUnderExhaustion(stopped, exhaustionOf(combatant), rulesetOf(combatant));
+    const walking = speedAfterExhaustion(stopped, exhaustionOf(combatant), rulesetOf(combatant));
     // Hauling somebody costs half your pace, unless they are two or more
     // sizes smaller, in which case they weigh nothing worth counting.
     const dragging = heldBy(combatant);
@@ -1444,28 +1446,25 @@ export function TableTab({
     // budget allows, through it when only the shortcut fits.
     if (!walk || !isRunning(encounter) || !moveArmed || selected?.id !== active?.id) return [];
     const out: { at: Square; dash?: boolean }[] = [];
+    /*
+      Frightened's other half, drawn as well as enforced. `walkInto` has
+      refused these squares since §27.2 - "the creature can't willingly move
+      closer to the source of its fear" - and the wash went on lighting them
+      anyway, so the tiles said "you can walk here" and the click did
+      nothing. A refusal nobody can see is indistinguishable from a bug.
+
+      The mover and the source lookup depend only on `selected`, so they are
+      built once here rather than once per washed square.
+    */
+    const mover = selected?.at
+      ? { conditions: conditionsOf(selected), conditionSources: sourcesOf(selected) }
+      : undefined;
+    const sourceAt = (id: string) => encounter.combatants.find((c) => c.id === id)?.at;
     for (const key of walk.cost.keys()) {
       const choice = routeChoice(key);
       if (!choice || choice.cost > walkBudget.dash) continue;
       const [x, y] = key.split(',').map(Number);
-      /*
-        Frightened's other half, drawn as well as enforced. `walkInto` has
-        refused these squares since §27.2 - "the creature can't willingly move
-        closer to the source of its fear" - and the wash went on lighting them
-        anyway, so the tiles said "you can walk here" and the click did
-        nothing. A refusal nobody can see is indistinguishable from a bug.
-      */
-      if (
-        selected?.at &&
-        !mayApproach(
-          { conditions: conditionsOf(selected), conditionSources: sourcesOf(selected) },
-          selected.at,
-          { x, y },
-          (id) => encounter.combatants.find((c) => c.id === id)?.at,
-        )
-      ) {
-        continue;
-      }
+      if (mover && !mayApproach(mover, selected!.at!, { x, y }, sourceAt)) continue;
       out.push(choice.cost <= walkBudget.base ? { at: { x, y } } : { at: { x, y }, dash: true });
     }
     return out;
@@ -2337,7 +2336,8 @@ export function TableTab({
   };
 
   /**
-   * The hold applied, and the hold released.
+   * The hold applied, and the hold released - one writer for both, since
+   * they are the same four moves with the direction flipped.
    *
    * Both write the condition AND the source, in one composed roster, because
    * a `grappled` with nobody named on it is a condition nothing can ever end -
@@ -2345,43 +2345,31 @@ export function TableTab({
    * The two halves live in different stores for the usual reason: a
    * character's state is on their sheet, a monster's is on the combatant.
    */
-  const holdOn = (updated: Roster, id: string, byWhom: string): Roster => {
+  const setHeld = (updated: Roster, id: string, byWhom: string | undefined): Roster => {
+    const want = byWhom !== undefined;
     const encNow = activeEncounter(updated);
     const c = encNow.combatants.find((x) => x.id === id);
     if (!c) return updated;
     if (c.kind === 'monster') {
-      const enc = c.conditions.includes(GRAPPLED)
+      const enc = c.conditions.includes(GRAPPLED) === want
         ? encNow
         : toggleMonsterCondition(encNow, id, GRAPPLED);
       return updateEncounter(updated, setConditionSource(enc, id, GRAPPLED, byWhom));
     }
     const entry = updated.entries.find((e) => e.id === c.rosterId);
     if (!entry) return updated;
-    const play = entry.play.conditions.includes(GRAPPLED)
+    const play = entry.play.conditions.includes(GRAPPLED) === want
       ? entry.play
       : toggleCondition(entry.play, GRAPPLED);
     return updatePlay(updated, entry.id, setPlayConditionSource(play, GRAPPLED, byWhom));
   };
 
+  const holdOn = (updated: Roster, id: string, byWhom: string): Roster =>
+    setHeld(updated, id, byWhom);
+
   /** Let go: the condition off and the source cleared, so nothing is left
       pointing at a grappler who is no longer holding anybody. */
-  const letGo = (updated: Roster, id: string): Roster => {
-    const encNow = activeEncounter(updated);
-    const c = encNow.combatants.find((x) => x.id === id);
-    if (!c) return updated;
-    if (c.kind === 'monster') {
-      const enc = c.conditions.includes(GRAPPLED)
-        ? toggleMonsterCondition(encNow, id, GRAPPLED)
-        : encNow;
-      return updateEncounter(updated, setConditionSource(enc, id, GRAPPLED, undefined));
-    }
-    const entry = updated.entries.find((e) => e.id === c.rosterId);
-    if (!entry) return updated;
-    const play = entry.play.conditions.includes(GRAPPLED)
-      ? toggleCondition(entry.play, GRAPPLED)
-      : entry.play;
-    return updatePlay(updated, entry.id, setPlayConditionSource(play, GRAPPLED, undefined));
-  };
+  const letGo = (updated: Roster, id: string): Roster => setHeld(updated, id, undefined);
 
   /**
    * The Escape action: their better of Athletics and Acrobatics against the
@@ -2843,11 +2831,8 @@ export function TableTab({
         entries: updated.entries.map((entry) => {
           const info = derived.get(entry.id);
           if (!info) return entry;
-          const levelOf = (classId: ClassId) =>
-            info.ctx.slices.find((sl) => sl.klass.id === classId)?.entry.level ?? 0;
           const keys = restoredKeys(
             heldResources(info.ctx.slices, entry.build.ruleset, info.ctx.mods),
-            levelOf,
             'encounter',
           );
           const play = startOfEncounter(entry.play, keys);
@@ -4005,15 +3990,12 @@ export function TableTab({
       if (!entry || !info) continue;
       const custom = entry.build.customResources ?? [];
       /*
-        The two lists each rest needs, derived exactly as the sheet derives
-        them - a Warlock's pact slots come back on a short rest, a Fighter's
-        Second Wind does, and which is which depends on the class level.
+        The list each rest needs, derived exactly as the sheet derives it - a
+        Warlock's pact slots come back on a short rest, a Fighter's Second
+        Wind does, and which is which can depend on the class level.
       */
-      const levelOf = (classId: ClassId) =>
-        info.ctx.slices.find((sl) => sl.klass.id === classId)?.entry.level ?? 0;
       const shortKeys = restoredKeys(
         heldResources(info.ctx.slices, entry.build.ruleset, info.ctx.mods),
-        levelOf,
         'short',
       );
       const hitDice = Object.fromEntries(
@@ -5161,9 +5143,10 @@ export function TableTab({
             </button>
           ))}
           {/*
-            Of what? Frightened and charmed both turn on who caused them, and
-            without the answer neither rule can be applied - so it is asked
-            right where the condition was set rather than buried in a dialog.
+            Of whom? Frightened, charmed and grappled all turn on who caused
+            them, and without the answer none of their rules can be applied -
+            so it is asked right where the condition was set rather than
+            buried in a dialog.
           */}
           {selected.conditions
             .filter((id) => CONDITIONS_WITH_A_SOURCE.includes(id))

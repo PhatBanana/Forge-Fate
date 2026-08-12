@@ -5,7 +5,6 @@ import {
   mayApproach,
   mayAttack,
   oddsFor,
-  speedUnderExhaustion,
 } from './advantage';
 import type { Exchange } from './advantage';
 
@@ -210,16 +209,8 @@ describe('exhaustion, which was a number that did nothing', () => {
     expect(oddsFor(tired(3)).mode).toBe('disadvantage');
     expect(oddsFor(tired(6)).mode).toBe('disadvantage');
   });
-
-  it('halves a speed from level two and stops it at five', () => {
-    expect(speedUnderExhaustion(30, 0)).toBe(30);
-    expect(speedUnderExhaustion(30, 1)).toBe(30);
-    expect(speedUnderExhaustion(30, 2)).toBe(15);
-    expect(speedUnderExhaustion(30, 4)).toBe(15);
-    expect(speedUnderExhaustion(30, 5)).toBe(0);
-    // Odd speeds round down, the way everything here rounds.
-    expect(speedUnderExhaustion(25, 2)).toBe(12);
-  });
+  // What exhaustion does to a speed is `speedAfterExhaustion`, tested with
+  // the rest of the ladder in exhaustion.test.ts.
 });
 
 describe('charmed, which the source field also answers', () => {

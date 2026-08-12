@@ -62,13 +62,6 @@ export interface UncastableSpell {
   topSlot: number;
 }
 
-/** The highest spell level this character has a slot for. Pact slots count. */
-export function topSlotLevel(ctx: BuildContext): number {
-  const casting = ctx.spellcasting;
-  const fromTable = casting.bySpellLevel.reduce((best, n, i) => (n > 0 ? i + 1 : best), 0);
-  return Math.max(fromTable, casting.pact?.level ?? 0);
-}
-
 /**
  * Spells recorded above every slot the character owns.
  *
@@ -83,7 +76,9 @@ export function topSlotLevel(ctx: BuildContext): number {
 export function uncastableSpells(ctx: BuildContext): UncastableSpell[] {
   const casting = ctx.spellcasting;
   if (!casting.casts) return [];
-  const top = topSlotLevel(ctx);
+  // The best of the slot table and the pact slots, already computed where
+  // the slots are: `spellcasting.highestLevel`.
+  const top = casting.highestLevel;
   const judged = casting.preparesFromBook
     ? casting.chosen.filter((s) => ctx.build.preparedIds.includes(s.id))
     : casting.chosen;
@@ -199,10 +194,10 @@ export interface IllegalFeat {
  * checked rather than assumed, since a 2014 feat has no `category` at all and
  * "not origin" would be true of every one of them.
  */
-export function illegalFeats(
+export function illegalFeats<F extends { name: string; category?: string }>(
   ctx: BuildContext,
-  featById: (id: string, ruleset: string) => { name: string; category?: string } | undefined,
-  prereqProblems: (id: string) => string[],
+  featById: (id: string, ruleset: BuildContext['build']['ruleset']) => F | undefined,
+  prereqProblems: (feat: F) => string[],
 ): IllegalFeat[] {
   const out: IllegalFeat[] = [];
   for (const id of ctx.build.originFeatIds) {
@@ -214,7 +209,9 @@ export function illegalFeats(
         reason: `is a ${feat.category.replace('-', ' ')} feat, and an origin slot takes an Origin feat`,
       });
     }
-    const problems = prereqProblems(id);
+    // The feat is handed over rather than its id: the caller's checker would
+    // otherwise start by looking up the same feat a second time.
+    const problems = prereqProblems(feat);
     if (problems.length) out.push({ name: feat.name, reason: problems.join('; ') });
   }
   return out;

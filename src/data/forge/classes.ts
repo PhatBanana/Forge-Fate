@@ -1,6 +1,7 @@
 import type { CharClass, ClassId } from '../../types';
 import type { ClassFeature } from '../classFeatures';
 import type { ClassResource } from '../classResources';
+import type { ForgeClassId } from './rows';
 
 /**
  * The app's own classes.
@@ -255,7 +256,12 @@ export const FORGE_CLASSES: CharClass[] = [
   },
 ];
 
-export const FORGE_CLASS_FEATURES: Record<string, ClassFeature[]> = {
+/*
+  Keyed by the four ids exactly, not `string`: `classFeatures.ts` spreads
+  this into a table TypeScript checks for completeness, and a `string` key
+  here forced a cast there that would have hidden a misspelled id.
+*/
+export const FORGE_CLASS_FEATURES: Record<ForgeClassId, ClassFeature[]> = {
   reckoner: [
     { level: 1, name: 'Reckonings', summary: 'A pool of Reckonings that refills at the start of every fight. Spend one to call a reckoning on a creature you can see; the first time you hit it each turn you add your Reckoning die.' },
     { level: 1, name: 'Terms', summary: 'Half caster on Charisma from 1st level, drawing on the Warlock spell list. Slots are recovered on a long rest - the Reckonings are what the fight runs on.' },

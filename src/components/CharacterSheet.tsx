@@ -425,10 +425,8 @@ export function CharacterSheet({
 
   const ammo = ammunitionCarried(build);
   const resources = heldResources(ctx.slices, build.ruleset, ctx.mods);
-  const levelOf = (classId: ClassId) =>
-    ctx.slices.find((s) => s.klass.id === classId)?.entry.level ?? 0;
-  const shortRechargeKeys = restoredKeys(resources, levelOf, 'short');
-  const encounterKeys = restoredKeys(resources, levelOf, 'encounter');
+  const shortRechargeKeys = restoredKeys(resources, 'short');
+  const encounterKeys = restoredKeys(resources, 'encounter');
 
   const spellsByLevel = new Map<number, typeof casting.chosen>();
   const grantedIds = new Set(casting.granted.map((s) => s.id));
@@ -1082,7 +1080,7 @@ export function CharacterSheet({
             <Box label="Class resources">
               {resources.map((held) => {
                 const left = resourceLeft(play, held.key, held.max);
-                const recharge = rechargeFor(held, levelOf(held.classId));
+                const recharge = rechargeFor(held);
                 const label = `${held.resource.name}${
                   resources.some((o) => o !== held && o.resource.name === held.resource.name)
                     ? ` (${held.className})`

@@ -72,6 +72,13 @@ export interface ClassResource {
   max: ResourceMax;
   recharge: Recharge;
   /**
+   * The recharge improves at a level, the way Font of Inspiration turns
+   * Bardic Inspiration from once a day into once a short rest at 5th. A
+   * field rather than an id check in `rechargeFor`, so the next resource
+   * that does this writes a line of data instead of another engine branch.
+   */
+  rechargeFrom?: { level: number; recharge: Recharge };
+  /**
    * A handful of uses reads as pips you click; a pool of dozens does not -
    * fifty pips for a Paladin's Lay on Hands would be unusable.
    */
@@ -145,6 +152,7 @@ export const CLASS_RESOURCES: Partial<Record<ClassId, ClassResource[]>> = {
       name: 'Bardic Inspiration',
       max: { kind: 'abilityMod', ability: 'cha', min: 1 },
       recharge: 'long',
+      rechargeFrom: { level: 5, recharge: 'short' },
       display: 'pips',
       minLevel: 1,
       note: 'Comes back on a short rest from 5th level, when Font of Inspiration arrives. Until then it is once a day.',

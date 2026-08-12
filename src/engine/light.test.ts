@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   LIGHT_KINDS,
   canSeeInto,
-  darker,
   feetIn,
   lightAt,
   oneBrighter,
@@ -11,6 +10,7 @@ import {
   seenAs,
 } from './light';
 import type { LightSource } from './light';
+import { RACES } from '../data/races';
 
 const torch = (at: { x: number; y: number }, over: Partial<LightSource> = {}): LightSource => ({
   id: 't',
@@ -131,11 +131,6 @@ describe('the small pieces', () => {
     expect(perceptionPenalty('dark')).toBe(0);
   });
 
-  it('takes the darker of two levels, which is how darkness overlaps', () => {
-    expect(darker('bright', 'dim')).toBe('dim');
-    expect(darker('dark', 'dim')).toBe('dark');
-  });
-
   it('cannot step brighter than bright', () => {
     expect(oneBrighter('bright')).toBe('bright');
     expect(oneBrighter('dark')).toBe('dim');
@@ -147,5 +142,27 @@ describe('the small pieces', () => {
     expect(feetIn('30 feet')).toBe(30);
     // No number is no darkvision, which is what every caller wants from it.
     expect(feetIn('Keen Smell')).toBe(0);
+  });
+});
+
+/*
+  The engine's one prose dependency, pinned.
+
+  A character's darkvision range is read out of the trait's display text by
+  `feetIn` - there is no structured field - so rewording a species trait
+  ("you can see within 60 feet...") would silently zero that species'
+  darkvision with nothing failing. This walks every darkvision-tagged trait
+  in the data and insists the scrape still finds a range, which turns the
+  silent failure into a loud one. The deeper fix is a `feet` field on the
+  trait record; until somebody makes that migration, this is the tripwire.
+*/
+describe('every darkvision trait in the data yields a range', () => {
+  it('parses a distance out of each tagged trait', () => {
+    for (const race of RACES) {
+      for (const trait of race.traits.filter((t) => t.tags?.includes('darkvision'))) {
+        const feet = feetIn(trait.name) || feetIn(trait.text);
+        expect(feet, `${race.name}: "${trait.name}" scrapes to no range`).toBeGreaterThan(0);
+      }
+    }
   });
 });

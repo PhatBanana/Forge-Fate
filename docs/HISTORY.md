@@ -4351,3 +4351,82 @@ themes under both rulesets — 36 assertions, each naming a phrase that exists
 in exactly one edition's wording and checking it positively for its own
 edition and negatively for the other, because "the tooltip has words in it"
 passes no matter how broken the wiring is.
+
+## 61. The hygiene pass
+
+*"let's do some code hygiene."* Four reviewers were run over everything
+unmerged against main - one each for reuse, simplification, efficiency and
+altitude - and their findings deduplicated and applied. No behaviour was
+meant to change except where a finding was itself a rule wired to the wrong
+depth; those are named below, because a hygiene pass that quietly changes
+rules is worse than none.
+
+**The pattern the altitude review kept finding** is the codebase's own:
+facts spelled out where they are used instead of on the record they are
+about.
+
+- The five "includes incapacitated" ids were listed in **three** engine
+  files - dodge ending, grapple releasing, movement stopping. They are now
+  two flags on the `Condition` records (`incapacitates`, `stopsMovement`),
+  with `INCAPACITATING` and `SPEED_ZERO` derived beside the data.
+- Bardic Inspiration's level-5 recharge upgrade was an id check inside
+  `rechargeFor`. It is now `rechargeFrom` on the resource record, read
+  generically.
+- `bestClassesFor` ranked over raw `CLASSES` while its sibling
+  `bestRacesFor` asked `racesFor` - so with the originals switch off a Forge
+  class could top the "best classes for this species" list, and under 2024
+  the Artificer could. It now iterates `classesFor(ruleset)`, and the call
+  site's count-as-limit hack is gone. **This changes what the Species tab
+  offers**, to what it always claimed to offer.
+- `sizeOf` said every character was Medium while §39 built two size rules on
+  top of it. It now reads `ctx.race.size`, so **a halfling can no longer
+  grapple a Large monster**, which is the rule.
+- `grappled` joined `CONDITIONS_WITH_A_SOURCE`: the engine read
+  `conditionSources.grappled` for the escape and the release sweep, but a DM
+  who ticked Grappled by hand had no selector to name the grappler - a
+  speed-0 condition nothing could ever end.
+
+**Reuse.** `light.ts` had re-implemented the app's one distance rule
+(`distanceBetween` in encounter.ts) under a third name; deleted, along with
+its `darker` helper that nothing but its own test consumed. `topSlotLevel`
+re-derived `spellcasting.highestLevel` and stayed correct only by matching
+logic; deleted. The audit script's `ABILITY_BY_CODE` was a byte-for-byte
+copy of its own `ABILITY`; deleted. The monster passive-Perception fallback
+existed twice in TableTab; once now.
+
+**Simplification.** `holdOn`/`letGo` were mirror copies and are one
+`setHeld`. `HeldResource` carries its `classLevel`, so the three identical
+`levelOf` lambdas at the call sites are gone and `restoredKeys`/`rechargeFor`
+lost a parameter. The two Forge subclass files shared their row shape and
+grouping through a new `forge/rows.ts` instead of pasting it.
+`FORGE_CLASS_FEATURES` is typed by its four keys at the definition, killing
+a cast that would have hidden a typo. Sundry: a side-effecting `.find`
+predicate made pure, four inline `import('./engine/light')` types became one
+import, a stranded comment moved to the call it documents, a double feat
+lookup in `illegalFeats` became single.
+
+**Efficiency.** The movement wash rebuilt the mover's condition record per
+washed square; hoisted. The srdAudit slot tests ran `deriveBuild` three
+times over the same ~160 rows; memoized. The condition fixture fetch ran
+its fourteen pairs sequentially; parallel now, as is the two-edition feat
+fetch.
+
+**The one deliberately partial fix.** Character darkvision is scraped out
+of trait display text (`feetIn('Darkvision 60 ft.')`), and the altitude
+review is right that a structured field is the real answer - but that is a
+migration across the whole species table, not a hygiene edit. Instead the
+scrape got a tripwire: a test that walks every darkvision-tagged trait and
+fails loudly if any stops yielding a range. The test's comment names the
+deeper fix so the migration has a trailhead.
+
+**Test hygiene.** TableTab's suites held twelve byte-identical copies of the
+map-box stub, three of `goblinOf`, eight of `logOf` - the file's own
+comments record them breaking together on a drawer rename. One module-scope
+copy of each now. The near-identical `brawl` flows across suites were left
+alone: each differs subtly in what it stages, and consolidating them risks
+weakening exactly what each suite means to pin.
+
+**Gates.** 1936 tests / 90 files (one deleted with `darker`, one moved with
+the exhaustion wrapper, one added as the darkvision tripwire), tsc, oxlint,
+build in budget, and both standing probes - the Forge classes and the
+per-edition condition text - green against the rebuilt app.

@@ -23,6 +23,8 @@ describe('2014 exhaustion, the six-step ladder', () => {
     expect(speedAfterExhaustion(30, 2, '2014')).toBe(15);
     expect(speedAfterExhaustion(30, 4, '2014')).toBe(15);
     expect(speedAfterExhaustion(30, 5, '2014')).toBe(0);
+    // Odd speeds round down, the way everything here rounds.
+    expect(speedAfterExhaustion(25, 2, '2014')).toBe(12);
   });
 
   it('never applies a flat penalty, which is the other edition entirely', () => {

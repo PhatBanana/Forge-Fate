@@ -182,7 +182,7 @@ export function RacesTab({
             }))}
           />
           <p className="note">{RACES_BY_ID[selectedRace]?.note}</p>
-          {bestClassesFor(selectedRace, classesFor(ruleset).length, ruleset).map((cell, index) => {
+          {bestClassesFor(selectedRace, ruleset).map((cell, index) => {
             const klass = CLASSES.find((c) => c.id === cell.classId)!;
             return (
               <details className={`suggestion ${index === 0 ? 'is-top' : ''}`} key={cell.classId}>

@@ -1,3 +1,4 @@
+import { INCAPACITATING } from '../data/conditions';
 import type { Square } from '../encounter';
 import { rollD20 } from './dice';
 import type { Rng } from './dice';
@@ -116,19 +117,12 @@ export function escapeContest(
 /**
  * The conditions that end a grapple by ending the grappler.
  *
- * "The condition also ends if an effect removes the grappled creature from the
- * reach of the grappler" and if the grappler becomes incapacitated - and the
- * four that follow all *include* incapacitated by their own text, so a
- * paralysed grappler has let go whether or not anybody wrote 'incapacitated'
- * on them too.
+ * A grapple releases when the grappler becomes incapacitated, and four other
+ * conditions *include* incapacitated by their own text - so a paralysed
+ * grappler has let go whether or not anybody wrote 'incapacitated' on them
+ * too. Which conditions those are is a flag on the `Condition` records.
  */
-export const RELEASES_A_GRAPPLE = [
-  'incapacitated',
-  'paralyzed',
-  'petrified',
-  'stunned',
-  'unconscious',
-];
+const RELEASES_A_GRAPPLE = INCAPACITATING;
 
 /** Why a hold stopped being a hold, or null while it still is one. */
 export type GrappleEnd = 'down' | 'incapacitated' | 'apart' | 'gone';

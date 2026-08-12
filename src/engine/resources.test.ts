@@ -216,7 +216,7 @@ describe('recharge', () => {
   it('moves Bardic Inspiration to a short rest at 5th level', () => {
     const bard = (level: number) => {
       const list = held([{ classId: 'bard', level, subclassId: level >= 3 ? 'lore' : undefined }]);
-      return rechargeFor(find(list, 'bardic-inspiration')!, level);
+      return rechargeFor(find(list, 'bardic-inspiration')!);
     };
     expect(bard(4)).toBe('long');
     expect(bard(5)).toBe('short');
@@ -224,11 +224,11 @@ describe('recharge', () => {
 
   it('leaves every other resource on its declared recharge', () => {
     const list = held([{ classId: 'barbarian', level: 17, subclassId: 'zealot' }]);
-    expect(rechargeFor(find(list, 'rage')!, 17)).toBe('long');
+    expect(rechargeFor(find(list, 'rage')!)).toBe('long');
 
     const fighter = held([{ classId: 'fighter', level: 17, subclassId: 'champion' }]);
-    expect(rechargeFor(find(fighter, 'action-surge')!, 17)).toBe('short');
-    expect(rechargeFor(find(fighter, 'indomitable')!, 17)).toBe('long');
+    expect(rechargeFor(find(fighter, 'action-surge')!)).toBe('short');
+    expect(rechargeFor(find(fighter, 'indomitable')!)).toBe('long');
   });
 });
 

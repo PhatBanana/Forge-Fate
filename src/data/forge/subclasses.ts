@@ -1,5 +1,7 @@
 import type { ClassId, Subclass } from '../../types';
 import type { ClassFeature } from '../classFeatures';
+import { groupForgeRows } from './rows';
+import type { ForgeSubclassRow } from './rows';
 
 /**
  * The app's own subclasses, and the count that decides how many there are.
@@ -71,15 +73,9 @@ import type { ClassFeature } from '../classFeatures';
 /** Terse constructor, matching `subclassFeatures.ts`. */
 const f = (level: number, name: string, summary: string): ClassFeature => ({ level, name, summary });
 
-interface ForgeSubclass {
-  classId: ClassId;
-  subclass: Subclass;
-  features: ClassFeature[];
-}
-
 const BOTH: ('2014' | '2024')[] = ['2014', '2024'];
 
-const ROWS: ForgeSubclass[] = [
+const ROWS: ForgeSubclassRow[] = [
   // ------------------------------------------------------------- artificer
   /*
     Five, because the Artificer had four and the Cleric had fourteen. It is
@@ -402,16 +398,7 @@ const ROWS: ForgeSubclass[] = [
   },
 ];
 
-/** The subclass rows, grouped for `classes.ts` to fold into each class. */
-export const FORGE_SUBCLASSES_BY_CLASS: Partial<Record<ClassId, Subclass[]>> = ROWS.reduce(
-  (map, row) => {
-    (map[row.classId] ??= []).push(row.subclass);
-    return map;
-  },
-  {} as Partial<Record<ClassId, Subclass[]>>,
-);
-
-/** The display half, in the shape `subclassFeatures.ts` exports. */
-export const FORGE_SUBCLASS_FEATURES: Record<string, ClassFeature[]> = Object.fromEntries(
-  ROWS.map((row) => [row.subclass.id, row.features]),
-);
+/** The rows grouped for `classes.ts` to fold in, and for `subclassFeatures.ts`. */
+const grouped = groupForgeRows(ROWS);
+export const FORGE_SUBCLASSES_BY_CLASS: Partial<Record<ClassId, Subclass[]>> = grouped.byClass;
+export const FORGE_SUBCLASS_FEATURES: Record<string, ClassFeature[]> = grouped.features;

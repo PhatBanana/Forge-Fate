@@ -1229,7 +1229,7 @@ describe('the 2014 class feature table against SRD 5.1', () => {
  *
  * These are also the numbers with the longest blast radius in the app. Slots
  * feed the Spells panel, the printed sheet, play tracking, the legality
- * check's `topSlotLevel`, and the caster half of the damage model. A wrong
+ * check's `highestLevel`, and the caster half of the damage model. A wrong
  * row is wrong in six places at once.
  *
  * So the check runs `deriveBuild` rather than reading the tables: it compares
@@ -1246,13 +1246,28 @@ describe('spell slots, cantrips and spells known against SRD 5.1', () => {
     }[];
   }>>(classLevelsFixture);
 
-  const derive = (classId: ClassId, level: number) =>
-    deriveBuild({
-      ...emptyBuild(),
-      ruleset: '2014',
-      raceId: 'human',
-      classes: [{ classId, level }],
-    });
+  /*
+    Memoized: the three tests below each walk the same ~160 class-and-level
+    rows, and `deriveBuild` runs the full damage model every call - so
+    without the cache this describe was the suite's most expensive block at
+    three times the price of asking once. Pure function, identical builds,
+    same answers.
+  */
+  const derived = new Map<string, ReturnType<typeof deriveBuild>>();
+  const derive = (classId: ClassId, level: number) => {
+    const key = `${classId}:${level}`;
+    let out = derived.get(key);
+    if (!out) {
+      out = deriveBuild({
+        ...emptyBuild(),
+        ruleset: '2014',
+        raceId: 'human',
+        classes: [{ classId, level }],
+      });
+      derived.set(key, out);
+    }
+    return out;
+  };
 
   it('gives every class the slots its own table prints, at all twenty levels', () => {
     const wrong: string[] = [];

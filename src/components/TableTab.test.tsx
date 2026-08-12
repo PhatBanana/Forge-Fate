@@ -98,6 +98,22 @@ const bestiaryReady = () => {
 
 const party = () => rosterOf(fighter(), wizard());
 
+/*
+  The shared map-and-log helpers. Twelve suites each kept a private copy of
+  these four - boxMap2, boxMapG, mapElS and so on, all byte-identical - and
+  the file's own comments record them breaking together on a drawer rename.
+  One copy, one place to fix.
+*/
+const mapEl = () => document.querySelector('.dmap') as SVGSVGElement;
+const boxMap = () => {
+  mapEl().getBoundingClientRect = () =>
+    ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+};
+const goblinOf = (view: ReturnType<typeof setup>) =>
+  view.encounter.combatants.find((c) => c.kind === 'monster') as MonsterCombatant;
+const logOf = (view: ReturnType<typeof setup>) =>
+  (view.encounter.log ?? []).map((l) => l.text).join('\n');
+
 const rowFor = (name: string): HTMLElement => {
   // The rows live in the Order drawer now, and this is called from inside
   // other helpers that have no `user` - so it opens its own door.
@@ -1366,7 +1382,6 @@ describe('the fight’s clocks and the drawer', () => {
   and tile *elements*, whose own boxes were right. A real stage is not 4:3.
 */
 describe('a click lands on the square you clicked', () => {
-  const mapEl = () => document.querySelector('.dmap') as SVGSVGElement;
 
   /*
     16:9, against a 4:3 grid. The drawing is 360 x (672/504) = 480 wide and
@@ -1414,11 +1429,6 @@ describe('a click lands on the square you clicked', () => {
  * that commits it. Escape puts down whatever is in hand.
  */
 describe('the pointer’s loop', () => {
-  const mapEl = () => document.querySelector('.dmap') as SVGSVGElement;
-  const boxMap = () => {
-    mapEl().getBoundingClientRect = () =>
-      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
-  };
   /** The Move command in whichever cockpit is standing - walking is armed,
       never ambient, once the fight is on. */
   const armMove = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -2663,11 +2673,6 @@ describe('the pointer’s loop', () => {
 });
 
 describe('walking, not flying', () => {
-  const mapEl2 = () => document.querySelector('.dmap') as SVGSVGElement;
-  const boxMap2 = () => {
-    mapEl2().getBoundingClientRect = () =>
-      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
-  };
 
   /*
     The terrain comes in through the encounter now - painting lives in the
@@ -2699,9 +2704,9 @@ describe('walking, not flying', () => {
         name: /^Move/,
       }),
     );
-    boxMap2();
+    boxMap();
     // Two squares east: ten feet as the crow flies, on the far side of the wall.
-    fireEvent.pointerDown(mapEl2(), {
+    fireEvent.pointerDown(mapEl(), {
       clientX: (from.x + 2 + 0.5) * 10,
       clientY: (from.y + 0.5) * 10,
     });
@@ -2728,8 +2733,8 @@ describe('walking, not flying', () => {
         name: /^Move/,
       }),
     );
-    boxMap2();
-    fireEvent.pointerDown(mapEl2(), {
+    boxMap();
+    fireEvent.pointerDown(mapEl(), {
       clientX: (from.x + 2 + 0.5) * 10,
       clientY: (from.y + 0.5) * 10,
     });
@@ -2750,8 +2755,8 @@ describe('walking, not flying', () => {
     await user.click(within(rowFor(name)).getByRole('button', { name: /show .* in the rail/i }));
 
     const from = view.encounter.combatants[0].at!;
-    boxMap2();
-    fireEvent.pointerMove(mapEl2(), {
+    boxMap();
+    fireEvent.pointerMove(mapEl(), {
       clientX: (from.x + 4 + 0.5) * 10,
       clientY: (from.y + 0.5) * 10,
     });
@@ -2824,11 +2829,6 @@ describe('the command menu', () => {
 });
 
 describe('the ground bites back', () => {
-  const mapEl4 = () => document.querySelector('.dmap') as SVGSVGElement;
-  const boxMap4 = () => {
-    mapEl4().getBoundingClientRect = () =>
-      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
-  };
   /** A vertical hazard line at x=3, y from 0 down `length` squares. */
   const fireWall = (length: number, effect: object) => ({
     id: 'z1',
@@ -2855,7 +2855,7 @@ describe('the ground bites back', () => {
         name: /^Move/,
       }),
     );
-    boxMap4();
+    boxMap();
   };
 
   it('burns whoever walks through when only the shortcut fits the budget', async () => {
@@ -2873,7 +2873,7 @@ describe('the ground bites back', () => {
     await startAndArm(user, view);
 
     const max = deriveBuild(view.roster.entries[0].build).hp.total;
-    fireEvent.pointerDown(mapEl4(), { clientX: (5 + 0.5) * 10, clientY: (1 + 0.5) * 10 });
+    fireEvent.pointerDown(mapEl(), { clientX: (5 + 0.5) * 10, clientY: (1 + 0.5) * 10 });
 
     expect(view.encounter.combatants[0].at).toEqual({ x: 5, y: 1 });
     expect(hpNow(view.roster.entries[0].play, max)).toBeLessThan(max);
@@ -2896,7 +2896,7 @@ describe('the ground bites back', () => {
     await startAndArm(user, view);
 
     const max = deriveBuild(view.roster.entries[0].build).hp.total;
-    fireEvent.pointerDown(mapEl4(), { clientX: (5 + 0.5) * 10, clientY: (1 + 0.5) * 10 });
+    fireEvent.pointerDown(mapEl(), { clientX: (5 + 0.5) * 10, clientY: (1 + 0.5) * 10 });
 
     expect(view.encounter.combatants[0].at).toEqual({ x: 5, y: 1 });
     expect(hpNow(view.roster.entries[0].play, max)).toBe(max);
@@ -2915,9 +2915,9 @@ describe('the ground bites back', () => {
     });
     await startAndArm(user, view);
 
-    fireEvent.pointerDown(mapEl4(), { clientX: (5 + 0.5) * 10, clientY: (1 + 0.5) * 10 });
+    fireEvent.pointerDown(mapEl(), { clientX: (5 + 0.5) * 10, clientY: (1 + 0.5) * 10 });
     expect(view.encounter.combatants[0].at).toEqual({ x: 1, y: 1 });
-    fireEvent.pointerDown(mapEl4(), { clientX: (3 + 0.5) * 10, clientY: (1 + 0.5) * 10 });
+    fireEvent.pointerDown(mapEl(), { clientX: (3 + 0.5) * 10, clientY: (1 + 0.5) * 10 });
     expect(view.encounter.combatants[0].at).toEqual({ x: 1, y: 1 });
   });
 
@@ -2976,11 +2976,11 @@ describe('the ground bites back', () => {
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
 
     // Stand the goblin next to the fighter, then the fighter walks away.
-    boxMap4();
+    boxMap();
     await user.click(
       within(rowFor('Goblin')).getByRole('button', { name: /show goblin in the rail/i }),
     );
-    fireEvent.pointerDown(mapEl4(), { clientX: (2 + 0.5) * 10, clientY: (1 + 0.5) * 10 });
+    fireEvent.pointerDown(mapEl(), { clientX: (2 + 0.5) * 10, clientY: (1 + 0.5) * 10 });
     await open(user, 'Order');
     fireEvent.change(within(rowFor(name)).getByLabelText(new RegExp(`${name} initiative`, 'i')), {
       target: { value: '30' },
@@ -2991,7 +2991,7 @@ describe('the ground bites back', () => {
         name: /^Move/,
       }),
     );
-    fireEvent.pointerDown(mapEl4(), { clientX: (6 + 0.5) * 10, clientY: (5 + 0.5) * 10 });
+    fireEvent.pointerDown(mapEl(), { clientX: (6 + 0.5) * 10, clientY: (5 + 0.5) * 10 });
 
     // The note that used to be the whole feature...
     expect(
@@ -3023,11 +3023,11 @@ describe('the ground bites back', () => {
     await open(user, 'Field');
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
 
-    boxMap4();
+    boxMap();
     await user.click(
       within(rowFor('Goblin')).getByRole('button', { name: /show goblin in the rail/i }),
     );
-    fireEvent.pointerDown(mapEl4(), { clientX: (2 + 0.5) * 10, clientY: (1 + 0.5) * 10 });
+    fireEvent.pointerDown(mapEl(), { clientX: (2 + 0.5) * 10, clientY: (1 + 0.5) * 10 });
     await open(user, 'Order');
     fireEvent.change(within(rowFor(name)).getByLabelText(new RegExp(`${name} initiative`, 'i')), {
       target: { value: '30' },
@@ -3037,7 +3037,7 @@ describe('the ground bites back', () => {
     const cockpit = () => document.querySelector('.pcard .cmd-menu') as HTMLElement;
     await user.click(within(cockpit()).getByRole('button', { name: /^Disengage/ }));
     await user.click(within(cockpit()).getByRole('button', { name: /^Move/ }));
-    fireEvent.pointerDown(mapEl4(), { clientX: (6 + 0.5) * 10, clientY: (5 + 0.5) * 10 });
+    fireEvent.pointerDown(mapEl(), { clientX: (6 + 0.5) * 10, clientY: (5 + 0.5) * 10 });
 
     expect(view.encounter.log!.some((l) => /opportunity attack/.test(l.text))).toBe(false);
     expect(
@@ -3050,11 +3050,6 @@ describe('the ground bites back', () => {
 });
 
 describe('the ruler walks', () => {
-  const mapEl3 = () => document.querySelector('.dmap') as SVGSVGElement;
-  const boxMap3 = () => {
-    mapEl3().getBoundingClientRect = () =>
-      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
-  };
 
   it('bends the line around a wall and prices the walk, not the crow', async () => {
     const user = userEvent.setup();
@@ -3077,8 +3072,8 @@ describe('the ruler walks', () => {
     await user.click(within(rowFor(name)).getByRole('button', { name: /show .* in the rail/i }));
 
     const from = view.encounter.combatants[0].at!;
-    boxMap3();
-    fireEvent.pointerMove(mapEl3(), {
+    boxMap();
+    fireEvent.pointerMove(mapEl(), {
       clientX: (from.x + 2 + 0.5) * 10,
       clientY: (from.y + 0.5) * 10,
     });
@@ -3101,9 +3096,9 @@ describe('the ruler walks', () => {
     await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
     await user.click(within(rowFor(name)).getByRole('button', { name: /show .* in the rail/i }));
 
-    boxMap3();
+    boxMap();
     // The map's corner is rock on a generated dungeon: no feet ever get there.
-    fireEvent.pointerMove(mapEl3(), { clientX: 5, clientY: 5 });
+    fireEvent.pointerMove(mapEl(), { clientX: 5, clientY: 5 });
     expect(document.querySelector('.dmap-note')?.textContent).toBe('no path');
   });
 
@@ -3119,8 +3114,8 @@ describe('the ruler walks', () => {
     await user.click(within(rowFor(name)).getByRole('button', { name: /show .* in the rail/i }));
 
     const from = view.encounter.combatants[0].at!;
-    boxMap3();
-    fireEvent.pointerDown(mapEl3(), {
+    boxMap();
+    fireEvent.pointerDown(mapEl(), {
       clientX: (from.x + 5 + 0.5) * 10,
       clientY: (from.y + 0.5) * 10,
     });
@@ -3171,8 +3166,6 @@ describe('the enemy turn', () => {
   };
 
   const plan = () => document.querySelector('.rail-plan');
-  const goblinOf = (view: ReturnType<typeof setup>) =>
-    view.encounter.combatants.find((c) => c.kind === 'monster') as MonsterCombatant;
 
   it('offers nothing on a character’s turn', async () => {
     const user = userEvent.setup();
@@ -3275,11 +3268,6 @@ describe('the enemy turn', () => {
  * whole of it lands in one write.
  */
 describe('shoving, and the ledge behind them', () => {
-  const mapEl4 = () => document.querySelector('.dmap') as SVGSVGElement;
-  const boxMap4 = () => {
-    mapEl4().getBoundingClientRect = () =>
-      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
-  };
 
   /** The fighter adjacent to a goblin, on a flat blank grid unless told otherwise. */
   const brawl = async (
@@ -3302,9 +3290,9 @@ describe('shoving, and the ledge behind them', () => {
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
 
     // Placed by hand, adjacent, before the fight - placement is free then.
-    boxMap4();
+    boxMap();
     const put = (at: { x: number; y: number }) =>
-      fireEvent.pointerDown(mapEl4(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
+      fireEvent.pointerDown(mapEl(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
     await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
     put({ x: 10, y: 10 });
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
@@ -3326,11 +3314,7 @@ describe('shoving, and the ledge behind them', () => {
     await user.click(within(menu).getByRole('button', { name: which }));
   };
 
-  const goblinOf = (view: ReturnType<typeof setup>) =>
-    view.encounter.combatants.find((c) => c.kind === 'monster') as MonsterCombatant;
 
-  const logOf = (view: ReturnType<typeof setup>) =>
-    (view.encounter.log ?? []).map((l) => l.text).join('\n');
 
   it('offers both a push and a trip, since the choice is the shover’s', async () => {
     const user = userEvent.setup();
@@ -3344,7 +3328,7 @@ describe('shoving, and the ledge behind them', () => {
     const user = userEvent.setup();
     const { view } = await brawl(user);
     await armShove(user, 'Shove');
-    boxMap4();
+    boxMap();
     await user.click(document.querySelector('.dmap-token.monster') as Element);
 
     // Whichever way the dice went, the contest happened and was written down.
@@ -3362,8 +3346,8 @@ describe('shoving, and the ledge behind them', () => {
     await open(user, 'Order');
     await user.click(screen.getByRole('button', { name: /end the fight/i }));
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
-    boxMap4();
-    fireEvent.pointerDown(mapEl4(), { clientX: 30.5 * 10, clientY: 10.5 * 10 });
+    boxMap();
+    fireEvent.pointerDown(mapEl(), { clientX: 30.5 * 10, clientY: 10.5 * 10 });
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
 
     await armShove(user, 'Shove');
@@ -3429,11 +3413,6 @@ describe('shoving, and the ledge behind them', () => {
  * maintain ends itself.
  */
 describe('grappling, and getting free', () => {
-  const mapElG = () => document.querySelector('.dmap') as SVGSVGElement;
-  const boxMapG = () => {
-    mapElG().getBoundingClientRect = () =>
-      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
-  };
 
   /** The fighter adjacent to a goblin on a flat blank grid, fight running. */
   const brawl = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -3449,9 +3428,9 @@ describe('grappling, and getting free', () => {
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
 
-    boxMapG();
+    boxMap();
     const put = (at: { x: number; y: number }) =>
-      fireEvent.pointerDown(mapElG(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
+      fireEvent.pointerDown(mapEl(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
     await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
     put({ x: 10, y: 10 });
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
@@ -3468,11 +3447,7 @@ describe('grappling, and getting free', () => {
     return { view, name };
   };
 
-  const goblinOf = (view: ReturnType<typeof setup>) =>
-    view.encounter.combatants.find((c) => c.kind === 'monster') as MonsterCombatant;
 
-  const logOf = (view: ReturnType<typeof setup>) =>
-    (view.encounter.log ?? []).map((l) => l.text).join('\n');
 
   const cardMenu = () => document.querySelector('.pcard .cmd-menu') as HTMLElement;
   const railMenu = () => document.querySelector('.rail-monster .cmd-menu') as HTMLElement;
@@ -3489,7 +3464,7 @@ describe('grappling, and getting free', () => {
     const held = () => goblinOf(view).conditions.includes('grappled');
     for (let i = 0; i < 60 && !held(); i++) {
       await user.click(within(cardMenu()).getByRole('button', { name: 'Grapple' }));
-      boxMapG();
+      boxMap();
       await user.click(document.querySelector('.dmap-token.monster') as Element);
       if (!held()) {
         await user.click(screen.getByRole('button', { name: /end turn/i }));
@@ -3523,7 +3498,7 @@ describe('grappling, and getting free', () => {
     const user = userEvent.setup();
     const { view } = await brawl(user);
     await user.click(within(cardMenu()).getByRole('button', { name: 'Grapple' }));
-    boxMapG();
+    boxMap();
     await user.click(document.querySelector('.dmap-token.monster') as Element);
 
     // Whichever way the dice went, the contest happened and was written down,
@@ -3585,8 +3560,8 @@ describe('grappling, and getting free', () => {
     // movement and a *halved* one does not - so the walk announces a Dash.
     // That is the assertion that proves the halving rather than assuming it.
     await user.click(within(cardMenu()).getByRole('button', { name: /^Move/ }));
-    boxMapG();
-    fireEvent.pointerDown(mapElG(), { clientX: 6.5 * 10, clientY: 10.5 * 10 });
+    boxMap();
+    fireEvent.pointerDown(mapEl(), { clientX: 6.5 * 10, clientY: 10.5 * 10 });
 
     expect(view.encounter.combatants[0].at).toEqual({ x: 6, y: 10 });
     expect(logOf(view)).toMatch(/Dashes/);
@@ -3607,8 +3582,8 @@ describe('grappling, and getting free', () => {
     await open(user, 'Order');
     await user.click(screen.getByRole('button', { name: /end the fight/i }));
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
-    boxMapG();
-    fireEvent.pointerDown(mapElG(), { clientX: 30.5 * 10, clientY: 10.5 * 10 });
+    boxMap();
+    fireEvent.pointerDown(mapEl(), { clientX: 30.5 * 10, clientY: 10.5 * 10 });
 
     expect(goblinOf(view).conditions).not.toContain('grappled');
     expect(logOf(view)).toMatch(/is free — they are out of reach/);
@@ -3622,11 +3597,6 @@ describe('grappling, and getting free', () => {
  * a trait the Builder rated and the battle ignored.
  */
 describe('light and darkness', () => {
-  const mapElL = () => document.querySelector('.dmap') as SVGSVGElement;
-  const boxMapL = () => {
-    mapElL().getBoundingClientRect = () =>
-      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
-  };
 
   const darkSquares = () => document.querySelectorAll('.dmap-gloom.is-dark').length;
   const dimSquares = () => document.querySelectorAll('.dmap-gloom.is-dim').length;
@@ -3640,8 +3610,8 @@ describe('light and darkness', () => {
     // Adding is not selecting: the row's own button is what puts somebody in
     // the cockpit, and the light tool hands its torch to whoever is there.
     await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
-    boxMapL();
-    fireEvent.pointerDown(mapElL(), { clientX: 10.5 * 10, clientY: 10.5 * 10 });
+    boxMap();
+    fireEvent.pointerDown(mapEl(), { clientX: 10.5 * 10, clientY: 10.5 * 10 });
     await open(user, 'Field');
     return { view, name };
   };
@@ -3674,8 +3644,8 @@ describe('light and darkness', () => {
     const before = darkSquares();
 
     await user.click(screen.getByRole('button', { name: 'Torch' }));
-    boxMapL();
-    fireEvent.pointerDown(mapElL(), { clientX: 20.5 * 10, clientY: 20.5 * 10 });
+    boxMap();
+    fireEvent.pointerDown(mapEl(), { clientX: 20.5 * 10, clientY: 20.5 * 10 });
 
     // Twenty feet of bright is a nine-by-nine block with nothing drawn over
     // it; the dim ring beyond it is drawn, at half the wash.
@@ -3690,8 +3660,8 @@ describe('light and darkness', () => {
     const { view } = await field(user);
     await goDark(user);
     await user.click(screen.getByRole('button', { name: 'Torch' }));
-    boxMapL();
-    fireEvent.pointerDown(mapElL(), { clientX: 20.5 * 10, clientY: 20.5 * 10 });
+    boxMap();
+    fireEvent.pointerDown(mapEl(), { clientX: 20.5 * 10, clientY: 20.5 * 10 });
     const lit = darkSquares();
 
     await user.click(screen.getByRole('button', { name: 'Snuff' }));
@@ -3731,9 +3701,9 @@ describe('light and darkness', () => {
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
 
-    boxMapL();
+    boxMap();
     const put = (at: { x: number; y: number }) =>
-      fireEvent.pointerDown(mapElL(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
+      fireEvent.pointerDown(mapEl(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
     await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
     put({ x: 10, y: 10 });
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
@@ -3751,7 +3721,7 @@ describe('light and darkness', () => {
     });
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
 
-    boxMapL();
+    boxMap();
     await user.click(document.querySelector('.dmap-token.monster') as Element);
 
     const log = (view.encounter.log ?? []).map((l) => l.text).join('\n');
@@ -3784,11 +3754,6 @@ describe('light and darkness', () => {
  * does rather than lasting the fight.
  */
 describe('surprise', () => {
-  const mapElS = () => document.querySelector('.dmap') as SVGSVGElement;
-  const boxMapS = () => {
-    mapElS().getBoundingClientRect = () =>
-      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
-  };
 
   /** The party and a goblin, in the order drawer, fight not started. */
   const lineUp = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -3813,8 +3778,6 @@ describe('surprise', () => {
     return { view, name };
   };
 
-  const logOf = (view: ReturnType<typeof setup>) =>
-    (view.encounter.log ?? []).map((l) => l.text).join('\n');
 
   it('surprises nobody when both sides walk into each other', async () => {
     const user = userEvent.setup();
@@ -3890,15 +3853,15 @@ describe('surprise', () => {
     const user = userEvent.setup();
     const { view, name } = await lineUp(user);
     await user.click(within(rowFor(name)).getByRole('button', { name: 'Surprised' }));
-    boxMapS();
+    boxMap();
     await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
-    fireEvent.pointerDown(mapElS(), { clientX: 10.5 * 10, clientY: 10.5 * 10 });
+    fireEvent.pointerDown(mapEl(), { clientX: 10.5 * 10, clientY: 10.5 * 10 });
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
 
     const menu = document.querySelector('.pcard .cmd-menu') as HTMLElement;
     await user.click(within(menu).getByRole('button', { name: /^Move/ }));
-    boxMapS();
-    fireEvent.pointerDown(mapElS(), { clientX: 11.5 * 10, clientY: 10.5 * 10 });
+    boxMap();
+    fireEvent.pointerDown(mapEl(), { clientX: 11.5 * 10, clientY: 10.5 * 10 });
     // Nought feet reaches nowhere, so the token never left its square.
     expect(view.encounter.combatants[0].at).toEqual({ x: 10, y: 10 });
   });
@@ -3918,11 +3881,6 @@ describe('the optional rules', () => {
   */
   beforeEach(() => localStorage.removeItem('dnd-forge:house-rules:v1'));
 
-  const mapEl5 = () => document.querySelector('.dmap') as SVGSVGElement;
-  const boxMap5 = () => {
-    mapEl5().getBoundingClientRect = () =>
-      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
-  };
 
   /** The fighter uphill of a goblin, adjacent, fight running. */
   const uphill = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -3941,9 +3899,9 @@ describe('the optional rules', () => {
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
 
-    boxMap5();
+    boxMap();
     const put = (at: { x: number; y: number }) =>
-      fireEvent.pointerDown(mapEl5(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
+      fireEvent.pointerDown(mapEl(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
     await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
     put({ x: 10, y: 10 });
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
@@ -3960,11 +3918,9 @@ describe('the optional rules', () => {
     return { view, name };
   };
 
-  const logOf = (view: ReturnType<typeof setup>) =>
-    (view.encounter.log ?? []).map((l) => l.text).join('\n');
 
   const strike = async (user: ReturnType<typeof userEvent.setup>) => {
-    boxMap5();
+    boxMap();
     await user.click(document.querySelector('.dmap-token.monster') as Element);
   };
 
@@ -4022,11 +3978,6 @@ describe('the optional rules', () => {
  * Spirit Guardians, which hurts only one side, impossible to state correctly.
  */
 describe('ground that helps, and ground that picks a side', () => {
-  const mapEl6 = () => document.querySelector('.dmap') as SVGSVGElement;
-  const boxMap6 = () => {
-    mapEl6().getBoundingClientRect = () =>
-      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
-  };
 
   const dropAt6 = async (
     user: ReturnType<typeof userEvent.setup>,
@@ -4036,15 +3987,13 @@ describe('ground that helps, and ground that picks a side', () => {
     await open(user, 'Areas');
     await user.selectOptions(screen.getByLabelText(/load a hazard from the shelf/i), preset);
     await user.click(screen.getByRole('button', { name: /place on map/i }));
-    boxMap6();
-    fireEvent.pointerDown(mapEl6(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
+    boxMap();
+    fireEvent.pointerDown(mapEl(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
     if (screen.queryByText(/click the way it points/i)) {
-      fireEvent.pointerDown(mapEl6(), { clientX: (at.x + 3.5) * 10, clientY: (at.y + 0.5) * 10 });
+      fireEvent.pointerDown(mapEl(), { clientX: (at.x + 3.5) * 10, clientY: (at.y + 0.5) * 10 });
     }
   };
 
-  const logOf = (view: ReturnType<typeof setup>) =>
-    (view.encounter.log ?? []).map((l) => l.text).join('\n');
 
   it('carries the shelf’s beneficial areas, not only its hazards', async () => {
     const user = userEvent.setup();
@@ -4122,11 +4071,6 @@ describe('ground that helps, and ground that picks a side', () => {
  * made that visible by creating prone that nothing read.
  */
 describe('conditions that change the dice', () => {
-  const mapEl7 = () => document.querySelector('.dmap') as SVGSVGElement;
-  const boxMap7 = () => {
-    mapEl7().getBoundingClientRect = () =>
-      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
-  };
 
   const facing = async (user: ReturnType<typeof userEvent.setup>) => {
     const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
@@ -4141,9 +4085,9 @@ describe('conditions that change the dice', () => {
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
 
-    boxMap7();
+    boxMap();
     const put = (at: { x: number; y: number }) =>
-      fireEvent.pointerDown(mapEl7(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
+      fireEvent.pointerDown(mapEl(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
     await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
     put({ x: 10, y: 10 });
     await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
@@ -4160,13 +4104,11 @@ describe('conditions that change the dice', () => {
     return { view, name };
   };
 
-  const logOf = (view: ReturnType<typeof setup>) =>
-    (view.encounter.log ?? []).map((l) => l.text).join('\n');
 
   it('says nothing about the odds on an ordinary swing', async () => {
     const user = userEvent.setup();
     const { view } = await facing(user);
-    boxMap7();
+    boxMap();
     await user.click(document.querySelector('.dmap-token.monster') as Element);
     expect(logOf(view)).toMatch(/vs AC/);
     // A plain attack stays a plain line.
@@ -4183,7 +4125,7 @@ describe('conditions that change the dice', () => {
 
     for (let i = 0; i < 40 && !goblin().conditions.includes('prone'); i++) {
       await user.click(within(menu()).getByRole('button', { name: 'Trip' }));
-      boxMap7();
+      boxMap();
       await user.click(document.querySelector('.dmap-token.monster') as Element);
       if (!goblin().conditions.includes('prone')) {
         await user.click(screen.getByRole('button', { name: /end turn/i }));
@@ -4194,7 +4136,7 @@ describe('conditions that change the dice', () => {
 
     await user.click(screen.getByRole('button', { name: /end turn/i }));
     await user.click(screen.getByRole('button', { name: /end turn/i }));
-    boxMap7();
+    boxMap();
     await user.click(document.querySelector('.dmap-token.monster') as Element);
 
     // The prone the trip created is finally read by something.
@@ -4230,11 +4172,6 @@ describe('conditions that change the dice', () => {
  * could be applied properly rather than often.
  */
 describe('frightened, of something in particular', () => {
-  const mapEl8 = () => document.querySelector('.dmap') as SVGSVGElement;
-  const boxMap8 = () => {
-    mapEl8().getBoundingClientRect = () =>
-      ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
-  };
 
   const twoGoblins = async (user: ReturnType<typeof userEvent.setup>) => {
     const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
@@ -4302,9 +4239,9 @@ describe('frightened, of something in particular', () => {
     const [first] = goblins(view);
 
     // Place the fighter west and the goblin east of them.
-    boxMap8();
+    boxMap();
     const put = (at: { x: number; y: number }) =>
-      fireEvent.pointerDown(mapEl8(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
+      fireEvent.pointerDown(mapEl(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
     await user.click(within(rowFor(name)).getByRole('button', { name: `Show ${name} in the rail` }));
     put({ x: 10, y: 10 });
     await user.click(within(rowFor(first.label)).getByRole('button', { name: `Show ${first.label} in the rail` }));
@@ -4335,13 +4272,13 @@ describe('frightened, of something in particular', () => {
 
     // West is toward the fighter: refused, and the token does not move.
     await armMove();
-    boxMap8();
+    boxMap();
     put({ x: 19, y: 10 });
     expect(whereIsIt()).toEqual({ x: 20, y: 10 });
 
     // East is away: allowed.
     await armMove();
-    boxMap8();
+    boxMap();
     put({ x: 21, y: 10 });
     expect(whereIsIt()).toEqual({ x: 21, y: 10 });
   });
@@ -4360,8 +4297,6 @@ describe('the trackers that were only ever watched', () => {
   */
   afterEach(() => vi.restoreAllMocks());
 
-  const logOf = (view: ReturnType<typeof setup>) =>
-    (view.encounter.log ?? []).map((l) => l.text).join('\n');
 
   const inFight = async (
     user: ReturnType<typeof userEvent.setup>,

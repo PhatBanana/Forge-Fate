@@ -75,7 +75,7 @@ export const CLASS_FEATURES: Record<ClassId, ClassFeature[]> = {
     the file until all seventeen keys are present. That is the check working,
     not an obstacle.
   */
-  ...(FORGE_CLASS_FEATURES as Record<'reckoner' | 'harrier' | 'marshal' | 'adept', ClassFeature[]>),
+  ...FORGE_CLASS_FEATURES,
 
   artificer: [
     { level: 1, name: 'Magical Tinkering', summary: 'Give tiny properties to objects: light, a recorded message, a smell.' },

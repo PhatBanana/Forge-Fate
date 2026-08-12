@@ -75,54 +75,52 @@ function sustainedFor(classId: ClassId, level: number, ruleset: Ruleset): number
   nothing.
 */
 describe('the app’s own classes against the published band', () => {
-  {
-    for (const ruleset of ['2014', '2024'] as Ruleset[]) {
-      describe(ruleset, () => {
-        for (const level of LEVELS) {
-          it(`keeps every Forge class inside the published band at level ${level}`, () => {
-            const on = withOriginalsForTests(true);
-            try {
-              const published = CLASSES.filter(
-                (c) => !isOriginal(c.source) && (c.rulesets ?? ['2014', '2024']).includes(ruleset),
-              );
-              /*
-                Zeroes are dropped, and they are not zero-damage classes.
+  for (const ruleset of ['2014', '2024'] as Ruleset[]) {
+    describe(ruleset, () => {
+      for (const level of LEVELS) {
+        it(`keeps every Forge class inside the published band at level ${level}`, () => {
+          const on = withOriginalsForTests(true);
+          try {
+            const published = CLASSES.filter(
+              (c) => !isOriginal(c.source) && (c.rulesets ?? ['2014', '2024']).includes(ruleset),
+            );
+            /*
+              Zeroes are dropped, and they are not zero-damage classes.
 
-                The fixture arms each class from `defaultWeaponStyle`, which
-                for a Wizard or a Cleric is `'spell'` - no weapon in hand, so
-                `computeDpr` takes its casting branch, and a fixture build has
-                no spells recorded to cast. That is the fixture being silent
-                about casters rather than the model saying a Wizard deals no
-                damage, and leaving it in put the band's floor at zero, which
-                is a floor nothing can fall through.
+              The fixture arms each class from `defaultWeaponStyle`, which
+              for a Wizard or a Cleric is `'spell'` - no weapon in hand, so
+              `computeDpr` takes its casting branch, and a fixture build has
+              no spells recorded to cast. That is the fixture being silent
+              about casters rather than the model saying a Wizard deals no
+              damage, and leaving it in put the band's floor at zero, which
+              is a floor nothing can fall through.
 
-                So the band is the published classes the model can actually
-                price. A Forge caster is measured against them on its weapon
-                output alone, which understates it in exactly the same way and
-                is therefore a fair comparison.
-              */
-              const band = published
-                .map((c) => sustainedFor(c.id, level, ruleset))
-                .filter((n) => n > 0);
-              const low = Math.min(...band);
-              const high = Math.max(...band);
+              So the band is the published classes the model can actually
+              price. A Forge caster is measured against them on its weapon
+              output alone, which understates it in exactly the same way and
+              is therefore a fair comparison.
+            */
+            const band = published
+              .map((c) => sustainedFor(c.id, level, ruleset))
+              .filter((n) => n > 0);
+            const low = Math.min(...band);
+            const high = Math.max(...band);
 
-              const ours = CLASSES.filter(
-                (c) => isOriginal(c.source) && (c.rulesets ?? ['2014', '2024']).includes(ruleset),
-              );
-              const outside = ours
-                .map((c) => ({ name: c.name, dpr: sustainedFor(c.id, level, ruleset) }))
-                .filter((row) => row.dpr < low || row.dpr > high)
-                .map((row) => `${row.name}: ${row.dpr} outside ${low}-${high}`);
+            const ours = CLASSES.filter(
+              (c) => isOriginal(c.source) && (c.rulesets ?? ['2014', '2024']).includes(ruleset),
+            );
+            const outside = ours
+              .map((c) => ({ name: c.name, dpr: sustainedFor(c.id, level, ruleset) }))
+              .filter((row) => row.dpr < low || row.dpr > high)
+              .map((row) => `${row.name}: ${row.dpr} outside ${low}-${high}`);
 
-              expect(outside, `level ${level}, ${ruleset}`).toEqual([]);
-            } finally {
-              on();
-            }
-          });
-        }
-      });
-    }
+            expect(outside, `level ${level}, ${ruleset}`).toEqual([]);
+          } finally {
+            on();
+          }
+        });
+      }
+    });
   }
 
   it('does not put any of ours at the very top of the band', () => {

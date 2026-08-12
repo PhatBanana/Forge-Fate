@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { deriveBuild, emptyBuild, proficiencyBonus } from './character';
 import { analyze } from './analyze';
-import { overspends, topSlotLevel, uncastableSpells } from './legality';
+import { overspends, uncastableSpells } from './legality';
 import { optionGroups } from './classOptions';
 import { masterySlots } from './attacks';
 import { CLASSES, subclassLevelFor, subclassesFor } from '../data/classes';
@@ -145,7 +145,7 @@ describe('every budget is enforced, at every level', () => {
         });
       }
       const castable = casting.available.filter(
-        (s) => s.level > 0 && s.level <= topSlotLevel(ctx),
+        (s) => s.level > 0 && s.level <= ctx.spellcasting.highestLevel,
       );
       const cap = casting.spellsKnown ?? casting.spellsPrepared;
       if (cap !== null && castable.length > cap) {
@@ -240,7 +240,7 @@ describe('a spell above every slot you own', () => {
         for (const level of [1, 3, 5, 11, 17]) {
           const ctx = deriveBuild(build(klass.id, level, ruleset));
           if (!ctx.spellcasting.casts) continue;
-          const top = topSlotLevel(ctx);
+          const top = ctx.spellcasting.highestLevel;
           const tooHigh = ctx.spellcasting.available.find((s) => s.level > top);
           if (!tooHigh) continue;
           const b = build(klass.id, level, ruleset, {
@@ -261,7 +261,7 @@ describe('a spell above every slot you own', () => {
     // cannot cast yet. Only what is *prepared* is judged.
     const wizard = build('wizard', 1, '2014');
     const ctx = deriveBuild(wizard);
-    const tooHigh = ctx.spellcasting.available.find((s) => s.level > topSlotLevel(ctx));
+    const tooHigh = ctx.spellcasting.available.find((s) => s.level > ctx.spellcasting.highestLevel);
     if (!tooHigh) return;
     const written = deriveBuild({ ...wizard, spellIds: [tooHigh.id], preparedIds: [] });
     expect(uncastableSpells(written)).toEqual([]);
@@ -316,7 +316,7 @@ describe('the review says so out loud', () => {
     const ctx = deriveBuild(bard);
     const known = ctx.spellcasting.spellsKnown!;
     const tooMany = ctx.spellcasting.available
-      .filter((s) => s.level > 0 && s.level <= topSlotLevel(ctx))
+      .filter((s) => s.level > 0 && s.level <= ctx.spellcasting.highestLevel)
       .slice(0, known + 3)
       .map((s) => s.id);
 

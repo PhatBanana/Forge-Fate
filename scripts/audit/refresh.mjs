@@ -112,6 +112,8 @@ function write(name, value) {
   console.log(`  ${name.padEnd(24)} ${String(count).padStart(4)} records`);
 }
 
+const ABILITY = { STR: 'str', DEX: 'dex', CON: 'con', INT: 'int', WIS: 'wis', CHA: 'cha' };
+
 const COPPER = { cp: 1, sp: 10, ep: 50, gp: 100, pp: 1000 };
 const inCopper = (cost) => (cost ? cost.quantity * COPPER[cost.unit] : 0);
 
@@ -308,13 +310,12 @@ async function subclasses2024() {
  * increases *and* the origin feat - so those two fields are what the fixture
  * leads with.
  */
-const ABILITY_BY_CODE = { STR: 'str', DEX: 'dex', CON: 'con', INT: 'int', WIS: 'wis', CHA: 'cha' };
-
 async function featsAndBackgrounds() {
   const editions = ['2014', '2024'];
   const out = {};
 
-  for (const edition of editions) {
+  // The two editions are independent fetches, so they run side by side.
+  await Promise.all(editions.map(async (edition) => {
     const [featIndex, bgIndex] = await Promise.all([
       getJson(`${DND5EAPI}/api/${edition}/feats?limit=200`),
       getJson(`${DND5EAPI}/api/${edition}/backgrounds?limit=200`),
@@ -334,7 +335,7 @@ async function featsAndBackgrounds() {
       }))),
       backgrounds: byKey(backgrounds.map((b) => ({
         name: b.name,
-        abilities: (b.ability_scores ?? []).map((a) => ABILITY_BY_CODE[a.name]).filter(Boolean),
+        abilities: (b.ability_scores ?? []).map((a) => ABILITY[a.name]).filter(Boolean),
         originFeat: b.feat?.name ?? null,
         // "Skill: Athletics" and "Tool: Dice" share one list upstream; the app
         // keeps skills and tools apart, so they are split here.
@@ -344,7 +345,7 @@ async function featsAndBackgrounds() {
           .sort(),
       }))),
     };
-  }
+  }));
 
   return out;
 }
@@ -467,8 +468,6 @@ function spellcastingRow(casting) {
 }
 
 // --------------------------------------------------------------------- core
-const ABILITY = { STR: 'str', DEX: 'dex', CON: 'con', INT: 'int', WIS: 'wis', CHA: 'cha' };
-
 async function core2014() {
   const [classes, races, subraces, skills, conditions, languages] = await Promise.all([
     getIndex('/api/2014/classes'),
@@ -559,22 +558,23 @@ async function core2014() {
     shields: ['shield'], 'simple weapons': ['simple'], 'martial weapons': ['martial'],
   };
 
+  // The skill list is prose in `desc`, and the structured `from.options`
+  // is empty for several classes - so the names are read out of the
+  // sentence, which is the only place all twelve of them agree.
+  /*
+    Which of a class's proficiency choices is the skill one. Matching on a
+    handful of anchor skill names does not work - the Cleric's list happens
+    to contain none of the obvious ones - so the test is "names at least
+    three of the eighteen skills", which every class's sentence does and no
+    instrument or tool choice does.
+  */
+  const SKILL_NAMES = skills.map((sk) => sk.name);
+  const namesIn = (d) => SKILL_NAMES.filter((n) => d.includes(n)).length;
+
   for (const c of classRecords) {
     const source = classes.find((k) => k.name === c.name);
     c.proficiencies = [...new Set((source.proficiencies ?? [])
       .flatMap((p) => PROFICIENCY_KINDS[p.name.toLowerCase()] ?? []))].sort();
-    // The skill list is prose in `desc`, and the structured `from.options`
-    // is empty for several classes - so the names are read out of the
-    // sentence, which is the only place all twelve of them agree.
-    /*
-      Which of a class's proficiency choices is the skill one. Matching on a
-      handful of anchor skill names does not work - the Cleric's list happens
-      to contain none of the obvious ones - so the test is "names at least
-      three of the eighteen skills", which every class's sentence does and no
-      instrument or tool choice does.
-    */
-    const SKILL_NAMES = skills.map((sk) => sk.name);
-    const namesIn = (d) => SKILL_NAMES.filter((n) => d.includes(n)).length;
     const prose = (source.proficiency_choices ?? [])
       .map((ch) => ch.desc ?? '')
       .find((d) => /choose any/i.test(d) || namesIn(d) >= 3);
@@ -1003,23 +1003,23 @@ async function monsters2014() {
  */
 async function conditions() {
   const list = await getJson(`${DND5EAPI}/api/2014/conditions?limit=100`);
-  const records = {};
-  for (const entry of list.results) {
-    // Exhaustion is a track rather than a state and lives in
-    // `engine/exhaustion.ts`, checked by its own tests.
-    if (entry.index === 'exhaustion') continue;
-    const [older, newer] = await Promise.all([
-      getJson(`${DND5EAPI}/api/2014/conditions/${entry.index}`),
-      getJson(`${DND5EAPI}/api/2024/conditions/${entry.index}`),
-    ]);
-    records[entry.index] = {
-      name: entry.name,
-      '2014': (older.desc ?? []).join(' ').replace(/\s+/g, ' ').trim(),
-      // See above: 2024 says `description`, and it is a string.
-      '2024': (newer.description ?? (newer.desc ?? []).join(' ')).replace(/\s+/g, ' ').trim(),
-    };
-  }
-  return records;
+  // Exhaustion is a track rather than a state and lives in
+  // `engine/exhaustion.ts`, checked by its own tests.
+  const rows = await Promise.all(list.results
+    .filter((entry) => entry.index !== 'exhaustion')
+    .map(async (entry) => {
+      const [older, newer] = await Promise.all([
+        getJson(`${DND5EAPI}/api/2014/conditions/${entry.index}`),
+        getJson(`${DND5EAPI}/api/2024/conditions/${entry.index}`),
+      ]);
+      return [entry.index, {
+        name: entry.name,
+        '2014': (older.desc ?? []).join(' ').replace(/\s+/g, ' ').trim(),
+        // See above: 2024 says `description`, and it is a string.
+        '2024': (newer.description ?? (newer.desc ?? []).join(' ')).replace(/\s+/g, ' ').trim(),
+      }];
+    }));
+  return Object.fromEntries(rows);
 }
 
 const SETS = {
@@ -1039,6 +1039,20 @@ const SETS = {
   'srd-conditions': conditions,
 };
 
+/*
+  Each fixture's provenance line. The default is the prefix convention -
+  `srd-2024*` came from SRD 5.2, everything else from SRD 5.1 - and this map
+  holds the fixtures that break it: the open5e-sourced pair, and the ones that
+  carry both editions side by side, keyed by edition inside. A new fixture
+  that spans editions adds a line here rather than a branch to the write loop.
+*/
+const SOURCE_EXCEPTIONS = {
+  'srd-2024-weapons': 'open5e SRD 5.2',
+  'srd-2024-classes': 'open5e SRD 5.2',
+  'srd-feats-backgrounds': 'dnd5eapi SRD 5.1 and 5.2',
+  'srd-conditions': 'dnd5eapi SRD 5.1 and 5.2',
+};
+
 const wanted = process.argv.slice(2);
 const chosen = wanted.length
   ? Object.entries(SETS).filter(([name]) => wanted.some((w) => name.includes(w)))
@@ -1052,15 +1066,8 @@ if (!chosen.length) {
 console.log(`Refreshing ${chosen.length} fixture set(s) into src/data/srd\n`);
 for (const [name, build] of chosen) {
   write(name, {
-    source: name === 'srd-2024-weapons' || name === 'srd-2024-classes'
-      ? 'open5e SRD 5.2'
-      : name === 'srd-feats-backgrounds'
-        // The one fixture that spans both editions, keyed by edition inside.
-        ? 'dnd5eapi SRD 5.1 and 5.2'
-        : name === 'srd-conditions'
-          // The other fixture spanning both editions, keyed by edition inside.
-          ? 'dnd5eapi SRD 5.1 and 5.2'
-        : name.startsWith('srd-2024') ? 'dnd5eapi SRD 5.2' : 'dnd5eapi SRD 5.1',
+    source: SOURCE_EXCEPTIONS[name]
+      ?? (name.startsWith('srd-2024') ? 'dnd5eapi SRD 5.2' : 'dnd5eapi SRD 5.1'),
     refreshed: new Date().toISOString().slice(0, 10),
     records: await build(),
   });

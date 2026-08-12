@@ -1,5 +1,6 @@
 import { defaultRng, parseNotation, rollD20, rollNotation } from './engine/dice';
 import type { Rng } from './engine/dice';
+import type { LightLevel, LightSource } from './engine/light';
 import type { Monster } from './data/monsters';
 import { initiativeMod } from './data/monsters';
 
@@ -207,7 +208,7 @@ export interface EncounterState {
    * shape and a clock, and a torch is neither - it does nothing to whoever
    * stands in it, and it lasts until somebody puts it out. See `engine/light.ts`.
    */
-  lights?: import('./engine/light').LightSource[];
+  lights?: LightSource[];
   /**
    * How bright the map is where no light reaches.
    *
@@ -215,7 +216,7 @@ export interface EncounterState {
    * outdoor fight at noon - plays exactly as it did. A dungeon is `dark`, and
    * that one field is what makes darkvision matter.
    */
-  ambientLight?: import('./engine/light').LightLevel;
+  ambientLight?: LightLevel;
   /** Fog of war: the map shows only what the party can see or has seen. */
   fog?: boolean;
   /** Squares the party has laid eyes on, by key - the fog's memory. On the
@@ -740,8 +741,16 @@ export function setConditionSource(
   };
 }
 
-/** Conditions whose rules turn on who caused them, so the UI knows to ask. */
-export const CONDITIONS_WITH_A_SOURCE = ['frightened', 'charmed'];
+/**
+ * Conditions whose rules turn on who caused them, so the UI knows to ask.
+ *
+ * Grappled joined in the hygiene pass after §39: the grapple engine reads
+ * `conditionSources.grappled` for the escape roll and the auto-release sweep,
+ * but a DM who ticked Grappled by hand had no way to name the grappler - a
+ * speed-0 condition the rules engine could never end, while the selector that
+ * answers it already existed one line away for the other two.
+ */
+export const CONDITIONS_WITH_A_SOURCE = ['frightened', 'charmed', 'grappled'];
 
 // ---------------------------------------------------------------- surprise
 
@@ -777,7 +786,7 @@ export function setSurprised(
  */
 export function addLight(
   encounter: EncounterState,
-  light: Omit<import('./engine/light').LightSource, 'id'>,
+  light: Omit<LightSource, 'id'>,
 ): EncounterState {
   return {
     ...encounter,
@@ -802,7 +811,7 @@ export function toggleLightOut(encounter: EncounterState, id: string): Encounter
 /** How bright the map is where no light reaches. */
 export function setAmbientLight(
   encounter: EncounterState,
-  level: import('./engine/light').LightLevel,
+  level: LightLevel,
 ): EncounterState {
   return { ...encounter, ambientLight: level };
 }

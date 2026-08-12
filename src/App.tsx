@@ -736,20 +736,17 @@ export default function App() {
                 <button className="btn btn-sm" onClick={() => setTab('sheet')}>
                   Character sheet →
                 </button>
-                <button className="btn btn-sm" onClick={() => setTab('table')}>
-                  Battle →
-                </button>
               </>
             )}
             {tab === 'sheet' && (
-              <>
-                <button className="btn btn-sm" onClick={() => setTab('builder')}>
-                  ← Edit in Builder
-                </button>
-                <button className="btn btn-sm" onClick={() => setTab('table')}>
-                  Battle →
-                </button>
-              </>
+              <button className="btn btn-sm" onClick={() => setTab('builder')}>
+                ← Edit in Builder
+              </button>
+            )}
+            {(tab === 'builder' || tab === 'sheet') && (
+              <button className="btn btn-sm" onClick={() => setTab('table')}>
+                Battle →
+              </button>
             )}
           </span>
         </header>

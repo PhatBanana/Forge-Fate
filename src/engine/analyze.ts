@@ -67,19 +67,6 @@ export function analyze(ctx: BuildContext): Finding[] {
   const key = ctx.keyAbility;
 
   /*
-    Multiclass prerequisites, §43. `checkPrereq` has covered feats since the
-    Builder had feats and nothing ever checked the multiclassing table, so a
-    Wizard 5 with Strength 8 could take a Fighter level and no screen in the
-    app said a word about it.
-
-    An error rather than a warning: this is not "your build is weak", it is
-    "your character could not legally have been made". Flagged rather than
-    forbidden, because the Builder is a planning tool and refusing the class
-    would answer "does this work?" by hiding the answer - and because a table
-    running the optional waiver, or a sheet imported from one, has to survive
-    the trip.
-  */
-  /*
     Every budget spent past its limit, §45. Each of these was silent: the
     "how many are open" fields all clamp at zero, so a Bard knowing 25 spells
     of a permitted 22 read exactly like one knowing 22. One finding per
@@ -114,6 +101,19 @@ export function analyze(ctx: BuildContext): Finding[] {
     });
   }
 
+  /*
+    Multiclass prerequisites, §43. `checkPrereq` has covered feats since the
+    Builder had feats and nothing ever checked the multiclassing table, so a
+    Wizard 5 with Strength 8 could take a Fighter level and no screen in the
+    app said a word about it.
+
+    An error rather than a warning: this is not "your build is weak", it is
+    "your character could not legally have been made". Flagged rather than
+    forbidden, because the Builder is a planning tool and refusing the class
+    would answer "does this work?" by hiding the answer - and because a table
+    running the optional waiver, or a sheet imported from one, has to survive
+    the trip.
+  */
   const legality = checkMulticlass(ctx.slices, scores);
   if (!legality.ok) {
     findings.push({
@@ -238,14 +238,7 @@ export function analyze(ctx: BuildContext): Finding[] {
     loop below never reached because it walks `featIds` only. The same feat
     was flagged in one slot and silent in the other.
   */
-  for (const bad of illegalFeats(
-    ctx,
-    (id, ruleset) => featById(id, ruleset as typeof ctx.build.ruleset),
-    (id) => {
-      const feat = featById(id, ctx.build.ruleset);
-      return feat ? checkPrereq(feat, ctx).problems : [];
-    },
-  )) {
+  for (const bad of illegalFeats(ctx, featById, (feat) => checkPrereq(feat, ctx).problems)) {
     findings.push({
       severity: 'error',
       title: `${bad.name} cannot sit in an origin slot`,

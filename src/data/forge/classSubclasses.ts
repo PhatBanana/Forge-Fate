@@ -1,5 +1,7 @@
 import type { ClassId, Subclass } from '../../types';
 import type { ClassFeature } from '../classFeatures';
+import { groupForgeRows } from './rows';
+import type { ForgeSubclassRow } from './rows';
 
 /**
  * Subclasses for the app's own four classes.
@@ -26,13 +28,7 @@ import type { ClassFeature } from '../classFeatures';
 const f = (level: number, name: string, summary: string): ClassFeature => ({ level, name, summary });
 const BOTH: ('2014' | '2024')[] = ['2014', '2024'];
 
-interface Row {
-  classId: ClassId;
-  subclass: Subclass;
-  features: ClassFeature[];
-}
-
-const ROWS: Row[] = [
+const ROWS: ForgeSubclassRow[] = [
   // ================================================================ reckoner
   // What you bargained with. Five in both rulesets, four in 2014 only.
   {
@@ -588,14 +584,6 @@ const ROWS: Row[] = [
   },
 ];
 
-export const FORGE_CLASS_SUBCLASSES: Partial<Record<ClassId, Subclass[]>> = ROWS.reduce(
-  (map, row) => {
-    (map[row.classId] ??= []).push(row.subclass);
-    return map;
-  },
-  {} as Partial<Record<ClassId, Subclass[]>>,
-);
-
-export const FORGE_CLASS_SUBCLASS_FEATURES: Record<string, ClassFeature[]> = Object.fromEntries(
-  ROWS.map((row) => [row.subclass.id, row.features]),
-);
+const grouped = groupForgeRows(ROWS);
+export const FORGE_CLASS_SUBCLASSES: Partial<Record<ClassId, Subclass[]>> = grouped.byClass;
+export const FORGE_CLASS_SUBCLASS_FEATURES: Record<string, ClassFeature[]> = grouped.features;

@@ -1,6 +1,7 @@
 import type { D20Mode } from './dice';
 import type { Ruleset } from '../types';
-import { exhaustionEffect, speedAfterExhaustion } from './exhaustion';
+import { INCAPACITATING, SPEED_ZERO } from '../data/conditions';
+import { exhaustionEffect } from './exhaustion';
 
 /**
  * Whether an attack rolls one die, two and takes the best, or two and takes
@@ -97,8 +98,9 @@ export interface Exchange {
 const has = (c: Combatant, id: string) => c.conditions.includes(id);
 
 /** "You lose this benefit if you are incapacitated or if your speed drops to
-    0" - the incapacitated half, which is the half this app tracks. */
-const STOPS_A_DODGE = ['incapacitated', 'paralyzed', 'petrified', 'stunned', 'unconscious'];
+    0" - the incapacitated half, which is the half this app tracks. The family
+    itself is a flag on the `Condition` records. */
+const STOPS_A_DODGE = INCAPACITATING;
 
 /**
  * Every circumstance the app can see, in the order a DM would read them out.
@@ -215,38 +217,15 @@ export function mayApproach(
 }
 
 /**
- * What exhaustion does to a speed.
- *
- * Kept as a re-export so the callers that ask a movement question keep asking
- * it here, but the rule itself lives in `engine/exhaustion.ts` now: the two
- * editions do completely different things, and this function used to know
- * only 2014's - halving at two, stopping at five - which it then applied to
- * 2024 characters as well. See §51.
- */
-export function speedUnderExhaustion(
-  speed: number,
-  exhaustion: number,
-  ruleset: Ruleset = '2014',
-): number {
-  return speedAfterExhaustion(speed, exhaustion, ruleset);
-}
-
-/**
  * The six conditions whose text is, in whole or in part, "your speed is 0".
  *
  * Grappled and restrained say it outright. The other four say "can't move",
  * which is the same sentence written by a different author - and until §39
  * every one of them was decorative: the app tracked all six and a stunned
- * creature could still be walked across the map.
+ * creature could still be walked across the map. Which six is a flag on the
+ * `Condition` records rather than a list here.
  */
-export const STOPS_MOVEMENT = [
-  'grappled',
-  'restrained',
-  'paralyzed',
-  'petrified',
-  'stunned',
-  'unconscious',
-];
+const STOPS_MOVEMENT = SPEED_ZERO;
 
 /**
  * A speed with the conditions applied, which is nought or nothing.

@@ -1,6 +1,6 @@
 import { ABILITIES, ABILITY_NAMES } from '../types';
 import type { CharClass, ClassId, Race, Rating, Ruleset, TraitTag } from '../types';
-import { CLASSES } from '../data/classes';
+import { CLASSES, classesFor } from '../data/classes';
 import { racesFor } from '../data/races';
 import {
   TRAIT_SCALE,
@@ -231,10 +231,21 @@ export function bestRacesFor(classId: ClassId, limit = 8, ruleset: Ruleset = '20
   return cells.sort(byQuality).slice(0, limit);
 }
 
-/** Best classes for a lineage, best first. */
-export function bestClassesFor(raceId: string, limit = 5, ruleset: Ruleset = '2014'): Cell[] {
-  const cells = CLASSES.map((c) => cellFor(raceId, c.id, ruleset)).filter((c): c is Cell => !!c);
-  return cells.sort(byQuality).slice(0, limit);
+/**
+ * Every offered class for a lineage, best first.
+ *
+ * `classesFor` rather than raw `CLASSES`, for the same reason `bestRacesFor`
+ * asks `racesFor`: the suggestion list is an *offer*, so it respects the
+ * ruleset and the originals switch. Iterating `CLASSES` here would have
+ * suggested the Artificer to a 2024 table and a Forge class with the switch
+ * off - the caller used to paper over it by passing the offered count as a
+ * limit, which trims the list without cleaning the pool.
+ */
+export function bestClassesFor(raceId: string, ruleset: Ruleset = '2014'): Cell[] {
+  const cells = classesFor(ruleset)
+    .map((c) => cellFor(raceId, c.id, ruleset))
+    .filter((c): c is Cell => !!c);
+  return cells.sort(byQuality);
 }
 
 export type { Cell } from './matrix';

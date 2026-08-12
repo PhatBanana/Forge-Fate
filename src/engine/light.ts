@@ -1,3 +1,4 @@
+import { distanceBetween } from '../encounter';
 import type { Square } from '../encounter';
 
 /**
@@ -49,11 +50,7 @@ export type LightLevel = 'bright' | 'dim' | 'dark';
 const LADDER: LightLevel[] = ['bright', 'dim', 'dark'];
 
 /** How dark it is, as a number, so "one step brighter" is subtraction. */
-export const rankOfLight = (level: LightLevel): number => LADDER.indexOf(level);
-
-/** The darker of two levels, which is how overlapping darkness works. */
-export const darker = (a: LightLevel, b: LightLevel): LightLevel =>
-  rankOfLight(a) >= rankOfLight(b) ? a : b;
+const rankOfLight = (level: LightLevel): number => LADDER.indexOf(level);
 
 /** The brighter of two levels, which is how overlapping *light* works. */
 export const brighter = (a: LightLevel, b: LightLevel): LightLevel =>
@@ -107,13 +104,6 @@ export const LIGHT_KINDS: {
   { id: 'fire', label: 'Campfire', bright: 20, dim: 20, hint: '20 ft bright, 20 dim — scenery that happens to be lit' },
 ];
 
-/** Feet per square, the one distance rule the whole app counts in. */
-export const FEET_PER_SQUARE = 5;
-
-/** Chebyshev in feet: the grid's own distance, which diagonals do not cost extra. */
-export const feetBetween = (a: Square, b: Square): number =>
-  Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) * FEET_PER_SQUARE;
-
 /**
  * How bright one square is.
  *
@@ -127,8 +117,10 @@ export function lightAt(sources: LightSource[], at: Square, ambient: LightLevel 
   let level = ambient;
   for (const source of sources) {
     if (source.out || !source.at) continue;
-    const feet = feetBetween(source.at, at);
-    if (feet <= source.bright) level = brighter(level, 'bright');
+    const feet = distanceBetween(source.at, at);
+    // Bright is the top of the ladder, so inside a bright radius the answer
+    // is bright no matter what was there before.
+    if (feet <= source.bright) level = 'bright';
     else if (feet <= source.bright + source.dim) level = brighter(level, 'dim');
   }
   return level;
@@ -179,7 +171,7 @@ export interface Eyes {
  * unlit room sees the room as dim - not as day.
  */
 export function seenAs(eyes: Eyes, at: Square, level: LightLevel): LightLevel {
-  const feet = feetBetween(eyes.at, at);
+  const feet = distanceBetween(eyes.at, at);
   if (eyes.blindsight && feet <= eyes.blindsight) return 'bright';
   if (eyes.darkvision && feet <= eyes.darkvision) return oneBrighter(level);
   return level;

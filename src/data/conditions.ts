@@ -66,6 +66,15 @@ export interface Condition {
    * optional is a statement rather than a convenience.
    */
   summaryIn2024?: string;
+  /**
+   * This condition's own text includes the Incapacitated condition, so
+   * everything that turns on "while incapacitated" - dodges ending, grapples
+   * releasing - turns on this one too. A fact of the condition, so it lives
+   * here rather than as an id list in whichever engine file asked first.
+   */
+  incapacitates?: true;
+  /** This condition's text sets your speed to 0 (or says "can't move"). */
+  stopsMovement?: true;
 }
 
 export const CONDITIONS: Condition[] = [
@@ -76,6 +85,7 @@ export const CONDITIONS: Condition[] = [
   {
     id: 'grappled',
     name: 'Grappled',
+    stopsMovement: true,
     summary: 'Your speed is 0, and it ends if the grappler is incapacitated or you are moved away.',
     summaryIn2024:
       'Speed 0, disadvantage on attacks against anyone but the grappler, and the grappler can drag you along at one extra foot per foot moved.',
@@ -83,6 +93,7 @@ export const CONDITIONS: Condition[] = [
   {
     id: 'incapacitated',
     name: 'Incapacitated',
+    incapacitates: true,
     summary: 'You can take no actions and no reactions at all.',
     summaryIn2024:
       'No action, bonus action or reaction, concentration broken, cannot speak — and disadvantage on initiative if you have this when you roll it.',
@@ -97,6 +108,8 @@ export const CONDITIONS: Condition[] = [
   {
     id: 'paralyzed',
     name: 'Paralyzed',
+    incapacitates: true,
+    stopsMovement: true,
     summary: 'Incapacitated, cannot move or speak, fail Strength and Dexterity saves, and hits within 5 feet are critical.',
     summaryIn2024:
       'Incapacitated with speed 0, automatic failure on Strength and Dexterity saves, attacks against you have advantage, and hits within 5 feet are critical.',
@@ -104,6 +117,8 @@ export const CONDITIONS: Condition[] = [
   {
     id: 'petrified',
     name: 'Petrified',
+    incapacitates: true,
+    stopsMovement: true,
     summary: 'Turned to stone: incapacitated, resistant to all damage, and immune to poison and disease.',
     summaryIn2024:
       'Turned to stone: incapacitated with speed 0, resistant to all damage, immune to the poisoned condition, and you fail Strength and Dexterity saves.',
@@ -116,10 +131,12 @@ export const CONDITIONS: Condition[] = [
     summaryIn2024:
       'Crawl, or spend half your speed rounded down to stand — and you cannot stand at all at speed 0. Disadvantage on your attacks; attacks against you have advantage within 5 feet and disadvantage beyond.',
   },
-  { id: 'restrained', name: 'Restrained', summary: 'Speed 0, disadvantage on attacks and Dexterity saves, and attacks against you have advantage.' },
+  { id: 'restrained', name: 'Restrained', stopsMovement: true, summary: 'Speed 0, disadvantage on attacks and Dexterity saves, and attacks against you have advantage.' },
   {
     id: 'stunned',
     name: 'Stunned',
+    incapacitates: true,
+    stopsMovement: true,
     summary: 'Incapacitated, cannot move, fail Strength and Dexterity saves, and attacks against you have advantage.',
     summaryIn2024:
       'Incapacitated — so no action, bonus action or reaction and no concentration — you fail Strength and Dexterity saves, and attacks against you have advantage.',
@@ -127,6 +144,8 @@ export const CONDITIONS: Condition[] = [
   {
     id: 'unconscious',
     name: 'Unconscious',
+    incapacitates: true,
+    stopsMovement: true,
     summary: 'Incapacitated and prone, unaware of everything, and hits within 5 feet are critical.',
     summaryIn2024:
       'Incapacitated and prone with speed 0, you drop what you are holding, you fail Strength and Dexterity saves, and hits within 5 feet are critical. You stay prone when it ends.',
@@ -136,6 +155,16 @@ export const CONDITIONS: Condition[] = [
 export const CONDITIONS_BY_ID: Record<string, Condition> = Object.fromEntries(
   CONDITIONS.map((c) => [c.id, c]),
 );
+
+/**
+ * The two condition families the engine keys rules off, derived from the
+ * flags above rather than listed where they are used. Before this, the same
+ * five ids were spelled out in three engine files - a dodge ending, a grapple
+ * releasing, movement stopping - and a new condition would have had to find
+ * all three.
+ */
+export const INCAPACITATING: string[] = CONDITIONS.filter((c) => c.incapacitates).map((c) => c.id);
+export const SPEED_ZERO: string[] = CONDITIONS.filter((c) => c.stopsMovement).map((c) => c.id);
 
 /**
  * What this condition does, under the rules this character is playing.

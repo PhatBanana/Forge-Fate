@@ -177,6 +177,8 @@ export function CommandMenu({
         .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))
     : [];
 
+  const rituals = spells.filter((s) => s.ritual && s.level > 0);
+
   /** The cheapest way to pay for a spell, or null when nothing can. */
   const slotFor = (spell: Spell): { kind: 'slot'; level: number } | { kind: 'pact' } | null => {
     if (spell.level === 0) return null;
@@ -651,10 +653,9 @@ export function CommandMenu({
             paid for with ten minutes instead of a slot, and mixing the two
             into one control is how a slot gets spent by accident.
           */}
-          {spells.some((s) => s.ritual && s.level > 0) && (
+          {rituals.length > 0 && (
             <div className="hud-spell-list">
-              {spells
-                .filter((s) => s.ritual && s.level > 0)
+              {rituals
                 .map((spell) => (
                   <button
                     key={`ritual-${spell.id}`}

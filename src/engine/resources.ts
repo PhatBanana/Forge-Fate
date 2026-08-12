@@ -17,6 +17,13 @@ export interface HeldResource {
   key: string;
   classId: ClassId;
   className: string;
+  /**
+   * The level in the class that grants it - carried here because every
+   * question about a held resource (its recharge, its detail line) is asked
+   * at this level, and the callers that used to answer it re-derived the
+   * level with three identical lookups.
+   */
+  classLevel: number;
   resource: ClassResource;
   max: number;
   /**
@@ -65,6 +72,7 @@ export function heldResources(
         key: `${slice.klass.id}:${resource.id}`,
         classId: slice.klass.id,
         className: slice.klass.name,
+        classLevel,
         resource,
         max,
         detail: resource.detail?.(classLevel) ?? null,
@@ -76,12 +84,14 @@ export function heldResources(
 }
 
 /**
- * Bardic Inspiration is the one resource whose *recharge* moves with level:
- * Font of Inspiration at 5th turns it from once a day into once a short rest.
- * Everything else recharges the same way at every level.
+ * A recharge can improve with level - Font of Inspiration at 5th turns
+ * Bardic Inspiration from once a day into once a short rest. Which resources
+ * do that, and when, is data on the resource (`rechargeFrom`) rather than an
+ * id check here.
  */
-export function rechargeFor(held: HeldResource, classLevel: number): Recharge {
-  if (held.resource.id === 'bardic-inspiration' && classLevel >= 5) return 'short';
+export function rechargeFor(held: HeldResource): Recharge {
+  const upgrade = held.resource.rechargeFrom;
+  if (upgrade && held.classLevel >= upgrade.level) return upgrade.recharge;
   return held.resource.recharge;
 }
 
@@ -99,12 +109,11 @@ export function rechargeFor(held: HeldResource, classLevel: number): Recharge {
  */
 export function restoredKeys(
   held: HeldResource[],
-  levelOf: (classId: ClassId) => number,
   moment: 'encounter' | 'short',
 ): string[] {
   return held
     .filter((h) => {
-      const recharge = rechargeFor(h, levelOf(h.classId));
+      const recharge = rechargeFor(h);
       return moment === 'short' ? recharge !== 'long' : recharge === 'encounter';
     })
     .map((h) => h.key);

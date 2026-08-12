@@ -622,7 +622,7 @@ export function DungeonMap({
       {gloom && Object.keys(gloom).length > 0 && (
         <g className="dmap-gloom-layer" pointerEvents="none">
           {Object.entries(gloom).map(([key, level]) => {
-            const [x, y] = key.split(',').map(Number);
+            const { x, y } = squareOf(key);
             return (
               <rect
                 key={`gloom${key}`}
