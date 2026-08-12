@@ -1,4 +1,4 @@
-import type { Ability, SightGrant } from '../types';
+import type { Ability, MoveGrant, SightGrant } from '../types';
 import type { ArmorCategory } from './armor';
 
 /**
@@ -72,6 +72,12 @@ export const KIND_ORDER: ItemKind[] = [
 export interface ItemEffect {
   /** What wearing it does to your eyes: Goggles of Night and its kind. */
   sight?: SightGrant;
+  /**
+   * What wearing it does to how you get about: the swim speeds, the climb
+   * speeds, the waivers and the tripled jumps. Distinct from `speed`, which
+   * is the walking number and nothing else.
+   */
+  move?: MoveGrant;
   /** Flat armor class, over and above what your armor gives. */
   ac?: number;
   /** Saving throws, which several protective items grant alongside AC. */
@@ -483,7 +489,7 @@ export const MAGIC_ITEMS: MagicItem[] = [
   m('efreeti-chain', 'Efreeti Chain', 'armor', 'legendary', true, '+3 chain mail, immunity to fire, and you can walk on molten rock.', { effect: { ac: 3 } }),
   m('elven-chain', 'Elven Chain', 'armor', 'rare', false, '+1 chain shirt, and you are proficient with it whether or not you have medium armor.', { effect: { ac: 1 } }),
   m('glamoured-studded-leather', 'Glamoured Studded Leather', 'armor', 'rare', false, '+1 studded leather that looks like anything you like.', { effect: { ac: 1 } }),
-  m('mariners-armor', "Mariner's Armor", 'armor', 'uncommon', false, 'A swimming speed, and you float rather than sink.'),
+  m('mariners-armor', "Mariner's Armor", 'armor', 'uncommon', false, 'A swimming speed equal to your walking speed, and you float rather than sink.', { effect: { move: { swim: 'walk' } } }),
   m('mithral-armor', 'Mithral Armor', 'armor', 'uncommon', false, 'No Stealth disadvantage and no Strength requirement, whatever the armor.', { effect: { armorTraits: { noStealthDisadvantage: true, noStrengthRequirement: true } }, note: 'Applies to the armor you are wearing, so it is worth most on the heavy armor that carries both penalties.' }),
   m('plate-armor-of-etherealness', 'Plate Armor of Etherealness', 'armor', 'legendary', true, 'Ten minutes a day on the Ethereal Plane, walking through walls.'),
   m('shield-of-missile-attraction', 'Shield of Missile Attraction', 'armor', 'rare', true, 'Resistance to ranged weapon damage, but every nearby ranged attack aims at you. Cursed.', { slot: 'shield' }),
@@ -518,7 +524,7 @@ export const MAGIC_ITEMS: MagicItem[] = [
   m('ring-of-the-ram', 'Ring of the Ram', 'ring', 'rare', true, 'Three charges: a +7 ram attack for 2d10 force per charge that pushes the target 5 feet, or a shove against a door.'),
   m('ring-of-spell-storing', 'Ring of Spell Storing', 'ring', 'rare', true, 'Holds up to five levels of spells for anyone to cast later.'),
   m('ring-of-spell-turning', 'Ring of Spell Turning', 'ring', 'legendary', true, 'Advantage on saves against spells that target only you, and a natural 20 reflects them.'),
-  m('ring-of-swimming', 'Ring of Swimming', 'ring', 'uncommon', false, 'A swimming speed of 40 feet.'),
+  m('ring-of-swimming', 'Ring of Swimming', 'ring', 'uncommon', false, 'A swimming speed of 40 feet.', { effect: { move: { swim: 40 } } }),
   m('ring-of-telekinesis', 'Ring of Telekinesis', 'ring', 'very-rare', true, 'Cast telekinesis at will.'),
   m('ring-of-three-wishes', 'Ring of Three Wishes', 'ring', 'legendary', false, 'Three wishes, and then it is a ring.'),
   m('ring-of-warmth', 'Ring of Warmth', 'ring', 'uncommon', true, 'Resistance to cold, and you and your clothes stay comfortable in it.'),
@@ -642,7 +648,7 @@ export const MAGIC_ITEMS: MagicItem[] = [
   m('belt-of-cloud-giant-strength', 'Belt of Cloud Giant Strength', 'wondrous', 'legendary', true, 'Your Strength becomes 27.', { effect: { setAbility: { ability: 'str', score: 27 } } }),
   m('belt-of-storm-giant-strength', 'Belt of Storm Giant Strength', 'wondrous', 'legendary', true, 'Your Strength becomes 29.', { effect: { setAbility: { ability: 'str', score: 29 } } }),
   m('boots-of-levitation', 'Boots of Levitation', 'wondrous', 'rare', true, 'Levitate at will.'),
-  m('boots-of-striding-and-springing', 'Boots of Striding and Springing', 'wondrous', 'uncommon', true, 'Your walking speed becomes 30 if it is lower, you are never slowed by carrying, and you jump three times as far.'),
+  m('boots-of-striding-and-springing', 'Boots of Striding and Springing', 'wondrous', 'uncommon', true, 'Your walking speed becomes 30 if it is lower, you are never slowed by carrying, and you jump three times as far.', { effect: { move: { jumpTimes: 3 } } }),
   m('boots-of-the-winterlands', 'Boots of the Winterlands', 'wondrous', 'uncommon', true, 'Resistance to cold, ice is not difficult terrain, and you tolerate temperatures to −50°F.'),
   m('bowl-of-commanding-water-elementals', 'Bowl of Commanding Water Elementals', 'wondrous', 'rare', false, 'Fill it and summon a water elemental, once a day.'),
   m('bracers-of-archery', 'Bracers of Archery', 'wondrous', 'uncommon', true, 'Proficiency with longbows and shortbows, and +2 damage with them.', { note: 'Bow damage only, so it is not in the general weapon bonus.' }),
@@ -659,9 +665,9 @@ export const MAGIC_ITEMS: MagicItem[] = [
   m('censer-of-controlling-air-elementals', 'Censer of Controlling Air Elementals', 'wondrous', 'rare', false, 'Summon an air elemental, once a day.'),
   m('chime-of-opening', 'Chime of Opening', 'wondrous', 'rare', false, 'Ten uses, each opening one lock, lid or door.'),
   m('circlet-of-blasting', 'Circlet of Blasting', 'wondrous', 'uncommon', false, 'Scorching ray once a day, at +5 to hit.'),
-  m('cloak-of-arachnida', 'Cloak of Arachnida', 'wondrous', 'very-rare', true, 'Resistance to poison, a climbing speed, web once a day, and webs never hold you.'),
+  m('cloak-of-arachnida', 'Cloak of Arachnida', 'wondrous', 'very-rare', true, 'Resistance to poison, a climbing speed, web once a day, and webs never hold you.', { effect: { move: { climb: 'walk' } } }),
   m('cloak-of-the-bat', 'Cloak of the Bat', 'wondrous', 'rare', true, 'Advantage on Stealth, a flying speed in dim light, and you can become a bat.'),
-  m('cloak-of-the-manta-ray', 'Cloak of the Manta Ray', 'wondrous', 'uncommon', false, 'Breathe underwater with a swimming speed of 60 feet.'),
+  m('cloak-of-the-manta-ray', 'Cloak of the Manta Ray', 'wondrous', 'uncommon', false, 'Breathe underwater with a swimming speed of 60 feet.', { effect: { move: { swim: 60 } } }),
   m('crystal-ball', 'Crystal Ball', 'wondrous', 'very-rare', true, 'Scrying at will.'),
   m('crystal-ball-mind-reading', 'Crystal Ball of Mind Reading', 'wondrous', 'legendary', true, 'Scrying at will, plus detect thoughts against anything you can see through it.'),
   m('crystal-ball-telepathy', 'Crystal Ball of Telepathy', 'wondrous', 'legendary', true, 'Scrying at will, plus talking to and suggesting things to whoever you are watching.'),
@@ -707,7 +713,7 @@ export const MAGIC_ITEMS: MagicItem[] = [
   m('gem-of-brightness', 'Gem of Brightness', 'wondrous', 'uncommon', false, 'Light, a blinding beam, or a blinding flash, on fifty charges.'),
   m('gem-of-seeing', 'Gem of Seeing', 'wondrous', 'rare', true, 'Truesight to 120 feet, for ten minutes at a time.'),
   m('gloves-of-missile-snaring', 'Gloves of Missile Snaring', 'wondrous', 'uncommon', true, 'Reduce ranged weapon damage by 1d10 + Dexterity, and catch the missile if it drops to nothing.'),
-  m('gloves-of-swimming-and-climbing', 'Gloves of Swimming and Climbing', 'wondrous', 'uncommon', true, 'Climbing and swimming cost no extra movement, and +5 on Athletics to do either.'),
+  m('gloves-of-swimming-and-climbing', 'Gloves of Swimming and Climbing', 'wondrous', 'uncommon', true, 'Climbing and swimming cost no extra movement, and +5 on Athletics to do either.', { effect: { move: { climbFree: true, swimFree: true } } }),
   m('gloves-of-thievery', 'Gloves of Thievery', 'wondrous', 'uncommon', false, '+5 on Sleight of Hand and on picking locks.'),
   m('goggles-of-night', 'Goggles of Night', 'wondrous', 'uncommon', false, 'Darkvision to 60 feet, or 60 feet further if you already have it.', { effect: { sight: { darkvision: 60, extendsBy: 60 } } }),
   m('hat-of-disguise', 'Hat of Disguise', 'wondrous', 'uncommon', true, 'Disguise self at will.'),
@@ -771,7 +777,7 @@ export const MAGIC_ITEMS: MagicItem[] = [
   m('rope-of-climbing', 'Rope of Climbing', 'wondrous', 'uncommon', false, 'Sixty feet that knots, fastens and moves on command.'),
   m('rope-of-entanglement', 'Rope of Entanglement', 'wondrous', 'rare', false, 'Entangles a creature within 20 feet, and holds it.'),
   m('scarab-of-protection', 'Scarab of Protection', 'wondrous', 'legendary', true, 'Advantage on saves against spells, and it absorbs necrotic effects that would kill you.'),
-  m('slippers-of-spider-climbing', 'Slippers of Spider Climbing', 'wondrous', 'uncommon', true, 'Walk on walls and ceilings with your hands free.'),
+  m('slippers-of-spider-climbing', 'Slippers of Spider Climbing', 'wondrous', 'uncommon', true, 'Walk on walls and ceilings with your hands free, at a climbing speed equal to your walking speed.', { effect: { move: { climb: 'walk' } } }),
   m('sphere-of-annihilation', 'Sphere of Annihilation', 'wondrous', 'legendary', false, 'A two-foot hole in reality that destroys what it touches.'),
   m('stone-of-controlling-earth-elementals', 'Stone of Controlling Earth Elementals', 'wondrous', 'rare', false, 'Summon an earth elemental, once a day.'),
   m('talisman-of-pure-good', 'Talisman of Pure Good', 'wondrous', 'legendary', true, '+2 to spell attack rolls, and it destroys an evil creature outright on seven charges.', { effect: { spellBonus: 2 } }),

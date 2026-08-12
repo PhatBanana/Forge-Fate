@@ -7,6 +7,7 @@ import { featById, featsFor } from '../data/feats';
 import { RACES_BY_ID, raceLineages } from '../data/races';
 import { BACKGROUNDS_BY_ID, backgroundsFor } from '../data/backgrounds';
 import { abilityMod, racialAsi } from '../engine/character';
+import { RUN_UP_FEET, describeJump, jumpDistances, movementFor } from '../engine/movement';
 import { ARMOR, ARMOR_CATEGORY_LABEL } from '../data/armor';
 import { armorProficiencies, isProficientWith, weaponProficiencies } from '../engine/defense';
 import { damageDice, isLight, isTwoHanded, weaponsFor } from '../data/weapons';
@@ -1247,16 +1248,47 @@ function GlancePanel({ ctx }: { ctx: BuildContext }) {
     });
   }
 
+  /*
+    §65. The other speeds, and the jumps.
+
+    Folded into the Speed figure's breakdown rather than given figures of
+    their own: most characters have neither a climb speed nor a swim one, and
+    four more chips on every statline to serve the few who do would cost the
+    many. The jump distances go here too because they are the same question -
+    how far can this character get - and because the long jump being your
+    Strength *score* surprises people every time.
+  */
+  const movement = movementFor(ctx);
+  const jump = jumpDistances(ctx.scores, ctx.mods, movement);
+  const otherWays: string[] = [
+    ...(movement.climb ? [`Climb ${movement.climb} ft.`] : []),
+    ...(movement.swim ? [`Swim ${movement.swim} ft.`] : []),
+    ...(movement.climbFree && !movement.climb ? ['Climbing costs no extra movement'] : []),
+    ...(movement.swimFree && !movement.swim ? ['Swimming costs no extra movement'] : []),
+  ];
+
   stats.push(
     {
       id: 'speed',
       label: 'Speed',
       value: String(speed),
-      // A speed that is just your species' is not worth a breakdown.
-      detail:
-        ctx.speed.lines.length > 1 ? (
-          <Breakdown lines={ctx.speed.lines} total={speed} />
-        ) : undefined,
+      detail: (
+        <>
+          {/* A speed that is just your species' is not worth a breakdown. */}
+          {ctx.speed.lines.length > 1 && <Breakdown lines={ctx.speed.lines} total={speed} />}
+          <p className="hint">
+            Long jump {describeJump(jump.longRunning, jump.longStanding)}. High jump{' '}
+            {describeJump(jump.highRunning, jump.highStanding)}. A running jump wants{' '}
+            {RUN_UP_FEET} ft. of run-up, and every foot you clear costs a foot of movement.
+          </p>
+          {otherWays.length > 0 && <p className="hint">{otherWays.join(' · ')}.</p>}
+          {!movement.climbFree && !movement.swimFree && (
+            <p className="hint">
+              Climbing and swimming cost you double — a foot of each costs two feet of movement.
+            </p>
+          )}
+        </>
+      ),
     },
     {
       id: 'initiative',

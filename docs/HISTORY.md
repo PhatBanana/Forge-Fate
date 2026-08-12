@@ -4664,3 +4664,119 @@ should not paper over with a forced click. Those two are pressed where they
 can be pressed honestly, in `ActionTray.test.tsx` and against a
 mace-and-shield Life Cleric in `regression.test.ts`, and the probe's header
 says so instead of leaving a gap for somebody to rediscover.
+
+## 65. The ground gets a price: climbing, swimming, crawling and jumping
+
+*"now do the jump/climb/swim movement costs"*
+
+The last open line in section 1 of the roadmap, and the smallest-sounding
+one. It was not the smallest.
+
+**Verified first, written second.** Every number here is a number somebody
+will check at a table, so none of it came from memory: SRD 5.1's
+`rule-sections/movement` and `movement-and-position` were fetched and read.
+Climbing and swimming cost 1 extra foot per foot, 2 extra in difficult
+terrain, unless you have the speed. Crawling costs 1 extra always — and the
+SRD spells out the sum for us, "crawling 1 foot in difficult terrain
+therefore costs 3 feet", which is the check that the surcharges add rather
+than replace. Standing up costs half your speed. A long jump is your
+Strength **score** in feet; a high jump is 3 + your modifier; standing, half
+of each. And the clause that means jumping needs no cost model of its own:
+"each foot you clear on the jump costs a foot of movement".
+
+**The sources went on the records, not into a list.** `MoveGrant` is the
+same shape §63 gave sight, carried by species traits, class and subclass
+features, feats, invocations and worn items, and gathered by
+`engine/movement.ts`. The rule for the sweep was strict and worth stating: a
+grant had to be readable from **the record's own recorded text**. Athlete's
+summary says "stand from prone with 5 ft. of movement, and climb at full
+speed", so it got exactly those two and not the run-up clause the book adds —
+Athlete is PHB rather than SRD, and neither licensed feed carries it, so
+extending it from memory would have been inventing content.
+
+**Two climb grants, not one.** The SRD hands out "climbing costs no extra
+movement" and "you have a climbing speed" as separate benefits, and they are
+not the same thing: a speed is switchable mid-move and is what lets a spider
+walk a ceiling. Collapsing them would have handed the Rogue's Second-Story
+Work a wall-crawl it was never granted. So `climb` and `climbFree` are
+separate fields, a speed implies the waiver, and the implication runs one way
+only.
+
+**Water stopped being difficult ground.** It was `difficult: true`, which
+priced it right for everybody and wrong for exactly the creatures the rule
+exists for: a Water Genasi with a permanent swim speed paid the same ten feet
+a Dwarf in plate did. Water now carries `swim` and *not* `difficult`, which
+looks like a downgrade and is not — both cost ten to somebody who cannot
+swim, and marking it both would have left a difficult-ground charge that no
+swim speed waives.
+
+**Going up became a climb.** Elevation has been on the map since §26.2, and
+gaining it cost nothing: a ledge three steps up was as cheap to reach as the
+floor beside it, so the archers' high ground — which §26.3 gave a +2 for —
+was free. Ascending a step now charges the climb surcharge. Descending
+charges nothing, because gravity does not bill.
+
+**A ruling, declared.** The SRD never prices a creature crawling up a cliff.
+Stacking the surcharges is the literal reading and triples a cost off a
+combination nobody wrote down, so this charges one and says so in the
+function that decides it, rather than leaving a DM to reverse-engineer which
+way it went.
+
+**Standing up became a command.** Nothing in the app had ever charged for it,
+which meant a Trip cost its victim a round of bad rolls and nothing else —
+they stood back up for free. It is now a Stand up command in the battle tray,
+priced at half your speed, offered only when the budget covers it and refused
+outright at speed 0, exactly as the rule says. It sits beside Move for the
+same reason Move is there: it spends feet, not the action.
+
+**Two things found on the way.**
+
+A latent one: `resolveItems` applied a magic item's effect whenever it was
+carried, and **no consumable in the catalogue has an effect** — so the day
+Potion of Climbing got its climb speed, it would have granted it permanently
+from inside a backpack. The guard is in now, conditioned on there actually
+being an effect so nothing changes on screen today.
+
+And a self-inflicted one, caught before it shipped: the battle screen's
+stand-up cost first detected the Athlete grant by checking whether the
+profile's `standUp` equalled five. A character with a speed of 10 has a half
+of five. That is precisely the inference-instead-of-a-field defect this
+project has now paid for at least five times, so `quickStand` went on the
+profile as a boolean.
+
+**Two absences recorded rather than fixed**, in the same shape as §63's four:
+Bestial Soul and Revelation in Flesh each offer a movement mode as a *choice*
+— after a long rest, or for a sorcery point — and the build model has nowhere
+to store which. The sweep test carries them by name with the reason attached.
+
+**On 2024.** SRD 5.2 moves these rules to a Rules Glossary that neither
+dnd5eapi nor open5e carries, so the 2024 numbers could not be verified the
+way the 2014 ones were, and that is stated in the module rather than papered
+over. What *was* verified from open5e's 5.2 "Movement and Position": difficult
+terrain is still 1 extra foot, and climbing, crawling, jumping and swimming
+are still modes of ordinary movement. There is no edition split here, and if
+5.2 turns out to differ the fix is a table rather than a branch.
+
+**The sweep test scans text, not a list.** §63's first pass missed twelve
+species because the 2024 lineages are a separate module, and a hand-written
+list of "records that grant this" cannot know that. So the test asks the
+catalogues which records *talk* about climbing or swimming and requires each
+to carry a grant or appear on a written list of reasons. It also asserts the
+2024 species module is non-empty before concluding it grants nothing, because
+an empty module would pass that claim for free.
+
+**Gates.** 2042 tests / 93 files, tsc, oxlint, build in budget (`data 587.4
+kB / 976.6 kB`). The README's magic-item count moved 89 → 96 and
+`readmeCounts` caught it, as it did in §63.
+
+**The probe**, at 1360 in both themes, presses the sheet's jump chips and
+checks the long jump against the Strength score *read off the same page* —
+so it stays true if the example character changes, and it cannot pass on a
+modifier printed twice. It presses the Builder's Speed breakdown, and it puts
+a real character on the map and confirms the wash still draws, which is the
+integration risk now that the walk asks `movementFor` about the selected
+combatant every render. What it does not do is charge a swim or a climb end
+to end: both brushes live on the Dungeons tab and there is no path from a
+running fight to a painted pool. Rather than contrive one, those are pinned
+in `path.test.ts`, which runs the real Dijkstra over real water and real
+elevation and checks a swimmer crosses at five feet where a walker pays ten.

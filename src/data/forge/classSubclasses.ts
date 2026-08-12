@@ -1,4 +1,4 @@
-import type { ClassId, Subclass } from '../../types';
+import type { ClassId, MoveGrant, Subclass } from '../../types';
 import type { ClassFeature } from '../classFeatures';
 import { groupForgeRows } from './rows';
 import type { ForgeSubclassRow } from './rows';
@@ -25,7 +25,12 @@ import type { ForgeSubclassRow } from './rows';
  * - **Adept** — the shape your mind takes.
  */
 
-const f = (level: number, name: string, summary: string): ClassFeature => ({ level, name, summary });
+const f = (
+  level: number,
+  name: string,
+  summary: string,
+  grants?: { move?: MoveGrant },
+): ClassFeature => ({ level, name, summary, ...grants });
 const BOTH: ('2014' | '2024')[] = ['2014', '2024'];
 
 const ROWS: ForgeSubclassRow[] = [
@@ -286,7 +291,7 @@ const ROWS: ForgeSubclassRow[] = [
     features: [
       f(3, 'Storm Runner', 'Your speed increases by 10 feet, and you may Dash as a bonus action a number of times per fight equal to your proficiency bonus.'),
       f(3, 'Passing Strike', 'When you move at least 20 feet toward your quarry before hitting it, add one die to your Quarry die.'),
-      f(7, 'Off the Walls', 'You have a climbing speed equal to your walking speed and may move across water and vertical surfaces on your turn.'),
+      f(7, 'Off the Walls', 'You have a climbing speed equal to your walking speed and may move across water and vertical surfaces on your turn.', { move: { climb: 'walk' } }),
       f(11, 'No Grip', 'Opportunity attacks against you have disadvantage, and you cannot be grappled or restrained while you have movement remaining.'),
       f(15, 'Everywhere', 'On each of your turns you may attack your quarry once from each of two different spaces, moving between them without provoking.'),
     ],

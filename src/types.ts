@@ -111,6 +111,48 @@ export interface SightGrant {
   extendsBy?: number;
 }
 
+/**
+ * What a feature, feat, invocation or item does to how you get about.
+ *
+ * §65, and the same shape as `SightGrant` above for the same reason: every
+ * record that can change your movement carries this, `engine/movement.ts`
+ * reads them all the same way, and a new source is a line of data rather than
+ * another branch in a resolver.
+ *
+ * ## The two kinds of climb grant, which are not the same thing
+ *
+ * The SRD hands out "climbing costs you no extra movement" and "you have a
+ * climbing speed" as separate benefits, and they differ in more than wording:
+ * a climb *speed* is a speed you can switch to mid-move, and it is what lets
+ * a spider walk a ceiling. The Rogue's Second-Story Work is the cheap half and
+ * the Tabaxi's claws are the whole thing. Collapsing them would give the Rogue
+ * a wall-crawl they were never granted, so `climb` and `climbFree` are
+ * separate fields and a speed implies the waiver rather than replacing it.
+ */
+export interface MoveGrant {
+  /**
+   * A climbing speed in feet. `'walk'` for the common "equal to your walking
+   * speed" phrasing, resolved once the walking speed is known - writing 30
+   * here would freeze it before Fast Movement and Unarmored Movement have had
+   * their say.
+   */
+  climb?: number | 'walk';
+  swim?: number | 'walk';
+  /** Climbing costs no extra movement, without granting a climbing speed. */
+  climbFree?: true;
+  swimFree?: true;
+  /** Jump distances multiply: the Jump spell and its boots both say "three". */
+  jumpTimes?: number;
+  /**
+   * Feet added to a jump. `'dex'` for the 2024 Thief, whose running jump is
+   * measured by Dexterity rather than Strength — recorded as an addition
+   * because the ability it swaps to is not knowable from this record alone.
+   */
+  jumpBonus?: number | 'dex';
+  /** Standing from prone costs 5 feet rather than half your speed (Athlete). */
+  quickStand?: true;
+}
+
 export interface Trait {
   name: string;
   text: string;
@@ -129,6 +171,17 @@ export interface Trait {
    * their upstream stat blocks genuinely are prose - see `engine/senses.ts`.
    */
   feet?: number;
+  /**
+   * What this trait does to how you get about: a climb speed, a swim speed,
+   * a longer jump.
+   *
+   * A whole field rather than a second `feet`, because §63's `feet` answers
+   * one question ("how far does this sense reach") and a lineage can grant a
+   * swim speed *and* a jump bonus from two different traits. Structured for
+   * the same reason `feet` is: "30 ft. swim speed" in the display text was
+   * never something a rule could read.
+   */
+  move?: MoveGrant;
 }
 
 export type TraitTag =
@@ -521,6 +574,12 @@ export interface Feat {
    * `engine/senses.ts`. The Forge catalogue can use it today.
    */
   sight?: SightGrant;
+  /**
+   * What this feat does to how you get about. Athlete is the SRD's example in
+   * both editions, and unlike `sight` this one is used by the shipped
+   * catalogue rather than waiting for a source that says otherwise.
+   */
+  move?: MoveGrant;
   rules?: ScoreRule[];
   /**
    * What changes about this feat under 2024, merged over the base record. Many

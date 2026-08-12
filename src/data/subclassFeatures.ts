@@ -1,5 +1,5 @@
 import type { ClassFeature } from './classFeatures';
-import type { SightGrant } from '../types';
+import type { MoveGrant, SightGrant } from '../types';
 import { FORGE_SUBCLASS_FEATURES } from './forge/subclasses';
 import { FORGE_CLASS_SUBCLASS_FEATURES } from './forge/classSubclasses';
 
@@ -22,9 +22,22 @@ import { FORGE_CLASS_SUBCLASS_FEATURES } from './forge/classSubclasses';
  * Rules text is summarised rather than reproduced, as everywhere else here.
  */
 
-/** Terse constructor: a level, a name and a line. */
-function f(level: number, name: string, summary: string, sight?: SightGrant): ClassFeature {
-  return sight ? { level, name, summary, sight } : { level, name, summary };
+/**
+ * Terse constructor: a level, a name, a line, and whatever the feature
+ * structurally grants.
+ *
+ * The grants went from a bare `sight?` to an object at §65, when movement
+ * became the second thing a feature can hand out. A second positional
+ * parameter would have made every move-only feature pass `undefined` for the
+ * sight it does not grant, which reads worse every time a third kind arrives.
+ */
+function f(
+  level: number,
+  name: string,
+  summary: string,
+  grants?: { sight?: SightGrant; move?: MoveGrant },
+): ClassFeature {
+  return { level, name, summary, ...grants };
 }
 
 /*
@@ -45,6 +58,23 @@ function f(level: number, name: string, summary: string, sight?: SightGrant): Cl
   The three that are unconditional carry `sight` below. The four that are not
   carry nothing, and **that absence is the claim** - the same way a missing
   `summaryIn2024` means the rule did not change.
+*/
+
+/*
+  ## §65: the same audit for movement, with the same answer
+
+  Six features here mention climbing, swimming or jumping. Four carry a
+  `move` grant. The two that do not are the two the build model cannot hold:
+
+  - **Bestial Soul** (Path of the Beast) lets you choose swimming, jumping
+    *or* climbing after each long rest, and nothing records which.
+  - **Revelation in Flesh** (Aberrant Mind) buys flight, swimming, sight or a
+    squeezing body with a sorcery point - a resource spent, not a speed owned,
+    exactly as Shadow Arts is above.
+
+  Two absences, and both are the same shape as the darkvision four: an option
+  the sheet has nowhere to store. Written down so the next sweep does not
+  "find" them.
 */
 
 export const SUBCLASS_FEATURES: Record<string, ClassFeature[]> = {
@@ -281,7 +311,7 @@ export const SUBCLASS_FEATURES: Record<string, ClassFeature[]> = {
   ],
   twilight: [
     f(1, 'Bonus Proficiencies', 'Martial weapons and heavy armor.'),
-    f(1, 'Eyes of Night', 'Darkvision to 300 feet, and you can share it.', { darkvision: 300 }),
+    f(1, 'Eyes of Night', 'Darkvision to 300 feet, and you can share it.', { sight: { darkvision: 300 } }),
     f(1, 'Vigilant Blessing', 'Give a creature advantage on its next initiative roll.'),
     f(2, 'Channel Divinity: Twilight Sanctuary', 'An aura granting temporary hit points or ending charm and fear each turn.'),
     f(6, 'Steps of Night', 'A flying speed in dim light or darkness.'),
@@ -340,7 +370,7 @@ export const SUBCLASS_FEATURES: Record<string, ClassFeature[]> = {
   ],
   sea: [
     f(2, 'Wrath of the Sea', 'An emanation that pushes and damages with cold.'),
-    f(6, 'Aquatic Affinity', 'Your emanation grows, and you gain a swimming speed.'),
+    f(6, 'Aquatic Affinity', 'Your emanation grows, and you gain a swimming speed.', { move: { swim: 'walk' } }),
     f(10, 'Stormborn', 'A flying speed while your emanation is active.'),
     f(14, 'Oceanic Gift', 'Give your emanation to an ally.'),
   ],
@@ -555,7 +585,7 @@ export const SUBCLASS_FEATURES: Record<string, ClassFeature[]> = {
   ],
   'gloom-stalker': [
     f(3, 'Dread Ambusher', 'Bonus initiative, an extra attack and extra damage on your first turn.'),
-    f(3, 'Umbral Sight', 'Darkvision, and you are invisible to anything relying on it.', { darkvision: 60, extendsBy: 30 }),
+    f(3, 'Umbral Sight', 'Darkvision, and you are invisible to anything relying on it.', { sight: { darkvision: 60, extendsBy: 30 } }),
     f(7, 'Iron Mind', 'Wisdom saves, or Intelligence or Charisma.'),
     f(11, 'Stalker’s Flurry', 'Reroll a miss once a turn.'),
     f(15, 'Shadowy Dodge', 'Impose disadvantage on an attack as a reaction.'),
@@ -604,7 +634,7 @@ export const SUBCLASS_FEATURES: Record<string, ClassFeature[]> = {
   // ----------------------------------------------------------------- rogue
   thief: [
     f(3, 'Fast Hands', 'Sleight of Hand, thieves’ tools or Use an Object as a bonus action.'),
-    f(3, 'Second-Story Work', 'Climbing costs no extra movement, and you jump further.'),
+    f(3, 'Second-Story Work', 'Climbing costs no extra movement, and you jump further.', { move: { climbFree: true } }),
     f(9, 'Supreme Sneak', 'Advantage on Stealth when you move at half speed.'),
     f(13, 'Use Magic Device', 'Ignore class, race and level requirements on magic items.'),
     f(17, 'Thief’s Reflexes', 'Two turns in the first round of combat.'),
@@ -691,7 +721,7 @@ export const SUBCLASS_FEATURES: Record<string, ClassFeature[]> = {
     f(18, 'Unearthly Recovery', 'Heal half your maximum when you drop below it.'),
   ],
   'shadow-magic': [
-    f(1, 'Eyes of the Dark', 'Darkvision to 120 feet, and darkness as a sorcerer spell.', { darkvision: 120 }),
+    f(1, 'Eyes of the Dark', 'Darkvision to 120 feet, and darkness as a sorcerer spell.', { sight: { darkvision: 120 } }),
     f(1, 'Strength of the Grave', 'Stay at 1 hit point on a Charisma save when you drop.'),
     f(6, 'Hound of Ill Omen', 'A dire wolf of shadow that hounds one creature.'),
     f(14, 'Shadow Walk', 'Teleport 120 feet in dim light or darkness.'),
@@ -775,7 +805,7 @@ export const SUBCLASS_FEATURES: Record<string, ClassFeature[]> = {
   ],
   fathomless: [
     f(1, 'Tentacle of the Deep', 'A spectral tentacle that lashes and slows.'),
-    f(1, 'Gift of the Sea', 'A swimming speed of 40 feet, and you breathe water.'),
+    f(1, 'Gift of the Sea', 'A swimming speed of 40 feet, and you breathe water.', { move: { swim: 40 } }),
     f(6, 'Oceanic Soul', 'Resistance to cold, and you can talk underwater.'),
     f(6, 'Guardian Coil', 'Your tentacle reduces damage to you or an ally.'),
     f(10, 'Grasping Tentacles', 'Evard’s black tentacles, always prepared, with temporary hit points.'),
@@ -984,7 +1014,7 @@ export const SUBCLASS_FEATURES_2024: Record<string, ClassFeature[]> = {
   ],
   thief: [
     f(3, 'Fast Hands', 'A bonus action for Sleight of Hand, thieves’ tools, or the Utilize action.'),
-    f(3, 'Second-Story Work', 'A climb speed, and a running jump measured by Dexterity rather than Strength.'),
+    f(3, 'Second-Story Work', 'A climb speed, and a running jump measured by Dexterity rather than Strength.', { move: { climb: 'walk', jumpBonus: 'dex' } }),
     f(9, 'Supreme Sneak', 'A Cunning Strike option that keeps you hidden after the attack.'),
     f(13, 'Use Magic Device', 'A fourth attunement slot, scroll use, and a chance not to spend an item’s charge.'),
     f(17, "Thief's Reflexes", 'Two turns in the first round of combat.'),

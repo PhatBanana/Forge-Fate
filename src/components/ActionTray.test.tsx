@@ -24,7 +24,7 @@ function setup(
   build: Build,
   initial: PlayState = emptyPlay(),
   slot: 'action' | 'bonus' = 'action',
-  extra: { silenced?: boolean } = {},
+  extra: { silenced?: boolean; onStandUp?: { feet: number; act: () => void } } = {},
 ) {
   let play = initial;
   let current = build;
@@ -367,5 +367,40 @@ describe('what the components stop', () => {
     // True Strike is somatic only - a silenced caster still has it, which is
     // the half of the rule that makes the V worth modelling separately.
     expect(spellButton('True Strike').disabled).toBe(false);
+  });
+});
+
+describe('getting up off the floor', () => {
+  /*
+    §65. Standing up costs half your speed, which is what makes a Trip worth
+    an action: before this the condition cost its victim nothing but a round
+    of bad rolls, because they stood back up for free.
+  */
+  it('offers Stand up beside Move, with the price in the tooltip', async () => {
+    const act = vi.fn();
+    setup(fighter(), emptyPlay(), 'action', { onStandUp: { feet: 15, act } });
+    const button = screen.getByRole('button', { name: 'Stand up' });
+    expect(button.title).toMatch(/15 ft/);
+  });
+
+  it('runs the caller’s write when pressed', async () => {
+    const user = userEvent.setup();
+    const act = vi.fn();
+    const { onClose } = setup(fighter(), emptyPlay(), 'action', {
+      onStandUp: { feet: 15, act },
+    });
+    await user.click(screen.getByRole('button', { name: 'Stand up' }));
+    expect(act).toHaveBeenCalledTimes(1);
+    // And the menu closes, like every other one-press command.
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('is absent when the caller does not offer it', () => {
+    // Which is how "they are not prone" and "they cannot afford it" both
+    // reach here: the battle screen knows the speed and the budget, and a
+    // menu offering a command the rules refuse would be worse than one that
+    // hides it.
+    setup(fighter());
+    expect(screen.queryByRole('button', { name: 'Stand up' })).toBeNull();
   });
 });

@@ -58,6 +58,9 @@ describe('walls are walls', () => {
 
 describe('the ground itself', () => {
   it('charges double to enter difficult ground', () => {
+    // Painted water, which since §65 is a swim rather than plain difficult
+    // ground. The price to somebody who cannot swim is the same ten feet, so
+    // this case is unchanged - and the one below is the half that moved.
     const terrain = paint({}, { x: 3, y: 2 }, 'water');
     const reach = reachableFrom(open(terrain), { x: 2, y: 2 }, 30);
     // Stepping into the pool costs ten...
@@ -67,6 +70,61 @@ describe('the ground itself', () => {
     // Worked by hand expecting fifteen; Dijkstra found the dry route, which
     // is exactly what it is for.
     expect(reach.get('4,2')).toBe(10);
+  });
+
+  it('lets a swimmer cross water at walking pace', () => {
+    // §65. A column of water with no dry way round: ten feet a square to
+    // anybody, five to a creature with a swim speed. Before this the map
+    // charged a Water Genasi and a Dwarf in plate exactly the same.
+    let terrain: TerrainMap = {};
+    for (let y = 0; y < 20; y++) terrain = paint(terrain, { x: 5, y }, 'water');
+    const wader = reachableFrom(open(terrain), { x: 4, y: 5 }, 30);
+    const swimmer = reachableFrom(open(terrain), { x: 4, y: 5 }, 30, { swimFree: true });
+    expect(wader.get('5,5')).toBe(10);
+    expect(swimmer.get('5,5')).toBe(5);
+    // And the far bank, which is where it compounds.
+    expect(wader.get('6,5')).toBe(15);
+    expect(swimmer.get('6,5')).toBe(10);
+  });
+
+  it('charges to climb a ledge, and nothing to come back down', () => {
+    /*
+      §65. Elevation has been on the map since §26.2 and cost nothing to gain,
+      so the archers' high ground was free. Going up is a climb; coming down
+      is gravity, and gravity does not bill.
+    */
+    const ctx: SightContext = {
+      dungeon: generateDungeon('x', { rooms: 0, width: 20, height: 20 }),
+      terrain: {},
+      elevation: { '5,5': 1 },
+    };
+    const up = reachableFrom(ctx, { x: 4, y: 5 }, 30);
+    expect(up.get('5,5')).toBe(10);
+    const down = reachableFrom(ctx, { x: 5, y: 5 }, 30);
+    expect(down.get('4,5')).toBe(5);
+  });
+
+  it('waives the climb for somebody with a climbing speed', () => {
+    const ctx: SightContext = {
+      dungeon: generateDungeon('x', { rooms: 0, width: 20, height: 20 }),
+      terrain: {},
+      elevation: { '5,5': 1 },
+    };
+    expect(reachableFrom(ctx, { x: 4, y: 5 }, 30, { climbFree: true }).get('5,5')).toBe(5);
+    // A swim speed is not a climb speed, which is the whole point of two flags.
+    expect(reachableFrom(ctx, { x: 4, y: 5 }, 30, { swimFree: true }).get('5,5')).toBe(10);
+  });
+
+  it('charges a crawler double on every square, everywhere', () => {
+    // "Every foot of movement while crawling costs 1 extra foot" - so the
+    // whole wash halves, which is what makes a Trip worth an action.
+    const walking = reachableFrom(open(), { x: 10, y: 10 }, 30);
+    const crawling = reachableFrom(open(), { x: 10, y: 10 }, 30, { prone: true });
+    expect(walking.get('13,10')).toBe(15);
+    expect(crawling.get('13,10')).toBe(30);
+    // And no grant in the SRD waives it.
+    expect(reachableFrom(open(), { x: 10, y: 10 }, 30, { prone: true, climbFree: true })
+      .get('13,10')).toBe(30);
   });
 
   it('respects the movement budget to the foot', () => {

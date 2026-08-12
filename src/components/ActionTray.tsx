@@ -54,6 +54,7 @@ export function CommandMenu({
   onMoveCommand,
   onGrab,
   onEscapeGrapple,
+  onStandUp,
   onReleaseGrapple,
   onHide,
   silenced,
@@ -85,6 +86,13 @@ export function CommandMenu({
   onGrab?: (mode: GrabMode) => void;
   /** Offered only while this character is held: the action that gets them out. */
   onEscapeGrapple?: () => void;
+  /**
+   * Getting up, when they are on the floor and can afford it. Absent means
+   * either - which is why this is a prop rather than a `prone` flag: the
+   * caller knows the speed, the budget and the grant, and a menu that offered
+   * a command the rules refuse would be worse than one that hides it.
+   */
+  onStandUp?: { feet: number; act: () => void };
   /** Offered only while they are holding somebody: letting go is free. */
   onReleaseGrapple?: () => void;
   /** Roll Stealth and hide, through the battlefield's own machinery. The
@@ -455,6 +463,18 @@ export function CommandMenu({
                   done();
                 },
                 'Walk the lit tiles — movement is its own budget, not the action',
+              )}
+            {/* Beside Move, and for the same reason it is: standing up spends
+                feet rather than the action. Offered only when the floor is
+                where they are and the budget covers it. */}
+            {slot === 'action' && onStandUp &&
+              item(
+                'Stand up',
+                () => {
+                  onStandUp.act();
+                  done();
+                },
+                `Off the floor for ${onStandUp.feet} ft. of movement — half your speed, and what a Trip really costs you`,
               )}
             {attackLines.length > 0 &&
               item('Attack', () => setSub('attack'), 'The weapons in hand', attackLines.length)}

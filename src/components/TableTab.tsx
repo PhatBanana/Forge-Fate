@@ -9,6 +9,8 @@ import { useMonsters } from './useMonsters';
 import { elevationAt, keyOf } from '../terrain';
 import { lineOfSight, walkable } from '../engine/sight';
 import { routeTo, walkMap } from '../engine/path';
+import type { Walker } from '../engine/path';
+import { movementFor, standUpCost } from '../engine/movement';
 import type { Walk } from '../engine/path';
 import {
   ZONE_PRESETS,
@@ -1276,6 +1278,31 @@ export function TableTab({
       ? roster.entries.find((e) => e.id === c.rosterId)?.build.ruleset
       : ruleset) ?? '2014';
 
+  /**
+   * What the ground costs *this* combatant, as the pathfinder wants it.
+   *
+   * §65. Difficult ground is a fact about a square, but climbing and swimming
+   * are only expensive to somebody who cannot do them - so the walk needs the
+   * creature as well as the map. A Water Genasi crosses the river at five
+   * feet a square and the Dwarf beside them pays ten, and until this existed
+   * the map charged them both the same.
+   *
+   * A monster's climb and swim speeds are on its stat block, where the SRD
+   * puts them; a character's come from `engine/movement.ts`, which gathered
+   * them off five kinds of record.
+   */
+  const walkerOf = (combatant: Combatant): Walker => {
+    const prone = conditionsOf(combatant).includes('prone');
+    if (combatant.kind === 'monster') {
+      const speed = byId.get(combatant.monsterId)?.speed ?? {};
+      return { climbFree: (speed.climb ?? 0) > 0, swimFree: (speed.swim ?? 0) > 0, prone };
+    }
+    const ctx = derived.get(combatant.rosterId)?.ctx;
+    if (!ctx) return { prone };
+    const profile = movementFor(ctx);
+    return { climbFree: profile.climbFree, swimFree: profile.swimFree, prone };
+  };
+
   /** A combatant's speed in feet, from whichever side owns it. */
   const speedOf = (combatant: Combatant): number => {
     const base =
@@ -1304,6 +1331,27 @@ export function TableTab({
     // sizes smaller, in which case they weigh nothing worth counting.
     const dragging = heldBy(combatant);
     return dragging ? dragSpeed(walking, sizeOf(combatant), sizeOf(dragging)) : walking;
+  };
+
+  /** What is left of somebody's movement this turn, from whichever side owns it. */
+  const movementLeftFor = (c: Combatant): number => {
+    const speed = speedOf(c);
+    if (c.kind === 'monster') return Math.max(0, speed - (c.moved ?? 0));
+    const play = roster.entries.find((e) => e.id === c.rosterId)?.play ?? emptyPlay();
+    return movementLeft(play, speed);
+  };
+
+  /**
+   * What standing up costs this combatant: half their speed, or five feet for
+   * somebody carrying the grant that says so.
+   */
+  const standUpCostFor = (c: Combatant): number => {
+    const speed = speedOf(c);
+    if (c.kind === 'character') {
+      const ctx = derived.get(c.rosterId)?.ctx;
+      if (ctx) return standUpCost(speed, movementFor(ctx).quickStand);
+    }
+    return standUpCost(speed);
   };
 
   /*
@@ -1379,7 +1427,7 @@ export function TableTab({
     return walkMap(sightContext, selected.at, Infinity, {
       blocked: zoneOverlays.blocked,
       difficult: zoneOverlays.difficultFor(sideOf(selected.kind)),
-    });
+    }, walkerOf(selected));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, encounter.combatants, roster.entries, sightContext, zoneOverlays]);
 
@@ -1395,7 +1443,7 @@ export function TableTab({
       blocked: zoneOverlays.blocked,
       difficult: zoneOverlays.difficultFor(sideOf(selected.kind)),
       avoid: zoneOverlays.hazard,
-    });
+    }, walkerOf(selected));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walk, selected, sightContext, zoneOverlays]);
 
@@ -2413,6 +2461,49 @@ export function TableTab({
       if (entry) updated = updatePlay(updated, entry.id, setTurnSlot(entry.play, 'action', true));
     }
     onChange(updated);
+  };
+
+  /**
+   * Getting up off the floor, which costs feet rather than an action.
+   *
+   * §65. "Standing up costs an amount of movement equal to half your speed…
+   * You can't stand up if you don't have enough movement left or if your
+   * speed is 0." Both halves are enforced here: the cost is charged against
+   * the same budget a step is, and the command is not offered at all when the
+   * budget will not cover it - which is what makes a Trip worth an action,
+   * since before this a prone character stood up for free and the condition
+   * cost them nothing but a round of bad rolls.
+   *
+   * Monsters pay it too, from the `moved` on their combatant, because a
+   * stat block has a speed and the rule is about speed rather than about
+   * being a character.
+   */
+  const standUpFrom = (c: Combatant) => {
+    const speed = speedOf(c);
+    const cost = standUpCostFor(c);
+    if (speed === 0 || cost > movementLeftFor(c)) return;
+
+    let updated = roster;
+    if (c.kind === 'monster') {
+      const spent = {
+        ...encounter,
+        combatants: encounter.combatants.map((x) =>
+          x.id === c.id && x.kind === 'monster' ? { ...x, moved: (x.moved ?? 0) + cost } : x,
+        ),
+      };
+      updated = updateEncounter(updated, toggleMonsterCondition(spent, c.id, 'prone'));
+    } else {
+      const entry = roster.entries.find((e) => e.id === c.rosterId);
+      if (!entry) return;
+      const play = moveBy(toggleCondition(entry.play, 'prone'), cost, speed);
+      updated = updatePlay(updated, entry.id, play);
+    }
+    onChange(
+      updateEncounter(
+        updated,
+        appendLog(activeEncounter(updated), `${nameOf(c)} stands up — ${cost} ft. of movement.`),
+      ),
+    );
   };
 
   /** Letting go, which the SRD makes free: no roll, no action, no argument. */
@@ -4968,6 +5059,16 @@ export function TableTab({
       /* Letting go is free, so it needs no turn - a DM should be able to
          release a hold whenever the fiction says the hand opened. */
       onReleaseGrapple={heldBy(selected) ? () => releaseGrapple(selected) : undefined}
+      /* §65. Only when they are down, only when the feet are there, and only
+         on their own turn - the budget it spends belongs to that turn. */
+      onStandUp={
+        conditionsOf(selected).includes('prone') &&
+        speedOf(selected) > 0 &&
+        standUpCostFor(selected) <= movementLeftFor(selected) &&
+        (!isRunning(encounter) || selected.id === active?.id)
+          ? { feet: standUpCostFor(selected), act: () => standUpFrom(selected) }
+          : undefined
+      }
       /* Standing in a Silence, §64: no spell with a verbal component. Only
          answered when they are on the map - off it, the rule is left alone. */
       silenced={selected.at ? silencedAt(selected.at) : undefined}

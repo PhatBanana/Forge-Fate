@@ -1,4 +1,4 @@
-import type { Ability, ClassId, Ruleset, SightGrant } from '../types';
+import type { Ability, ClassId, MoveGrant, Ruleset, SightGrant } from '../types';
 import { FORGE_CLASS_FEATURES } from './forge/classes';
 
 /**
@@ -66,6 +66,12 @@ export interface ClassFeature {
    * progression is already computed, and the sense rides along with it.
    */
   sight?: SightGrant;
+  /**
+   * What this feature does to how you get about: the climb speeds, the
+   * swim speeds and the "climbing costs you nothing" waivers that a dozen
+   * subclasses hand out and nothing could read until §65.
+   */
+  move?: MoveGrant;
 }
 
 /**

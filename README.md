@@ -386,7 +386,7 @@ is written from the books, and the app says which is which.
 
 **Recorded rather than computed**, which is a smaller gap than being missing.
 
-- **All 371 magic items are listed; 89 of them change a number.** The rest are
+- **All 371 magic items are listed; 96 of them change a number.** The rest are
   recorded, attuned and printed with a description. Where an item needs a model
   the app does not have — resistance to a damage type, a spell cast from
   charges, a critical hit that becomes a normal one — it says what the item does

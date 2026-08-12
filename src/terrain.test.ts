@@ -33,10 +33,15 @@ describe('the kinds', () => {
     // A tree breaks the sight line but you can stand under it.
     expect(TERRAIN_BY_KIND.tree.blocksSight).toBe(true);
     expect(TERRAIN_BY_KIND.tree.blocksMovement).toBe(false);
-    // Water and rubble slow you and hide nothing.
+    // Water and rubble slow you and hide nothing - but by different rules
+    // since §65. Rubble is difficult ground; water is deep enough to swim,
+    // which costs the same ten feet to anybody without a swim speed and
+    // nothing extra at all to somebody with one.
     expect(TERRAIN_BY_KIND.water.blocksSight).toBe(false);
-    expect(TERRAIN_BY_KIND.water.difficult).toBe(true);
+    expect(TERRAIN_BY_KIND.water.swim).toBe(true);
+    expect(TERRAIN_BY_KIND.water.difficult).toBe(false);
     expect(TERRAIN_BY_KIND.rubble.difficult).toBe(true);
+    expect(TERRAIN_BY_KIND.rubble.swim).toBeUndefined();
     // Floor is ground you built, and does nothing at all.
     expect(TERRAIN_BY_KIND.floor.blocksSight).toBe(false);
     expect(TERRAIN_BY_KIND.floor.blocksMovement).toBe(false);

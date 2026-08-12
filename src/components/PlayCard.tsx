@@ -56,6 +56,7 @@ export function PlayCard({
   onMoveCommand,
   onGrab,
   onEscapeGrapple,
+  onStandUp,
   onReleaseGrapple,
   onHide,
   silenced,
@@ -79,6 +80,7 @@ export function PlayCard({
   onGrab?: (mode: GrabMode) => void;
   /** Offered only while this character is held, and only by the battle. */
   onEscapeGrapple?: () => void;
+  onStandUp?: { feet: number; act: () => void };
   /** Offered only while they are holding somebody. */
   onReleaseGrapple?: () => void;
   onHide?: () => void;
@@ -271,6 +273,7 @@ export function PlayCard({
           onMoveCommand={onMoveCommand}
           onGrab={onGrab}
           onEscapeGrapple={onEscapeGrapple}
+          onStandUp={onStandUp}
           onReleaseGrapple={onReleaseGrapple}
           onHide={onHide}
           silenced={silenced}

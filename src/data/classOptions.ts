@@ -1,4 +1,4 @@
-import type { CastingType, ClassId, Condition, Loadout, Ruleset, ScoreRule, SightGrant, WeaponStyle } from '../types';
+import type { CastingType, ClassId, Condition, Loadout, MoveGrant, Ruleset, ScoreRule, SightGrant, WeaponStyle } from '../types';
 import type { ClassOptionKind } from './classFeatures';
 import type { Source } from './sources';
 import { FEATS } from './feats';
@@ -52,6 +52,8 @@ export interface ClassOption {
    * ordinary darkvision is explicitly stopped by it, and this is not.
    */
   sight?: SightGrant;
+  /** What taking this option does to how you get about. */
+  move?: MoveGrant;
 }
 
 export const CLASS_OPTIONS: ClassOption[] = [

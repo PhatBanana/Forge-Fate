@@ -1,4 +1,4 @@
-import type { ClassId, Subclass } from '../../types';
+import type { ClassId, MoveGrant, Subclass } from '../../types';
 import type { ClassFeature } from '../classFeatures';
 import { groupForgeRows } from './rows';
 import type { ForgeSubclassRow } from './rows';
@@ -71,7 +71,12 @@ import type { ForgeSubclassRow } from './rows';
  */
 
 /** Terse constructor, matching `subclassFeatures.ts`. */
-const f = (level: number, name: string, summary: string): ClassFeature => ({ level, name, summary });
+const f = (
+  level: number,
+  name: string,
+  summary: string,
+  grants?: { move?: MoveGrant },
+): ClassFeature => ({ level, name, summary, ...grants });
 
 const BOTH: ('2014' | '2024')[] = ['2014', '2024'];
 
@@ -238,7 +243,7 @@ const ROWS: ForgeSubclassRow[] = [
       f(2, 'Tidewater', 'As an action, conjure a 20-foot square of shallow water. It is difficult terrain for your enemies and not for your allies, and you may move it 15 feet as a bonus action on your turn. It lasts one minute and needs no concentration.'),
       f(2, 'Circle Spells', 'You always have prepared create or destroy water, gust of wind, tidal wave, control water and maelstrom as they come online.'),
       f(6, 'Undertow', 'A creature that starts its turn in your Tidewater makes a Strength save against your spell save DC or is pulled 10 feet toward the centre.'),
-      f(10, 'Breathe Deep', 'You and allies in your Tidewater can breathe water and have a swimming speed equal to your walking speed.'),
+      f(10, 'Breathe Deep', 'You and allies in your Tidewater can breathe water and have a swimming speed equal to your walking speed.', { move: { swim: 'walk' } }),
       f(14, 'Spring Tide', 'Your Tidewater becomes a 40-foot square, and a creature that fails its Undertow save is also knocked prone.'),
     ],
   },

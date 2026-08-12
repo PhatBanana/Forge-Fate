@@ -153,10 +153,32 @@ checked in the code, not recalled.
   components recorded, and the engine leaves the rule *unapplied* for them
   rather than guessing "none" — the same refusal the light and sight models
   make. A test pins that count so it cannot drift.
-- `[ ]` **Jumping, climbing, swimming, crawling as movement costs.** **S**.
-  Climb and swim *speeds* exist as race traits and the map spends a movement
-  budget, but the extra cost of climbing or swimming without a speed, and
-  long/high jump distances, are not modelled.
+- `[x]` **Jumping, climbing, swimming, crawling as movement costs** — done in
+  §65, and verified against SRD 5.1 `rule-sections/movement` and
+  `movement-and-position` rather than written from memory: climbing and
+  swimming cost 1 extra foot per foot (2 in difficult terrain) unless you
+  have the speed; crawling costs 1 extra always; standing from prone costs
+  half your speed; a long jump is your Strength *score* in feet and a high
+  jump is 3 + your modifier, halved from standing.
+
+  `engine/movement.ts` owns the arithmetic and `MoveGrant` puts the sources
+  on the records — species traits, class and subclass features, feats,
+  invocations and worn items, the same shape §63 gave sight. The walk charges
+  it: water became swimmable ground rather than plain difficult ground so a
+  swim speed is worth something, **going up an elevation step became a
+  climb** (elevation had been on the map since §26.2 and cost nothing to
+  gain, so high ground was free), and a prone token crawls. Standing up is a
+  command in the battle tray that spends the feet, which is what finally
+  makes a Trip worth an action.
+
+  The sheet prints the jump distances and the Builder's Speed figure explains
+  them. Two absences are recorded rather than fixed: Bestial Soul and
+  Revelation in Flesh each offer a movement mode as a *choice* the build
+  model has nowhere to store, the same shape as §63's four darkvision
+  features. SRD 5.2 moves these rules to a Rules Glossary neither licensed
+  feed carries, so the 2024 numbers are unverified; what is verified there is
+  that difficult terrain is unchanged and that all four remain ordinary
+  movement.
 - `[–]` **Four rules ruled out on purpose** — mounted and underwater combat,
   chases, and massive damage. Listed once, under **Decisions on record**;
   they count toward "every line is a recorded decision" rather than toward

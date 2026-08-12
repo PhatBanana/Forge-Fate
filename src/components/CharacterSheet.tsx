@@ -19,6 +19,7 @@ import { CONDITIONS, conditionText } from '../data/conditions';
 import { MAX_EXHAUSTION, exhaustionLines } from '../engine/exhaustion';
 import { RulesDisclosure } from './RulesText';
 import { consumeItem, isConsumable, quantityOf } from '../engine/items';
+import { RUN_UP_FEET, describeJump, jumpDistances, movementFor } from '../engine/movement';
 import { Portrait } from './Portrait';
 import {
   applyDeathSaveRoll,
@@ -292,6 +293,16 @@ export function CharacterSheet({
   // the same number the Speed chip prints, armor penalty and Boots of Speed
   // and all.
   const speed = ctx.speed.total;
+  /*
+    §65. The other ways this character gets about, and how far they jump.
+
+    The jump distances are the half a player actually asks for at a table -
+    "can I clear that?" - and the app has never had an answer, because the
+    numbers are a rule rather than a stat: the long jump is your Strength
+    *score*, which appears nowhere else on a sheet as a distance.
+  */
+  const movement = movementFor(ctx);
+  const jump = jumpDistances(ctx.scores, ctx.mods, movement);
   const customResources = build.customResources ?? [];
 
   const value = Math.max(0, Math.round(Number(amount) || 0));
@@ -650,6 +661,34 @@ export function CharacterSheet({
             <div className="cs-chip">
               <b>{speed}</b>
               <span>Speed</span>
+            </div>
+            {/* Only when they have one - an empty Climb chip on every sheet
+                would be noise on the one layout that has to fit a page. */}
+            {movement.climb > 0 && (
+              <div className="cs-chip">
+                <b>{movement.climb}</b>
+                <span>Climb</span>
+              </div>
+            )}
+            {movement.swim > 0 && (
+              <div className="cs-chip">
+                <b>{movement.swim}</b>
+                <span>Swim</span>
+              </div>
+            )}
+            <div
+              className="cs-chip"
+              title={`Long jump ${describeJump(jump.longRunning, jump.longStanding)}. High jump ${describeJump(jump.highRunning, jump.highStanding)}. A running jump needs ${RUN_UP_FEET} ft. of run-up, and every foot you clear costs a foot of movement.`}
+            >
+              <b>{jump.longRunning}</b>
+              <span>Long jump</span>
+            </div>
+            <div
+              className="cs-chip"
+              title={`High jump ${describeJump(jump.highRunning, jump.highStanding)}. Standing, half of it.`}
+            >
+              <b>{jump.highRunning}</b>
+              <span>High jump</span>
             </div>
           </div>
 

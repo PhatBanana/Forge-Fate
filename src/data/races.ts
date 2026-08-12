@@ -345,7 +345,7 @@ const RACES_2014: Race[] = [
     traits: [
       { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
       { name: "Feline Agility", text: 'Double your speed for a turn; recharge by not moving for a turn.', tags: ['mobility'] },
-      { name: 'Cat’s Claws', text: '20 ft. climb speed, 1d4 unarmed strikes.', tags: ['natural-weapon'] },
+      { name: 'Cat’s Claws', text: '20 ft. climb speed, 1d4 unarmed strikes.', tags: ['natural-weapon'], move: { climb: 20 } },
       { name: "Cat's Talent", text: 'Perception and Stealth proficiency.', tags: ['skill-prof', 'stealth'] },
     ],
     note: 'Feline Agility turns a 30 ft. speed into 60+ ft. burst mobility - the best kiting lineage for Rogues and ranged builds.',
@@ -550,7 +550,7 @@ const RACES_2014: Race[] = [
     asi: { con: 2, wis: 1 },
     traits: [
       { name: 'Acid Resistance', text: 'Resistance to acid damage.', tags: ['resistance'] },
-      { name: 'Amphibious', text: 'Breathe air and water, 30 ft. swim speed.', tags: ['swim'] },
+      { name: 'Amphibious', text: 'Breathe air and water, 30 ft. swim speed.', tags: ['swim'], move: { swim: 30 } },
       { name: 'Call to the Wave', text: 'Shape Water; Create or Destroy Water at 3rd, cast with Wisdom.', tags: ['free-spells', 'innate-caster-wis'] },
     ],
     note: '+2 CON / +1 WIS is a tough Cleric or Druid chassis with a permanent swim speed.',
@@ -716,7 +716,7 @@ const RACES_2014: Race[] = [
     flexibleAsi: { amounts: [2, 1] },
     traits: [
       { name: 'Darkvision 60 ft.', text: 'See in dim light as bright, darkness as dim.', tags: ['darkvision'], feet: 60 },
-      { name: 'Spider Climb', text: 'Climb speed equal to walking speed; climb sheer surfaces from level 3.', tags: ['mobility'] },
+      { name: 'Spider Climb', text: 'Climb speed equal to walking speed; climb sheer surfaces from level 3.', tags: ['mobility'], move: { climb: 'walk' } },
       { name: 'Vampiric Bite', text: 'Unarmed bite that heals you and grants a bonus once per long rest.', tags: ['natural-weapon'] },
       { name: 'Deathless Nature', text: 'No need to breathe.' },
     ],

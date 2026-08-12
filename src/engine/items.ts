@@ -1,4 +1,4 @@
-import type { Ability, Build, SightGrant } from '../types';
+import type { Ability, Build, MoveGrant, SightGrant } from '../types';
 import { ATTUNEMENT_LIMIT, magicItemById } from '../data/magicItems';
 import type { ItemEffect, MagicItem } from '../data/magicItems';
 
@@ -89,6 +89,12 @@ export interface ItemEffects {
    * cannot see.
    */
   sight: SightGrant[];
+  /**
+   * Movement grants from worn items, unresolved for the same reason `sight`
+   * is: "a climbing speed equal to your walking speed" cannot be turned into
+   * a number until the walking speed is final, which happens well after this.
+   */
+  move: MoveGrant[];
   ac: number;
   saves: number;
   weaponBonus: number;
@@ -122,6 +128,7 @@ export interface ItemEffects {
 function emptyEffects(): ItemEffects {
   return {
     sight: [],
+    move: [],
     ac: 0,
     saves: 0,
     weaponBonus: 0,
@@ -175,7 +182,25 @@ export function resolveItems(
     if (item.attunement && carried.attuned) attunedCount++;
 
     let inactiveReason: string | undefined;
-    if (item.attunement && !carried.attuned) {
+    /*
+      A potion in your pack is not a potion you have drunk.
+
+      No consumable in the catalogue declares an effect today, so this guard
+      changes nothing yet - and that is exactly why it is here. §65 wanted to
+      give Potion of Climbing its climb speed and found that doing so would
+      have granted it permanently, from inside a backpack, to a character who
+      never opened it. The effects gathered here are what *wearing* something
+      does; a potion's hour of duration is a thing that happens in play, and
+      the app has nowhere to track it.
+
+      Conditioned on there *being* an effect so nothing changes on screen
+      today: `.item-warn` is a warning, and "your potion is not doing anything
+      while corked" is not a problem worth flagging on every potion in every
+      pack. The day one carries an effect, the note explains itself.
+    */
+    if (isConsumable(item) && item.effect) {
+      inactiveReason = 'Drunk or read in play, so it does nothing while carried.';
+    } else if (item.attunement && !carried.attuned) {
       inactiveReason = 'Not attuned, so it does nothing.';
     } else if (item.attunement && attunedCount > options.attunementSlots) {
       inactiveReason = `Beyond your ${options.attunementSlots} attunement slots.`;
@@ -202,6 +227,17 @@ function applyEffect(into: ItemEffects, effect: ItemEffect, name: string): void 
     if (darkvision) parts.push(extendsBy ? `darkvision +${extendsBy} ft` : `darkvision ${darkvision} ft`);
     if (magical) parts.push(`sight in magical darkness ${magical} ft`);
     if (blindsight) parts.push(`blindsight ${blindsight} ft`);
+  }
+
+  if (effect.move) {
+    into.move.push(effect.move);
+    const { climb, swim, climbFree, swimFree, jumpTimes } = effect.move;
+    const feet = (v: number | 'walk') => (v === 'walk' ? 'your walking speed' : `${v} ft`);
+    if (climb) parts.push(`climb speed ${feet(climb)}`);
+    if (swim) parts.push(`swim speed ${feet(swim)}`);
+    if (climbFree && !climb) parts.push('climbing costs no extra movement');
+    if (swimFree && !swim) parts.push('swimming costs no extra movement');
+    if (jumpTimes) parts.push(`jump ${jumpTimes}x as far`);
   }
 
   if (effect.ac) {

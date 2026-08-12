@@ -1,7 +1,9 @@
 import type { Square } from '../encounter';
 import type { SightContext } from './sight';
 import { walkable } from './sight';
-import { TERRAIN_BY_KIND, keyOf } from '../terrain';
+import { TERRAIN_BY_KIND, elevationAt, keyOf } from '../terrain';
+import { squareCost } from './movement';
+import type { MoveConditions, Mover } from './movement';
 
 /**
  * Where you can actually get to, and what it costs to get there.
@@ -37,19 +39,61 @@ export interface WalkOverlays {
   avoid?: Set<string>;
 }
 
-/** What it costs to *enter* a square, in feet, or null when nobody can. */
-function entryCost(ctx: SightContext, at: Square, overlays?: WalkOverlays): number | null {
+/**
+ * Who is walking, for the surcharges that depend on them.
+ *
+ * §65. Everything above this is a fact about the ground; this is the half that
+ * is a fact about the creature, and the two have to meet somewhere for a
+ * swim speed to be worth anything. Absent means "an ordinary walker with no
+ * special speeds", which is what every caller passed implicitly before.
+ */
+export interface Walker extends Mover {
+  /** Prone, so every foot of this is a crawl. */
+  prone?: boolean;
+}
+
+/**
+ * What it costs to *enter* a square, in feet, or null when nobody can.
+ *
+ * The three surcharges the SRD prices - difficult ground, climbing/swimming,
+ * and crawling - are gathered into `MoveConditions` and priced by
+ * `engine/movement.ts`, so the map and the character sheet agree on what a
+ * cliff costs rather than each carrying its own arithmetic.
+ */
+function entryCost(
+  ctx: SightContext,
+  from: Square | null,
+  at: Square,
+  overlays?: WalkOverlays,
+  walker?: Walker,
+): number | null {
   if (!walkable(ctx, at)) return null;
   const key = keyOf(at);
   if (overlays?.blocked?.has(key)) return null;
   if (overlays?.avoid?.has(key)) return null;
+
+  const conditions: MoveConditions = {};
   const kind = ctx.terrain[key];
   if (kind) {
     const info = TERRAIN_BY_KIND[kind];
     if (info.blocksMovement) return null;
-    if (info.difficult) return 10;
+    if (info.difficult) conditions.difficult = true;
+    if (info.swim) conditions.swimming = true;
   }
-  return overlays?.difficult?.has(key) ? 10 : 5;
+  if (overlays?.difficult?.has(key)) conditions.difficult = true;
+  if (walker?.prone) conditions.crawling = true;
+
+  /*
+    Going up is climbing. Elevation has been on the map since §26.2 and cost
+    nothing to gain until now, so a ledge three steps up was as cheap to reach
+    as the floor beside it - the archers' high ground was free. Only *up*:
+    coming down a ledge is a drop, and the rules charge nothing for gravity.
+  */
+  if (from && elevationAt(ctx.elevation, at) > elevationAt(ctx.elevation, from)) {
+    conditions.climbing = true;
+  }
+
+  return squareCost(conditions, walker ?? {});
 }
 
 const STEPS = [
@@ -86,6 +130,7 @@ export function walkMap(
   from: Square | Square[],
   feet: number,
   overlays?: WalkOverlays,
+  walker?: Walker,
 ): Walk {
   const sources = Array.isArray(from) ? from : [from];
   const best = new Map<string, number>();
@@ -105,13 +150,15 @@ export function walkMap(
 
     for (const step of STEPS) {
       const next = { x: current.at.x + step.x, y: current.at.y + step.y };
-      const cost = entryCost(ctx, next, overlays);
+      const cost = entryCost(ctx, current.at, next, overlays, walker);
       if (cost === null) continue;
 
-      // No corner cutting: a diagonal needs a passable shoulder.
+      // No corner cutting: a diagonal needs a passable shoulder. Passability
+      // is all this asks, so the shoulders are priced from nowhere in
+      // particular - what matters is whether the answer is null.
       if (step.x !== 0 && step.y !== 0) {
-        const shoulderA = entryCost(ctx, { x: current.at.x + step.x, y: current.at.y }, overlays);
-        const shoulderB = entryCost(ctx, { x: current.at.x, y: current.at.y + step.y }, overlays);
+        const shoulderA = entryCost(ctx, null, { x: current.at.x + step.x, y: current.at.y }, overlays, walker);
+        const shoulderB = entryCost(ctx, null, { x: current.at.x, y: current.at.y + step.y }, overlays, walker);
         if (shoulderA === null && shoulderB === null) continue;
       }
 
@@ -134,8 +181,9 @@ export function reachableFrom(
   ctx: SightContext,
   from: Square,
   feet: number,
+  walker?: Walker,
 ): Map<string, number> {
-  return walkMap(ctx, from, feet).cost;
+  return walkMap(ctx, from, feet, undefined, walker).cost;
 }
 
 /**

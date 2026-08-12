@@ -763,6 +763,11 @@ export const FEATS: Feat[] = [
     source: 'PHB',
     summary: '+1 STR or DEX, stand from prone with 5 ft. of movement, and climb at full speed.',
     tags: ['mobility'],
+    // Exactly the two things the summary above says, and nothing the feat's
+    // full text says beyond it - the sweep structures what the record claims
+    // rather than what the book does, since the book is not a licensed source
+    // here and Athlete is PHB rather than SRD.
+    move: { climbFree: true, quickStand: true },
     asi: { abilities: ['str', 'dex'], amount: 1 },
     prereq: { minLevel: 4 },
     base: 2,

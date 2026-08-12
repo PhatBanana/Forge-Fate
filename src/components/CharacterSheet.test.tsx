@@ -141,6 +141,46 @@ describe('what a paper sheet has a box for', () => {
   });
 });
 
+describe('how far this character gets', () => {
+  /*
+    §65. The jump distances are the half a player asks for at a table and the
+    sheet never carried, because they are a rule rather than a stat: the long
+    jump is your Strength *score* in feet, which appears nowhere else.
+  */
+  it('prints the long jump as the Strength score, not the modifier', () => {
+    const build = fighter();
+    const { scores, mods } = deriveBuild(build);
+    setup(build);
+    const chip = screen.getByText('Long jump').closest('.cs-chip');
+    const printed = Number(within(chip as HTMLElement).getByText(/^\d+$/).textContent);
+    // Exactly the score, and provably not the modifier: asserting only
+    // "at least 15" would have passed against either.
+    expect(printed).toBe(scores.str);
+    expect(printed).not.toBe(mods.str);
+  });
+
+  it('prints a high jump too, which is a different formula', () => {
+    setup(fighter());
+    expect(screen.getByText('High jump')).toBeTruthy();
+  });
+
+  it('shows no Climb chip for somebody with no climb speed', () => {
+    setup(fighter());
+    expect(screen.queryByText('Climb')).toBeNull();
+    expect(screen.queryByText('Swim')).toBeNull();
+  });
+
+  it('shows a Climb chip for somebody who has one', () => {
+    // A Tabaxi's claws are 20 feet of climb, on the record since §65.
+    setup(buildOf({
+      raceId: 'tabaxi',
+      classes: [{ classId: 'fighter', level: 3, subclassId: 'champion' }],
+    }));
+    const chip = screen.getByText('Climb').closest('.cs-chip');
+    expect(within(chip as HTMLElement).getByText('20')).toBeTruthy();
+  });
+});
+
 describe('the roleplay boxes', () => {
   it('writes what you type back onto the character', async () => {
     const app = setup(fighter());

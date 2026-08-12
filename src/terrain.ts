@@ -46,6 +46,16 @@ export interface TerrainInfo {
       the click's price all agree. (This said "shown, not enforced" long after
       it stopped being true.) */
   difficult: boolean;
+  /**
+   * Deep enough that crossing it is swimming, not wading.
+   *
+   * §65, and a separate flag from `difficult` rather than a stronger version
+   * of it, because the two are waived by different things: a Ring of Swimming
+   * answers this and does nothing at all about rubble. Water was `difficult`
+   * alone until §65, which meant a Water Genasi with a permanent swim speed
+   * paid the same ten feet a Dwarf in plate did.
+   */
+  swim?: boolean;
 }
 
 export const TERRAIN: TerrainInfo[] = [
@@ -53,7 +63,14 @@ export const TERRAIN: TerrainInfo[] = [
   { kind: 'pillar', label: 'Pillar', blocksSight: true, blocksMovement: true, difficult: false },
   { kind: 'rock', label: 'Rock', blocksSight: true, blocksMovement: true, difficult: false },
   { kind: 'tree', label: 'Tree', blocksSight: true, blocksMovement: false, difficult: true },
-  { kind: 'water', label: 'Water', blocksSight: false, blocksMovement: false, difficult: true },
+  /*
+    Water carries `swim` and *not* `difficult`, which looks like a downgrade
+    and is not: both cost ten feet to a creature that cannot swim, and the
+    difference only shows for one that can. Marking it both would have made a
+    swim speed worth nothing here, since the difficult half nothing waives
+    would still be charged.
+  */
+  { kind: 'water', label: 'Water', blocksSight: false, blocksMovement: false, difficult: false, swim: true },
   { kind: 'rubble', label: 'Rubble', blocksSight: false, blocksMovement: false, difficult: true },
   { kind: 'floor', label: 'Floor', blocksSight: false, blocksMovement: false, difficult: false },
 ];
