@@ -4430,3 +4430,70 @@ weakening exactly what each suite means to pin.
 the exhaustion wrapper, one added as the darkvision tripwire), tsc, oxlint,
 build in budget, and both standing probes - the Forge classes and the
 per-edition condition text - green against the rebuilt app.
+
+## 62. 2014 starting wealth: the rule without the table
+
+*"do the 2014 starting wealth."* The roadmap line carried an instruction —
+check `/api/2014/classes/{id}` before assuming the table is absent — and the
+first work here was doing exactly that rather than trusting the note.
+
+**The table is not in the SRD.** Checked four ways, none of them recalled:
+
+```
+/api/2014/classes/fighter    no wealth field of any kind
+/api/2014/rule-sections      no starting-wealth or equipment entry
+srd-2014-text.json           no "starting wealth", no "forgo", no gold dice
+open5e Equipment sections    coins, expenses, packs, gear — none of it
+```
+
+Starting Wealth by Class lives in the Player's Handbook. That makes it the
+same shape as the DMG's encounter thresholds, which §42 declined to retype,
+and this project has no better claim to one than the other. **Precedent is
+the point:** a table of numbers from an unlicensed book was ruled off-limits
+once, and a second ruling that went the other way would mean the first was
+about convenience rather than principle.
+
+**So the app models the rule and asks for the number.** A 2014 first-level
+character now gets a "forgo the kit and buy your own gear" control:
+`takeStartingCoin(build, gp)` clears armor, weapons and gear, puts the amount
+in the purse, and the SRD equipment tables the app already ships — with
+prices, in a panel that already edits coins — are what it is spent on.
+Nothing is invented, and nothing is missing but a die roll the app was never
+allowed to print. The panel says that in as many words, because a player who
+knows why can get on with it and a player who does not would assume the
+option had simply been forgotten.
+
+**2024 does not get the control, and that is a design decision rather than an
+oversight.** All twelve of its SRD classes print a coin alternative *inside*
+the equipment choice — the Fighter's "or 155 GP" is already a radio button
+with the book's own number on it, and `applyStartingEquipment` has handed it
+over since §97. A free-hand field there would let somebody start with gold
+2024 does not grant them. `startingEquipment.test.ts` pins the split in both
+directions: every 2024 class carries coin, no 2014 class does. If an SRD
+refresh ever moves that, the test fires rather than letting the free-hand
+path quietly become the wrong answer.
+
+**Guarding the purse.** The field is a number input, and an emptied number
+input yields `NaN`. `NaN` gold would land in `build.coins.gp` and poison
+every total downstream of it with nothing looking wrong, so the engine floors
+and clamps rather than trusting its caller — tested with `NaN`, a negative
+and a fraction.
+
+**Two things I got wrong on the way**, both caught by the gates rather than
+by care: the component test asserted the 2024 Fighter offers "170 gp", which
+is my sum of its three options and appears nowhere — the coin-only option is
+155; and the same assertion then matched twice, because the group's legend
+quotes the whole sentence including the number, so it is matched exactly now.
+The probe made the same class of mistake in reverse and was fixed the same
+way: it started from the example character, which is level 5, and the
+starting-equipment panel only renders at 1st — it would have reported a
+missing panel that was the probe's own fault.
+
+**Gates.** 1946 tests / 90 files, tsc, oxlint, build in budget. `run62.mjs`
+presses it at 1360 in both themes under both rulesets: 2014 types an amount
+and reads it back off the **character sheet's purse**, which is downstream of
+the engine and the save rather than of the button; 2024 asserts the field is
+absent and the SRD's own coin option still offered. The control got its own
+`.start-coin` rather than borrowing `.row` — whose `> *` rule stretches a
+three-digit field across the panel — and `.hud-rounds`, which belongs to the
+battle HUD.

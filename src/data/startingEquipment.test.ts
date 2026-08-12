@@ -170,3 +170,41 @@ describe('what a pick offers', () => {
     expect(pickOptions('druidic-foci', '2014').map((o) => o.id)).toContain('sprig-of-mistletoe');
   });
 });
+
+/*
+  The claim the 2014 coin path rests on.
+
+  §62 gave 2014 a "forgo the kit for coin" control whose amount the player
+  types, on the grounds that the Starting Wealth by Class table is Player's
+  Handbook content and 2024's coin alternative is not - 2024 prints its
+  number inside the equipment choice itself, so it needs no such control.
+
+  That is a claim about the fixture, and this is the claim as a test. If an
+  SRD refresh ever brings 2014 gold into the table, or takes 2024's away,
+  the free-hand path needs rethinking - and this fires rather than letting it
+  quietly become the wrong answer.
+*/
+describe('which edition prints a coin alternative', () => {
+  const goldIn = (classId: string, ruleset: Ruleset) =>
+    (startingEquipmentFor(classId, ruleset)?.groups ?? []).reduce(
+      (sum, group) => sum + group.options.reduce((s, o) => s + o.gold, 0),
+      0,
+    );
+
+  const SRD_CLASSES = [
+    'barbarian', 'bard', 'cleric', 'druid', 'fighter', 'monk',
+    'paladin', 'ranger', 'rogue', 'sorcerer', 'warlock', 'wizard',
+  ];
+
+  it('gives every 2024 class one, so the app never has to ask', () => {
+    for (const classId of SRD_CLASSES) {
+      expect(goldIn(classId, '2024'), `${classId} in 2024`).toBeGreaterThan(0);
+    }
+  });
+
+  it('gives no 2014 class one, which is why the app asks', () => {
+    for (const classId of SRD_CLASSES) {
+      expect(goldIn(classId, '2014'), `${classId} in 2014`).toBe(0);
+    }
+  });
+});

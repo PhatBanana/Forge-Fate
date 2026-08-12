@@ -755,3 +755,52 @@ describe('the Class features panel shows what the SRD grants', () => {
     expect(within(panel).getByText('Aura Improvements')).toBeInTheDocument();
   });
 });
+
+/*
+  §62. The 2014 way to start with coin instead of a kit.
+
+  The control only exists under 2014, and that is the whole point of it:
+  2024 prints a coin alternative inside its own equipment choice, so it is
+  already a radio button with the book's number on it. A free-hand amount
+  offered there would let somebody start with gold 2024 does not grant.
+*/
+describe('forgoing the starting kit for coin', () => {
+  const at1 = (ruleset: Build['ruleset']) =>
+    buildOf({ ruleset, classes: [{ classId: 'fighter', level: 1 }] });
+
+  it('offers the coin field to a 2014 character', () => {
+    setup(at1('2014'));
+    expect(screen.getByLabelText(/starting gold instead of the kit/i)).toBeTruthy();
+  });
+
+  it('does not offer it under 2024, whose own option carries the number', () => {
+    setup(at1('2024'));
+    expect(screen.queryByLabelText(/starting gold instead of the kit/i)).toBeNull();
+    /*
+      The SRD's own coin-only option is still there as one of the radio
+      choices - the 2024 Fighter's "or 155 GP", which is why no field is
+      needed. Matched exactly rather than by regex: the group's legend quotes
+      the whole sentence including "155 GP", so a loose match finds two
+      elements and proves nothing about the option itself.
+    */
+    expect(screen.getByText('155 gp')).toBeTruthy();
+  });
+
+  it('puts the typed amount in the purse and clears the kit', async () => {
+    const user = userEvent.setup();
+    const view = setup(at1('2014'));
+
+    await user.type(screen.getByLabelText(/starting gold instead of the kit/i), '140');
+    await user.click(screen.getByRole('button', { name: /take coin instead/i }));
+
+    expect(view.build.coins.gp).toBe(140);
+    expect(view.build.defenses.armorId).toBe('none');
+    expect(view.build.gear).toEqual([]);
+  });
+
+  it('will not take an empty amount', () => {
+    setup(at1('2014'));
+    const button = screen.getByRole('button', { name: /take coin instead/i });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+  });
+});

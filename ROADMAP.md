@@ -92,11 +92,22 @@ checked in the code, not recalled.
   them; the phrase appears in the SRD only inside other abilities' prose.
   Building it means authoring content this project has no source for. See
   §42.
-- `[ ]` **2014 starting wealth** ("ignore the package, roll for gold").
-  **S** — 2024's equivalent is modelled; the 2014 table is not in any
-  fixture the app ships. Now that `/api/2014/classes/{id}` is known to carry
-  the class record whole, check it there before assuming the table is
-  absent. See §44 and §49.
+- `[x]` **2014 starting wealth** ("ignore the package, roll for gold") —
+  done in §62, as the *rule* without the *table*. Checked
+  `/api/2014/classes/{id}` first as this line asked: it carries no wealth
+  field at all. Nor does the 2014 rule-section index, nor
+  `srd-2014-text.json`, nor open5e's Equipment sections. **Starting Wealth
+  by Class is Player's Handbook content, not SRD 5.1** — the same call
+  §42 made about the DMG's encounter thresholds, reached the same way.
+
+  So the mechanism is built and the number is asked for: a 2014 first-level
+  character gets a "forgo the kit and buy your own gear" control, types what
+  they rolled or were granted, and the coin lands in the purse with the kit
+  cleared. 2024 needs no such control and deliberately does not get one —
+  all twelve of its SRD classes print a coin alternative inside the
+  equipment choice itself, so it is already a radio button carrying the
+  book's own number. A data test pins that split, so an SRD refresh which
+  moves it fires rather than quietly making the free-hand path wrong.
 - `[ ]` **Spell components (V/S/M).** **M**. Not on the spell record at all,
   so nothing can say a silenced caster loses their verbal spells or that a
   hand is needed. Arguably a DM ruling, but it is currently *unmodelled*

@@ -225,3 +225,56 @@ export function applyStartingEquipment(
     unrecorded,
   };
 }
+
+// --------------------------------------------------- forgoing the kit for coin
+
+/**
+ * The other way a 1st-level character can be equipped: take coin, buy your own.
+ *
+ * ## Why the amount is a parameter and not a table
+ *
+ * 2024 prints a coin alternative inside the equipment choice itself - every one
+ * of its twelve SRD classes has one, and `applyStartingEquipment` already hands
+ * it over, because it arrives as `option.gold` on a row the audit checks.
+ *
+ * 2014 puts the same idea in a **Starting Wealth by Class** table that is not
+ * in SRD 5.1. Checked four ways before writing this, not recalled:
+ *
+ * - `/api/2014/classes/{id}` carries no wealth field of any kind.
+ * - The 2014 rule-section index has no starting-wealth or equipment entry.
+ * - `srd-2014-text.json`, the whole licensed text this app ships, contains no
+ *   "starting wealth", no "forgo", and no gold-dice expression.
+ * - open5e's Equipment sections - coins, expenses, equipment-packs,
+ *   adventuring gear - carry none of it either.
+ *
+ * It is in the Player's Handbook, which this project cannot copy from. That is
+ * the same call §42 made about the DMG's encounter thresholds: a table of
+ * numbers in a book we have no licence to, left out rather than retyped.
+ *
+ * So the app models the **rule** and asks for the **number**. A 2014 player
+ * whose DM rolled them 140 gp types 140; nothing is invented and nothing is
+ * missing but a die roll the app was never allowed to print.
+ *
+ * ## Why this empties the kit rather than adding to it
+ *
+ * "Forgo the equipment package" means you have none of it. Taking coin
+ * therefore clears armor, weapons and gear the same way taking a kit replaces
+ * them - the panel says so before you press it. Background equipment is not
+ * modelled at all (no licensed source has it), so there is nothing else here
+ * that would be wrongly swept up.
+ */
+export function takeStartingCoin(build: Build, gp: number): Build {
+  /*
+    Floored and clamped rather than trusted. The field is a number input and a
+    number input yields NaN when emptied - and NaN gold would land in the purse
+    and poison every total downstream of it, silently.
+  */
+  const amount = Number.isFinite(gp) ? Math.max(0, Math.floor(gp)) : 0;
+  return {
+    ...build,
+    weapons: { magicBonus: {} },
+    defenses: { ...build.defenses, armorId: 'none', shield: false },
+    gear: [],
+    coins: { ...build.coins, gp: amount },
+  };
+}

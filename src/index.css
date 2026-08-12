@@ -4086,6 +4086,35 @@ dl.detail-list {
   padding: 0 6px;
 }
 
+/*
+  The 2014 coin alternative's controls, §62.
+
+  Its own row rather than `.row`, whose `> *` rule is `flex: 1 1 140px` - that
+  stretches a three-digit number field and a short button across the whole
+  panel, which reads as a form to fill in rather than the small aside it is.
+  Here nothing grows except the sentence at the end.
+*/
+.start-coin {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.start-coin input {
+  width: 5.5em;
+  flex: 0 0 auto;
+}
+
+.start-coin .btn {
+  flex: 0 0 auto;
+}
+
+.start-coin .muted {
+  flex: 1 1 12em;
+  font-size: 12px;
+}
+
 .start-option {
   display: flex;
   align-items: flex-start;

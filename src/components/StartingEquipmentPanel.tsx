@@ -9,6 +9,7 @@ import {
   chooseOption,
   isComplete,
   setPick,
+  takeStartingCoin,
 } from '../engine/startingEquipment';
 import type { StartingChoice } from '../engine/startingEquipment';
 
@@ -45,6 +46,14 @@ export function StartingEquipmentPanel({
     kit ? blankChoices(kit) : [],
   );
   const [taken, setTaken] = useState<string[] | null>(null);
+  /*
+    The coin alternative's amount, as typed. A string rather than a number so
+    the field can be empty while somebody is typing into it - a number state
+    would have to hold NaN for that, and NaN is exactly what the engine
+    guards against.
+  */
+  const [coin, setCoin] = useState('');
+  const [tookCoin, setTookCoin] = useState<number | null>(null);
 
   /*
     A new class means new questions, so the old answers are abandoned. Keyed on
@@ -56,6 +65,8 @@ export function StartingEquipmentPanel({
     setLastSignature(signature);
     setChoices(kit ? blankChoices(kit) : []);
     setTaken(null);
+    setCoin('');
+    setTookCoin(null);
   }
 
   const complete = useMemo(() => isComplete(choices), [choices]);
@@ -78,6 +89,24 @@ export function StartingEquipmentPanel({
     const result = applyStartingEquipment(build, choices);
     patch(result.build);
     setTaken(result.unrecorded);
+    setTookCoin(null);
+  };
+
+  /*
+    2014 only. 2024's coin alternative is printed in the SRD as one of the
+    equipment options - all twelve of its classes have one - so it is already
+    a radio button above, with the book's own number on it. Offering a second,
+    free-hand coin path there would invite somebody to start with an amount
+    2024 does not give them.
+  */
+  const coinGp = Number(coin);
+  const coinValid = coin.trim() !== '' && Number.isFinite(coinGp) && coinGp >= 0;
+  const offersCoin = build.ruleset === '2014';
+  const takeCoin = () => {
+    if (!coinValid) return;
+    patch(takeStartingCoin(build, coinGp));
+    setTookCoin(Math.floor(coinGp));
+    setTaken(null);
   };
 
   return (
@@ -108,6 +137,46 @@ export function StartingEquipmentPanel({
         </button>
         {!complete && <span className="muted">Answer the picks above first.</span>}
       </div>
+
+      {offersCoin && (
+        <fieldset className="start-group" style={{ marginTop: 12 }}>
+          <legend>Or forgo the kit and buy your own gear</legend>
+          {/*
+            The rule 2014 puts in a table this app cannot carry. Said plainly
+            rather than silently omitted: a player who knows why can get on
+            with it, and a player who does not would otherwise think the app
+            had simply forgotten the option.
+          */}
+          <p className="muted" style={{ margin: '0 0 8px' }}>
+            2014 lets you skip the package and start with coin instead. The gold it gives each
+            class is in the Player’s Handbook, not the SRD, so this app will not print it — roll
+            or ask your DM, then type the total. Everything in the equipment tables below has a
+            price.
+          </p>
+          <div className="start-coin">
+            <input
+              type="number"
+              min={0}
+              step={1}
+              aria-label="Starting gold instead of the kit"
+              placeholder="gp"
+              value={coin}
+              onChange={(e) => setCoin(e.target.value)}
+            />
+            <button type="button" className="btn btn-sm" disabled={!coinValid} onClick={takeCoin}>
+              Take coin instead
+            </button>
+            <span className="muted">Clears the kit: you start with the coin and nothing else.</span>
+          </div>
+        </fieldset>
+      )}
+
+      {tookCoin !== null && (
+        <div className="callout" style={{ marginTop: 10 }}>
+          <b>{tookCoin} gp in the purse.</b> Your armor, weapons and pack are cleared — buy what
+          you want from the equipment tables below.
+        </div>
+      )}
 
       {taken && (
         <div className="callout" style={{ marginTop: 10 }}>

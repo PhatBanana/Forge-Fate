@@ -8,6 +8,7 @@ import {
   isComplete,
   resolveKit,
   setPick,
+  takeStartingCoin,
 } from './startingEquipment';
 import type { ClassId, Ruleset } from '../types';
 
@@ -242,5 +243,63 @@ describe('the result is a legal character', () => {
         expect(resolved.length, `${classId} in ${ruleset}`).toBeGreaterThan(0);
       }
     }
+  });
+});
+
+/*
+  The 2014 coin alternative. The *amount* is the player's, because the
+  Starting Wealth by Class table is Player's Handbook content and not in SRD
+  5.1 - see the doc comment on `takeStartingCoin` for the four places that
+  was checked. What is testable is the mechanism: forgoing the kit leaves you
+  holding coin and nothing else, and the field cannot poison the purse.
+*/
+describe('forgoing the kit for coin, which is 2014’s other way to start', () => {
+  const armed = () => {
+    const kit = kitFor('fighter');
+    let choices = blankChoices(kit);
+    kit.groups.forEach((group, g) => {
+      group.options[0]?.picks.forEach((pick, p) => {
+        for (let slot = 0; slot < pick.choose; slot++) {
+          choices = setPick(choices, g, p, slot, 'dagger');
+        }
+      });
+    });
+    return applyStartingEquipment(at1('fighter'), choices).build;
+  };
+
+  it('clears the kit it replaces, rather than adding to it', () => {
+    const equipped = armed();
+    // The kit really did arm them, or the next assertion proves nothing.
+    expect(equipped.defenses.armorId).not.toBe('none');
+
+    const bought = takeStartingCoin(equipped, 140);
+    expect(bought.coins.gp).toBe(140);
+    expect(bought.defenses.armorId).toBe('none');
+    expect(bought.defenses.shield).toBe(false);
+    expect(bought.gear).toEqual([]);
+    expect(bought.weapons.mainHandId).toBeUndefined();
+    expect(bought.weapons.offHandId).toBeUndefined();
+  });
+
+  it('leaves the rest of the character alone', () => {
+    const before = at1('fighter');
+    const after = takeStartingCoin(before, 75);
+    expect(after.classes).toEqual(before.classes);
+    expect(after.raceId).toBe(before.raceId);
+    expect(after.baseScores).toEqual(before.baseScores);
+    // The other coins in the purse are untouched; only the gold is set.
+    expect(after.coins.sp).toBe(before.coins.sp);
+  });
+
+  it('refuses to put a non-number in the purse', () => {
+    // An emptied number input yields NaN, and NaN gold would poison every
+    // total downstream of it without anything looking wrong.
+    expect(takeStartingCoin(at1('fighter'), Number.NaN).coins.gp).toBe(0);
+    expect(takeStartingCoin(at1('fighter'), -50).coins.gp).toBe(0);
+    expect(takeStartingCoin(at1('fighter'), 12.7).coins.gp).toBe(12);
+  });
+
+  it('still derives a legal character afterwards', () => {
+    expect(() => deriveBuild(takeStartingCoin(at1('fighter'), 140))).not.toThrow();
   });
 });
