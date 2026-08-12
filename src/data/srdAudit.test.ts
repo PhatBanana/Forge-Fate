@@ -375,6 +375,7 @@ interface SrdSpell {
   name: string; level: number; school: string;
   concentration: boolean; ritual: boolean; classes: string[];
   range: string; duration: string; castingTime: string;
+  components: string[]; material: string | null;
 }
 
 /**
@@ -494,6 +495,64 @@ describe('the spell list against SRD 5.1', () => {
     const known = new Set(SPELLS.map((s) => srdKey(s.name)));
     const missing = Object.entries(srd).filter(([k]) => !known.has(k)).map(([, s]) => s.name);
     expect(missing).toEqual([]);
+  });
+
+  /*
+    Components, §64. Three claims, and the third is the one that keeps the
+    table honest about what it does not know.
+  */
+  it('states the verbal, somatic and material components the SRD states', () => {
+    const findings: Finding[] = [];
+    for (const spell of SPELLS) {
+      const s = srd[srdKey(spell.name)];
+      if (!s) continue;
+      const k = key(spell.name);
+      const app = spell.components;
+      if (!app) {
+        findings.push({ key: `spell:${k}:components`, detail: 'the SRD has this spell and the app records no components' });
+        continue;
+      }
+      const want = { v: s.components.includes('V'), s: s.components.includes('S'), m: s.components.includes('M') };
+      if (app.v !== want.v) findings.push({ key: `spell:${k}:verbal`, detail: `app ${app.v}, srd ${want.v}` });
+      if (app.s !== want.s) findings.push({ key: `spell:${k}:somatic`, detail: `app ${app.s}, srd ${want.s}` });
+      if (Boolean(app.m) !== want.m) {
+        findings.push({ key: `spell:${k}:material`, detail: `app ${Boolean(app.m)}, srd ${want.m}` });
+      }
+      if (app.m && s.material && app.m !== s.material) {
+        findings.push({ key: `spell:${k}:material-text`, detail: `app "${app.m}", srd "${s.material}"` });
+      }
+    }
+    const { unexpected, stale } = reconcile(findings, ['spell'],
+      ['components', 'verbal', 'somatic', 'material', 'material-text']);
+    expect(show(unexpected)).toEqual([]);
+    expect(stale, 'exceptions that no longer apply').toEqual([]);
+  });
+
+  /*
+    The invariant the one-optional-field design rests on: upstream, a spell
+    has an M exactly when it has material text. If that ever stops being true
+    `Spell.components.m` would silently drop an M component, so it is checked
+    against the fixture rather than assumed.
+  */
+  it('has material text on exactly the SRD spells with an M', () => {
+    const wrong = Object.values(srd)
+      .filter((s) => s.components.includes('M') !== Boolean(s.material))
+      .map((s) => s.name);
+    expect(wrong).toEqual([]);
+  });
+
+  /*
+    And the absence, stated as a claim rather than left to be discovered.
+    Twenty-five spells the app carries are not in SRD 5.1 - writing their
+    components from the books would put an unverifiable row next to 319
+    verified ones, so they carry none and the engine leaves the rule
+    unapplied for them. If that number moves, somebody has either added a
+    spell without a source or invented components, and both are worth a stop.
+  */
+  it('records no components for the spells the SRD does not carry', () => {
+    const outside = SPELLS.filter((s) => !srd[srdKey(s.name)]);
+    expect(outside.length, 'spells the app carries beyond SRD 5.1').toBe(25);
+    expect(outside.filter((s) => s.components).map((s) => s.name)).toEqual([]);
   });
 });
 

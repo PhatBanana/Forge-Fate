@@ -21,6 +21,7 @@ import type { Spell } from '../data/spells';
 import { consumeItem, isConsumable, quantityOf } from '../engine/items';
 import { gearById } from '../data/gear';
 import type { GrabMode } from '../engine/grapple';
+import { castingBlocks, handsOf } from '../engine/components';
 
 /**
  * The command menu: what an action can be spent on, the way the old RPGs
@@ -55,6 +56,7 @@ export function CommandMenu({
   onEscapeGrapple,
   onReleaseGrapple,
   onHide,
+  silenced,
   standing,
   onClose,
 }: {
@@ -88,6 +90,15 @@ export function CommandMenu({
   /** Roll Stealth and hide, through the battlefield's own machinery. The
       owner spends the action in the same write as the roll. */
   onHide?: () => void;
+  /**
+   * Standing somewhere no sound carries, §64.
+   *
+   * Absent means the caller has no model for it - the sheet's own tray has
+   * no battlefield - and the verbal rule is then left alone rather than
+   * applied in either direction, the same refusal `castingBlocks` makes for
+   * a spell whose components the SRD does not carry.
+   */
+  silenced?: boolean;
   /** A standing box never closes - the cockpit keeps it open the way the
       monster rail does. Acting collapses the submenu back to the grid. */
   standing?: boolean;
@@ -178,6 +189,26 @@ export function CommandMenu({
     : [];
 
   const rituals = spells.filter((s) => s.ritual && s.level > 0);
+
+  /*
+    What is stopping each spell right now, §64.
+
+    Read from the *live* loadout rather than from the build's plan, because a
+    character who stowed their shield this turn can cast what they could not
+    a moment ago - and because the whole point of the rule is that it depends
+    on what is in your hands.
+
+    Offered-but-explained rather than hidden: a spell that vanished from the
+    list would look like a bug, and "both hands are full" is a problem the
+    player can solve on their own turn.
+  */
+  const casterHands = {
+    held: handsOf(ctx.build),
+    warCaster: ctx.featIds.has('war-caster'),
+    subtleSpell: (ctx.build.classOptionIds ?? []).includes('subtle-spell'),
+    ...(silenced === undefined ? {} : { canSpeak: !silenced }),
+  };
+  const blocksFor = (spell: Spell) => castingBlocks(spell, casterHands);
 
   /** The cheapest way to pay for a spell, or null when nothing can. */
   const slotFor = (spell: Spell): { kind: 'slot'; level: number } | { kind: 'pact' } | null => {
@@ -622,22 +653,32 @@ export function CommandMenu({
                 list looks like a bug and a spell that says why does not.
               */
               const allowed = maySpend(play, spell);
+              /*
+                A component this caster cannot supply right now, §64. Not
+                merged into `allowed`: the action economy and the components
+                fail for unrelated reasons, and a player wants to be told
+                which - "a spell was already cast" and "both hands are full"
+                lead to completely different next moves.
+              */
+              const blocked = blocksFor(spell);
               return (
                 <button
                   key={spell.id}
                   type="button"
                   className="hud-act"
-                  disabled={!payable || !allowed}
+                  disabled={!payable || !allowed || blocked.length > 0}
                   title={
                     !allowed
                       ? play.turn.bonusSpellCast
                         ? `${spell.name} — a bonus-action spell was cast this turn, so only a cantrip with a casting time of one action can follow`
                         : `${spell.name} — a spell was already cast this turn, so no bonus-action spell can follow`
-                      : spell.level === 0
-                        ? `${spell.name} — cantrip. ${spell.summary}`
-                        : payable
-                          ? `${spell.name} — level ${spell.level}. ${spell.summary}`
-                          : `${spell.name} — no slot left that can carry it`
+                      : blocked.length > 0
+                        ? `${spell.name} — ${blocked.map((b) => b.why).join('; and ')}`
+                        : spell.level === 0
+                          ? `${spell.name} — cantrip. ${spell.summary}`
+                          : payable
+                            ? `${spell.name} — level ${spell.level}. ${spell.summary}`
+                            : `${spell.name} — no slot left that can carry it`
                   }
                   onClick={() => cast(spell)}
                 >

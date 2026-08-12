@@ -13,6 +13,7 @@ import { armorProficiencies } from '../engine/defense';
 import type { BuildContext } from '../engine/character';
 import { describeSpell } from '../engine/spellRecommend';
 import { RECHARGE_LABEL, heldResources, rechargeFor, restoredKeys } from '../engine/resources';
+import { describeComponents } from '../engine/components';
 import { SORCERY_POINT_SLOT_COSTS } from '../data/classResources';
 import { CONDITIONS, conditionText } from '../data/conditions';
 import { MAX_EXHAUSTION, exhaustionLines } from '../engine/exhaustion';
@@ -1537,6 +1538,20 @@ export function CharacterSheet({
                           <div className="sub">
                             {describeSpell(spell)} · {CASTING_TIME_LABELS[spell.castingTime]}
                             {castAs(spell) && ` · as a ${castAs(spell)}`}
+                            {/*
+                              Components, §64. On the sheet because it is the
+                              copy that goes to the table, and "can I cast
+                              this with a sword and shield in my hands" is
+                              answered by these three letters and nothing
+                              else. The material is the title, since it is a
+                              sentence and the row is a line.
+                            */}
+                            {describeComponents(spell) && (
+                              <span title={spell.components?.m ?? undefined}>
+                                {' · '}
+                                {describeComponents(spell)}
+                              </span>
+                            )}
                             {grantedIds.has(spell.id) && ' · always prepared'}
                           </div>
                           <div className="cs-screen">

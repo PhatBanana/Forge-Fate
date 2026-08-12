@@ -14,6 +14,7 @@ import { weaponById } from '../data/weapons';
 import { BACKGROUNDS_BY_ID } from '../data/backgrounds';
 import { checkMulticlass } from './conditions';
 import { describeOverspend, illegalFeats, overspends, uncastableSpells } from './legality';
+import { castingBlocks, handsOf } from './components';
 
 export type Severity = 'error' | 'warning' | 'info' | 'good';
 
@@ -739,6 +740,43 @@ function spellcastingFindings(ctx: BuildContext): Finding[] {
       title: `${names} ${wasted.length === 1 ? 'is' : 'are'} already granted by your subclass`,
       detail: `Your subclass hands ${wasted.length === 1 ? 'this' : 'these'} over always prepared and free of your usual count, so recording ${wasted.length === 1 ? 'it' : 'them'} as a pick spends ${wasted.length === 1 ? 'a slot' : 'slots'} on ${wasted.length === 1 ? 'a spell' : 'spells'} you already have.`,
       fix: 'Drop it in the Spells panel and spend the pick on something else.',
+    });
+  }
+
+  /*
+    Hands full, §64. The one component rule a *builder* can check: whether
+    what this character is holding leaves a hand free to gesture or reach a
+    pouch.
+
+    Only when both hands are full, because one free hand serves both
+    components - the SRD says so outright, and flagging a sword-and-no-shield
+    caster would be crying wolf at the commonest caster loadout in the game.
+
+    Counted over what they can actually cast rather than announced as a rule,
+    because "eleven of your fourteen spells" is a sentence that changes a
+    decision and "you have no free hand" is one somebody has already thought
+    about. War Caster and Subtle Spell are read by the engine, so a character
+    who has solved this never sees it.
+  */
+  const stuck = casting.castable.filter(
+    (spell) =>
+      castingBlocks(spell, {
+        held: handsOf(ctx.build),
+        warCaster: ctx.featIds.has('war-caster'),
+        subtleSpell: (ctx.build.classOptionIds ?? []).includes('subtle-spell'),
+      }).length > 0,
+  );
+  if (stuck.length) {
+    const somatic = stuck.filter((s) => s.components?.s).length;
+    findings.push({
+      severity: 'warning',
+      title: `Both hands are full, and ${stuck.length} of your spells need a hand free`,
+      detail: `A spell with a somatic or material component needs one free hand - the same hand does for both - and what you are holding takes both of yours. ${stuck.length} of the spells you can cast are affected${
+        somatic && somatic !== stuck.length ? `, ${somatic} of them for the gesture alone` : ''
+      }.`,
+      fix: ctx.build.defenses.shield
+        ? 'War Caster covers the gesture. For the material half, the SRD lets a cleric or paladin emblazon a holy symbol on a shield — worth agreeing with your table, since the app does not assume it.'
+        : 'War Caster covers the gesture; one free hand covers both. Or plan on stowing something before you cast.',
     });
   }
 

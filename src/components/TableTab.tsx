@@ -2138,6 +2138,16 @@ export function TableTab({
    * missing position leaves the rule unapplied rather than applying it in
    * the harshest direction.
    */
+  /**
+   * Whether this square is inside a Silence, §64.
+   *
+   * Its own question rather than part of the zone damage sweep, because it
+   * changes what a caster may *choose* rather than what happens to them - and
+   * it is asked of a square rather than of a turn.
+   */
+  const silencedAt = (at: Square): boolean =>
+    (encounter.zones ?? []).some((zone) => zone.effect?.silences && inZone(zone, at));
+
   const lightSees = (watcher: Combatant, at: Square): boolean => {
     const eyes = eyesOf(watcher);
     return eyes ? canSeeInto(eyes, at, litAt(at)) : true;
@@ -4958,6 +4968,9 @@ export function TableTab({
       /* Letting go is free, so it needs no turn - a DM should be able to
          release a hold whenever the fiction says the hand opened. */
       onReleaseGrapple={heldBy(selected) ? () => releaseGrapple(selected) : undefined}
+      /* Standing in a Silence, §64: no spell with a verbal component. Only
+         answered when they are on the map - off it, the rule is left alone. */
+      silenced={selected.at ? silencedAt(selected.at) : undefined}
       onAct={({ play, build, log }) => {
         /*
           One command, one write. A potion is a build write, a play write and

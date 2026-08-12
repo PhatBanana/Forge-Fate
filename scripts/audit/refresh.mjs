@@ -276,6 +276,17 @@ async function spells2014() {
     range: r.range,
     duration: r.duration,
     castingTime: r.casting_time,
+    /*
+      Components, §64. The SRD carries these structurally - `["V","S","M"]` -
+      and the material as prose beside them, which is the right split: which
+      of the three a spell needs is a fact with three possible values, and
+      what the material *is* is a sentence ("a tiny ball of bat guano and
+      sulfur") that only a human reads.
+
+      Sorted so a reordering upstream is not a diff.
+    */
+    components: (r.components ?? []).slice().sort(),
+    material: r.material ?? null,
   })));
 }
 

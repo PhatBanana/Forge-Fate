@@ -20,7 +20,12 @@ import type { Build } from '../types';
  * a full set of slots.
  */
 
-function setup(build: Build, initial: PlayState = emptyPlay(), slot: 'action' | 'bonus' = 'action') {
+function setup(
+  build: Build,
+  initial: PlayState = emptyPlay(),
+  slot: 'action' | 'bonus' = 'action',
+  extra: { silenced?: boolean } = {},
+) {
   let play = initial;
   let current = build;
   const onAct = vi.fn();
@@ -35,6 +40,7 @@ function setup(build: Build, initial: PlayState = emptyPlay(), slot: 'action' | 
     onAct,
     onAim,
     onClose,
+    ...extra,
   });
   const view = render(<CommandMenu {...props()} />);
   // The composed write, as the cockpit composes it: whatever fields one
@@ -113,8 +119,23 @@ describe('attacks', () => {
 });
 
 describe('spells', () => {
+  /*
+    Hands free, deliberately.
+
+    `wizard()` inherits the example character's greatsword from `emptyBuild`,
+    and since §64 a two-handed weapon stops a somatic component - a real rule,
+    and exactly what the component tests further down check. These tests are
+    about slots and the action economy, so they put the sword down rather than
+    testing two unrelated rules at once and blaming the wrong one on failure.
+  */
+  const caster = (over: Partial<Build> = {}): Build => ({
+    ...wizard(),
+    weapons: { magicBonus: {} },
+    ...over,
+  });
+
   /** A wizard with today's spells actually prepared - a book is not a morning. */
-  const prepared = (): Build => ({ ...wizard(), preparedIds: ['fireball', 'shield'] });
+  const prepared = (): Build => caster({ preparedIds: ['fireball', 'shield'] });
 
   it('lists only what this pip can pay the casting time of', async () => {
     const user = userEvent.setup();
@@ -155,7 +176,7 @@ describe('spells', () => {
     // Nothing prepared today - the cantrips are still there, because a book
     // caster's cantrips are known rather than prepared.
     const user = userEvent.setup();
-    const view = setup(wizard());
+    const view = setup(caster());
     const cantrip = view.ctx.spellcasting.castable.find((s) => s.level === 0)!;
     await user.click(screen.getByRole('button', { name: /cast a spell/i }));
     await user.click(screen.getByRole('button', { name: new RegExp(cantrip.name, 'i') }));
@@ -255,5 +276,96 @@ describe('the bonus menu', () => {
     await user.click(screen.getByRole('button', { name: /just spend it/i }));
     expect(view.play.turn.bonusAction).toBe(true);
     expect(view.onClose).toHaveBeenCalled();
+  });
+});
+
+/*
+  §64. The components, applied to what is actually in this caster's hands.
+
+  Each case names a spell whose component line makes the point: Fireball is
+  V/S/M, Shield is V/S, and Counterspell is somatic only - so a silenced
+  caster keeps exactly one of the three, which is the rule rather than a
+  simplification of it.
+*/
+describe('what the components stop', () => {
+  /*
+    Three cantrips and one slot spell, chosen for their component lines:
+
+      Fire Bolt      V, S      the somatic case
+      True Strike    S         somatic only - what a silenced caster keeps
+      Fireball       V, S, M   the material case War Caster cannot answer
+
+    Cantrips rather than prepared spells wherever possible, so a failure is
+    about components and not about whether something was prepared today.
+  */
+  const KNOWS = ['fire-bolt', 'true-strike', 'fireball'];
+  const PREPARED = ['fireball'];
+
+  /** Hands free: nothing recorded in either hand, and no shield. */
+  const openHanded = (over: Partial<Build> = {}): Build => ({
+    ...wizard(),
+    weapons: { magicBonus: {} },
+    spellIds: KNOWS,
+    preparedIds: PREPARED,
+    ...over,
+  });
+
+  /** A two-handed weapon actually recorded, which is what takes both hands. */
+  const armed = (over: Partial<Build> = {}): Build =>
+    openHanded({ weapons: { magicBonus: {}, mainHandId: 'greatsword' }, ...over });
+
+  const spellButton = (name: string) =>
+    screen.getByRole('button', { name: new RegExp(`^${name}`) }) as HTMLButtonElement;
+
+  it('offers every spell when both hands are free', async () => {
+    const user = userEvent.setup();
+    setup(openHanded());
+    await user.click(screen.getByRole('button', { name: /^Cast/ }));
+    expect(spellButton('Fireball').disabled).toBe(false);
+  });
+
+  it('stops a somatic spell when both hands are full, and says which component', async () => {
+    const user = userEvent.setup();
+    setup(armed());
+    await user.click(screen.getByRole('button', { name: /^Cast/ }));
+
+    const fireball = spellButton('Fireball');
+    expect(fireball.disabled).toBe(true);
+    // The reason, not just the refusal - "both hands are full" is a problem a
+    // player can solve on their own turn.
+    expect(fireball.title).toMatch(/both hands are full/i);
+    expect(fireball.title).toMatch(/somatic/i);
+  });
+
+  it('lets War Caster through the gesture but not the material component', async () => {
+    const user = userEvent.setup();
+    setup(armed({ featIds: ['war-caster'] }));
+    await user.click(screen.getByRole('button', { name: /^Cast/ }));
+
+    // Fire Bolt is V/S: War Caster answers it completely.
+    expect(spellButton('Fire Bolt').disabled).toBe(false);
+    // Fireball is V/S/M: the bat guano still needs a hand.
+    expect(spellButton('Fireball').disabled).toBe(true);
+    expect(spellButton('Fireball').title).toMatch(/material/i);
+  });
+
+  it('leaves the verbal rule alone off the battlefield', async () => {
+    const user = userEvent.setup();
+    // No `silenced` prop at all: the sheet's own tray has no map to ask.
+    setup(openHanded());
+    await user.click(screen.getByRole('button', { name: /^Cast/ }));
+    expect(spellButton('Fireball').disabled).toBe(false);
+  });
+
+  it('stops a verbal spell inside a Silence, and keeps the somatic one', async () => {
+    const user = userEvent.setup();
+    setup(openHanded(), emptyPlay(), 'action', { silenced: true });
+    await user.click(screen.getByRole('button', { name: /^Cast/ }));
+
+    expect(spellButton('Fireball').disabled).toBe(true);
+    expect(spellButton('Fireball').title).toMatch(/cannot speak/i);
+    // True Strike is somatic only - a silenced caster still has it, which is
+    // the half of the rule that makes the V worth modelling separately.
+    expect(spellButton('True Strike').disabled).toBe(false);
   });
 });

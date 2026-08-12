@@ -132,10 +132,27 @@ checked in the code, not recalled.
   equipment choice itself, so it is already a radio button carrying the
   book's own number. A data test pins that split, so an SRD refresh which
   moves it fires rather than quietly making the free-hand path wrong.
-- `[ ]` **Spell components (V/S/M).** **M**. Not on the spell record at all,
-  so nothing can say a silenced caster loses their verbal spells or that a
-  hand is needed. Arguably a DM ruling, but it is currently *unmodelled*
-  rather than *decided against* - and the difference is this list.
+- `[x]` **Spell components (V/S/M)** — done in §64, and unlike starting
+  wealth this one *is* SRD data: `/api/2014/spells` carries `components` and
+  `material` for every spell, so all 319 records were generated from the
+  fixture and are diffed by `srdAudit.test.ts` on every run rather than
+  typed by hand. Distribution: 174 V/S/M, 105 V/S, 26 V, 7 M/V, 4 S, 3 M/S;
+  184 carry material text.
+
+  Three rules a tool can actually check, in `engine/components.ts`: a verbal
+  component needs a voice (Silence is now a zone that carries `silences`, and
+  the battle tray disables the spell and says why); a somatic one needs a
+  free hand, which War Caster and nothing else answers; a material one needs
+  a hand too, and the SRD says the *same* hand serves both, which is why one
+  free hand clears both blocks. Subtle Spell removes V and S outright. The
+  Builder's review counts the spells a full pair of hands is costing you, the
+  sheet prints the "V, S, M" line, and a costly-material check and the
+  holy-symbol-on-a-shield question are stated rather than ruled on.
+
+  The twenty-five spells the app carries that SRD 5.1 does not have no
+  components recorded, and the engine leaves the rule *unapplied* for them
+  rather than guessing "none" — the same refusal the light and sight models
+  make. A test pins that count so it cannot drift.
 - `[ ]` **Jumping, climbing, swimming, crawling as movement costs.** **S**.
   Climb and swim *speeds* exist as race traits and the map spends a movement
   budget, but the extra cost of climbing or swimming without a speed, and

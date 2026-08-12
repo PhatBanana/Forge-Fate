@@ -145,6 +145,7 @@ exports[`2014 builds derive exactly as they did before the ruleset refactor > hi
     "Strength 14 is behind the curve",
     "2 skill proficiencies not chosen",
     "Spiritual Weapon is already granted by your subclass",
+    "Both hands are full, and 8 of your spells need a hand free",
     "6 spells not prepared",
     "Chain mail gives disadvantage on Stealth",
     "Base scores are not standard point buy",

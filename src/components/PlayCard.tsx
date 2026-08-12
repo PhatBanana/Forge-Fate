@@ -58,6 +58,7 @@ export function PlayCard({
   onEscapeGrapple,
   onReleaseGrapple,
   onHide,
+  silenced,
   standing,
 }: {
   ctx: BuildContext;
@@ -81,6 +82,14 @@ export function PlayCard({
   /** Offered only while they are holding somebody. */
   onReleaseGrapple?: () => void;
   onHide?: () => void;
+  /**
+   * Standing in a Silence, §64 - so no spell with a verbal component.
+   *
+   * Passed through rather than worked out here: whether a square is silent is
+   * the battlefield's business, and a card shown outside a fight has no
+   * battlefield to ask. Absent leaves the rule unapplied.
+   */
+  silenced?: boolean;
   /** The battle cockpit keeps the command box open the way the monster rail
       does - one glance answers "what can they do". Elsewhere the box still
       opens from a pip and closes behind itself. */
@@ -264,6 +273,7 @@ export function PlayCard({
           onEscapeGrapple={onEscapeGrapple}
           onReleaseGrapple={onReleaseGrapple}
           onHide={onHide}
+          silenced={silenced}
           standing={standing}
           onClose={() => {
             if (!standing) setMenu(null);

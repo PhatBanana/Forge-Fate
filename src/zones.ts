@@ -102,6 +102,17 @@ export interface ZoneEffect {
   onEndTurn?: boolean;
   /** Wall of Force: nothing walks through. */
   blocks?: boolean;
+  /**
+   * Silence: no sound, so no verbal component.
+   *
+   * §64. The one thing on the battlefield that makes the V in "V, S, M"
+   * matter - being unable to speak is otherwise inseparable from being
+   * unable to act at all, since every condition that stops speech also
+   * stops the action. A creature standing in here can still swing a sword
+   * and still cast Counterspell, which is somatic only; it just cannot say
+   * the words.
+   */
+  silences?: boolean;
   /** Web, grease: its ground costs double to cross. */
   difficult?: boolean;
   /**
@@ -294,6 +305,19 @@ export const ZONE_PRESETS: {
       // has; a level 6 paladin is usually +3 and often more later.
       grants: { saves: 3 },
       affects: 'party',
+    },
+  },
+  {
+    id: 'silence',
+    label: 'Silence',
+    shape: 'sphere',
+    feet: 20,
+    rounds: 100,
+    effect: {
+      silences: true,
+      grants: {
+        note: 'No sound: nobody inside can cast a spell with a verbal component, and everyone inside is deafened.',
+      },
     },
   },
   {

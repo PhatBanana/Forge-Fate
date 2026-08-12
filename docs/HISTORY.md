@@ -4585,3 +4585,82 @@ at 1360 in both themes places the sphere and counts `.dmap-gloom` elements by
 class — 49 squares, which is a 7×7 block and exactly a 15-foot Chebyshev
 radius — proves it draws as magical rather than ordinary dark, then drops a
 torch inside it and asserts the count does not move.
+
+## 64. V, S, M — the three letters, and what each of them costs
+
+*"now do spell components V/S/M"*
+
+Every spell in the app printed a level, a school, a range and a duration, and
+nothing about what casting one *takes*. The roadmap line called that
+"unmodelled rather than decided against", which is the distinction this list
+exists to keep.
+
+**This one is data, and that is the whole difference from §62.** Starting
+wealth had to be modelled without its table because the numbers are Player's
+Handbook content. Components are not: `/api/2014/spells` carries `components`
+and `material` on every record, so the refresh script now pulls both, all 319
+spells were generated from the fixture, and `srdAudit.test.ts` diffs them on
+every run. Nothing here was typed from memory. The distribution — 174 V/S/M,
+105 V/S, 26 V, 7 M/V, 4 S, 3 M/S, and 184 with material text — is a fact
+about the SRD rather than a summary of my typing.
+
+**Three rules a tool can check, and two it must not.** Verbal needs a voice.
+Somatic needs a free hand, and War Caster removes exactly that restriction
+and no other. Material needs a hand too — and the SRD is explicit that *the
+same* hand serves both, which is why `castingBlocks` treats a full pair of
+hands as one problem with two possible causes rather than two problems.
+Subtle Spell answers both of the components a body performs. What it does not
+decide: whether a holy symbol emblazoned on a shield frees that hand, and
+whether a costly material is actually in the pouch. Both are stated in the
+result rather than ruled on, because a tool that quietly rules on either is
+worse than one that says "ask".
+
+**Silence is what makes the V mean anything.** A verbal component is free at
+every table until something takes the voice away, so the rule needed a way to
+be triggered: `ZoneEffect.silences` and a Silence preset. Place it on the
+board, stand a caster in it, and the tray disables their verbal spells with
+the reason in the tooltip. Without that the V column would have been
+decoration.
+
+**The default weapon that made every wizard mute.** The first version read
+what a caster was holding from `ctx.loadouts`, and the component rule fired
+for *every* empty-handed caster. `loadouts` supplies a **default Greatsword**
+to characters with no weapon recorded, so the damage model always has
+something to swing — a stand-in for "we do not know", not a claim about what
+is in their hands. `handsOf(build)` now reads the recorded ids only, and the
+reason is a comment on the function rather than a thing to rediscover.
+
+**And the test that had quietly stopped testing anything.** The shared
+`wizard()` factory inherits `emptyBuild()`, which records a greatsword —
+it is the example fighter. So the new rule disabled the spell buttons in
+`ActionTray.test.tsx`, and one pre-existing test named "casts cantrips"
+turned out to be **vacuous**: clicking a disabled button does nothing and
+throws nothing, so it had been passing on an absence. Fixed by giving the
+suite an `openHanded()` caster and restoring each test's intent, rather than
+weakening the assertion to make the red go away. Third time this project has
+found a test passing for no reason; the pattern is worth the name.
+
+**The twenty-five spells with no components recorded** — the ones the app
+carries that SRD 5.1 does not — leave the rule *unapplied*, not applied from
+a guess. Same refusal as `canSee` and `canSpeak`: `undefined` means "this
+caller has no model for it". A test pins the count at exactly 25, so a spell
+gaining components without provenance fires.
+
+**Gates.** 1998 tests / 92 files, tsc, oxlint, build in budget (`data 586.8
+kB / 976.6 kB`). One run of the suite failed a `TableTab` test on a timeout
+under parallel load and passed on re-run and in isolation (169/169) — a flake,
+recorded rather than hidden.
+
+**What the probe could and could not press.** `run64.mjs` at 1360 in both
+themes places Silence from the areas palette and checks the zone carries the
+`silences` flag — and the first version of that check read `localStorage`,
+found nothing, and failed a working feature: §24 moved the app to IndexedDB,
+and `localStorage` is now only the fallback. The probe reads the real store
+now. It does *not* reach the sheet's component line or the "both hands are
+full" review finding, because both need a caster with spells recorded and the
+Builder's spell catalogue opens behind a collapse that stays at zero height
+under this headless browser — an app behaviour §64 did not introduce and
+should not paper over with a forced click. Those two are pressed where they
+can be pressed honestly, in `ActionTray.test.tsx` and against a
+mace-and-shield Life Cleric in `regression.test.ts`, and the probe's header
+says so instead of leaving a gap for somebody to rediscover.
