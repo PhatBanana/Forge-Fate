@@ -72,6 +72,13 @@ export interface Token {
    * the flat map ignores the portrait.
    */
   lunge?: { seq: number; toward: Square };
+  /**
+   * §69: bumped when this token walks, with the route it took - the GL view
+   * marches the sprite along it, tile by tile, instead of teleporting.
+   * `slide` marks forced movement (a shove, being dragged): the body glides
+   * flat instead of hopping. The SVG views ignore it.
+   */
+  walk?: { seq: number; route: Square[]; slide?: boolean };
   title: string;
 }
 

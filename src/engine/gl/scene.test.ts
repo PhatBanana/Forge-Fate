@@ -285,7 +285,7 @@ describe('the sprites', () => {
   });
 
   it('moves the figure with the animation clock but leaves the shadow grounded (§68)', () => {
-    const motion = new Map([['t1', { dx: 5, dy: -3, flashAlpha: 0 }]]);
+    const motion = new Map([['t1', { dx: 5, dy: -3, gdx: 0, gdy: 0, ddepth: 0, flashAlpha: 0 }]]);
     const { sprites } = tokenSprites([token()], proj, motion);
     const cn = proj.centreOf({ x: 2, y: 2 });
     const pawn = sprites.find((s) => s.key === 'pawn:t1')!;
@@ -296,13 +296,28 @@ describe('the sprites', () => {
     expect(shadow.x).toBeCloseTo(cn.x);
   });
 
+  it('walks the shadow and the paint order along with a walking body (§69)', () => {
+    const motion = new Map([
+      ['t1', { dx: -20, dy: -12, gdx: -20, gdy: -10, ddepth: -2, flashAlpha: 0 }],
+    ]);
+    const { sprites } = tokenSprites([token()], proj, motion);
+    const cn = proj.centreOf({ x: 2, y: 2 });
+    const shadow = sprites.find((s) => s.key === 'shadow')!;
+    expect(shadow.x).toBeCloseTo(cn.x - 20);
+    expect(shadow.y).toBeCloseTo(cn.y - 10 + HH * 0.52);
+    // Both figure and shadow sort where the body IS, not where it will land.
+    const pawn = sprites.find((s) => s.key === 'pawn:t1')!;
+    expect(pawn.depth).toBeCloseTo(proj.depthOf({ x: 2, y: 2 }) - 2);
+    expect(shadow.depth).toBeCloseTo(pawn.depth);
+  });
+
   it('lets the clock own the hit wash, and keeps the static wash for clockless callers (§68)', () => {
     // With a clock: the wash's opacity is the fade's, and a fade that has
     // ended (alpha 0) means no wash even though the token still says flash.
     const fading = tokenSprites(
       [token({ flash: 1 })],
       proj,
-      new Map([['t1', { dx: 0, dy: 0, flashAlpha: 0.4 }]]),
+      new Map([['t1', { dx: 0, dy: 0, gdx: 0, gdy: 0, ddepth: 0, flashAlpha: 0.4 }]]),
     ).sprites;
     const wash = fading.filter((s) => s.key === 'pawn:t1');
     expect(wash.length).toBe(2);

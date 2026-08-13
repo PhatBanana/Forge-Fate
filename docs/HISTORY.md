@@ -4986,3 +4986,53 @@ seq-detection path the probe exercises via flash.
 **Gates.** 2144 tests / 100 files, tsc, oxlint, build in budget (TableTab
 161.5 kB against the 320 alarm). Classic SVG untouched: its flash stays the
 CSS remount animation it has been since §18.
+
+## 69. The walk: tokens march between tiles
+
+*"add walking animation when tokens move between tiles"*
+
+§68 gave the board its swings and its flinches; movement still teleported.
+Now a token marches the route it actually walked - tile by tile, with a
+little hop landing on every square it crosses - and forced movement (a
+shove, being dragged by a grappler) glides flat, because being pushed is
+not walking.
+
+**The route, not the chord.** By the time the store commits a walk, only
+the destination survives - but the route (the one that stepped *around*
+the fire, §23.2's whole point) is what the animation should trace. So the
+walk joins the lunge as reported state: `walkInto` calls
+`noteWalk(mover, route)` at the moment it commits, the shove and the
+grapple drag report two-point slides, and the token carries
+`walk: {seq, route, slide?}`. Setup placement and deployment stay instant
+on purpose: nothing is walking before the fight, and a DM arranging a
+room should not watch pieces stroll. In `motion.ts` the walk is the same
+idiom as everything else - a pure function of elapsed time over the
+projected polyline, constant pace per tile (no easing: PS1 pieces
+marched), a ceiling so a twelve-tile dash fits under a second, and a
+`sin` hop that is zero exactly at each tile boundary.
+
+**The ground moves with the walker - and only the walker.** §68's
+grounded-shadow rule was the right call for a lunge and would be wrong
+here: a figure three tiles from its own shadow reads as flying. `Motion`
+therefore splits into figure offset and *ground* offset (`gdx`/`gdy`/
+`ddepth`); a walk carries both (the hop lifting only the figure), a lunge
+or flinch carries only the figure, and the tests pin each contract. The
+depth shift matters as much as the shadow: the body must sort behind a
+wall it is walking behind *now*, not where it will stand a second from
+now. A new walk seq supersedes a walk still in flight - one body, one
+route - and a hit taken mid-walk simply sums, the same additive frame
+`motionFor` has had since §68.
+
+**The probe walks for real.** Unlike the lunge, a walk needs no dice:
+run69 arms Move through the cockpit and clicks a tile. The geography
+comes from the Classic SVG (run66's trick - `data-at` on tiles and
+tokens, one shared projection, one fitted camera), which also supplies
+the proof at the end: Classic agrees the fighter genuinely stands on the
+clicked square, so the frames hashed mid-flight belonged to a real move.
+The hashes show the §69 signature - different mid-walk, different again
+at rest (a teleport is already still by the first hash), then two late
+hashes equal. run68 re-run green on the same build.
+
+**Gates.** 2149 tests / 100 files, tsc, oxlint, build in budget (TableTab
+162.6 kB against the 320 alarm). Both SVG views ignore the new token
+field, the way they ignore the lunge.

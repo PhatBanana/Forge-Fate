@@ -465,6 +465,25 @@ export function TableTab({
       [attackerId]: { seq: (prev[attackerId]?.seq ?? 0) + 1, toward },
     }));
   };
+  /*
+    §69: who walked, and the way they went. Like the lunge this cannot be
+    derived - by the time the store commits, only the destination survives,
+    and the route (which stepped AROUND the fire) is what the animation
+    should trace. Reported by the walk itself, the shove and the grapple
+    drag; setup placements and deployment stay instant on purpose - nothing
+    is walking before the fight. `slide` marks forced movement: a glide, no
+    hop. Purely cosmetic state, like the lunges.
+  */
+  const [walks, setWalks] = useState<
+    Record<string, { seq: number; route: Square[]; slide?: boolean }>
+  >({});
+  const noteWalk = (moverId: string | undefined, route: Square[], slide?: boolean) => {
+    if (!moverId || route.length < 2) return;
+    setWalks((prev) => ({
+      ...prev,
+      [moverId]: { seq: (prev[moverId]?.seq ?? 0) + 1, route, slide },
+    }));
+  };
   /** The number that floats off a token when its hit points change: "-7"
       rising red, "+5" rising green. Keyed by seq so each change replays. */
   const [floats, setFloats] = useState<
@@ -769,13 +788,15 @@ export function TableTab({
       which is why they do not go through `walkInto` themselves.
     */
     const dragged = heldBy(self);
+    let draggedTo: Square | null = null;
     if (dragged?.at && !(dragged.at.x === to.x && dragged.at.y === to.y)) {
       const via = route.length >= 2 ? route[route.length - 2] : self.at;
       const taken = encAfter.combatants.some(
         (c) => c.id !== self.id && c.id !== dragged.id && c.at && c.at.x === via.x && c.at.y === via.y,
       );
+      draggedTo = taken ? self.at : via;
       enc = appendLog(
-        placeCombatant(enc, dragged.id, taken ? self.at : via),
+        placeCombatant(enc, dragged.id, draggedTo),
         `${nameOf(self)} drags ${nameOf(dragged)} along.`,
       );
     }
@@ -803,6 +824,10 @@ export function TableTab({
       if (!zoneReaches(zone, sideOf(self.kind))) continue;
       next = biteZone(next, self.id, zone, 'walks into');
     }
+    // §69: the walk is committed - the GL view marches the sprite down the
+    // route it actually took, and drags the held body along in a flat glide.
+    noteWalk(self.id, route);
+    if (dragged?.at && draggedTo) noteWalk(dragged.id, [dragged.at, draggedTo], true);
     return next;
   };
 
@@ -2382,6 +2407,8 @@ export function TableTab({
     );
     let enc = placeCombatant(encounter, target.id, to);
     enc = appendLog(enc, `${name} shoves ${them} five feet back — ${roll}.`);
+    // §69: shoved bodies slide - forced movement glides flat, no walking hop.
+    if (target.at) noteWalk(target.id, [target.at, to], true);
 
     /*
       The drop, if there was one. The feet are said out loud because
@@ -3173,6 +3200,7 @@ export function TableTab({
             ? derived.get(c.rosterId)?.ctx.primary.klass.id
             : undefined,
         lunge: lunges[c.id],
+        walk: walks[c.id],
         stance: (hp?.now === 0
           ? 'down'
           : c.hidden !== undefined

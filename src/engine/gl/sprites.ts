@@ -61,24 +61,32 @@ export function tokenSprites(
   tokens: Token[],
   proj: IsoProjection,
   /**
-   * §68: per-token offsets and flash opacity from the animation clock. The
-   * figure moves; the shadow stays grounded, which is what makes a lunge
-   * read as a step rather than the whole piece sliding. When a motion map is
-   * provided, the hit wash exists only while an animation says so - passing
-   * none keeps the §67 static wash for callers with no clock.
+   * §68/§69: per-token offsets and flash opacity from the animation clock.
+   * `dx`/`dy` move the figure; `gdx`/`gdy`/`ddepth` move the *ground* -
+   * shadow and paint order. A lunge or flinch leaves the ground at zero
+   * (the shadow staying put is what makes those read as a step and a
+   * stagger); a walk carries it, because a figure tiles from its own shadow
+   * reads as flying. When a motion map is provided, the hit wash exists
+   * only while an animation says so - passing none keeps the §67 static
+   * wash for callers with no clock.
    */
-  motion?: Map<string, { dx: number; dy: number; flashAlpha: number }>,
+  motion?: Map<
+    string,
+    { dx: number; dy: number; gdx: number; gdy: number; ddepth: number; flashAlpha: number }
+  >,
 ): { sprites: SpritePlacement[]; texts: TextPlacement[] } {
   const sprites: SpritePlacement[] = [];
   const texts: TextPlacement[] = [];
 
   for (const token of tokens) {
     const cn = proj.centreOf(token.at);
-    const depth = proj.depthOf(token.at);
-    const tint = tintFor(token);
     const moved = motion?.get(token.id);
+    const depth = proj.depthOf(token.at) + (moved?.ddepth ?? 0);
+    const tint = tintFor(token);
     const mx = cn.x + (moved?.dx ?? 0);
     const my = cn.y + (moved?.dy ?? 0);
+    const gx = cn.x + (moved?.gdx ?? 0);
+    const gy = cn.y + (moved?.gdy ?? 0);
 
     /*
       §67: which art stands on the tile. A recorded portrait keeps the §37
@@ -98,10 +106,12 @@ export function tokenSprites(
     const w = sprite ? PAWN_W * 1.1 : PAWN_W;
     const h = sprite ? (w * SPRITE_H) / SPRITE_W : BASE_H + PAWN_H;
 
-    // The contact shadow, then the figure.
+    // The contact shadow, then the figure. The shadow stands on the ground
+    // offset, not the figure's - it walks along under a walk but holds its
+    // square under a lunge or a flinch.
     sprites.push({
-      x: cn.x,
-      y: cn.y + HH * 0.52,
+      x: gx,
+      y: gy + HH * 0.52,
       w: HW * 1.04,
       h: HH * 1.04,
       depth,

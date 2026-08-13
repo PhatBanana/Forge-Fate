@@ -107,7 +107,7 @@ function GlSurface({
     setState per animation frame would be sixty commits a second.
   */
   const anims = useRef<TokenAnim[]>([]);
-  const seenSeqs = useRef<Record<string, { flash?: number; lunge?: number }>>({});
+  const seenSeqs = useRef<Record<string, { flash?: number; lunge?: number; walk?: number }>>({});
   const rafId = useRef<number | null>(null);
   const redrawSprites = useRef<(now: number) => void>(() => {});
   const [theme, setTheme] = useState<'light' | 'dark'>(() =>
@@ -231,8 +231,26 @@ function GlSurface({
             dir: { x: to.x - from.x, y: to.y - from.y },
           });
         }
+        if (token.walk && token.walk.seq !== seen.walk) {
+          // §69: the route projected once, at the rotation it started under.
+          // A walk supersedes any walk still in flight - one body, one route.
+          anims.current = anims.current.filter(
+            (anim) => !(anim.id === token.id && anim.kind === 'walk'),
+          );
+          anims.current.push({
+            id: token.id,
+            kind: 'walk',
+            start: now,
+            path: token.walk.route.map((sq) => ({ ...proj.centreOf(sq), depth: proj.depthOf(sq) })),
+            hop: !token.walk.slide,
+          });
+        }
       }
-      seenSeqs.current[token.id] = { flash: token.flash, lunge: token.lunge?.seq };
+      seenSeqs.current[token.id] = {
+        flash: token.flash,
+        lunge: token.lunge?.seq,
+        walk: token.walk?.seq,
+      };
     }
 
     const { sprites, texts } = tokenSprites(tokens, proj, motionFor(anims.current, now));
