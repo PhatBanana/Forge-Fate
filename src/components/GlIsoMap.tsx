@@ -132,6 +132,14 @@ function GlSurface({
     focus ? proj.centreOf(focus) : null,
   );
   const view = cam.view;
+  /*
+    The mount effect's closures (a portrait decoding late, a resize) outlive
+    this render's `cam` object - repainting through the render-time view
+    would snap the board back to wherever the camera stood at mount. The ref
+    always holds the current frame's view.
+  */
+  const viewRef = useRef(view);
+  viewRef.current = view;
 
   // ------------------------------------------------------------ lifecycle
   useEffect(() => {
@@ -145,7 +153,7 @@ function GlSurface({
     renderer.current = built;
     built.onFrame(() => {
       // A portrait decoded after its card was drawn: paint again.
-      if (renderer.current) renderer.current.render(cam.view);
+      if (renderer.current) renderer.current.render(viewRef.current);
     });
 
     const onLost = (e: Event) => {
@@ -162,7 +170,7 @@ function GlSurface({
       const rect = canvas.getBoundingClientRect();
       if (rect.width > 0 && rect.height > 0) {
         renderer.current?.resize(rect.width, rect.height, window.devicePixelRatio || 1);
-        renderer.current?.render(cam.view);
+        renderer.current?.render(viewRef.current);
       }
     };
     fit();

@@ -458,6 +458,17 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer | null {
     gl.viewport(0, 0, virtualW, virtualH);
     gl.clearColor(palette.clear[0], palette.clear[1], palette.clear[2], 1);
     gl.clearDepth(1);
+    /*
+      glClear respects the write masks, and the previous frame ended with
+      depthMask(false) for its overlay pass - without turning writes back on
+      first, the depth clear is a no-op on every frame after the first. The
+      frame then still looks right while the camera holds still (the same
+      geometry re-lands on its own depths and LEQUAL lets equals through),
+      and falls apart the moment it moves: fragments arrive on pixels
+      holding some earlier frame's nearer depths and are rejected - ragged
+      holes in the terrain that worsen with every pan or zoom step.
+    */
+    gl.depthMask(true);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     // 1. Terrain: opaque, depth on.

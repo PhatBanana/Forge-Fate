@@ -5079,3 +5079,51 @@ through a death, and the shadow's tint staying solid.
 section: main fast-forwarded to §69 (43 commits) at the user's ask - the
 Pages deploy publishes from main, and had been standing at §38 since the
 ninth.
+
+## 71. The depth buffer that was never cleared twice
+
+*"tactical view has a rendering bug if you move the map"*
+
+Moving the camera shredded the board: ragged holes in the terrain, whole
+corridors gone dark, worse with every pan or zoom step - and never at the
+fitted view you started from. A day after the GL view reached the live
+site, and as old as §66 itself.
+
+**The mechanism, run to ground.** `render()` ends every frame with
+`depthMask(false)` for the overlay pass, and `glClear` *respects the write
+mask* - so the depth clear at the top of the next frame was a no-op on
+every frame after the first. The bug wore camouflage: a still camera looks
+perfect, because the same geometry re-lands on its own stored depths and
+LEQUAL lets equals through. The moment the camera moves, fragments arrive
+on pixels holding some older frame's nearer depths and are silently
+rejected. Nothing errors: the state dump showed a complete framebuffer,
+sixteen depth bits, LEQUAL, every draw call clean.
+
+**The chase, kept honest.** The diagnosis went through four wrong theories
+- vertex-snap cracks, atlas UV bleed, z-fighting, depth precision - each
+killed by an experiment rather than argument: a GL-error tally (clean), a
+draws-per-frame census (one draw call - no washes involved), magenta
+skirts (the holes were *clear color*, not misdrawn faces), and a
+verified-snapless build (identical corruption; the first snapless test
+had silently tested a stale bundle, which is its own lesson - verify the
+build you think you are testing). The kill came from a standalone harness
+driving `createRenderer` directly: a fresh renderer's *first* frame at the
+corrupt camera is clean, the *second* frame at any other camera is not,
+and pushing every z toward the far plane on frame two draws nothing at
+all - the signature of testing against yesterday's depths.
+
+**The fix is one line** - `depthMask(true)` before the clear - plus a
+cousin found on the way: the mount effect's `onFrame` and resize closures
+held the mount render's camera, so a portrait decoding late or a window
+resize would repaint the board at wherever the camera stood at mount.
+Both now read a ref that always holds the current view.
+
+**The probe pins the exact failure.** Hash the fitted frame, zoom twice,
+wander six tiles right and four down, refit with 0: the frame must hash
+*pixel-identical* to the first. Run against the unfixed build this fails
+by construction - the corruption accumulated en route is still standing
+when the camera comes home - and it was run against the unfixed build
+first to prove it fails for the right reason. run69 and run70 re-run
+green: the animations ride the same render loop and lost nothing.
+
+**Gates.** 2153 tests / 100 files, tsc, oxlint, build in budget.
