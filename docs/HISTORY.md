@@ -4873,3 +4873,64 @@ themes plus the no-WebGL leg; `run63.mjs` and `run65.mjs` re-run green.
 One self-caught bug worth its line: `onDead` was an inline closure and a
 mount-effect dependency, which would have torn the renderer down on every
 parent render - stabilised before it shipped.
+
+## 67. The classes get bodies: sprites with stances
+
+*"design vague assets / sprites for the classes, have various poses for in /
+out of battle or stealth etc"*
+
+The §66 renderer drew every character as the §37 card - a face or two
+initials on cardboard. This gives the seventeen classes actual figures, and
+the figures actual stances.
+
+**Pixel art as data, because this repo ships no binaries.** A sprite is rows
+of palette indices in `pixelart.ts` - `'..OSSO..'` - which is diffable in
+review, tested in node, themeable by swapping the palette, and free of any
+provenance question: authored here, deliberately *vague*. A silhouette, a
+stance and two class colors - never enough detail to argue with anyone's own
+image of their character, which is also why the skin tone is one fixed piece
+color: these are game pieces, and a piece is not a claim about anybody.
+
+**Nobody draws seventeen characters four times.** A sprite composes: a
+shared base body (four poses - at ease, battle with the weapon hand raised,
+a hooded crouch for sneaking, flat on the ground for down) + a prop overlay
+(ten of them: sword, axe, bow, dagger, staff, orb, mace, lute, banner,
+wrench, drawn for the two standing poses) + a class palette. That economy is
+also the aesthetic - PS1 party sprites read as a set because they shared
+bones and swapped gear. Sneak and down go unarmed on purpose: a crouched
+silhouette with a sword sticking up is not sneaking, and a dropped weapon
+reads better as absence. A wizard and a druid share a staff and part at the
+palette; the Forge four are first-class citizens of the table.
+
+**The stance is derived, not stored.** The token already knew everything the
+pose needs: at zero hit points → down, hiding → sneak, the fight running →
+battle, otherwise at ease. TableTab computes `stance` where it computes
+everything else about a token, and the sprite is an atlas entry keyed
+`sprite:{class}:{stance}` - *shared*, so five portraitless fighters are one
+raster, not five. The atlas rect is always the grid's own size times an
+integer scale, whatever the placement measures, because a 12×18 grid
+squeezed into a fractional rect shears its pixels into unequal columns.
+
+**Two precedences, recorded.** A character's own portrait outranks the house
+silhouette - somebody's uploaded face keeps the §37 card, poses and all
+their absence included, because their art beats ours. And monsters keep
+their cards entirely: the ask names the classes, a goblin has no class, and
+`spriteFor('goblin', …)` returning null is a tested contract, not a gap.
+
+**What the tests can and cannot say.** Whether a sprite is *good* only the
+screenshots can say. What the 30 new node tests pin: every grid is exactly
+12×18, every pixel a legal palette index, every class resolves in every
+pose, all four poses genuinely differ per class, every class pair differs in
+prop or paint, sneak stays low and down stays flat as *silhouettes* (the top
+rows are empty, not merely different), and the unarmed poses equal the bare
+base. The probe adds the half only a browser stitches together: the same
+board, same camera, hashed at ease and again after "Start the fight" - the
+hashes differ, so stance-on-token → key-in-placement → raster-in-atlas
+repaints end to end. Sneak and down ride the identical chain and are pinned
+by the unit tests; a probe that had to win a Hide roll to see a crouch would
+hang on dice, which §65's probe already declined once.
+
+**Gates.** 2133 tests / 99 files, tsc, oxlint, build in budget - the
+sprites, being strings, cost the TableTab chunk ~5 kB (154.8 → 159.8
+against the 320 alarm). The Classic SVG view is untouched and the probe
+checks it still stands its cardboard pawn.

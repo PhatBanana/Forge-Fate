@@ -261,6 +261,13 @@ both halves.
   automatic fallback and the user-facing **Classic look** toggle. No new
   dependencies; the whole renderer cost the lazy TableTab chunk ~23 kB.
   Full account in `docs/HISTORY.md` §66.
+- `[x]` **Class sprites with stances** (§67). Seventeen classes - the four
+  originals included - as authored pixel art *data*: four shared base poses
+  (at ease, battle, sneak, down) composed with ten prop overlays and a
+  palette per class, so the set reads as one family. The pose follows the
+  facts the rules already track (on the floor, hiding, mid-fight, at ease);
+  a recorded portrait outranks the sprite, and monsters keep their cards.
+  Full account in `docs/HISTORY.md` §67.
 - `[ ]` **The tactical hit test and WALL_STEPS.** **S**. A painted wall
   *draws* two steps higher than it *hit-tests* - the inverse iterates
   elevation values only, so a click on a wall's cap can land on the square

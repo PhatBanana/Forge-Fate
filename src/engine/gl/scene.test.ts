@@ -242,6 +242,48 @@ describe('the sprites', () => {
     expect(alone.some((t) => t.kind === 'cond')).toBe(true);
   });
 
+  it('stands a class sprite for a portraitless character, in their stance (§67)', () => {
+    const { sprites } = tokenSprites(
+      [token({ kind: 'character', classId: 'wizard', stance: 'battle' })],
+      proj,
+    );
+    const figure = sprites.find((s) => s.key.startsWith('sprite:'));
+    expect(figure?.key).toBe('sprite:wizard:battle');
+    // Taller than wide in the grid's own 12:18 proportion.
+    expect(figure!.h / figure!.w).toBeCloseTo(1.5);
+  });
+
+  it('lets a recorded portrait outrank the house silhouette', () => {
+    const { sprites } = tokenSprites(
+      [token({ kind: 'character', classId: 'wizard', stance: 'battle', portrait: 'data:x' })],
+      proj,
+    );
+    expect(sprites.some((s) => s.key.startsWith('sprite:'))).toBe(false);
+    expect(sprites.some((s) => s.key === 'pawn:t1')).toBe(true);
+  });
+
+  it('keeps monsters and unknown classes on their cards', () => {
+    const monster = tokenSprites([token({ stance: 'battle' })], proj).sprites;
+    expect(monster.some((s) => s.key.startsWith('sprite:'))).toBe(false);
+    const custom = tokenSprites(
+      [token({ kind: 'character', classId: 'blood-hunter', stance: 'idle' })],
+      proj,
+    ).sprites;
+    expect(custom.some((s) => s.key.startsWith('sprite:'))).toBe(false);
+  });
+
+  it('shares one atlas entry between two of the same class and stance', () => {
+    const { sprites } = tokenSprites(
+      [
+        token({ id: 'a', kind: 'character', classId: 'fighter', stance: 'idle' }),
+        token({ id: 'b', kind: 'character', classId: 'fighter', stance: 'idle', at: { x: 3, y: 3 } }),
+      ],
+      proj,
+    );
+    const keys = sprites.filter((s) => s.key.startsWith('sprite:')).map((s) => s.key);
+    expect(keys).toEqual(['sprite:fighter:idle', 'sprite:fighter:idle']);
+  });
+
   it('billboards the four standing props and leaves surfaces to the mesh', () => {
     const sprites = glyphSprites(
       { '0,0': 'tree', '1,0': 'pillar', '2,0': 'rock', '3,0': 'rubble', '4,0': 'wall', '5,0': 'water' },

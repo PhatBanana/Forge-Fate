@@ -58,6 +58,14 @@ export interface Token {
       14px disc has no room - but the tactical view stands the token up as a
       cardboard pawn and puts the portrait on the card (§37). */
   portrait?: string;
+  /**
+   * §67: which class sprite the PS1 view stands up for this token, and in
+   * what pose. Characters only - monsters keep their cards. Both maps other
+   * than the GL one ignore these, and a recorded `portrait` outranks the
+   * sprite: somebody's own art beats the house silhouette.
+   */
+  classId?: string;
+  stance?: 'idle' | 'battle' | 'sneak' | 'down';
   title: string;
 }
 

@@ -3140,6 +3140,25 @@ export function TableTab({
           c.kind === 'character'
             ? roster.entries.find((e) => e.id === c.rosterId)?.build.details.portrait
             : undefined,
+        /*
+          §67: which class sprite the PS1 view stands up, and in what pose.
+          Characters only - a monster has no class, and its card carries its
+          face or initials as before. The pose is read off the same facts the
+          rules already track: on the floor, hiding, mid-fight, or at ease.
+          A recorded portrait still wins over the sprite in the renderer -
+          somebody's own art beats the house silhouette.
+        */
+        classId:
+          c.kind === 'character'
+            ? derived.get(c.rosterId)?.ctx.primary.klass.id
+            : undefined,
+        stance: (hp?.now === 0
+          ? 'down'
+          : c.hidden !== undefined
+            ? 'sneak'
+            : isRunning(encounter)
+              ? 'battle'
+              : 'idle') as Token['stance'],
         title: hp ? `${name} — ${hp.now}/${hp.max}` : name,
       };
     });

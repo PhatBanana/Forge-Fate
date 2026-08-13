@@ -3,6 +3,7 @@ import { keyOf, squareOf } from '../../terrain';
 import type { TerrainMap } from '../../terrain';
 import type { Token } from '../../components/DungeonMap';
 import { BASE_H, HH, HW, PAWN_H, PAWN_W, ZH } from '../iso';
+import { CLASS_ART, SPRITE_H, SPRITE_W } from './pixelart';
 import type { IsoProjection } from '../iso';
 import { finishMesh, newMesh, pushQuad, pushVertex } from './types';
 import type { AtlasRect, Mesh, Rgba } from './types';
@@ -68,7 +69,25 @@ export function tokenSprites(
     const depth = proj.depthOf(token.at);
     const tint = tintFor(token);
 
-    // The contact shadow, then the standee (base + card in one atlas entry).
+    /*
+      §67: which art stands on the tile. A recorded portrait keeps the §37
+      card - somebody's own face beats the house silhouette. A portraitless
+      character whose class the sprite table knows gets the class sprite in
+      the token's stance, and the atlas entry is *shared* per
+      (class, stance) rather than per token: five portraitless fighters are
+      one raster, not five. Everyone else (monsters, custom classes) keeps
+      the initials card.
+    */
+    const sprite =
+      !token.portrait && token.classId && CLASS_ART[token.classId]
+        ? `sprite:${token.classId}:${token.stance ?? 'idle'}`
+        : null;
+    const key = sprite ?? `pawn:${token.id}`;
+    // The sprite's grid is 12×18; the card's proportions are the pawn's.
+    const w = sprite ? PAWN_W * 1.1 : PAWN_W;
+    const h = sprite ? (w * SPRITE_H) / SPRITE_W : BASE_H + PAWN_H;
+
+    // The contact shadow, then the figure.
     sprites.push({
       x: cn.x,
       y: cn.y + HH * 0.52,
@@ -78,27 +97,11 @@ export function tokenSprites(
       key: 'shadow',
       tint: PLAIN,
     });
-    sprites.push({
-      x: cn.x,
-      y: cn.y,
-      w: PAWN_W,
-      h: BASE_H + PAWN_H,
-      depth,
-      key: `pawn:${token.id}`,
-      tint,
-    });
+    sprites.push({ x: cn.x, y: cn.y, w, h, depth, key, tint });
     // Hit flash: a bright wash re-triggered by the flash sequence number. The
     // renderer animates its alpha down; the placement only says "flashing".
     if (token.flash) {
-      sprites.push({
-        x: cn.x,
-        y: cn.y,
-        w: PAWN_W,
-        h: BASE_H + PAWN_H,
-        depth,
-        key: `pawn:${token.id}`,
-        tint: [1, 0.4, 0.3, 0.8],
-      });
+      sprites.push({ x: cn.x, y: cn.y, w, h, depth, key, tint: [1, 0.4, 0.3, 0.8] });
     }
     if (token.active) {
       sprites.push({

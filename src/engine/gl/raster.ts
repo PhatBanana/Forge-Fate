@@ -1,5 +1,7 @@
 import type { PackedRect } from './atlas';
 import type { Palette } from './palette';
+import { CLASS_ART, SPRITE_H, SPRITE_W, colorOf, spriteFor } from './pixelart';
+import type { Pose } from './pixelart';
 
 /**
  * The pixels behind the atlas keys: pawn cards, prop glyphs, markers, text.
@@ -178,6 +180,37 @@ export function paintPawn(
     ctx.textBaseline = 'middle';
     ctx.fillText(options.label, x + w / 2, y + cardH * 0.55);
   }
+}
+
+/**
+ * A class sprite (§67): the composed pixel grid painted cell by cell at an
+ * integer scale, centred in its rect. Integer scale is the point - a pixel
+ * of the art is n×n texels exactly, so nearest sampling never shears a
+ * sprite's pixels into unequal columns. Returns false for a class the art
+ * table does not know, and the caller falls back to the initials card.
+ */
+export function paintClassSprite(
+  ctx: CanvasRenderingContext2D,
+  rect: PackedRect,
+  classId: string,
+  pose: Pose,
+): boolean {
+  const art = CLASS_ART[classId];
+  const rows = spriteFor(classId, pose);
+  if (!art || !rows) return false;
+  ctx.clearRect(rect.x, rect.y, rect.w, rect.h);
+  const scale = Math.max(1, Math.floor(Math.min(rect.w / SPRITE_W, rect.h / SPRITE_H)));
+  const ox = rect.x + Math.floor((rect.w - SPRITE_W * scale) / 2);
+  const oy = rect.y + Math.floor((rect.h - SPRITE_H * scale) / 2);
+  for (let y = 0; y < SPRITE_H; y++) {
+    for (let x = 0; x < SPRITE_W; x++) {
+      const color = colorOf(rows[y][x] as never, art);
+      if (!color) continue;
+      ctx.fillStyle = `rgb(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)})`;
+      ctx.fillRect(ox + x * scale, oy + y * scale, scale, scale);
+    }
+  }
+  return true;
 }
 
 /** How tall each kind of text stands, in drawing units. */

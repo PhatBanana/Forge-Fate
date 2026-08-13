@@ -9,6 +9,7 @@ import {
   PPU,
   createAtlasCanvas,
   measureText,
+  paintClassSprite,
   paintGlyph,
   paintMarker,
   paintPawn,
@@ -16,6 +17,8 @@ import {
   paintText,
   paintWhite,
 } from './raster';
+import { SPRITE_H, SPRITE_W } from './pixelart';
+import type { Pose } from './pixelart';
 import type { AtlasCanvas } from './raster';
 import {
   BLIT_FRAGMENT,
@@ -241,14 +244,22 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer | null {
     if (key === 'white') return WHITE;
     const have = atlas.rectFor(key);
     if (have) return uvOf(have, atlas);
-    let rect = atlas.pack(key, Math.ceil(w * PPU), Math.ceil(h * PPU));
+    /*
+      §67: class sprites raster at the pixel grid's own size times an
+      integer scale, whatever the placement measures - a 12×18 grid squeezed
+      into a fractional rect would shear its pixels into unequal columns.
+    */
+    const [rw, rh] = key.startsWith('sprite:')
+      ? [SPRITE_W * PPU, SPRITE_H * PPU]
+      : [Math.ceil(w * PPU), Math.ceil(h * PPU)];
+    let rect = atlas.pack(key, rw, rh);
     if (!rect) {
       // Full: start a fresh generation. Live keys re-rasterize on demand,
       // which is exactly one frame of missing floats - invisible in play.
       atlas.reset();
       const white = atlas.pack('white', 2, 2)!;
       paintWhite(atlasCanvas.ctx, white);
-      rect = atlas.pack(key, Math.ceil(w * PPU), Math.ceil(h * PPU));
+      rect = atlas.pack(key, rw, rh);
       if (!rect) return null;
     }
     paint(key, rect);
@@ -261,7 +272,10 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer | null {
     if (!palette) return;
     const { ctx } = atlasCanvas;
     if (key === 'shadow') paintShadow(ctx, rect);
-    else if (key.startsWith('glyph:')) paintGlyph(ctx, rect, key.slice(6), palette);
+    else if (key.startsWith('sprite:')) {
+      const [, classId, pose] = key.split(':');
+      paintClassSprite(ctx, rect, classId, pose as Pose);
+    } else if (key.startsWith('glyph:')) paintGlyph(ctx, rect, key.slice(6), palette);
     else if (key.startsWith('marker:')) paintMarker(ctx, rect, key.slice(7), palette);
     else if (key.startsWith('pawn:')) {
       const id = key.slice(5);
