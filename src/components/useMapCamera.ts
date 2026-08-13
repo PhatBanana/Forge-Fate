@@ -65,7 +65,13 @@ export interface MapCamera {
 }
 
 export function useMapCamera(
-  svg: RefObject<SVGSVGElement | null>,
+  /*
+    Any element with a box: the SVG maps pass their <svg>, and §66's GL view
+    passes its <canvas>. Everything used here - getBoundingClientRect, wheel
+    listeners, pointer capture - is Element surface, so the hook was already
+    renderer-agnostic in behavior; this type finally says so.
+  */
+  svg: RefObject<Element | null>,
   frame: Frame,
   camera: Camera = WHOLE_MAP,
   onCamera?: (next: Camera) => void,
@@ -117,8 +123,10 @@ export function useMapCamera(
       emit(zoomAt(from, on, el.getBoundingClientRect(), e.clientX, e.clientY, factor));
     };
 
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
+    // The listener's cast: 'wheel' is a WheelEvent on any Element that gets
+    // one, but the bare Element type only advertises the generic overload.
+    el.addEventListener('wheel', onWheel as EventListener, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel as EventListener);
   }, [svg, onCamera]);
 
   /*

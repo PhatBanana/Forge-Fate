@@ -50,13 +50,50 @@ import { BASE_H, HH, HW, LIP, PAWN_H, PAWN_W, ZH, groundCells, isoProjection } f
   banner; shorter looks like a sign.
 */
 
-interface IsoZone {
+export interface IsoZone {
   id: string;
   label: string;
   tint: number;
   origin: Square;
   squares: Square[];
   ghost?: boolean;
+}
+
+/**
+ * The tactical view's whole contract, as a named type since §66: two
+ * renderers answer it - this SVG one and `GlIsoMap` - and a shared type is
+ * what keeps a prop added to one from silently never reaching the other.
+ */
+export interface IsoMapProps {
+  dungeon: Dungeon;
+  tokens?: Token[];
+  terrain?: TerrainMap;
+  elevation?: ElevationMap;
+  sight?: { from: Square; to: Square; visible: boolean }[];
+  zones?: IsoZone[];
+  reach?: { at: Square; dash?: boolean }[];
+  cursor?: Square | null;
+  note?: string;
+  noteAt?: Square | null;
+  ruler?: { points: Square[] } | null;
+  arc?: { from: Square; to: Square } | null;
+  /** Which way the camera faces: 0-3, a quarter turn each - FFT's L1/R1. */
+  orientation?: number;
+  /** Fog of war, same contract as the flat map: dark, dim, or clear. */
+  fog?: { visible: Set<string>; explored: Set<string> } | null;
+  /** How dark each square is, by key - only the ones that are not bright. */
+  gloom?: Record<string, 'dim' | 'dark' | 'magical-dark'>;
+  onMove?: (id: string, to: Square) => void;
+  onPaint?: (at: Square) => void;
+  onHover?: (at: Square | null) => void;
+  onTokenClick?: (id: string) => void;
+  onTokenOpen?: (id: string) => void;
+  /** Where the camera is looking. Omitted means the whole map. */
+  camera?: Camera;
+  /** Present to make the map pannable and zoomable. See `useMapCamera`. */
+  onCamera?: (next: Camera) => void;
+  /** A square to keep in sight - whoever's turn it is. */
+  focus?: Square | null;
 }
 
 export function IsoMap({
@@ -83,39 +120,7 @@ export function IsoMap({
   camera,
   onCamera,
   focus = null,
-}: {
-  dungeon: Dungeon;
-  tokens?: Token[];
-  terrain?: TerrainMap;
-  elevation?: ElevationMap;
-  sight?: { from: Square; to: Square; visible: boolean }[];
-  zones?: IsoZone[];
-  reach?: { at: Square; dash?: boolean }[];
-  cursor?: Square | null;
-  note?: string;
-  noteAt?: Square | null;
-  ruler?: { points: Square[] } | null;
-  arc?: { from: Square; to: Square } | null;
-  /** Which way the camera faces: 0-3, a quarter turn each - FFT's L1/R1. */
-  orientation?: number;
-  /** Fog of war, same contract as the flat map: dark, dim, or clear. */
-  fog?: { visible: Set<string>; explored: Set<string> } | null;
-  /** How dark each square is, by key - only the ones that are not bright.
-      Drawn as tinted top faces, the same shape the fog uses. */
-  gloom?: Record<string, 'dim' | 'dark' | 'magical-dark'>;
-  onMove?: (id: string, to: Square) => void;
-  onPaint?: (at: Square) => void;
-  onHover?: (at: Square | null) => void;
-  onTokenClick?: (id: string) => void;
-  onTokenOpen?: (id: string) => void;
-  /** Where the camera is looking. Omitted means the whole map. */
-  camera?: Camera;
-  /** Present to make the map pannable and zoomable. See `useMapCamera`. */
-  onCamera?: (next: Camera) => void;
-  /** A square to keep in sight - whoever's turn it is. Projected through this
-      view's own geometry before the camera sees it. */
-  focus?: Square | null;
-}) {
+}: IsoMapProps) {
   const svg = useRef<SVGSVGElement>(null);
   const dragging = useRef<string | null>(null);
   const brushDown = useRef(false);
