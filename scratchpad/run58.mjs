@@ -23,7 +23,7 @@ for (const theme of ['dark', 'light']) {
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   await page.addInitScript((t) => {
-    localStorage.setItem('dnd-forge:theme', t);
+    localStorage.setItem('dnd-forge:theme:v1', t);
     localStorage.setItem('dnd-forge:originals', 'true');
   }, theme);
 

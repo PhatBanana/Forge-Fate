@@ -14,7 +14,7 @@ from the books" is an honest provenance and a weaker one than "verified against
 the SRD" — the audits exist because the difference turned out to matter
 fourteen times over. See **Provenance** below.
 
-The shipped history — fifty-two sections with their reasoning — lives in
+The shipped history — sixty-six sections with their reasoning — lives in
 **`docs/HISTORY.md`** so this file can be a plan.
 
 ---
@@ -251,6 +251,23 @@ both halves.
   list leaves - no feat improves healing, none helps an ally's saving throw,
   none gives you a second reaction, none rewards standing still. Sized against
   the published catalogue's own spread by `forge/feats.test.ts`.
+
+### 5. The look — `[x]` **§66 shipped the PS1 renderer**
+
+- `[x]` **The PS1 tactical renderer** (§66). The Tactical view draws through
+  a hand-rolled WebGL renderer - low-poly prisms, billboard-sprite pawns,
+  a ~240-row internal frame upscaled nearest-neighbour, vertex snapping,
+  Bayer dither and an RGB555 crush - with the SVG board kept as the
+  automatic fallback and the user-facing **Classic look** toggle. No new
+  dependencies; the whole renderer cost the lazy TableTab chunk ~23 kB.
+  Full account in `docs/HISTORY.md` §66.
+- `[ ]` **The tactical hit test and WALL_STEPS.** **S**. A painted wall
+  *draws* two steps higher than it *hit-tests* - the inverse iterates
+  elevation values only, so a click on a wall's cap can land on the square
+  visually behind it. Predates §66; now that the projection is one shared
+  module (`engine/iso.ts`), fixing it once fixes the SVG and GL views
+  together. The current behavior is pinned by name in `iso.test.ts`, so the
+  fix is a deliberate test change rather than a silent one.
 
 ### Parked
 

@@ -4780,3 +4780,96 @@ to end: both brushes live on the Dungeons tab and there is no path from a
 running fight to a painted pool. Rather than contrive one, those are pinned
 in `path.test.ts`, which runs the real Dijkstra over real water and real
 elevation and checks a swimmer crosses at five feet where a walker pays ten.
+
+## 66. The PS1 renderer: the Tactical view goes low-poly
+
+*"how crazy would it be to give this a ps1 era retro graphics … leaning
+toward the full low poly 3d"*
+
+The biggest single piece of UI work since the battle screen itself, and the
+answer to "how crazy" turned out to be: not very, if three facts are
+respected. The camera was already orthographic with four fixed facings -
+FFT's camera, and FFT is a PS1 game. The vendor chunk had ~20 kB of
+headroom, which ruled out three.js by arithmetic and forced the better
+design: a hand-rolled WebGL renderer, zero new dependencies, riding in the
+already-lazy TableTab chunk for ~23 kB. And jsdom has no WebGL, which turned
+the fallback into the test strategy.
+
+**One projection, three renderers.** 66.1 moved the tactical projection -
+constants, facing permutations, frame, face corners, the pointer inverse -
+out of `IsoMap.tsx` into `engine/iso.ts`, pinned by tests before any GL
+work started. The GL scene builders then *pre-project every vertex on the
+CPU through that module*: the shader never re-derives the projection, which
+is what makes the two views provably agree. The probe's best check presses
+exactly this: the Classic SVG says where a pawn is drawn on screen
+(`data-at` and a bounding box), and a click at that same client point in
+the GL view must select the same token. It does, in both themes.
+
+**Where each artifact lives, and the one that does not exist.** Vertex
+snapping - the wobble - is in the vertex shaders: positions are floored to
+the ~240-row virtual pixel grid, which is the artifact FFT actually had.
+Bayer dithering and the RGB555 crush happen once, in the blit shader, the
+way the console's video output stage did it; the 2×2 Bayer cell is
+arithmetic (ES 1.00 has no dynamic array indexing) and a TypeScript twin
+pins the recursion against the canonical 4×4 matrix. And **affine texture
+warp is deliberately absent**: it is a perspective artifact, this camera is
+orthographic, every w is 1 - there is nothing to emulate, and a test
+asserts nobody "adds it back". Terrain is untextured flat-Gouraud prisms
+with a deterministic per-cell jitter, which *is* the low-poly idiom rather
+than a cut corner; the atlas carries only pawn cards, glyphs, markers and
+outlined white text that tints color.
+
+**The fallback is the feature.** `GlIsoMap` answers `IsoMap`'s exact props
+(a shared type, so the contracts cannot drift) and owns which renderer
+draws: the user's **Classic look** toggle, an environment without WebGL, or
+a dead context all land on the SVG board - which is not a degraded mode but
+the shipping view, tooltips, per-token titles, printability and screen-
+reader access included. jsdom always takes that path, which is why the
+4,466-line TableTab suite passed untouched. The toggle persists
+(`dnd-forge:tactical-classic:v1`), sits beside Rotate, and is hidden where
+WebGL is absent because a toggle that cannot toggle is a lie.
+
+**Depth done properly, by accident of the port.** The SVG paints back to
+front and its own header admits a pawn can draw over the wall it stands
+behind. The GL prisms carry the SVG's sort key as a per-vertex depth
+attribute, so the depth buffer applies it per fragment - the painter's
+algorithm, done right, for free.
+
+**Found on the way: every probe's "dark" run was light.** The theme key is
+`dnd-forge:theme:v1`; the probes have written `dnd-forge:theme` since the
+key gained its version suffix, and the app ignored it. Nothing any probe
+asserted was theme-dependent enough to notice - until the GL palette, which
+genuinely diverges per theme, came out identical in both screenshots. All
+eight probes now write the right key, and §66's dark run is actually dark.
+
+**Recorded rather than fixed: the WALL_STEPS quirk.** A painted wall draws
+two steps higher than it hit-tests, because the pointer inverse iterates
+elevation values only. That predates §66; the extraction reproduced it
+byte-for-byte (66.1's promise was a move, not a rewrite), a test pins it by
+name, and the fix - now a both-views-at-once change in one module - is a
+ROADMAP item. One more inherited behavior got the same treatment: an
+interior pit's floor hit-tests as the flat square that visually covers it,
+which was first written as a test expecting the pit to win; the projection
+knew better, and the test now documents why the covering square is the
+right answer.
+
+**The environment fact the probe settled first**: headless chromium at the
+pinned build provides WebGL2 through SwiftShader with no launch flags at
+all, so the GL leg launches bare and the fallback leg has to *disable*
+WebGL (`--disable-webgl --disable-webgl2`) to prove the SVG answers - which
+it does, with the Classic toggle honestly absent.
+
+**Print and a11y, stated.** The tactical SVG printed before this;
+the canvas prints its last preserved frame (`preserveDrawingBuffer`), the
+Plan view stays the blessed print target, and Classic look is the vector
+escape hatch. The canvas carries `role="img"` and the same aria-label; the
+per-token titles exist only in the SVG, so Classic look is the accessible
+tactical mode - offered honestly rather than promised as parity.
+
+**Gates.** 2103 tests / 98 files, tsc, oxlint, build in budget with the new
+`TableTab: 320_000` alarm (154.8 kB actual - and the "no chunk emitted"
+check now also pins that TableTab *stays* lazy). `run66.mjs` green in both
+themes plus the no-WebGL leg; `run63.mjs` and `run65.mjs` re-run green.
+One self-caught bug worth its line: `onDead` was an inline closure and a
+mount-effect dependency, which would have torn the renderer down on every
+parent render - stabilised before it shipped.

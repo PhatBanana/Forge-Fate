@@ -34,7 +34,7 @@ for (const theme of ['dark', 'light']) {
   const page = await ctx.newPage();
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.addInitScript((t) => { localStorage.setItem('dnd-forge:theme', t); }, theme);
+  await page.addInitScript((t) => { localStorage.setItem('dnd-forge:theme:v1', t); }, theme);
 
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: /use these rules/i }).first().click();

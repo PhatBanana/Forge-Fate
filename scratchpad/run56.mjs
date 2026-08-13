@@ -17,7 +17,7 @@ for (const theme of ['dark', 'light']) {
   // Originals on, and a Druid to look at - the class the section starved most
   // after the Artificer, and the one whose Forge rows are the clearest test.
   await page.addInitScript((t) => {
-    localStorage.setItem('dnd-forge:theme', t);
+    localStorage.setItem('dnd-forge:theme:v1', t);
     localStorage.setItem('dnd-forge:originals', 'true');
   }, theme);
 
