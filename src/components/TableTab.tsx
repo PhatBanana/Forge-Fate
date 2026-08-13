@@ -148,7 +148,9 @@ import { MAX_SCALE, WHOLE_MAP, clampCamera, panBy } from '../engine/camera';
 import type { Camera } from '../engine/camera';
 import { DungeonMap } from './DungeonMap';
 import type { Token } from './DungeonMap';
-import { IsoMap } from './IsoMap';
+import { GlIsoMap } from './GlIsoMap';
+import { read, write } from '../persist';
+import { canUseWebGl } from '../engine/gl/context';
 import { DEFAULT_SEED, MAP_SIZES, generateDungeon } from '../engine/dungeon';
 import { CharacterSheet } from './CharacterSheet';
 
@@ -299,6 +301,20 @@ export function TableTab({
     live in the Dungeons tab now; Play only looks at the ground.
   */
   const [view, setView] = useState<'map' | 'tactical'>('map');
+  /*
+    §66: whether the tactical view draws as the PS1 renderer or the classic
+    SVG. A *look* preference rather than session state, so unlike the camera
+    and the view it persists - somebody who prefers the vector board should
+    not have to say so every fight. GlIsoMap owns the fallback for browsers
+    without WebGL; this is only the user's own choice.
+  */
+  const [classicLook, setClassicLook] = useState(
+    () => read('dnd-forge:tactical-classic:v1') === '1',
+  );
+  const chooseLook = (classic: boolean) => {
+    setClassicLook(classic);
+    write('dnd-forge:tactical-classic:v1', classic ? '1' : '0');
+  };
   /** The tactical camera's facing, quarter turns - FFT's L1/R1. */
   const [facing, setFacing] = useState(0);
   /*
@@ -4379,7 +4395,7 @@ export function TableTab({
             focus: isRunning(encounter) ? (active?.at ?? null) : null,
           };
           return view === 'tactical' ? (
-            <IsoMap {...mapProps} orientation={facing} />
+            <GlIsoMap {...mapProps} orientation={facing} classic={classicLook} />
           ) : (
             <DungeonMap {...mapProps} />
           );
@@ -4457,6 +4473,21 @@ export function TableTab({
               >
                 Rotate ⟳
               </button>
+              {/* §66. Offered only where it changes anything: a browser
+                  without WebGL is already classic, and a toggle that could
+                  not toggle would be a lie. */}
+              {canUseWebGl() && (
+                <button
+                  type="button"
+                  aria-label="Classic look"
+                  aria-pressed={classicLook}
+                  className={classicLook ? 'is-on' : ''}
+                  title="The vector board instead of the PS1 renderer — also the view that prints"
+                  onClick={() => chooseLook(!classicLook)}
+                >
+                  Classic
+                </button>
+              )}
             </div>
           )}
         </div>

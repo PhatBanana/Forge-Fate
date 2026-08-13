@@ -7196,6 +7196,25 @@ dl.detail-list {
 }
 
 /*
+  §66. The PS1 renderer's canvas.
+
+  It carries `.dmap`, so the fit rules above already size it like the SVGs -
+  same aspect-ratio contract, same `--map-ratio`, which is what keeps the hit
+  test's rectangle equal to the drawing's. What is its own:
+
+  - `image-rendering: pixelated`, belt and braces under the renderer's own
+    nearest-neighbour blit, for any browser scaling of the element itself;
+  - a painted background in the renderer's void color, so the frame before
+    the first GL draw is a dark board rather than a white flash. One color
+    for both themes on purpose - it is the PS1 view's own night, not the
+    app's paper.
+*/
+.btl-stage .glmap {
+  image-rendering: pixelated;
+  background: #0d0d14;
+}
+
+/*
   §32.3. One floating frame, shared.
 
   Before this the cockpit and the drawer were two different frames doing nearly

@@ -22,6 +22,8 @@ import {
 } from '../campaign';
 import type { MonsterCombatant } from '../encounter';
 import { DEFAULT_SEED, MAP_SIZES, generateDungeon } from '../engine/dungeon';
+import { setWebGlProbeForTests } from '../engine/gl/context';
+import { read } from '../persist';
 
 /**
  * The DM's screen.
@@ -2566,6 +2568,71 @@ describe('the pointer’s loop', () => {
 
       await user.click(screen.getByRole('button', { name: 'Plan view' }));
       expect(document.querySelector('.isomap')).toBeNull();
+    });
+
+    it('offers the Classic look only where WebGL gives it something to be classic about', async () => {
+      /*
+        §66. In jsdom there is no WebGL, so the toggle must be absent - a
+        control that could not change anything would be a lie, and this
+        absence is also what every pre-§66 test in this file silently relies
+        on. Forcing the probe makes it appear, in the tactical view only.
+      */
+      const user = userEvent.setup();
+      const view = setup(party());
+      await open(user, 'Party');
+      await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+      await user.keyboard('{Escape}');
+      await user.click(screen.getByRole('button', { name: 'Tactical view' }));
+      expect(screen.queryByRole('button', { name: 'Classic look' })).toBeNull();
+
+      setWebGlProbeForTests(true);
+      cleanup();
+      try {
+        const forced = setup(party());
+        await open(user, 'Party');
+        await user.click(
+          screen.getByRole('button', { name: forced.roster.entries[0].build.name }),
+        );
+        await user.keyboard('{Escape}');
+        expect(screen.queryByRole('button', { name: 'Classic look' })).toBeNull();
+        await user.click(screen.getByRole('button', { name: 'Tactical view' }));
+        expect(screen.getByRole('button', { name: 'Classic look' })).toBeInTheDocument();
+      } finally {
+        setWebGlProbeForTests(null);
+      }
+    });
+
+    it('remembers the Classic choice across sessions', async () => {
+      /*
+        A look preference, not session state - unlike the camera and the view
+        it persists, through the same store the theme uses. jsdom cannot
+        actually run the GL path (createRenderer returns null and GlIsoMap
+        falls back to the SVG either way), so what this presses is the half
+        jsdom can see: the button's state and the persisted key.
+      */
+      setWebGlProbeForTests(true);
+      try {
+        const user = userEvent.setup();
+        const view = setup(party());
+        await open(user, 'Party');
+        await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+        await user.keyboard('{Escape}');
+        await user.click(screen.getByRole('button', { name: 'Tactical view' }));
+
+        const classic = screen.getByRole('button', { name: 'Classic look' });
+        expect(classic).toHaveAttribute('aria-pressed', 'false');
+        await user.click(classic);
+        expect(screen.getByRole('button', { name: 'Classic look' })).toHaveAttribute(
+          'aria-pressed',
+          'true',
+        );
+        expect(read('dnd-forge:tactical-classic:v1')).toBe('1');
+        // And the SVG board is what Classic shows.
+        expect(document.querySelector('.isomap')).toBeTruthy();
+        expect(document.querySelector('canvas.glmap')).toBeNull();
+      } finally {
+        setWebGlProbeForTests(null);
+      }
     });
 
     it('offers Rotate only where facing means something', async () => {

@@ -101,6 +101,15 @@ const BUDGETS = {
   */
   'srd-2014-text': { max: 700_000, min: 400_000 },
   'srd-2014-monsters': { max: 700_000, min: 400_000 },
+  /*
+    §66. The battle screen's route chunk, budgeted the day it started
+    carrying the PS1 renderer. ~150 kB today against a 320 kB alarm - fires
+    if a fixture or a dependency lands in it, stays quiet through ordinary
+    growth. A side effect worth wanting: the "no chunk emitted" check below
+    now also pins that TableTab *stays* a lazy chunk - if somebody imports
+    it statically, this budget line is what says so.
+  */
+  'TableTab': 320_000,
 };
 
 const files = await readdir(ASSETS).catch(() => {
