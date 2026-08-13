@@ -60,6 +60,14 @@ const tintFor = (token: Token): Rgba => {
 export function tokenSprites(
   tokens: Token[],
   proj: IsoProjection,
+  /**
+   * §68: per-token offsets and flash opacity from the animation clock. The
+   * figure moves; the shadow stays grounded, which is what makes a lunge
+   * read as a step rather than the whole piece sliding. When a motion map is
+   * provided, the hit wash exists only while an animation says so - passing
+   * none keeps the §67 static wash for callers with no clock.
+   */
+  motion?: Map<string, { dx: number; dy: number; flashAlpha: number }>,
 ): { sprites: SpritePlacement[]; texts: TextPlacement[] } {
   const sprites: SpritePlacement[] = [];
   const texts: TextPlacement[] = [];
@@ -68,6 +76,9 @@ export function tokenSprites(
     const cn = proj.centreOf(token.at);
     const depth = proj.depthOf(token.at);
     const tint = tintFor(token);
+    const moved = motion?.get(token.id);
+    const mx = cn.x + (moved?.dx ?? 0);
+    const my = cn.y + (moved?.dy ?? 0);
 
     /*
       §67: which art stands on the tile. A recorded portrait keeps the §37
@@ -97,11 +108,12 @@ export function tokenSprites(
       key: 'shadow',
       tint: PLAIN,
     });
-    sprites.push({ x: cn.x, y: cn.y, w, h, depth, key, tint });
-    // Hit flash: a bright wash re-triggered by the flash sequence number. The
-    // renderer animates its alpha down; the placement only says "flashing".
-    if (token.flash) {
-      sprites.push({ x: cn.x, y: cn.y, w, h, depth, key, tint: [1, 0.4, 0.3, 0.8] });
+    sprites.push({ x: mx, y: my, w, h, depth, key, tint });
+    // The hit wash: with a clock, its opacity is the animation's and it ends
+    // when the fade does; without one, the §67 static wash stands.
+    const flashAlpha = motion ? (moved?.flashAlpha ?? 0) : token.flash ? 0.8 : 0;
+    if (token.flash && flashAlpha > 0) {
+      sprites.push({ x: mx, y: my, w, h, depth, key, tint: [1, 0.4, 0.3, flashAlpha] });
     }
     if (token.active) {
       sprites.push({

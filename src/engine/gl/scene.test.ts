@@ -284,6 +284,36 @@ describe('the sprites', () => {
     expect(keys).toEqual(['sprite:fighter:idle', 'sprite:fighter:idle']);
   });
 
+  it('moves the figure with the animation clock but leaves the shadow grounded (§68)', () => {
+    const motion = new Map([['t1', { dx: 5, dy: -3, flashAlpha: 0 }]]);
+    const { sprites } = tokenSprites([token()], proj, motion);
+    const cn = proj.centreOf({ x: 2, y: 2 });
+    const pawn = sprites.find((s) => s.key === 'pawn:t1')!;
+    expect(pawn.x).toBeCloseTo(cn.x + 5);
+    expect(pawn.y).toBeCloseTo(cn.y - 3);
+    // The shadow is what makes the lunge read as a step and not a slide.
+    const shadow = sprites.find((s) => s.key === 'shadow')!;
+    expect(shadow.x).toBeCloseTo(cn.x);
+  });
+
+  it('lets the clock own the hit wash, and keeps the static wash for clockless callers (§68)', () => {
+    // With a clock: the wash's opacity is the fade's, and a fade that has
+    // ended (alpha 0) means no wash even though the token still says flash.
+    const fading = tokenSprites(
+      [token({ flash: 1 })],
+      proj,
+      new Map([['t1', { dx: 0, dy: 0, flashAlpha: 0.4 }]]),
+    ).sprites;
+    const wash = fading.filter((s) => s.key === 'pawn:t1');
+    expect(wash.length).toBe(2);
+    expect(wash[1].tint[3]).toBeCloseTo(0.4);
+    const done = tokenSprites([token({ flash: 1 })], proj, new Map()).sprites;
+    expect(done.filter((s) => s.key === 'pawn:t1').length).toBe(1);
+    // Without a clock the §67 static wash stands.
+    const static_ = tokenSprites([token({ flash: 1 })], proj).sprites;
+    expect(static_.filter((s) => s.key === 'pawn:t1').length).toBe(2);
+  });
+
   it('billboards the four standing props and leaves surfaces to the mesh', () => {
     const sprites = glyphSprites(
       { '0,0': 'tree', '1,0': 'pillar', '2,0': 'rock', '3,0': 'rubble', '4,0': 'wall', '5,0': 'water' },

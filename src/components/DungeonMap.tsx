@@ -66,6 +66,12 @@ export interface Token {
    */
   classId?: string;
   stance?: 'idle' | 'battle' | 'sneak' | 'down';
+  /**
+   * §68: bumped when this token attacks, with where the swing went - the GL
+   * view lunges the sprite toward it. The SVG views ignore it, the same way
+   * the flat map ignores the portrait.
+   */
+  lunge?: { seq: number; toward: Square };
   title: string;
 }
 

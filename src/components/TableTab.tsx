@@ -450,6 +450,21 @@ export function TableTab({
   const [hover, setHover] = useState<Square | null>(null);
   /** Hit counters per combatant, bumped when damage lands, replaying the flash. */
   const [flashes, setFlashes] = useState<Record<string, number>>({});
+  /*
+    §68: who swung, and at where. The victim's flash is derived from hit
+    points dropping, so it catches every source of damage; a lunge cannot be
+    derived - nothing in the stores says who attacked - so the three places
+    that resolve an attack with a known attacker report it here. Purely
+    cosmetic state: never persisted, never in the undo history.
+  */
+  const [lunges, setLunges] = useState<Record<string, { seq: number; toward: Square }>>({});
+  const noteLunge = (attackerId: string | undefined, toward: Square | undefined | null) => {
+    if (!attackerId || !toward) return;
+    setLunges((prev) => ({
+      ...prev,
+      [attackerId]: { seq: (prev[attackerId]?.seq ?? 0) + 1, toward },
+    }));
+  };
   /** The number that floats off a token when its hit points change: "-7"
       rising red, "+5" rising green. Keyed by seq so each change replays. */
   const [floats, setFloats] = useState<
@@ -708,6 +723,7 @@ export function TableTab({
           `${nameOf(self)} leaves ${nameOf(swinger)}'s reach — opportunity attack.`,
         ),
       );
+      noteLunge(swinger.id, self.at);
       afterReactions = strikesInto(
         afterReactions,
         { name: nameOf(swinger), id: swinger.id },
@@ -1905,7 +1921,10 @@ export function TableTab({
     strikes: Strike[],
     target: Combatant,
     opts?: { spendAction?: boolean },
-  ) => onChange(strikesInto(roster, who, strikes, target, opts));
+  ) => {
+    noteLunge(who.id, target.at);
+    onChange(strikesInto(roster, who, strikes, target, opts));
+  };
 
   /**
    * The DM presses the button and the plan happens - walk first, then swing,
@@ -1937,6 +1956,7 @@ export function TableTab({
       // Dropped by the hazard it just walked through, or already gone: the
       // walk still stands, the swing does not.
       if (target && (hpOf(target)?.now ?? 0) > 0) {
+        noteLunge(active.id, target.at);
         updated = strikesInto(
           updated,
           { name: nameOf(active), id: active.id },
@@ -3152,6 +3172,7 @@ export function TableTab({
           c.kind === 'character'
             ? derived.get(c.rosterId)?.ctx.primary.klass.id
             : undefined,
+        lunge: lunges[c.id],
         stance: (hp?.now === 0
           ? 'down'
           : c.hidden !== undefined

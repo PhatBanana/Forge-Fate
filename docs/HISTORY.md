@@ -4934,3 +4934,55 @@ hang on dice, which §65's probe already declined once.
 sprites, being strings, cost the TableTab chunk ~5 kB (154.8 → 159.8
 against the 320 alarm). The Classic SVG view is untouched and the probe
 checks it still stands its cardboard pawn.
+
+## 68. The little animations: lunge, flinch, flash
+
+*"add little animations for attacking and being attacked"*
+
+The §67 sprites stood still. Now an attacker steps toward their target and
+back, and whoever got hit shakes and flashes red before settling. Two
+motions, both under half a second - at 240p a whole animation language would
+smear, and the two things a table actually reads off a board are "who swung"
+and "who got hit".
+
+**Pure functions of elapsed time, never accumulation.** `engine/gl/motion.ts`
+answers "where is everybody at t": the lunge is a half-sine out and back
+(direction normalised inside, so a lunge at a target eight tiles away does
+not fly eight tiles), the flinch a deterministic decaying alternation, the
+wash a linear fade from 0.75. Determinism is what makes them testable in
+node and a paused frame reproducible; `motionFor` folds every live animation
+into one offset per token, and a counter-attacked attacker simply sums both.
+The figure moves; **the shadow stays grounded**, which is what makes a lunge
+read as a step rather than the whole piece sliding.
+
+**Two signals, two provenances.** Being hit was already derivable - the
+HP-drop watcher that feeds the SVG's flash covers every damage source
+(strikes, hazards, saves, the cockpit's own −5) - so the GL clock just
+watches the same seq. Swinging is not derivable from state at all, so the
+three places an attack resolves (`resolveStrikes`, the plan runner, the
+opportunity-attack loop) now call `noteLunge(attacker, target)`, and the
+token carries `lunge: {seq, toward}` the way it carries `flash`. Both views
+read the same token; the SVG simply ignores the field it has no use for.
+
+**The clock lives in GlSurface and puts itself down.** New seqs are detected
+against a seen-map (a token's *first* appearance records without animating -
+loading a saved fight must not open on a flinch), each animation gets a
+`performance.now()` start, and a rAF loop redraws only the sprite layers -
+the terrain meshes stay uploaded - until `pruneAnims` empties, at which
+point the loop stops and the board is provably at rest. With a motion map
+the hit wash's opacity belongs to the fade and ends with it; without one
+(the SVG-less unit-test path) the §67 static wash stands.
+
+**What the probe can and cannot drive.** The hit leg runs end to end in the
+browser through the cockpit's own −5: the frame differs mid-animation from
+its before-frame, *keeps changing* after the click with no further input -
+the one thing the old static wash could never do - and then two late hashes
+match, proving the loop retired. The lunge's browser leg would need a real
+attack to land through real dice, which §65's probe already declined once as
+a coin flip; its geometry, timing and the summed counter-attack live in
+`motion.test.ts`, and all three `noteLunge` sites feed the same
+seq-detection path the probe exercises via flash.
+
+**Gates.** 2144 tests / 100 files, tsc, oxlint, build in budget (TableTab
+161.5 kB against the 320 alarm). Classic SVG untouched: its flash stays the
+CSS remount animation it has been since §18.

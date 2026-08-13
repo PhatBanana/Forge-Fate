@@ -26,6 +26,8 @@ import {
   tokenSprites,
   zoneLabels,
 } from '../engine/gl/sprites';
+import { motionFor, pruneAnims } from '../engine/gl/motion';
+import type { TokenAnim } from '../engine/gl/motion';
 import { groundCells } from '../engine/iso';
 
 /**
@@ -97,6 +99,17 @@ function GlSurface({
   const dragTravelled = useRef(false);
   /** Bumped when a lost context is restored, to rebuild the renderer. */
   const [contextEra, setContextEra] = useState(0);
+  /*
+    §68: the animation clock. Live animations, the sequence numbers already
+    consumed, the running frame handle, and the one closure the ticker calls
+    - refreshed every commit so a mid-animation React render never draws
+    with stale props. Refs throughout: none of this is render state, and a
+    setState per animation frame would be sixty commits a second.
+  */
+  const anims = useRef<TokenAnim[]>([]);
+  const seenSeqs = useRef<Record<string, { flash?: number; lunge?: number }>>({});
+  const rafId = useRef<number | null>(null);
+  const redrawSprites = useRef<(now: number) => void>(() => {});
   const [theme, setTheme] = useState<'light' | 'dark'>(() =>
     document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light',
   );
@@ -194,7 +207,35 @@ function GlSurface({
   useEffect(() => {
     const r = renderer.current;
     if (!r) return;
-    const { sprites, texts } = tokenSprites(tokens, proj);
+
+    /*
+      §68: new attacks and hits start animations. A sequence number this
+      component has not consumed yet is the signal; a token seen for the
+      first time records its numbers without animating, or a remount would
+      replay every stale flash at once.
+    */
+    const now = performance.now();
+    for (const token of tokens) {
+      const seen = seenSeqs.current[token.id];
+      if (seen) {
+        if (token.flash && token.flash !== seen.flash) {
+          anims.current.push({ id: token.id, kind: 'hit', start: now });
+        }
+        if (token.lunge && token.lunge.seq !== seen.lunge) {
+          const from = proj.centreOf(token.at);
+          const to = proj.centreOf(token.lunge.toward);
+          anims.current.push({
+            id: token.id,
+            kind: 'lunge',
+            start: now,
+            dir: { x: to.x - from.x, y: to.y - from.y },
+          });
+        }
+      }
+      seenSeqs.current[token.id] = { flash: token.flash, lunge: token.lunge?.seq };
+    }
+
+    const { sprites, texts } = tokenSprites(tokens, proj, motionFor(anims.current, now));
     r.update({
       palette,
       depthMax: depthRange(proj),
@@ -213,7 +254,35 @@ function GlSurface({
       pawnArt,
     });
     r.render(view);
+
+    // The ticker redraws only the sprite layers - the ground does not move
+    // because somebody swung a sword.
+    redrawSprites.current = (tick: number) => {
+      const moved = tokenSprites(tokens, proj, motionFor(anims.current, tick));
+      r.update({
+        sprites: [...glyphSprites(terrain, proj), ...moved.sprites],
+        tokenTexts: moved.texts,
+      });
+      r.render(view);
+    };
+    if (anims.current.length && rafId.current === null) {
+      const tick = () => {
+        const at = performance.now();
+        anims.current = pruneAnims(anims.current, at);
+        redrawSprites.current(at);
+        rafId.current = anims.current.length ? requestAnimationFrame(tick) : null;
+      };
+      rafId.current = requestAnimationFrame(tick);
+    }
   });
+
+  // The clock dies with the component, not with the current renderer.
+  useEffect(
+    () => () => {
+      if (rafId.current !== null) cancelAnimationFrame(rafId.current);
+    },
+    [],
+  );
 
   // ------------------------------------------------------------- pointing
   const squareAt = (clientX: number, clientY: number): Square | null =>
