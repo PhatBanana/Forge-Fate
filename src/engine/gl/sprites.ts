@@ -4,7 +4,8 @@ import type { TerrainMap } from '../../terrain';
 import type { Token } from '../../components/DungeonMap';
 import { BASE_H, HH, HW, PAWN_H, PAWN_W, ZH } from '../iso';
 import type { IsoProjection } from '../iso';
-import type { Rgba } from './types';
+import { finishMesh, newMesh, pushQuad, pushVertex } from './types';
+import type { AtlasRect, Mesh, Rgba } from './types';
 
 /**
  * Everything that stands up or floats: pawns, terrain glyphs, and text.
@@ -207,6 +208,37 @@ export function noteText(
     y: Math.max(view.y + 10, cn.y - HH * 2.2),
     kind: 'note',
   };
+}
+
+/**
+ * Placements into GPU quads, in the same nine-float format the terrain uses,
+ * so the renderer draws sprites with the geometry program and one uniform's
+ * difference (the alpha cutout).
+ *
+ * Pure, and deliberately so: `rectFor` is injected, so this converts and is
+ * tested without an atlas canvas in sight. A placement whose key has no rect
+ * yet (a portrait still decoding) is skipped this frame rather than drawn as
+ * garbage - it appears the frame after the rasterizer lands it.
+ */
+export function spriteQuads(
+  placements: SpritePlacement[],
+  rectFor: (key: string) => AtlasRect | null,
+): Mesh {
+  const mesh = newMesh();
+  for (const sprite of byDepth(placements)) {
+    const uv = rectFor(sprite.key);
+    if (!uv) continue;
+    const x0 = sprite.x - sprite.w / 2;
+    const x1 = sprite.x + sprite.w / 2;
+    const y0 = sprite.y - sprite.h;
+    const y1 = sprite.y;
+    const a = pushVertex(mesh, x0, y0, sprite.depth, uv.u0, uv.v0, sprite.tint);
+    const b = pushVertex(mesh, x1, y0, sprite.depth, uv.u1, uv.v0, sprite.tint);
+    const c = pushVertex(mesh, x1, y1, sprite.depth, uv.u1, uv.v1, sprite.tint);
+    const d = pushVertex(mesh, x0, y1, sprite.depth, uv.u0, uv.v1, sprite.tint);
+    pushQuad(mesh, a, b, c, d);
+  }
+  return finishMesh(mesh);
 }
 
 /** One stable ordering for a frame's sprites: the SVG's depth sort. */
