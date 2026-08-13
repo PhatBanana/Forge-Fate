@@ -66,13 +66,22 @@ export function tokenSprites(
    * shadow and paint order. A lunge or flinch leaves the ground at zero
    * (the shadow staying put is what makes those read as a step and a
    * stagger); a walk carries it, because a figure tiles from its own shadow
-   * reads as flying. When a motion map is provided, the hit wash exists
-   * only while an animation says so - passing none keeps the §67 static
-   * wash for callers with no clock.
+   * reads as flying. `alpha` (§70) dims the figure - the death flicker -
+   * and never the shadow. When a motion map is provided, the hit wash
+   * exists only while an animation says so - passing none keeps the §67
+   * static wash for callers with no clock.
    */
   motion?: Map<
     string,
-    { dx: number; dy: number; gdx: number; gdy: number; ddepth: number; flashAlpha: number }
+    {
+      dx: number;
+      dy: number;
+      gdx: number;
+      gdy: number;
+      ddepth: number;
+      alpha: number;
+      flashAlpha: number;
+    }
   >,
 ): { sprites: SpritePlacement[]; texts: TextPlacement[] } {
   const sprites: SpritePlacement[] = [];
@@ -118,10 +127,15 @@ export function tokenSprites(
       key: 'shadow',
       tint: PLAIN,
     });
-    sprites.push({ x: mx, y: my, w, h, depth, key, tint });
+    // §70: the death flicker multiplies the figure's opacity (and its
+    // wash's, so the red does not outglow a body mid-dissolve). The shadow
+    // above stays solid: the square is still taken.
+    const alpha = moved?.alpha ?? 1;
+    const figureTint: Rgba = alpha === 1 ? tint : [tint[0], tint[1], tint[2], tint[3] * alpha];
+    sprites.push({ x: mx, y: my, w, h, depth, key, tint: figureTint });
     // The hit wash: with a clock, its opacity is the animation's and it ends
     // when the fade does; without one, the §67 static wash stands.
-    const flashAlpha = motion ? (moved?.flashAlpha ?? 0) : token.flash ? 0.8 : 0;
+    const flashAlpha = (motion ? (moved?.flashAlpha ?? 0) : token.flash ? 0.8 : 0) * alpha;
     if (token.flash && flashAlpha > 0) {
       sprites.push({ x: mx, y: my, w, h, depth, key, tint: [1, 0.4, 0.3, flashAlpha] });
     }

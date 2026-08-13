@@ -29,6 +29,10 @@ export const WALK_MAX_MS = 900;
 /** How high the walking hop lifts, in drawing units. */
 export const HOP_LIFT = HH * 0.35;
 
+/** The death's length (§70), and how high the body falls from. */
+export const DEATH_MS = 650;
+export const DEATH_LIFT = HH * 0.85;
+
 /** What one token's animations add up to this frame. */
 export interface Motion {
   dx: number;
@@ -43,6 +47,12 @@ export interface Motion {
   gdx: number;
   gdy: number;
   ddepth: number;
+  /**
+   * §70: what the figure's own opacity is multiplied by - 1 means untouched.
+   * The death flicker lives here; the shadow ignores it, holding the square
+   * the way it holds it through everything else.
+   */
+  alpha: number;
   /** The red hit wash's opacity right now; 0 means no wash this frame. */
   flashAlpha: number;
 }
@@ -56,7 +66,7 @@ export interface WalkPoint {
 
 export interface TokenAnim {
   id: string;
-  kind: 'lunge' | 'hit' | 'walk';
+  kind: 'lunge' | 'hit' | 'walk' | 'death';
   /** `performance.now()` when it started. */
   start: number;
   /** For a lunge: toward the target, in drawing units (not normalised). */
@@ -141,12 +151,32 @@ export function walkOffset(
   };
 }
 
+/**
+ * The death (§70): the body falls onto its tile - the token's state has
+ * already turned it over into the down pose, so the animation is the
+ * *arrival* - while its opacity flickers with a decaying depth, the old
+ * JRPG dissolve. Deterministic like everything here: the same instant of
+ * the same death always looks the same.
+ */
+export function deathFall(elapsed: number): { dy: number; alpha: number } | null {
+  if (elapsed < 0 || elapsed >= DEATH_MS) return null;
+  const t = elapsed / DEATH_MS;
+  const remaining = 1 - t;
+  return {
+    // A quadratic drop: fastest at first, settled by the end.
+    dy: -DEATH_LIFT * remaining * remaining,
+    // The flicker's depth decays to nothing, so the fade ends at rest.
+    alpha: 1 - 0.7 * remaining * (0.5 + 0.5 * Math.sin(elapsed * 0.06)),
+  };
+}
+
 /** Drop everything that has finished. */
 export function pruneAnims(anims: TokenAnim[], now: number): TokenAnim[] {
   return anims.filter((anim) => {
     const elapsed = now - anim.start;
     if (anim.kind === 'lunge') return elapsed < LUNGE_MS;
     if (anim.kind === 'walk') return elapsed < walkDuration(anim.path ?? []);
+    if (anim.kind === 'death') return elapsed < DEATH_MS;
     return elapsed < Math.max(SHAKE_MS, FLASH_MS);
   });
 }
@@ -159,7 +189,15 @@ export function motionFor(anims: TokenAnim[], now: number): Map<string, Motion> 
   const out = new Map<string, Motion>();
   for (const anim of anims) {
     const elapsed = now - anim.start;
-    const motion = out.get(anim.id) ?? { dx: 0, dy: 0, gdx: 0, gdy: 0, ddepth: 0, flashAlpha: 0 };
+    const motion = out.get(anim.id) ?? {
+      dx: 0,
+      dy: 0,
+      gdx: 0,
+      gdy: 0,
+      ddepth: 0,
+      alpha: 1,
+      flashAlpha: 0,
+    };
     if (anim.kind === 'lunge' && anim.dir) {
       const offset = lungeOffset(elapsed, anim.dir);
       if (offset) {
@@ -176,6 +214,15 @@ export function motionFor(anims: TokenAnim[], now: number): Map<string, Motion> 
         motion.ddepth += offset.ddepth;
         motion.dx += offset.gdx;
         motion.dy += offset.gdy - (anim.hop ? offset.lift : 0);
+      }
+    } else if (anim.kind === 'death') {
+      const offset = deathFall(elapsed);
+      if (offset) {
+        // The fall moves only the figure - the shadow holds the square the
+        // body is falling onto - and the flicker multiplies, so a death
+        // over anything else still dims it.
+        motion.dy += offset.dy;
+        motion.alpha *= offset.alpha;
       }
     } else if (anim.kind === 'hit') {
       const offset = shakeOffset(elapsed);

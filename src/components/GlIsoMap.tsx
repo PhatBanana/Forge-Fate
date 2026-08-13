@@ -107,7 +107,9 @@ function GlSurface({
     setState per animation frame would be sixty commits a second.
   */
   const anims = useRef<TokenAnim[]>([]);
-  const seenSeqs = useRef<Record<string, { flash?: number; lunge?: number; walk?: number }>>({});
+  const seenSeqs = useRef<
+    Record<string, { flash?: number; lunge?: number; walk?: number; down?: boolean }>
+  >({});
   const rafId = useRef<number | null>(null);
   const redrawSprites = useRef<(now: number) => void>(() => {});
   const [theme, setTheme] = useState<'light' | 'dark'>(() =>
@@ -231,6 +233,12 @@ function GlSurface({
             dir: { x: to.x - from.x, y: to.y - from.y },
           });
         }
+        if (token.down && !seen.down) {
+          // §70: the drop to nought. Derived rather than reported - the
+          // `down` flag flipping IS the death, whatever caused it - and it
+          // covers monsters' cards the same as character sprites.
+          anims.current.push({ id: token.id, kind: 'death', start: now });
+        }
         if (token.walk && token.walk.seq !== seen.walk) {
           // §69: the route projected once, at the rotation it started under.
           // A walk supersedes any walk still in flight - one body, one route.
@@ -250,6 +258,7 @@ function GlSurface({
         flash: token.flash,
         lunge: token.lunge?.seq,
         walk: token.walk?.seq,
+        down: token.down,
       };
     }
 

@@ -5036,3 +5036,46 @@ hashes equal. run68 re-run green on the same build.
 **Gates.** 2149 tests / 100 files, tsc, oxlint, build in budget (TableTab
 162.6 kB against the 320 alarm). Both SVG views ignore the new token
 field, the way they ignore the lunge.
+
+## 70. The death: fall and flicker at nought
+
+*"add a death animation when a token drops to 0 hp"*
+
+The last of the §68-§69 set. Dropping to nought used to swap the pose and
+the tint in one frame; now the body falls onto its tile - a quadratic drop
+from just above it, fastest at first - while its opacity flickers with a
+decaying depth, the old JRPG dissolve, settling into the §67 down pose
+under the §67 down tint. Six hundred and fifty milliseconds, and the
+killing blow's flash and shake ride along on the same additive frame.
+
+**Fully derived, no wiring.** Unlike the lunge and the walk, death needs no
+reporter: the token's `down` flag flipping false-to-true IS the death,
+whatever caused it - a strike, a hazard, a failed save, the cockpit's −5 -
+and it covers monsters' cards exactly as it covers character sprites,
+which matters because the SVG has had its own death fade since §18.2 and
+the GL view owed parity. The seen-map guard from §68 already handles the
+load case: a saved fight that opens with a dead goblin records the flag
+without replaying the funeral.
+
+**The flicker is a multiplier, and only the figure's.** `Motion` gains
+`alpha`: the death dims the figure and its hit wash (a red glow should not
+outshine a body mid-dissolve) but never the shadow - the square is still
+taken, and the solid shadow under a flickering body is what sells the
+fall as landing somewhere real. Multiplicative, so a death over anything
+else still dims it; deterministic, so a paused frame is reproducible; and
+the flicker's envelope decays to zero so the fade ends exactly at rest,
+with the tint owning everything after.
+
+**Proof.** The probe kills the fighter with ten of the cockpit's own −5
+clicks - nine to reach 4 hit points and settle, the tenth hashed as the
+kill. Same signature as §69: different mid-death, different again at rest
+(the pre-§70 instant swap would already be still by the first hash), two
+late hashes equal, and Classic confirming `is-down` on the pawn so the
+dissolve belonged to a real death. The unit tests pin the fall's landing,
+the flicker's bounds and decay, determinism, the ground staying zero
+through a death, and the shadow's tint staying solid.
+
+**Gates.** 2153 tests / 100 files, tsc, oxlint, build in budget. Also this
+section: main fast-forwarded to §69 (43 commits) at the user's ask - the
+Pages deploy publishes from main, and had been standing at §38 since the
+ninth.

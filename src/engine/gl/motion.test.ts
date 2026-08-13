@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEATH_LIFT,
+  DEATH_MS,
   FLASH_MS,
   HOP_LIFT,
   LUNGE_MS,
@@ -7,6 +9,7 @@ import {
   SHAKE_MS,
   WALK_MAX_MS,
   WALK_TILE_MS,
+  deathFall,
   flashFade,
   lungeOffset,
   motionFor,
@@ -147,6 +150,56 @@ describe('the walk (§69)', () => {
   });
 });
 
+describe('the death (§70)', () => {
+  it('falls onto the tile: lifted at first, landed and clear by the end', () => {
+    const start = deathFall(0)!;
+    expect(start.dy).toBeCloseTo(-DEATH_LIFT);
+    const late = deathFall(DEATH_MS * 0.99)!;
+    expect(late.dy).toBeGreaterThan(start.dy);
+    expect(late.dy).toBeLessThanOrEqual(0);
+    expect(Math.abs(late.dy)).toBeLessThan(DEATH_LIFT * 0.01);
+    expect(deathFall(DEATH_MS)).toBeNull();
+  });
+
+  it('flickers with a decaying depth and ends at full - the tint owns the rest', () => {
+    const alphas = Array.from({ length: 64 }, (_, i) =>
+      deathFall((i / 64) * DEATH_MS)!.alpha,
+    );
+    // It genuinely dips - this is a flicker, not a fade-in...
+    expect(Math.min(...alphas.slice(0, 32))).toBeLessThan(0.5);
+    // ...it never leaves [0,1]...
+    for (const alpha of alphas) {
+      expect(alpha).toBeGreaterThanOrEqual(0);
+      expect(alpha).toBeLessThanOrEqual(1);
+    }
+    // ...the envelope decays: the last quarter never dips as deep as the
+    // first quarter did...
+    expect(Math.min(...alphas.slice(48))).toBeGreaterThan(Math.min(...alphas.slice(0, 16)));
+    // ...and it is deterministic, like every motion here.
+    expect(deathFall(123)).toEqual(deathFall(123));
+  });
+
+  it('dims only the figure - the ground offsets stay zero through a death', () => {
+    const now = 1000;
+    const dying = motionFor([{ id: 'd', kind: 'death', start: now - DEATH_MS / 3 }], now).get('d')!;
+    expect(dying.alpha).toBeLessThan(1);
+    expect(dying.dy).toBeLessThan(0);
+    expect(dying.gdx).toBe(0);
+    expect(dying.gdy).toBe(0);
+    expect(dying.ddepth).toBe(0);
+    // The killing blow's flash rides along: both animations on one body.
+    const struck = motionFor(
+      [
+        { id: 'd', kind: 'death', start: now - DEATH_MS / 3 },
+        { id: 'd', kind: 'hit', start: now - 30 },
+      ],
+      now,
+    ).get('d')!;
+    expect(struck.alpha).toBeLessThan(1);
+    expect(struck.flashAlpha).toBeGreaterThan(0);
+  });
+});
+
 describe('the frame combiner', () => {
   it('adds a counter-attacked attacker\'s lunge and flinch together', () => {
     const now = 1000;
@@ -173,9 +226,11 @@ describe('the frame combiner', () => {
       { id: 'b', kind: 'hit' as const, start: now - FLASH_MS + 10 },
       { id: 'c', kind: 'walk' as const, start: now - WALK_TILE_MS + 10, path },
       { id: 'd', kind: 'walk' as const, start: now - WALK_TILE_MS, path },
+      { id: 'e', kind: 'death' as const, start: now - DEATH_MS },
+      { id: 'f', kind: 'death' as const, start: now - DEATH_MS + 10 },
     ];
     const left = pruneAnims(anims, now);
-    expect(left.map((anim) => anim.id)).toEqual(['b', 'c']);
+    expect(left.map((anim) => anim.id)).toEqual(['b', 'c', 'f']);
     expect(pruneAnims(left, now + FLASH_MS)).toEqual([]);
   });
 

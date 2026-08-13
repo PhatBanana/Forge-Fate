@@ -285,7 +285,7 @@ describe('the sprites', () => {
   });
 
   it('moves the figure with the animation clock but leaves the shadow grounded (§68)', () => {
-    const motion = new Map([['t1', { dx: 5, dy: -3, gdx: 0, gdy: 0, ddepth: 0, flashAlpha: 0 }]]);
+    const motion = new Map([['t1', { dx: 5, dy: -3, gdx: 0, gdy: 0, ddepth: 0, alpha: 1, flashAlpha: 0 }]]);
     const { sprites } = tokenSprites([token()], proj, motion);
     const cn = proj.centreOf({ x: 2, y: 2 });
     const pawn = sprites.find((s) => s.key === 'pawn:t1')!;
@@ -298,7 +298,7 @@ describe('the sprites', () => {
 
   it('walks the shadow and the paint order along with a walking body (§69)', () => {
     const motion = new Map([
-      ['t1', { dx: -20, dy: -12, gdx: -20, gdy: -10, ddepth: -2, flashAlpha: 0 }],
+      ['t1', { dx: -20, dy: -12, gdx: -20, gdy: -10, ddepth: -2, alpha: 1, flashAlpha: 0 }],
     ]);
     const { sprites } = tokenSprites([token()], proj, motion);
     const cn = proj.centreOf({ x: 2, y: 2 });
@@ -317,7 +317,7 @@ describe('the sprites', () => {
     const fading = tokenSprites(
       [token({ flash: 1 })],
       proj,
-      new Map([['t1', { dx: 0, dy: 0, gdx: 0, gdy: 0, ddepth: 0, flashAlpha: 0.4 }]]),
+      new Map([['t1', { dx: 0, dy: 0, gdx: 0, gdy: 0, ddepth: 0, alpha: 1, flashAlpha: 0.4 }]]),
     ).sprites;
     const wash = fading.filter((s) => s.key === 'pawn:t1');
     expect(wash.length).toBe(2);
@@ -327,6 +327,21 @@ describe('the sprites', () => {
     // Without a clock the §67 static wash stands.
     const static_ = tokenSprites([token({ flash: 1 })], proj).sprites;
     expect(static_.filter((s) => s.key === 'pawn:t1').length).toBe(2);
+  });
+
+  it('dims a dying figure but never its shadow (§70)', () => {
+    const motion = new Map([
+      ['t1', { dx: 0, dy: -4, gdx: 0, gdy: 0, ddepth: 0, alpha: 0.4, flashAlpha: 0.5 }],
+    ]);
+    const { sprites } = tokenSprites([token({ down: true, flash: 2 })], proj, motion);
+    const pawn = sprites.find((s) => s.key === 'pawn:t1')!;
+    // The down tint's own alpha, multiplied by the flicker.
+    expect(pawn.tint[3]).toBeCloseTo(0.75 * 0.4);
+    const shadow = sprites.find((s) => s.key === 'shadow')!;
+    expect(shadow.tint[3]).toBe(1);
+    // The killing blow's wash dims with the body it is washing.
+    const wash = sprites.filter((s) => s.key === 'pawn:t1')[1];
+    expect(wash.tint[3]).toBeCloseTo(0.5 * 0.4);
   });
 
   it('billboards the four standing props and leaves surfaces to the mesh', () => {
