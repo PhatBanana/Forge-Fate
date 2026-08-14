@@ -879,3 +879,49 @@ describe('a blank character', () => {
     expect(problems).toHaveLength(0);
   });
 });
+
+describe('beyond level 20 (§72)', () => {
+  /*
+    The cap is 30, and the split is honest: formulas keep climbing, printed
+    tables hold their level-20 row. These pin both halves so a table lookup
+    that stops clamping - or a formula that starts - fails by name.
+  */
+  it('keeps the proficiency formula climbing past the printed table', () => {
+    expect(proficiencyBonus(20)).toBe(6);
+    expect(proficiencyBonus(21)).toBe(7);
+    expect(proficiencyBonus(25)).toBe(8);
+    expect(proficiencyBonus(29)).toBe(9);
+    expect(proficiencyBonus(30)).toBe(9);
+  });
+
+  it('derives a level-30 single-class build without inventing table rows', () => {
+    const twenty = deriveBuild(build({ classes: [{ classId: 'fighter', level: 20 }] }));
+    const thirty = deriveBuild(build({ classes: [{ classId: 'fighter', level: 30 }] }));
+    expect(thirty.totalLevel).toBe(30);
+    expect(thirty.proficiency).toBe(9);
+    // Hit points are a per-level formula: ten more levels keep accruing.
+    expect(thirty.hp.total).toBeGreaterThan(twenty.hp.total);
+    // ASI slots come from the class table, which ends at 19: no new rows.
+    expect(thirty.asiSlotsReached).toBe(twenty.asiSlotsReached);
+    // And nothing in the derivation goes undefined on the way.
+    expect(Number.isFinite(thirty.hp.total)).toBe(true);
+    expect(thirty.attacks.every((a) => Number.isFinite(a.toHit))).toBe(true);
+  });
+
+  it('holds a level-30 caster at the level-20 slot row', () => {
+    const twenty = deriveBuild(
+      build({ classes: [{ classId: 'wizard', level: 20 }], weapons: { magicBonus: {} } }),
+    );
+    const thirty = deriveBuild(
+      build({ classes: [{ classId: 'wizard', level: 30 }], weapons: { magicBonus: {} } }),
+    );
+    expect(thirty.spellcasting.bySpellLevel).toEqual(twenty.spellcasting.bySpellLevel);
+    expect(thirty.spellcasting.cantripsKnown).toBe(twenty.spellcasting.cantripsKnown);
+  });
+
+  it('plans progression to 30 without inventing ASI slots past the table', () => {
+    const b = build({ classes: [{ classId: 'fighter', level: 20 }] });
+    expect(futureAsiSlots(b, 30)).toEqual([]);
+    expect(planProgression(b, 30).every((step) => step.slot === null)).toBe(true);
+  });
+});

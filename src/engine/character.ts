@@ -104,6 +104,18 @@ export function abilityMod(score: number): number {
   return Math.floor((score - 10) / 2);
 }
 
+/**
+ * §72: the table's ceiling. The printed game stops at 20; this app lets a
+ * long campaign keep going to 30, with an honest split in what that means:
+ * everything driven by a *formula* keeps climbing (proficiency reaches +7
+ * at 21, +8 at 25, +9 at 29; hit points, hit dice and per-level resources
+ * accrue as ever), while everything driven by a printed *table* holds its
+ * level-20 row - no new class features, spell slots, ASI slots or known
+ * spells, because there are no printed rows to read and this app does not
+ * invent rules content. Every table lookup already clamps at 20.
+ */
+export const LEVEL_CAP = 30;
+
 export function proficiencyBonus(level: number): number {
   return 2 + Math.floor((Math.max(1, level) - 1) / 4);
 }

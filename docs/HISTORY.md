@@ -5127,3 +5127,41 @@ first to prove it fails for the right reason. run69 and run70 re-run
 green: the animations ride the same render loop and lost nothing.
 
 **Gates.** 2153 tests / 100 files, tsc, oxlint, build in budget.
+
+## 72. Beyond twentieth: the cap moves to 30
+
+*"lets allow for beyond level 20 capping at level 30 for time being"*
+
+The printed game stops at 20; a long campaign now keeps going to 30, with
+an honest split in what a level past 20 means. Everything driven by a
+**formula** keeps climbing: proficiency reaches +7 at 21, +8 at 25 and +9
+at 29 (the existing `2 + floor((level−1)/4)` already said so - nothing
+was changed, only uncapped); hit points and hit dice accrue per level as
+ever; per-level resources like a monk's focus keep pace. Everything
+driven by a printed **table** holds its level-20 row: no new class
+features, spell slots, ASI slots, known spells or prepared counts,
+because there are no printed rows to read and this app does not invent
+rules content. "For the time being," as asked - if the table ever adopts
+house rules for epic boons, they belong in the originals machinery with
+provenance marked, not smuggled in here.
+
+**The engine needed almost nothing.** The audit found every table lookup
+already clamped at 20 (slots, pact magic, cantrips and spells known, the
+2024 prepared columns) or read "the highest entry at or below this level"
+(class resources, features, ASI schedules) - §21's read-from-the-table
+discipline paying out eight months later. The cap lived in exactly two
+UI inputs. `LEVEL_CAP = 30` now lives in `engine/character.ts` with the
+split documented on it; the Builder's per-class level input caps at
+whatever the other classes leave (the *character* caps at 30, not each
+class at 20), the Progression planner plans to 30, and a past-20
+character's DPR curve extends to their actual level.
+
+**Pinned.** Unit tests: the proficiency formula's epic values by name; a
+level-30 Fighter derives with more hit points than at 20 but the same ASI
+slots; a level-30 Wizard holds exactly the level-20 slot row; planning to
+30 invents no slots past the printed schedule. The probe drives the
+Builder's own input: 40 clamps to 30, the +9 shows up on the laid-out
+page with no NaN or undefined anywhere, and stepping back to 20 restores
+the printed +6.
+
+**Gates.** 2157 tests / 100 files, tsc, oxlint, build in budget.

@@ -6,7 +6,7 @@ import { CLASSES_BY_ID, classesFor, subclassLevelFor, subclassName, subclassSour
 import { featById, featsFor } from '../data/feats';
 import { RACES_BY_ID, raceLineages } from '../data/races';
 import { BACKGROUNDS_BY_ID, backgroundsFor } from '../data/backgrounds';
-import { abilityMod, racialAsi } from '../engine/character';
+import { LEVEL_CAP, abilityMod, racialAsi, totalLevel } from '../engine/character';
 import { RUN_UP_FEET, describeJump, jumpDistances, movementFor } from '../engine/movement';
 import { ARMOR, ARMOR_CATEGORY_LABEL } from '../data/armor';
 import { armorProficiencies, isProficientWith, weaponProficiencies } from '../engine/defense';
@@ -553,6 +553,15 @@ export function BuilderTab({
           {build.classes.map((entry, index) => {
             const klass = CLASSES_BY_ID[entry.classId];
             const subclass = klass.subclasses.find((s) => s.id === entry.subclassId);
+            /*
+              §72: the character caps at LEVEL_CAP (30), not each class at
+              20 - so each class's ceiling is whatever the others have left.
+              Past a class's 20th there are no new printed rows: features,
+              slots and ASIs hold at 20 while proficiency, hit points and
+              hit dice keep climbing.
+            */
+            const levelCeiling =
+              LEVEL_CAP - build.classes.reduce((sum, c, i) => (i === index ? sum : sum + c.level), 0);
             return (
               <div key={index}>
                 <div className="row">
@@ -569,11 +578,11 @@ export function BuilderTab({
                     <input
                       type="number"
                       min={1}
-                      max={20}
+                      max={levelCeiling}
                       value={entry.level}
                       onChange={(e) =>
                         setClass(index, {
-                          level: Math.max(1, Math.min(20, Number(e.target.value) || 1)),
+                          level: Math.max(1, Math.min(levelCeiling, Number(e.target.value) || 1)),
                         })
                       }
                     />
@@ -2617,8 +2626,9 @@ function DamagePanel({
     class it is measured at - and computed whichever chart is showing, because
     the alternative is a stall on every toggle.
   */
+  // §72: a character past 20 gets a curve that reaches their level.
   const byLevel = useMemo(
-    () => dprByLevel(build, dpr.targetAc),
+    () => dprByLevel(build, dpr.targetAc, Math.max(20, totalLevel(build))),
     [build, dpr.targetAc],
   );
 
@@ -2838,7 +2848,7 @@ function NextPicks({
       <p className="muted" style={{ marginTop: 0 }}>
         {unspent > 0
           ? 'Ranked for the build exactly as it stands. Click Take to apply one.'
-          : 'Nothing is unspent, so this is a preview of your next level-up. The full plan to level 20 is in the Progression panel beside this one.'}
+          : 'Nothing is unspent, so this is a preview of your next level-up. The full plan is in the Progression panel beside this one.'}
       </p>
       {suggestions.map((suggestion, index) => (
         <SuggestionCard

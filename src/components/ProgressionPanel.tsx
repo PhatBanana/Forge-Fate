@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ABILITIES } from '../types';
 import type { Build } from '../types';
+import { LEVEL_CAP } from '../engine/character';
 import type { BuildContext } from '../engine/character';
 import { describeSuggestion, planProgression } from '../engine/recommend';
 import { applyPlan, describePlannedLevels } from '../engine/plan';
@@ -28,7 +29,9 @@ export function ProgressionPanel({
   ctx: BuildContext;
   onChange: (build: Build) => void;
 }) {
-  const [maxLevel, setMaxLevel] = useState(20);
+  // §72: default to the printed game's 20, but a character already past it
+  // starts the planner at their own level. The input runs to LEVEL_CAP.
+  const [maxLevel, setMaxLevel] = useState(() => Math.max(20, ctx.totalLevel));
   const plan = useMemo(() => planProgression(build, maxLevel), [build, maxLevel]);
 
   return (
@@ -42,9 +45,11 @@ export function ProgressionPanel({
           <input
             type="number"
             min={ctx.totalLevel}
-            max={20}
+            max={LEVEL_CAP}
             value={maxLevel}
-            onChange={(e) => setMaxLevel(Math.max(1, Math.min(20, Number(e.target.value) || 20)))}
+            onChange={(e) =>
+              setMaxLevel(Math.max(1, Math.min(LEVEL_CAP, Number(e.target.value) || 20)))
+            }
           />
         </label>
         <p className="muted">

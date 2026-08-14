@@ -92,7 +92,7 @@ export function PrintSummary({ ctx }: { ctx: BuildContext }) {
         ))}
       </ul>
 
-      <h2>The plan to level 20</h2>
+      <h2>The plan ahead</h2>
       {plan.length ? (
         <table className="sheet-table">
           <thead>
