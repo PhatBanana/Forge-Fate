@@ -5210,3 +5210,44 @@ hand-built and lock the generator, erases one back out, saves the map,
 and loads it on the battle screen - one room, not a regeneration.
 
 **Gates.** 2164 tests / 100 files, tsc, oxlint, build in budget.
+
+## 74. Denizens: the monsters live in the dungeon
+
+*"The dungeon builder should allow to save layout of were enemies /
+monsters are already placed. Or set a list of possible monsters to
+encounter and then have them randomly placed in rooms / hallways."*
+
+Both authoring styles, one field: `denizens` on the saved dungeon is a
+list of monster ids, each optionally standing on a square. An entry
+*with* a square is a body placed by hand; one *without* is a wanderer -
+loaded off-map and scattered across the rooms by the same §22 deployment
+that seats everyone else, farthest-room-first, which is exactly the
+"randomly placed in rooms" the ask describes and machinery the app
+already trusted.
+
+**Authored where places are authored.** The Dungeons tab gains a
+Denizens panel over the battle's own merged catalogue - your bestiary
+first, SRD after. Pick a monster, and Place arms a stamp: each map click
+stands one on that square, drawn as a monster token on the editor map.
+Wander adds it placeless. The panel lists both kinds in plain words
+("standing at 12,8" / "wandering — placed on deploy"), Erase takes a
+standing denizen before the architecture under it, and the saved drawer
+counts them.
+
+**Loaded through the battle's own front door.** `applyDungeon` gained a
+resolver - the battle passes its merged bestiary - and spawns each
+denizen through the same `addMonster` every other monster enters by:
+real hit points, rolled initiative, the letter-labelling that makes the
+third goblin "Goblin C". Placed ones stand on their squares; wanderers
+wait for "Put everyone on the map". An id the catalogue cannot answer
+(a bestiary monster deleted since the map was saved) is skipped whole
+rather than spawned broken.
+
+**Pinned.** Store tests: placed spawn standing and wanderers placeless
+with distinct ids and true hit points; unknown ids and missing resolvers
+spawn nothing and throw nothing; denizens survive the save drawer with
+corrupt entries dropped on the way in. The probe authors the whole chain
+in both themes: search, stamp, wander, save, load on the battle screen -
+the standing goblin arrives placed, and deploy seats the wanderer.
+
+**Gates.** 2167 tests / 100 files, tsc, oxlint, build in budget.

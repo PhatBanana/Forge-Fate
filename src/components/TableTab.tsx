@@ -4615,7 +4615,7 @@ export function TableTab({
               value=""
               onChange={(e) => {
                 const saved = dungeonLibrary.find((d) => d.id === e.target.value);
-                if (saved) setEncounter(applyDungeon(encounter, saved.map));
+                if (saved) setEncounter(applyDungeon(encounter, saved.map, (id) => byId.get(id)));
               }}
             >
               <option value="">— saved in the Dungeons tab —</option>

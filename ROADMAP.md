@@ -420,3 +420,29 @@ section has gone since.
 | The game look, finished | 36-38 |
 | 5e core mechanics: grapple, light, surprise, the small rules | 39-42 |
 | Builder correctness, and the audits that found it | 43-52 |
+
+## Dungeon furniture: hidden rooms, locked doors, traps (§75, designed not built)
+
+Asked for alongside §73/§74. Not rushed in with them because each piece
+needs a *reveal* decision the map does not currently have to make - the
+battle screen is one screen both sides look at, so "the players cannot
+see this yet" has to mean something concrete:
+
+- **Locked doors** (S) - `Door` gains `locked?: boolean`; the Door tool
+  cycles door → locked → none; drawn with a bar. Purely informational at
+  the table (the DM adjudicates the pick/break), so no reveal problem.
+
+- **Hidden rooms** (M) - `Room` gains `hidden?: boolean`. The honest
+  version keeps a hidden room out of *both* renderers and out of
+  pathing/deployment until the DM reveals it (a tap on the room in the
+  editor-style Field drawer, or automatic when a wall between fog-visible
+  squares falls). Needs a small "revealed" set on the encounter, the §73
+  layout consulted by `groundCells`, and fog re-derivation on reveal.
+
+- **Traps** (M) - architecture-owned hazards: `traps?: {at, note}[]` on
+  the layout, invisible on the shared map until sprung or found, then
+  standing as the zone-hazard machinery §23 already runs. The trigger
+  (walking onto the square) can ride the same walk-settlement hook that
+  bites zones today; the *finding* (perception) stays a DM call.
+
+The §73 layout model was shaped so all three are additive fields.

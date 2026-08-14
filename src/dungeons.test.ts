@@ -111,3 +111,68 @@ describe('applyDungeon', () => {
     expect(next.log).toEqual(before.log);
   });
 });
+
+describe('denizens (§74)', () => {
+  const goblinish = (id: string) =>
+    ({
+      id,
+      name: 'Test Goblin',
+      hp: 7,
+      hpRoll: null,
+      scores: { str: 8, dex: 14, con: 10, int: 10, wis: 8, cha: 8 },
+    }) as unknown as import('./data/monsters').Monster;
+
+  it('spawns placed denizens standing and wanderers placeless', () => {
+    const map: DungeonMapFields = {
+      ...abbey(),
+      denizens: [
+        { monsterId: 'srd:goblin', at: { x: 4, y: 5 } },
+        { monsterId: 'srd:goblin' },
+      ],
+    };
+    const next = applyDungeon(emptyEncounter(), map, goblinish);
+    const spawned = next.combatants.filter((c) => c.kind === 'monster');
+    expect(spawned).toHaveLength(2);
+    expect(spawned[0].at).toEqual({ x: 4, y: 5 });
+    expect(spawned[1].at).toBeUndefined();
+    // Distinct combatants, both with their hit points standing.
+    expect(new Set(spawned.map((c) => c.id)).size).toBe(2);
+    expect(spawned.every((c) => (c as MonsterCombatant).hp === 7)).toBe(true);
+  });
+
+  it('skips a denizen the catalogue cannot answer for', () => {
+    const map: DungeonMapFields = {
+      ...abbey(),
+      denizens: [{ monsterId: 'bestiary:deleted-since' }],
+    };
+    const next = applyDungeon(emptyEncounter(), map, () => undefined);
+    expect(next.combatants).toHaveLength(0);
+    // And with no resolver at all, nothing spawns and nothing throws.
+    expect(applyDungeon(emptyEncounter(), map).combatants).toHaveLength(0);
+  });
+
+  it('keeps denizens through the save drawer, whole records or nothing', () => {
+    const map: DungeonMapFields = {
+      ...abbey(),
+      denizens: [
+        { monsterId: 'srd:goblin', at: { x: 1, y: 2 } },
+        { monsterId: 'srd:wolf' },
+      ],
+    };
+    saveDungeons(putDungeon([], 'the kennel', map));
+    const loaded = loadDungeons();
+    expect(loaded[0].map.denizens).toEqual(map.denizens);
+    // Corrupt entries are dropped on the way in, not carried.
+    saveDungeons(
+      putDungeon([], 'the kennel', {
+        ...abbey(),
+        denizens: [
+          { monsterId: 'srd:goblin' },
+          { monsterId: 42 },
+          { monsterId: 'srd:orc', at: { x: -1, y: 2 } },
+        ] as unknown as DungeonMapFields['denizens'],
+      }),
+    );
+    expect(loadDungeons()[0].map.denizens).toEqual([{ monsterId: 'srd:goblin' }]);
+  });
+});

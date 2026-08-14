@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DungeonMap } from './DungeonMap';
+import type { Token } from './DungeonMap';
+import { loadBestiary, mergeBestiary } from '../bestiary';
+import { searchMonsters } from '../data/monsters';
+import { useMonsters } from './useMonsters';
 import {
   DEFAULT_SEED,
   MAP_SIZES,
@@ -69,7 +73,7 @@ export function DungeonsTab() {
     mapRooms: 8,
   });
   const [brush, setBrush] = useState<
-    TerrainKind | 'raise' | 'lower' | 'room' | 'corridor' | 'door' | 'erase-arch' | null
+    TerrainKind | 'raise' | 'lower' | 'room' | 'corridor' | 'door' | 'erase-arch' | 'monster' | null
   >(null);
   const [hover, setHover] = useState<Square | null>(null);
   /*
@@ -80,6 +84,17 @@ export function DungeonsTab() {
   */
   const [anchor, setAnchor] = useState<Square | null>(null);
   const [stretch, setStretch] = useState<Square | null>(null);
+  /*
+    §74: the monster in hand. Picking one from the Denizens panel arms the
+    stamp - each map click stands one on that square. The catalogue is the
+    battle's own merged list, bestiary first.
+  */
+  const { monsters: srd } = useMonsters();
+  const bestiary = useMemo(() => loadBestiary(), []);
+  const monsters = useMemo(() => mergeBestiary(bestiary, srd), [bestiary, srd]);
+  const monstersById = useMemo(() => new Map(monsters.map((m) => [m.id, m])), [monsters]);
+  const [stamp, setStamp] = useState<string | null>(null);
+  const [monsterQuery, setMonsterQuery] = useState('');
   /*
     Not persisted with the draft: where you were looking is not part of the
     place you drew. Saving it would mean a dungeon loaded on the battle
@@ -121,12 +136,29 @@ export function DungeonsTab() {
       setStretch(at);
       return;
     }
+    if (brush === 'monster') {
+      if (!stamp) return;
+      setDraft((prev) => ({
+        ...prev,
+        denizens: [...(prev.denizens ?? []), { monsterId: stamp, at }],
+      }));
+      return;
+    }
     if (brush === 'door') {
       setDraft((prev) => ({ ...prev, layout: toggleDoor(editable(prev), at) }));
       return;
     }
     if (brush === 'erase-arch') {
       setDraft((prev) => {
+        // A denizen standing on the square goes first - it is the thing on
+        // top - then the architecture underneath.
+        const standing = (prev.denizens ?? []).findIndex(
+          (d) => d.at && d.at.x === at.x && d.at.y === at.y,
+        );
+        if (standing >= 0) {
+          const denizens = (prev.denizens ?? []).filter((_, i) => i !== standing);
+          return { ...prev, denizens: denizens.length ? denizens : undefined };
+        }
         const layout = editable(prev);
         const hadDoor = layout.doors.some((d) => d.x === at.x && d.y === at.y);
         const next = hadDoor
@@ -161,6 +193,24 @@ export function DungeonsTab() {
       setDraft((prev) => ({ ...prev, layout: addCorridorPath(editable(prev), from, to) }));
     }
   };
+
+  /* §74: placed denizens stand on the editor map as monster tokens. */
+  const denizenTokens = useMemo<Token[]>(
+    () =>
+      (draft.denizens ?? [])
+        .filter((d) => d.at)
+        .map((d, index) => {
+          const name = monstersById.get(d.monsterId)?.name ?? d.monsterId;
+          return {
+            id: `dz${index}`,
+            label: name.slice(0, 2).toUpperCase(),
+            at: d.at!,
+            kind: 'monster' as const,
+            title: name,
+          };
+        }),
+    [draft.denizens, monstersById],
+  );
 
   /* The ghost of the room or corridor being stretched, drawn as a zone. */
   const ghost = useMemo(() => {
@@ -210,6 +260,7 @@ export function DungeonsTab() {
         <div className="map-stage">
           <DungeonMap
             dungeon={dungeon}
+            tokens={denizenTokens}
             terrain={draft.terrain}
             elevation={draft.elevation}
             zones={ghost}
@@ -252,7 +303,9 @@ export function DungeonsTab() {
           </div>
 
           <div className="hud-legend" aria-hidden="true">
-            {brush === 'room' || brush === 'corridor'
+            {brush === 'monster'
+              ? 'Click the map to stand the picked monster there · one per click'
+              : brush === 'room' || brush === 'corridor'
               ? 'Drag from corner to corner · release to place it'
               : brush === 'door'
                 ? 'Click inside a room to place or remove a door'
@@ -392,6 +445,92 @@ export function DungeonsTab() {
             )}
           </section>
 
+          <section className="dgn-panel">
+            <h2>Denizens</h2>
+            <p className="dgn-note">
+              The monsters that live here, saved with the place. Pick one, then click the
+              map to stand it on a square — or add it as a wanderer, placed with the rest
+              when the battle deploys.
+            </p>
+            <label className="dgn-field">
+              <span>Monster</span>
+              <input
+                type="text"
+                aria-label="Search monsters"
+                placeholder="goblin"
+                value={monsterQuery}
+                onChange={(e) => setMonsterQuery(e.target.value)}
+              />
+            </label>
+            {monsterQuery.trim() && (
+              <ul className="dgn-list">
+                {searchMonsters(monsters, monsterQuery).slice(0, 6).map((m) => (
+                  <li key={m.id}>
+                    <b>{m.name}</b>
+                    <span className="dgn-row-actions">
+                      <button
+                        className={`btn btn-sm ${stamp === m.id && brush === 'monster' ? 'btn-primary' : ''}`}
+                        aria-pressed={stamp === m.id && brush === 'monster'}
+                        title="Arm the stamp, then click the map to place one per click"
+                        onClick={() => {
+                          setAnchor(null);
+                          setStretch(null);
+                          if (stamp === m.id && brush === 'monster') {
+                            setBrush(null);
+                            setStamp(null);
+                          } else {
+                            setStamp(m.id);
+                            setBrush('monster');
+                          }
+                        }}
+                      >
+                        Place
+                      </button>
+                      <button
+                        className="btn btn-sm"
+                        title="A wanderer: loaded off-map, scattered across the rooms when the battle deploys"
+                        onClick={() =>
+                          setDraft((prev) => ({
+                            ...prev,
+                            denizens: [...(prev.denizens ?? []), { monsterId: m.id }],
+                          }))
+                        }
+                      >
+                        Wander
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {(draft.denizens ?? []).length > 0 && (
+              <ul className="dgn-list">
+                {(draft.denizens ?? []).map((d, index) => (
+                  <li key={index}>
+                    <b>{monstersById.get(d.monsterId)?.name ?? d.monsterId}</b>
+                    <span className="dgn-meta">
+                      {d.at ? `standing at ${d.at.x},${d.at.y}` : 'wandering — placed on deploy'}
+                    </span>
+                    <span className="dgn-row-actions">
+                      <button
+                        className="btn btn-sm"
+                        aria-label={`Remove this ${monstersById.get(d.monsterId)?.name ?? d.monsterId}`}
+                        onClick={() =>
+                          setDraft((prev) => {
+                            const denizens = (prev.denizens ?? []).filter((_, i) => i !== index);
+                            return { ...prev, denizens: denizens.length ? denizens : undefined };
+                          })
+                        }
+                      >
+                        Remove
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
           <section className="dgn-panel dgn-library">
             <h2>Saved dungeons</h2>
             <p className="dgn-note">
@@ -426,6 +565,9 @@ export function DungeonsTab() {
                       {saved.map.layout
                         ? `hand-built · ${saved.map.layout.rooms.length} rooms · ${saved.map.mapSize}`
                         : `seed ${saved.map.mapSeed} · ${saved.map.mapSize} · ${saved.map.mapRooms} rooms`}
+                      {saved.map.denizens?.length
+                        ? ` · ${saved.map.denizens.length} ${saved.map.denizens.length === 1 ? 'denizen' : 'denizens'}`
+                        : ''}
                     </span>
                     <span className="dgn-row-actions">
                       <button
