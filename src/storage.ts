@@ -5,6 +5,7 @@ import type { PlayState } from './play';
 import { emptyEncounter, removeCombatant } from './encounter';
 import type { EncounterState } from './encounter';
 import { hydrateElevation, hydrateTerrain } from './terrain';
+import { hydrateLayout } from './engine/dungeon';
 import { hydrateZones } from './zones';
 import { emptyBuild, weaponsForProfile } from './engine/character';
 import { defaultDefenses } from './engine/defense';
@@ -213,6 +214,8 @@ function hydrateEncounter(
     terrain,
     elevation,
     zones: hydrateZones(parsed.zones),
+    // §73: a hand-built architecture, believed only as far as it verifies.
+    mapLayout: hydrateLayout(parsed.mapLayout) ?? undefined,
   };
 }
 

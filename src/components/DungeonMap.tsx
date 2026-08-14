@@ -187,6 +187,7 @@ export function DungeonMap({
   gloom,
   onMove,
   onPaint,
+  onPaintEnd,
   onHover,
   onTokenClick,
   onTokenOpen,
@@ -246,6 +247,9 @@ export function DungeonMap({
    * moving the token, not painting under it.
    */
   onPaint?: (at: Square) => void;
+  /** §73: a paint stroke ended (pointer up or gone). Lets a rectangle tool
+      commit on release rather than guessing from per-square calls. */
+  onPaintEnd?: () => void;
   /** The hovered square changed. Fired once per square, null on leaving. */
   onHover?: (at: Square | null) => void;
   /** A token was clicked without being dragged. Targeting, mostly. */
@@ -390,6 +394,7 @@ export function DungeonMap({
       onPointerUp={(e) => {
         cam.onPointerUp(e);
         dragging.current = null;
+        if (brushDown.current) onPaintEnd?.();
         brushDown.current = false;
         lastPainted.current = null;
       }}
@@ -402,6 +407,7 @@ export function DungeonMap({
         */
         if (cam.active()) return;
         dragging.current = null;
+        if (brushDown.current) onPaintEnd?.();
         brushDown.current = false;
         lastPainted.current = null;
         lastHover.current = null;

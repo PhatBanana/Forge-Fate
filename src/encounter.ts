@@ -172,6 +172,12 @@ export interface EncounterState {
   mapSize?: 'small' | 'medium' | 'large';
   mapRooms?: number;
   /**
+   * §73: a hand-built architecture, carried whole. Present, it wins over the
+   * seed - the generator is one way to start a map, not the only way to keep
+   * one. Travels with the fight for the same reason the seed does.
+   */
+  mapLayout?: import('./engine/dungeon').DungeonLayout;
+  /**
    * What the DM painted onto the map - pillars, trees, water, hand-carved
    * floor - keyed by square. On the fight for the same reason the tokens are:
    * the dungeon regenerates from its seed, but a fallen pillar is a fact about

@@ -302,3 +302,159 @@ export function generateDungeon(seed: string, options: DungeonOptions = {}): Dun
 
   return { seed, width, height, rooms: order, corridors, doors };
 }
+
+// ------------------------------------------------------- §73: custom layouts
+
+/**
+ * A dungeon's architecture as an *editable* value: the same rooms, corridors
+ * and doors a generated dungeon has, held directly instead of implied by a
+ * seed. The generator becomes one way to start; the layout is what you keep.
+ *
+ * Every edit helper below is pure - layout in, layout out - because the
+ * editor's undo story is React state and the tests want values, not effects.
+ * Two invariants are maintained the way the generator maintains them: room
+ * ids stay 1..n in west-to-east order (so "room 3" keeps meaning one), and a
+ * door always stands on a square inside a room.
+ */
+export interface DungeonLayout {
+  rooms: Room[];
+  corridors: Corridor[];
+  doors: Door[];
+}
+
+/** The generated architecture, materialised for editing. */
+export function layoutOf(dungeon: Dungeon): DungeonLayout {
+  return {
+    rooms: dungeon.rooms.map((r) => ({ ...r })),
+    corridors: dungeon.corridors.map((c) => ({ points: c.points.map((p) => ({ ...p })) })),
+    doors: dungeon.doors.map((d) => ({ ...d })),
+  };
+}
+
+/**
+ * The one constructor every consumer goes through: a hand-built layout wins;
+ * without one, the seed generates as it always has. This is what keeps the
+ * Dungeons editor, the battle screen and the deployment planner reading the
+ * same architecture from the same fields.
+ */
+export function dungeonFrom(
+  seed: string,
+  size: MapSize,
+  rooms: number,
+  layout?: DungeonLayout,
+): Dungeon {
+  const { width, height } = MAP_SIZES[size];
+  if (layout) return { seed, width, height, ...layoutOf({ seed, width, height, ...layout }) };
+  return generateDungeon(seed, { rooms, width, height });
+}
+
+/** West-to-east renumbering, the generator's own convention. */
+function renumber(rooms: Room[]): Room[] {
+  return [...rooms]
+    .sort((a, b) => a.x - b.x || a.y - b.y)
+    .map((room, i) => ({ ...room, id: i + 1 }));
+}
+
+/** Doors standing inside no room are rubble, not doors. */
+function keepLegalDoors(layout: DungeonLayout): DungeonLayout {
+  return {
+    ...layout,
+    doors: layout.doors.filter((d) => insideAny(layout.rooms, d.x, d.y)),
+  };
+}
+
+/**
+ * A room from two dragged corners, clamped to the grid. A single square is a
+ * legal room - a closet is architecture too - and overlap with an existing
+ * room is allowed on purpose: the ground is the union, which is how an
+ * L-shaped hall is drawn as two strokes.
+ */
+export function addRoom(
+  layout: DungeonLayout,
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  bounds: { width: number; height: number },
+): DungeonLayout {
+  const x0 = Math.max(0, Math.min(a.x, b.x));
+  const y0 = Math.max(0, Math.min(a.y, b.y));
+  const x1 = Math.min(bounds.width - 1, Math.max(a.x, b.x));
+  const y1 = Math.min(bounds.height - 1, Math.max(a.y, b.y));
+  if (x1 < x0 || y1 < y0) return layout;
+  const room: Room = { id: 0, x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+  return { ...layout, rooms: renumber([...layout.rooms, room]) };
+}
+
+/** Remove the room standing on this square. Doors it alone held go with it. */
+export function removeRoomAt(layout: DungeonLayout, at: { x: number; y: number }): DungeonLayout {
+  const keep = layout.rooms.filter(
+    (r) => !(at.x >= r.x && at.x < r.x + r.w && at.y >= r.y && at.y < r.y + r.h),
+  );
+  if (keep.length === layout.rooms.length) return layout;
+  return keepLegalDoors({ ...layout, rooms: renumber(keep) });
+}
+
+/**
+ * A corridor from one square to another, as the generator's own L: out along
+ * x first, then y. Doors appear where it crosses into rooms, exactly as the
+ * generator places them - the threshold square, inside the room.
+ */
+export function addCorridorPath(
+  layout: DungeonLayout,
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+): DungeonLayout {
+  const corridor: Corridor = { points: [{ ...a }, { x: b.x, y: a.y }, { ...b }] };
+  return {
+    ...layout,
+    corridors: [...layout.corridors, corridor],
+    doors: dedupe([...layout.doors, ...doorsFor(layout.rooms, corridor)]),
+  };
+}
+
+/** Remove every corridor that passes over this square. */
+export function removeCorridorAt(
+  layout: DungeonLayout,
+  at: { x: number; y: number },
+): DungeonLayout {
+  const keep = layout.corridors.filter(
+    (c) => !corridorSquares(c).some((s) => s.x === at.x && s.y === at.y),
+  );
+  if (keep.length === layout.corridors.length) return layout;
+  return { ...layout, corridors: keep };
+}
+
+/** Place or remove a door. Refused outside a room - a door needs a wall. */
+export function toggleDoor(layout: DungeonLayout, at: { x: number; y: number }): DungeonLayout {
+  const existing = layout.doors.filter((d) => !(d.x === at.x && d.y === at.y));
+  if (existing.length !== layout.doors.length) return { ...layout, doors: existing };
+  if (!insideAny(layout.rooms, at.x, at.y)) return layout;
+  return { ...layout, doors: [...layout.doors, { x: at.x, y: at.y }] };
+}
+
+/**
+ * A stored layout, believed only as far as it verifies - the start-up
+ * discipline every store hydrator follows. Null for anything malformed.
+ */
+export function hydrateLayout(raw: unknown): DungeonLayout | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const layout = raw as Partial<DungeonLayout>;
+  const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+  const point = (p: unknown): p is { x: number; y: number } =>
+    !!p && typeof p === 'object' && num((p as { x: unknown }).x) && num((p as { y: unknown }).y);
+  if (!Array.isArray(layout.rooms) || !Array.isArray(layout.corridors) || !Array.isArray(layout.doors)) {
+    return null;
+  }
+  const rooms = layout.rooms.filter(
+    (r): r is Room => point(r) && num((r as Room).w) && num((r as Room).h) && num((r as Room).id),
+  );
+  const corridors = layout.corridors.filter(
+    (c): c is Corridor =>
+      !!c &&
+      typeof c === 'object' &&
+      Array.isArray((c as Corridor).points) &&
+      (c as Corridor).points.length === 3 &&
+      (c as Corridor).points.every(point),
+  );
+  const doors = layout.doors.filter(point);
+  return { rooms, corridors, doors };
+}

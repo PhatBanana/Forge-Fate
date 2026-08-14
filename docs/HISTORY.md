@@ -5165,3 +5165,48 @@ page with no NaN or undefined anywhere, and stepping back to 20 restores
 the printed +6.
 
 **Gates.** 2157 tests / 100 files, tsc, oxlint, build in budget.
+
+## 73. Custom rooms: the Dungeon builder stops being generator-only
+
+*"The Dungeon builder should allow for custom rooms. Instead of just a
+random generator."*
+
+The Dungeons tab could paint terrain over a generated map but never touch
+the architecture: rooms were consequences of a seed. Now they are values.
+`DungeonLayout` holds rooms, corridors and doors directly; the first
+architectural edit materialises the generated layout into the draft
+(`layoutOf`), and from then on the generator is just how the map started.
+Every consumer goes through one constructor - `dungeonFrom(seed, size,
+rooms, layout?)` - where a hand-built layout wins and the seed generates
+only in its absence, which is what keeps the editor, the battle screen
+and the deployment planner reading the same architecture.
+
+**Four tools, one gesture language.** Room and Corridor drag from corner
+to corner - the map gained `onPaintEnd`, so a stretch commits on release
+and a ghost zone previews it mid-drag. Door clicks a square (refused in
+the void: a door needs a wall). Erase takes a door first, then the room
+under the click, then any corridor through it. The edit helpers are pure
+layout-in/layout-out functions in `engine/dungeon.ts`, holding the
+generator's own invariants: room ids stay 1..n west-to-east, and a
+hand-drawn corridor doors itself at the threshold square exactly as a
+generated one does - same `doorsFor`, not a copy.
+
+**The layout travels.** It persists in the dungeons drawer
+(`DungeonMapFields.layout`, hydrated whole-or-nothing like everything
+else), crosses onto the live encounter when the battle loads the map
+(`EncounterState.mapLayout` via `applyDungeon`), and survives a refresh
+through the same storage hydration the seed does. While a layout stands,
+the seed inputs are disabled rather than lying - "Back to the generator"
+drops it deliberately. Both the panel and the battle's Field drawer say
+"Hand-built · N rooms" instead of quoting a seed that no longer applies.
+
+**Pinned.** Unit tests: corner normalisation and grid clamping, the
+1-square closet, west-to-east renumbering across add and erase, orphaned
+doors dropped with their room, the corridor's auto-doors landing inside
+rooms, door-in-the-void refused, layout-beats-seed and the
+materialise round-trip, and whole-or-nothing hydration. The probe drags
+real rooms onto the real map in both themes, watches the panel flip to
+hand-built and lock the generator, erases one back out, saves the map,
+and loads it on the battle screen - one room, not a regeneration.
+
+**Gates.** 2164 tests / 100 files, tsc, oxlint, build in budget.

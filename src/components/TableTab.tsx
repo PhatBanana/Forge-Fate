@@ -151,7 +151,7 @@ import type { Token } from './DungeonMap';
 import { GlIsoMap } from './GlIsoMap';
 import { read, write } from '../persist';
 import { canUseWebGl } from '../engine/gl/context';
-import { DEFAULT_SEED, MAP_SIZES, generateDungeon } from '../engine/dungeon';
+import { DEFAULT_SEED, dungeonFrom } from '../engine/dungeon';
 import { CharacterSheet } from './CharacterSheet';
 
 /**
@@ -535,9 +535,12 @@ export function TableTab({
   const seed = encounter.mapSeed ?? DEFAULT_SEED;
   const size = encounter.mapSize ?? 'medium';
   const rooms = encounter.mapRooms ?? 8;
+  // §73: a hand-built layout, when the loaded dungeon carries one, wins over
+  // the generator - the same rule the Dungeons editor lives by.
+  const layout = encounter.mapLayout;
   const dungeon = useMemo(
-    () => generateDungeon(seed, { rooms, ...MAP_SIZES[size] }),
-    [seed, rooms, size],
+    () => dungeonFrom(seed, size, rooms, layout),
+    [seed, rooms, size, layout],
   );
 
   const paintAt = (at: Square) => {
@@ -4629,7 +4632,9 @@ export function TableTab({
       <p className="muted" style={{ margin: '0 0 8px' }}>
         {dungeon.rooms.length === 0
           ? 'A blank grid. Each square is 5 ft.'
-          : `Seed ${seed} · ${dungeon.rooms.length} rooms · each square is 5 ft.`}
+          : layout
+            ? `Hand-built · ${dungeon.rooms.length} ${dungeon.rooms.length === 1 ? 'room' : 'rooms'} · each square is 5 ft.`
+            : `Seed ${seed} · ${dungeon.rooms.length} rooms · each square is 5 ft.`}
       </p>
 
       <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>

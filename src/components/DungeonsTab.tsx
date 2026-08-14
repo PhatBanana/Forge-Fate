@@ -3,10 +3,17 @@ import { DungeonMap } from './DungeonMap';
 import {
   DEFAULT_SEED,
   MAP_SIZES,
-  generateDungeon,
+  addCorridorPath,
+  addRoom,
+  corridorSquares,
+  dungeonFrom,
+  layoutOf,
   randomSeed,
+  removeCorridorAt,
+  removeRoomAt,
+  toggleDoor,
 } from '../engine/dungeon';
-import type { MapSize } from '../engine/dungeon';
+import type { DungeonLayout, MapSize } from '../engine/dungeon';
 import { MAX_SCALE, WHOLE_MAP, clampCamera } from '../engine/camera';
 import type { Camera } from '../engine/camera';
 import { TERRAIN, paint, step } from '../terrain';
@@ -61,8 +68,18 @@ export function DungeonsTab() {
     mapSize: 'medium',
     mapRooms: 8,
   });
-  const [brush, setBrush] = useState<TerrainKind | 'raise' | 'lower' | null>(null);
+  const [brush, setBrush] = useState<
+    TerrainKind | 'raise' | 'lower' | 'room' | 'corridor' | 'door' | 'erase-arch' | null
+  >(null);
   const [hover, setHover] = useState<Square | null>(null);
+  /*
+    §73: a two-corner tool mid-gesture. The room and corridor tools anchor on
+    the first painted square, stretch with the stroke, and commit on release
+    - the map's onPaintEnd. Held as state (not a ref) because the ghost
+    preview renders from it.
+  */
+  const [anchor, setAnchor] = useState<Square | null>(null);
+  const [stretch, setStretch] = useState<Square | null>(null);
   /*
     Not persisted with the draft: where you were looking is not part of the
     place you drew. Saving it would mean a dungeon loaded on the battle
@@ -71,13 +88,23 @@ export function DungeonsTab() {
   const [camera, setCamera] = useState<Camera>(WHOLE_MAP);
 
   const dungeon = useMemo(
-    () =>
-      generateDungeon(draft.mapSeed, {
-        rooms: draft.mapRooms,
-        ...MAP_SIZES[draft.mapSize],
-      }),
-    [draft.mapSeed, draft.mapRooms, draft.mapSize],
+    () => dungeonFrom(draft.mapSeed, draft.mapSize, draft.mapRooms, draft.layout),
+    [draft.mapSeed, draft.mapRooms, draft.mapSize, draft.layout],
   );
+  const bounds = MAP_SIZES[draft.mapSize];
+
+  /*
+    §73: the first architectural edit materialises the generated layout into
+    the draft, and from then on the rooms are values being edited rather than
+    consequences of a seed. The generator is one way to start; the layout is
+    what you keep.
+  */
+  /*
+    Always through `prev`, never the render's draft: a drag can land several
+    edits in one React batch, and reading the render's layout would hand each
+    of them the same starting point - only the last would survive.
+  */
+  const editable = (prev: DungeonMapFields): DungeonLayout => prev.layout ?? layoutOf(dungeon);
 
   // The last mark erased leaves no empty object behind, so "painted at all"
   // stays a truthy question and Clear all appears only when there is
@@ -87,6 +114,30 @@ export function DungeonsTab() {
 
   const paintAt = (at: Square) => {
     if (!brush) return;
+    // §73: the architecture tools. Room and corridor stretch from an anchor
+    // and commit on release; door and erase act square by square.
+    if (brush === 'room' || brush === 'corridor') {
+      if (!anchor) setAnchor(at);
+      setStretch(at);
+      return;
+    }
+    if (brush === 'door') {
+      setDraft((prev) => ({ ...prev, layout: toggleDoor(editable(prev), at) }));
+      return;
+    }
+    if (brush === 'erase-arch') {
+      setDraft((prev) => {
+        const layout = editable(prev);
+        const hadDoor = layout.doors.some((d) => d.x === at.x && d.y === at.y);
+        const next = hadDoor
+          ? { ...layout, doors: layout.doors.filter((d) => !(d.x === at.x && d.y === at.y)) }
+          : removeRoomAt(layout, at) !== layout
+            ? removeRoomAt(layout, at)
+            : removeCorridorAt(layout, at);
+        return { ...prev, layout: next };
+      });
+      return;
+    }
     setDraft((prev) =>
       brush === 'raise' || brush === 'lower'
         ? {
@@ -96,6 +147,48 @@ export function DungeonsTab() {
         : { ...prev, terrain: occupied(paint(prev.terrain ?? {}, at, brush)) },
     );
   };
+
+  /* The release that commits a stretched room or corridor. */
+  const paintEnd = () => {
+    if (!anchor) return;
+    const from = anchor;
+    const to = stretch ?? anchor;
+    setAnchor(null);
+    setStretch(null);
+    if (brush === 'room') {
+      setDraft((prev) => ({ ...prev, layout: addRoom(editable(prev), from, to, bounds) }));
+    } else if (brush === 'corridor') {
+      setDraft((prev) => ({ ...prev, layout: addCorridorPath(editable(prev), from, to) }));
+    }
+  };
+
+  /* The ghost of the room or corridor being stretched, drawn as a zone. */
+  const ghost = useMemo(() => {
+    if (!anchor || !brush) return [];
+    const to = stretch ?? anchor;
+    const squares: Square[] = [];
+    if (brush === 'room') {
+      for (let x = Math.min(anchor.x, to.x); x <= Math.max(anchor.x, to.x); x++) {
+        for (let y = Math.min(anchor.y, to.y); y <= Math.max(anchor.y, to.y); y++) {
+          squares.push({ x, y });
+        }
+      }
+    } else if (brush === 'corridor') {
+      squares.push(...corridorSquares({ points: [anchor, { x: to.x, y: anchor.y }, to] }));
+    } else {
+      return [];
+    }
+    return [
+      { id: 'ghost', label: brush === 'room' ? 'New room' : 'New corridor', tint: 2, origin: anchor, squares, ghost: true },
+    ];
+  }, [anchor, stretch, brush]);
+
+  const architecture: { id: 'room' | 'corridor' | 'door' | 'erase-arch'; label: string; title: string }[] = [
+    { id: 'room', label: 'Room', title: 'Drag a rectangle to add a room. A single square is a closet.' },
+    { id: 'corridor', label: 'Corridor', title: 'Drag from one square to another; the corridor takes an L, doors appear where it meets rooms.' },
+    { id: 'door', label: 'Door', title: 'Click a square inside a room to place or remove a door.' },
+    { id: 'erase-arch', label: 'Erase', title: 'Click to remove — a door first, then the room under the click, then any corridor through it.' },
+  ];
 
   const brushes: { id: TerrainKind | 'raise' | 'lower'; label: string; title: string }[] = [
     ...TERRAIN.map((t) => ({
@@ -119,7 +212,9 @@ export function DungeonsTab() {
             dungeon={dungeon}
             terrain={draft.terrain}
             elevation={draft.elevation}
+            zones={ghost}
             onPaint={paintAt}
+            onPaintEnd={paintEnd}
             onHover={setHover}
             cursor={brush ? hover : null}
             camera={camera}
@@ -157,9 +252,15 @@ export function DungeonsTab() {
           </div>
 
           <div className="hud-legend" aria-hidden="true">
-            {brush
-              ? 'Click or drag to paint · painting the same thing again removes it'
-              : 'Pick a brush to start painting'}
+            {brush === 'room' || brush === 'corridor'
+              ? 'Drag from corner to corner · release to place it'
+              : brush === 'door'
+                ? 'Click inside a room to place or remove a door'
+                : brush === 'erase-arch'
+                  ? 'Click a door, room or corridor to remove it'
+                  : brush
+                    ? 'Click or drag to paint · painting the same thing again removes it'
+                    : 'Pick a tool to start building'}
             {' · '}
             right-drag or wheel moves the camera
           </div>
@@ -172,6 +273,23 @@ export function DungeonsTab() {
           a row - the drawing is wider than it is tall.
         */}
         <aside className="dgn-rail" aria-label="Terrain brushes">
+          <h2 className="dgn-rail-title">Rooms</h2>
+          {architecture.map((b) => (
+            <button
+              key={b.id}
+              type="button"
+              className={`brush ${brush === b.id ? 'is-on' : ''}`}
+              aria-pressed={brush === b.id}
+              title={b.title}
+              onClick={() => {
+                setAnchor(null);
+                setStretch(null);
+                setBrush(brush === b.id ? null : b.id);
+              }}
+            >
+              {b.label}
+            </button>
+          ))}
           <h2 className="dgn-rail-title">Brushes</h2>
           {brushes.map((b) => (
             <button
@@ -211,11 +329,13 @@ export function DungeonsTab() {
                 type="text"
                 aria-label="Map seed"
                 value={draft.mapSeed}
+                disabled={!!draft.layout}
                 onChange={(e) => setDraft((prev) => ({ ...prev, mapSeed: e.target.value }))}
               />
             </label>
             <button
               className="btn btn-sm btn-primary dgn-wide"
+              disabled={!!draft.layout}
               onClick={() => setDraft((prev) => ({ ...prev, mapSeed: randomSeed() }))}
             >
               Another one
@@ -225,6 +345,7 @@ export function DungeonsTab() {
                 <span>Size</span>
                 <select
                   aria-label="Map size"
+                  disabled={!!draft.layout}
                   value={draft.mapSize}
                   onChange={(e) =>
                     setDraft((prev) => ({ ...prev, mapSize: e.target.value as MapSize }))
@@ -242,6 +363,7 @@ export function DungeonsTab() {
                   min={0}
                   max={16}
                   aria-label="How many rooms — zero is a blank grid to build on"
+                  disabled={!!draft.layout}
                   value={draft.mapRooms}
                   onChange={(e) =>
                     setDraft((prev) => ({
@@ -253,10 +375,21 @@ export function DungeonsTab() {
               </label>
             </div>
             <p className="dgn-note">
-              {dungeon.rooms.length === 0
-                ? 'A blank grid — paint floor and walls to build your own. Each square is 5 ft.'
-                : `${dungeon.rooms.length} rooms · each square is 5 ft.`}
+              {draft.layout
+                ? `Hand-built — ${dungeon.rooms.length} ${dungeon.rooms.length === 1 ? 'room' : 'rooms'}, yours to edit. The seed no longer applies.`
+                : dungeon.rooms.length === 0
+                  ? 'A blank grid — draw rooms with the Room tool, or paint floor square by square. Each square is 5 ft.'
+                  : `${dungeon.rooms.length} rooms · each square is 5 ft. The first Room, Door or Erase stroke makes them yours to edit.`}
             </p>
+            {draft.layout && (
+              <button
+                className="btn btn-sm dgn-wide"
+                title="Drop the hand-built layout and let the seed generate again"
+                onClick={() => setDraft((prev) => ({ ...prev, layout: undefined }))}
+              >
+                Back to the generator
+              </button>
+            )}
           </section>
 
           <section className="dgn-panel dgn-library">
@@ -290,7 +423,9 @@ export function DungeonsTab() {
                   <li key={saved.id}>
                     <b>{saved.name}</b>
                     <span className="dgn-meta">
-                      seed {saved.map.mapSeed} · {saved.map.mapSize} · {saved.map.mapRooms} rooms
+                      {saved.map.layout
+                        ? `hand-built · ${saved.map.layout.rooms.length} rooms · ${saved.map.mapSize}`
+                        : `seed ${saved.map.mapSeed} · ${saved.map.mapSize} · ${saved.map.mapRooms} rooms`}
                     </span>
                     <span className="dgn-row-actions">
                       <button

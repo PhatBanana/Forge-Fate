@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addCorridorPath,
+  addRoom,
   corridorSquares,
+  dungeonFrom,
   generateDungeon,
+  hydrateLayout,
+  layoutOf,
   makeRng,
   randomSeed,
+  removeCorridorAt,
+  removeRoomAt,
   seedFrom,
+  toggleDoor,
 } from './dungeon';
 import type { Dungeon, Room } from './dungeon';
 
@@ -232,5 +240,98 @@ describe('the blank grid', () => {
     expect(blank.doors).toEqual([]);
     expect(blank.width).toBe(30);
     expect(blank.height).toBe(20);
+  });
+});
+
+describe('custom layouts (§73)', () => {
+  const blank = { rooms: [], corridors: [], doors: [] };
+  const bounds = { width: 20, height: 15 };
+
+  it('adds a room from any two corners, clamped to the grid', () => {
+    // Dragged backwards and half off the map: still the same normalised room.
+    const layout = addRoom(blank, { x: 25, y: 12 }, { x: 16, y: 4 }, bounds);
+    expect(layout.rooms).toEqual([{ id: 1, x: 16, y: 4, w: 4, h: 9 }]);
+    // A single square is a legal closet.
+    const closet = addRoom(blank, { x: 3, y: 3 }, { x: 3, y: 3 }, bounds);
+    expect(closet.rooms[0]).toMatchObject({ w: 1, h: 1 });
+    // Entirely off the map adds nothing.
+    expect(addRoom(blank, { x: 30, y: 2 }, { x: 40, y: 5 }, bounds)).toBe(blank);
+  });
+
+  it('keeps room ids 1..n west-to-east, the generator\'s own convention', () => {
+    let layout = addRoom(blank, { x: 10, y: 0 }, { x: 12, y: 2 }, bounds);
+    layout = addRoom(layout, { x: 0, y: 0 }, { x: 2, y: 2 }, bounds);
+    expect(layout.rooms.map((r) => [r.id, r.x])).toEqual([[1, 0], [2, 10]]);
+    // Removing the western room renumbers the survivor back to 1.
+    const after = removeRoomAt(layout, { x: 1, y: 1 });
+    expect(after.rooms).toEqual([{ id: 1, x: 10, y: 0, w: 3, h: 3 }]);
+  });
+
+  it('drops doors whose room went with the erase', () => {
+    let layout = addRoom(blank, { x: 0, y: 0 }, { x: 4, y: 4 }, bounds);
+    layout = toggleDoor(layout, { x: 2, y: 4 });
+    expect(layout.doors).toHaveLength(1);
+    const after = removeRoomAt(layout, { x: 2, y: 2 });
+    expect(after.rooms).toHaveLength(0);
+    expect(after.doors).toHaveLength(0);
+  });
+
+  it('runs a corridor as an L and doors it where it enters rooms', () => {
+    let layout = addRoom(blank, { x: 0, y: 0 }, { x: 3, y: 3 }, bounds);
+    layout = addRoom(layout, { x: 10, y: 8 }, { x: 13, y: 11 }, bounds);
+    layout = addCorridorPath(layout, { x: 2, y: 2 }, { x: 11, y: 9 });
+    expect(layout.corridors).toHaveLength(1);
+    // The generator's own invariant: every door stands inside a room, at the
+    // square whose neighbour along the corridor is outside.
+    expect(layout.doors.length).toBeGreaterThan(0);
+    for (const door of layout.doors) {
+      expect(
+        layout.rooms.some(
+          (r) => door.x >= r.x && door.x < r.x + r.w && door.y >= r.y && door.y < r.y + r.h,
+        ),
+      ).toBe(true);
+    }
+    // Erasing anywhere along it removes the whole corridor.
+    const gone = removeCorridorAt(layout, { x: 11, y: 2 });
+    expect(gone.corridors).toHaveLength(0);
+  });
+
+  it('refuses a door in the void, and toggles one on a floor', () => {
+    const layout = addRoom(blank, { x: 0, y: 0 }, { x: 2, y: 2 }, bounds);
+    expect(toggleDoor(layout, { x: 9, y: 9 })).toBe(layout);
+    const on = toggleDoor(layout, { x: 1, y: 1 });
+    expect(on.doors).toEqual([{ x: 1, y: 1 }]);
+    expect(toggleDoor(on, { x: 1, y: 1 }).doors).toHaveLength(0);
+  });
+
+  it('lets a hand-built layout win over the seed, and only then', () => {
+    const generated = dungeonFrom('first light', 'medium', 8);
+    expect(generated).toEqual(generateDungeon('first light', { rooms: 8, ...{ width: 48, height: 36 } }));
+    const layout = addRoom(blank, { x: 1, y: 1 }, { x: 6, y: 5 }, { width: 48, height: 36 });
+    const custom = dungeonFrom('first light', 'medium', 8, layout);
+    expect(custom.rooms).toHaveLength(1);
+    expect(custom.width).toBe(48);
+    // The materialise round-trip: a generated dungeon's layout rebuilds it.
+    const roundTrip = dungeonFrom('first light', 'medium', 8, layoutOf(generated));
+    expect(roundTrip.rooms).toEqual(generated.rooms);
+    expect(roundTrip.doors).toEqual(generated.doors);
+  });
+
+  it('hydrates only what verifies, whole records or nothing', () => {
+    const layout = addCorridorPath(
+      addRoom(blank, { x: 0, y: 0 }, { x: 3, y: 3 }, bounds),
+      { x: 1, y: 1 },
+      { x: 8, y: 8 },
+    );
+    expect(hydrateLayout(JSON.parse(JSON.stringify(layout)))).toEqual(layout);
+    expect(hydrateLayout(null)).toBeNull();
+    expect(hydrateLayout({ rooms: 'nope' })).toBeNull();
+    // A corrupt room is dropped; the legal corridor survives.
+    const dirty = hydrateLayout({
+      rooms: [{ id: 1, x: 0, y: 0, w: 'wide', h: 2 }],
+      corridors: layout.corridors,
+      doors: [{ x: 1 }],
+    });
+    expect(dirty).toEqual({ rooms: [], corridors: layout.corridors, doors: [] });
   });
 });

@@ -1,4 +1,6 @@
 import type { EncounterState } from './encounter';
+import type { DungeonLayout } from './engine/dungeon';
+import { hydrateLayout } from './engine/dungeon';
 import type { ElevationMap, TerrainMap } from './terrain';
 import { hydrateElevation, hydrateTerrain } from './terrain';
 import { newId } from './storage';
@@ -26,6 +28,8 @@ export interface DungeonMapFields {
   mapRooms: number;
   terrain?: TerrainMap;
   elevation?: ElevationMap;
+  /** §73: a hand-built architecture. Present, it wins over the generator. */
+  layout?: DungeonLayout;
 }
 
 export interface SavedDungeon {
@@ -77,6 +81,7 @@ function hydrateSaved(parsed: unknown): SavedDungeon | null {
           : 8,
       terrain: hydrateTerrain(map.terrain),
       elevation: hydrateElevation(map.elevation),
+      layout: hydrateLayout(map.layout) ?? undefined,
     },
   };
 }
@@ -116,6 +121,7 @@ export function applyDungeon(encounter: EncounterState, map: DungeonMapFields): 
     mapSeed: map.mapSeed,
     mapSize: map.mapSize,
     mapRooms: map.mapRooms,
+    mapLayout: map.layout,
     terrain: map.terrain,
     elevation: map.elevation,
     zones: undefined,
