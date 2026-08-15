@@ -82,6 +82,9 @@ const enterBattle = async (page, theme) => {
   await page.waitForTimeout(400);
   await page.getByRole('button', { name: /show me an example/i }).first().click();
   await page.waitForTimeout(900);
+  // §77 lands the example in the Builder; these flows start from the hub.
+  await page.locator('.gbar-home').first().click();
+  await page.waitForTimeout(500);
   await page.getByRole('button', { name: /run a battle|resume the fight/i }).first().click();
   await page.waitForTimeout(1200);
   // Somebody on the board, so there is a pawn to draw and click.

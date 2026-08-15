@@ -32,6 +32,9 @@ for (const theme of ['dark', 'light']) {
   await page.waitForTimeout(400);
   await page.getByRole('button', { name: /show me an example/i }).first().click();
   await page.waitForTimeout(600);
+  // §77 lands the example in the Builder; these flows start from the hub.
+  await page.locator('.gbar-home').first().click();
+  await page.waitForTimeout(500);
   // The wizard lands on the menu, not on the Builder. Two probes ago this step
   // was missing and every check below was reading the title screen.
   await page.getByRole('button', { name: /build a character/i }).first().click();

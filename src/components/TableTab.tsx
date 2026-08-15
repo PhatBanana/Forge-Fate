@@ -219,6 +219,7 @@ export function TableTab({
   onSheet,
   pendingDungeonId,
   onPendingDungeonDone,
+  aside,
 }: {
   roster: Roster;
   onChange: (roster: Roster) => void;
@@ -260,6 +261,9 @@ export function TableTab({
    */
   pendingDungeonId?: string | null;
   onPendingDungeonDone?: () => void;
+  /** §78: the theme toggle, passed in like the title screen's corner takes
+      it - the battle wears no gbar, so the command bar carries it. */
+  aside?: React.ReactNode;
 }) {
   const { monsters: srd, loading } = useMonsters();
 
@@ -6043,6 +6047,7 @@ export function TableTab({
               Menu
             </button>
           )}
+          {aside && <span className="btl-aside">{aside}</span>}
         </nav>
       </div>
 

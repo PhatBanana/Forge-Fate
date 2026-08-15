@@ -783,6 +783,10 @@ export default function App() {
                 Battle →
               </button>
             )}
+            {/* §78: the theme lived only on the title and setup screens, so
+                switching it from a desk screen meant a trip home. It rides
+                the bar every screen already wears. */}
+            <ThemeToggle choice={themeChoice} onChange={chooseTheme} />
           </span>
         </header>
       )}
@@ -868,6 +872,7 @@ export default function App() {
             onSheet={() => setTab('sheet')}
             pendingDungeonId={pendingDungeon}
             onPendingDungeonDone={() => setPendingDungeon(null)}
+            aside={<ThemeToggle choice={themeChoice} onChange={chooseTheme} />}
           />
         )}
         {tab === 'characters' && (

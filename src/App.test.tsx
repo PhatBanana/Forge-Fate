@@ -252,6 +252,18 @@ describe('hub and spoke', () => {
     expect(screen.getByRole('button', { name: /run a battle/i })).toBeInTheDocument();
   });
 
+  it('carries the theme toggle on every screen, not only the title (§78)', async () => {
+    await toMenu();
+    await userEvent.click(screen.getByRole('button', { name: /build a character/i }));
+    expect(screen.getByRole('group', { name: /colour theme/i })).toBeInTheDocument();
+
+    // And on the battle, whose bar has no gbar to ride.
+    await userEvent.click(screen.getByRole('button', { name: /forge\s*&\s*fate/i }));
+    await userEvent.click(screen.getByRole('button', { name: /run a battle/i }));
+    await screen.findByRole('button', { name: 'Menu' });
+    expect(screen.getByRole('group', { name: /colour theme/i })).toBeInTheDocument();
+  });
+
   it('flips between the Builder and the sheet without a trip through the menu', async () => {
     await toMenu();
     await userEvent.click(screen.getByRole('button', { name: /build a character/i }));

@@ -5408,3 +5408,54 @@ roster; example lands on the example - then walks the pitch and the
 door in both.
 
 **Gates.** 2181 tests / 101 files, tsc, oxlint, build in budget.
+
+## 78. Tablet reach: nothing unreachable, everything pressable
+
+*The §75 audit's responsive tranche, scoped to what the table actually
+uses: a DM's laptop and the tablets beside it. Phones stay a non-goal.*
+
+**The game bar stops clipping its own navigation.** `.app` is
+overflow: hidden and the gbar sits outside the scroll region, so
+anything past the viewport edge simply vanished - no scrollbar, no
+hint. The Builder's five actions plus the wordmark ran ~725px, which is
+how "Battle →" disappeared on a tablet in portrait: the same defect
+class §75 fixed on the battle bar, one floor up. The bar and its action
+cluster wrap now; a second short row beats a clipped one anywhere.
+
+**§75's camera dodge learns where the drawer went.** Below 900px the
+drawer bottom-docks, but the `:has()` offset still fired - shoving the
+camera cluster ~250px right, half off a portrait screen, to dodge a
+panel that was not on the left edge. Nulled inside the same media block
+that moves the drawer.
+
+**Fingers get finger-sized targets.** The `pointer: coarse` branch
+§38 gave the sheet's pips now has an app-wide sibling: `.btn-sm` (the
+only button style in the gbar, the initiative rows and the saved-map
+rows, ~24px tall), `.chip-btn`, the subtabs, the camera segments and
+the battle commands all grow to ~40-44px hit targets under touch, via
+padding and min-height so a mouse sees exactly what it saw before.
+
+**The Builder's rail leads the single column.** Below 940px the rail -
+"At a glance" and the "Next choices" jump links, the readouts the whole
+design leans on - stacked *after* the form, three screens down. `order`
+on the grid child puts it first; the jump links then make the form one
+tap away. CSS order rather than a markup move because `.columns` is
+shared with Import and the Bestiary, where the natural order is already
+right.
+
+**The theme goes where you are.** The toggle lived on the title and
+setup screens only; switching from a desk screen meant a trip home. It
+rides the gbar on every desk screen now, and the battle's command bar -
+which wears no gbar - carries it at the far end.
+
+**Pinned.** The App suite asserts the toggle on the Builder and the
+battle. The probe grows the harness: alongside 1360×900 both themes, a
+1024×768 context and an 834×1112 touch context (device emulation makes
+`pointer: coarse` real) assert every gbar button inside the viewport,
+finger-sized buttons, the rail leading the column, and the camera
+cluster staying on the left edge with a drawer open. §77's new landing
+also meant every older probe that navigated from the hub after "show me
+an example" gained one wordmark step home - eighteen probes patched,
+run75-77 re-run green.
+
+**Gates.** 2181 tests / 101 files, tsc, oxlint, build in budget.

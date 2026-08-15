@@ -268,6 +268,17 @@ button {
   padding: 8px 20px;
   border-bottom: 1px solid var(--border-soft);
   background: var(--bg-sunken);
+  /*
+    §78: the bar must never clip its own navigation. `.app` is
+    overflow: hidden and this bar is a sibling of the scroll region, so
+    without wrapping, anything past the viewport edge was simply gone - no
+    scrollbar, no hint. The Builder's five actions plus the wordmark ran
+    ~725px, which is how "Battle →" vanished on a tablet in portrait. The
+    same defect class §75 fixed on .btl-bar; here the bar can grow a second
+    row instead, because the desk screens scroll and the map does not.
+  */
+  flex-wrap: wrap;
+  row-gap: 4px;
 }
 
 .gbar-home {
@@ -307,10 +318,13 @@ button {
   display: flex;
   gap: 6px;
   align-items: center;
+  /* §78: actions may wrap within their own cluster too - two short rows on
+     a narrow screen beat one clipped row anywhere. */
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .theme-toggle {
-  margin-left: auto;
   display: flex;
   gap: 2px;
   padding: 2px;
@@ -471,6 +485,18 @@ button {
 @media (max-width: 940px) {
   .columns, .columns-wide {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /*
+    §78: single-column order puts the rail first, not last. The rail leads
+    with "At a glance" and "Next choices" - the summary and the where-to-go
+    links the whole Builder design leans on - and stacking it after the form
+    buried both under three screens of pickers on a tablet. `order` rather
+    than a markup move because `.columns` is shared with Import and the
+    Bestiary, where the natural order is already right.
+  */
+  .columns > .rail {
+    order: -1;
   }
 }
 
@@ -3952,6 +3978,45 @@ dl.detail-list {
 
   .cs .cs-conditions {
     gap: 6px;
+  }
+}
+
+/*
+  §78: fingers everywhere else, too. The block above grew the sheet's own
+  pips when §38 met its first tablet; the rest of the app kept mouse-sized
+  targets - .btn-sm is ~24px tall and it is the ONLY button style in the
+  game bar, the initiative rows and the saved-dungeon rows. Under a coarse
+  pointer the small controls grow to ~44px hit targets via padding and
+  min-height; the type does not change size, so nothing reflows for a mouse
+  and the printed page never sees this block at all.
+*/
+@media (pointer: coarse) {
+  .btn-sm {
+    min-height: 40px;
+    padding: 9px 12px;
+  }
+
+  .chip-btn {
+    min-height: 40px;
+    padding: 9px 16px;
+  }
+
+  .subtabs button {
+    min-height: 40px;
+    padding: 9px 14px;
+  }
+
+  .hud-cam .seg button {
+    min-height: 38px;
+    padding: 8px 12px;
+  }
+
+  .btl-cmd {
+    min-height: 44px;
+  }
+
+  .theme-toggle button {
+    padding: 8px 12px;
   }
 }
 
@@ -7589,6 +7654,15 @@ dl.detail-list {
   margin-left: auto;
 }
 
+/* §78: the theme toggle rides at the bar's far end - the battle wears no
+   game bar, and a theme switch should never cost a trip to the menu. */
+.btl-aside {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+}
+
 .btl-cmd:hover {
   color: #f2ede2;
   border-color: rgba(242, 237, 226, 0.5);
@@ -7633,6 +7707,16 @@ dl.detail-list {
     bottom: 54px;
     width: auto;
     height: 52%;
+  }
+
+  /*
+    §78: §75's camera dodge assumes the drawer owns the left edge. Down
+    here the drawer is bottom-docked, so the dodge would shove the camera
+    cluster ~250px right - half off a portrait tablet - to avoid a panel
+    that is not there.
+  */
+  .btl-stage:has(.btl-drawer) .hud-cam {
+    left: 10px;
   }
 }
 
