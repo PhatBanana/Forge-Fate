@@ -5527,3 +5527,87 @@ reads the computed accent ink, finds the live region and the canvas
 summary, and runs the board under emulated reduced motion.
 
 **Gates.** 2187 tests / 103 files, tsc, oxlint, build in budget.
+
+---
+
+## 80. One row, one hand
+
+*The §75 audit's last tranche: the battle screen answers a DM who has one
+hand on the dice and the other on the mouse.*
+
+**One way to spend hit points.** The app had four dialects for the same
+operation. The character card took a typed amount and Damage/Heal; the
+monster cockpit offered ±5 and nothing else; an initiative row gave
+monsters a raw hit-point field and characters a read-only number. A DM who
+rolled 17 pressed −5 four times and swallowed the difference, or typed into
+a box that set the total rather than subtracting from it. The card's idiom
+won: `DamageField` is shared, it lives in all three places, it clamps and
+clears itself, and the row's hit points are a readout. One number, one
+gesture, wherever you are looking.
+
+**Nine buttons behind one door.** The initiative row grew a button per
+feature for ten sections and reached nine per combatant - the exact wall
+`CharactersTab` tore down in its roster, whose comment is this one's design
+brief. What every turn touches stays out: damage, Delay while the fight
+runs, and `⋯`. The rest - Roll init, Pop out, Surprised, Dormant, Hide,
+Remove - moved into the row menu, reusing the roster's markup and CSS
+unchanged. Remove arms **Really remove / Keep** on the row, which closes
+the one item §76 deferred rather than churn this row twice. What those
+buttons used to say by existing, three badges now say directly: *hidden 14*,
+*surprised*, *dormant* were legible only inside button labels before, so a
+hidden monster read as an ordinary row until you went looking.
+
+**The whole log, and the fight so far.** The bar hint said "the whole log"
+over a list sliced to twelve; the panel scrolls now and the hint is true.
+The After drawer returned null while a fight was running - pressing it
+mid-fight opened an empty frame, which reads as a broken drawer rather than
+a deliberate wait - so a running fight gets running totals: the round, who
+is up, and who is dealing the most damage, above the note that the debrief
+arrives when the dust does. Every drawer's explanation was a `title=`
+attribute, which is to say invisible to touch, to keyboards and to anyone
+who does not hover and wait; the hints are visible text inside the drawer.
+
+**The Builder's two empty slots.** Scrolling into Abilities or Feats
+visibly *lost* a rail block where every other section gained one. Abilities
+now says what the class wants - its priority order, every score measured
+against it. Feats says where a half-feat's +1 would actually land, since an
+odd score is the difference between +1 and a whole modifier.
+
+**A wall answers where it is drawn.** §66.1 extracted the tactical
+projection with one recorded reproduction: a wall drew `WALL_STEPS` higher
+than it hit-tested, so a click on its painted cap landed on the square
+visually behind it. That pin was written with instructions to replace it
+the day the inverse was taught about walls deliberately. `squareAtPoint`
+iterates the heights things are *drawn* at now, not the heights the ground
+has, so the cap answers as the wall - in both renderers at once, because
+both consume this inverse - and the skirt still answers through the z = 0
+fallback. The by-name quirk test is gone; two tests of the correct behaviour
+stand in its place, and the ROADMAP item is closed.
+
+**Two layout bugs the work exposed.** `input.pcard-amount` had specified
+`width: 60px` as a bare class since §10.2, which the global
+`input[type='number']` rule outranked at `width: 100%`; the play card's flex
+row shrank it to sanity anyway, so the dead rule passed for a working one.
+The Order drawer's wrapping row had no such accident - the field took a
+whole line and squeezed the combatant's name to zero width. And on a
+portrait tablet the command bar read its height from `--hud-bottom`, which
+the ≤900px block inflates to `52% + 54px` to reserve room for the docked
+drawer and cockpit: the bar took that whole area, at z-index 12, and covered
+both panels it had just opened. The Fighters drawer opened underneath its
+own scrim - the party on screen and untouchable. The bar is a 54px row
+again, and where the drawer and cockpit now share a box, the drawer wins it.
+
+**Pinned.** `rowDamage` and `rowMenuClick` beside the drawer helpers, and
+the row-action call sites swept through them in one pass; the name-button
+queries moved to the row's real accessible names, since a regex for "Basher"
+now also matches "More for Basher". The two Builder panels are pinned in
+BuilderTab.test - the Feats one only there, because §33.7's scroll-spy
+cannot give the last section the band in a real browser. The probe asserts
+the row's shape, types damage on the row and in the cockpit and checks they
+agree about the same goblin, walks the ⋯ menu including the Hide badge and
+the Remove confirm, finds the mid-fight After panel and the visible hints,
+and asks the document what is on top of an open drawer on an iPad.
+
+**Gates.** 2190 tests / 103 files, tsc, oxlint, build in budget; run80 both
+themes at 1360×900 plus the iPad Pro 11 touch context, with run68 and run70
+re-pointed at the shared field and re-run green.

@@ -21,6 +21,7 @@ import { defaultRng, rollD20 } from '../engine/dice';
 import { useState } from 'react';
 import type { Build } from '../types';
 import { CommandMenu } from './ActionTray';
+import { DamageField } from './shared';
 import type { GrabMode } from '../engine/grapple';
 
 /**
@@ -97,7 +98,6 @@ export function PlayCard({
       opens from a pip and closes behind itself. */
   standing?: boolean;
 }) {
-  const [amount, setAmount] = useState('');
   /** Rounds typed beside the condition select; empty is "until removed". */
   const [conditionRounds, setConditionRounds] = useState('');
   /** Which pip's command menu is open - the Breath-of-Fire box. */
@@ -115,12 +115,6 @@ export function PlayCard({
     ctx.mods[ability] +
     (saveAbilities.has(ability) ? ctx.proficiency : 0) +
     ctx.itemEffects.saves;
-
-  const value = Math.max(0, Math.round(Number(amount) || 0));
-  const apply = (fn: (n: number) => PlayState) => {
-    if (value > 0) onPlayChange(fn(value));
-    setAmount('');
-  };
 
   return (
     <div className={`pcard ${down ? 'is-down' : ''}`}>
@@ -181,20 +175,13 @@ export function PlayCard({
       </div>
 
       <div className="pcard-row">
-        <input
-          type="number"
-          min={0}
-          className="pcard-amount"
-          aria-label={`Damage or healing for ${ctx.build.name || 'this character'}`}
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+        {/* §80: the shared field - this card's idiom, extracted so the
+            cockpit and the Order drawer speak it too. */}
+        <DamageField
+          label={`Damage or healing for ${ctx.build.name || 'this character'}`}
+          onDamage={(n) => onPlayChange(damage(play, n, max))}
+          onHeal={(n) => onPlayChange(heal(play, n, max))}
         />
-        <button className="btn btn-sm" onClick={() => apply((n) => damage(play, n, max))}>
-          Damage
-        </button>
-        <button className="btn btn-sm" onClick={() => apply((n) => heal(play, n, max))}>
-          Heal
-        </button>
       </div>
 
       {/*

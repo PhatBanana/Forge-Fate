@@ -268,13 +268,11 @@ both halves.
   facts the rules already track (on the floor, hiding, mid-fight, at ease);
   a recorded portrait outranks the sprite, and monsters keep their cards.
   Full account in `docs/HISTORY.md` §67.
-- `[ ]` **The tactical hit test and WALL_STEPS.** **S**. A painted wall
-  *draws* two steps higher than it *hit-tests* - the inverse iterates
-  elevation values only, so a click on a wall's cap can land on the square
-  visually behind it. Predates §66; now that the projection is one shared
-  module (`engine/iso.ts`), fixing it once fixes the SVG and GL views
-  together. The current behavior is pinned by name in `iso.test.ts`, so the
-  fix is a deliberate test change rather than a silent one.
+- `[x]` **The tactical hit test and WALL_STEPS.** **S**. Fixed in §80:
+  `squareAtPoint` iterates the heights things are *drawn* at, so a click on
+  a wall's painted cap answers as the wall in both renderers at once. The
+  §66.1 pin that reproduced the quirk by name was replaced, as it asked to
+  be, with tests of the correct behavior.
 
 ### Parked
 

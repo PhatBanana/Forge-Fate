@@ -148,6 +148,40 @@ describe('the section nav', () => {
     }
   });
 
+  /*
+    §80. Two of the five sections had nothing of their own in the contextual
+    column: scrolling into Abilities or Feats visibly *lost* a rail block
+    where the others gained one. These are the two the panels fill.
+  */
+  it('answers what the class wants from the scores, beside the scores', async () => {
+    setup(fighter(5));
+    await goTo(/^abilities/i);
+    const panel = screen.getByText('What a Fighter wants').closest('.panel') as HTMLElement;
+    // The priority order, highest first, and the tags that name the top two.
+    const rows = within(panel).getAllByRole('listitem').map((li) => li.textContent ?? '');
+    expect(rows[0]).toMatch(/Strength/);
+    expect(rows[0]).toMatch(/primary/);
+    expect(rows.some((row) => /secondary/.test(row))).toBe(true);
+    // Every ability is named, not just the two it wants.
+    expect(rows).toHaveLength(6);
+  });
+
+  it('says where a half-feat’s +1 would land, beside the feats', async () => {
+    setup(fighter(5));
+    await goTo(/^feats/i);
+    const panel = screen.getByText('Room to grow').closest('.panel') as HTMLElement;
+    // The rule is stated once, at the top, and then every score is measured
+    // against it - an even score with no note is an answer too.
+    expect(panel.textContent).toMatch(/half-feat/i);
+    const rows = within(panel).getAllByRole('listitem').map((li) => li.textContent ?? '');
+    expect(rows).toHaveLength(6);
+    for (const row of rows) {
+      const score = Number(row.match(/—\s*(\d+)/)![1]);
+      expect(/odd: a half-feat \+1 rounds it up/.test(row)).toBe(score < 20 && score % 2 === 1);
+      expect(/at the cap/.test(row)).toBe(score >= 20);
+    }
+  });
+
   it('keeps At a glance and the build review on every section', async () => {
     setup(fighter(5));
     for (const label of [/^identity/i, /^abilities/i, /^equipment/i, /^skills/i, /^feats/i]) {

@@ -45,7 +45,7 @@ import { RulesDisclosure } from './RulesText';
 import { classFeaturesAtExactly } from '../data/classFeatures';
 import { deriveBuild } from '../engine/character';
 import { cellFor } from '../engine/raceMatrix';
-import { FitBar, Panel, RatingTag, ReasonList, Select, SourceTag, SuggestionCard } from './shared';
+import { Delta, FitBar, Panel, RatingTag, ReasonList, Select, SourceTag, SuggestionCard } from './shared';
 import { ItemsPanel } from './ItemsPanel';
 import { InventoryPanel } from './InventoryPanel';
 import { StartingEquipmentPanel } from './StartingEquipmentPanel';
@@ -917,6 +917,64 @@ export function BuilderTab({
         )}
 
         {section === 'options' && <ClassFeaturesPanel ctx={ctx} />}
+
+        {/*
+          §80: the two sections whose contextual slot sat empty. Scrolling
+          into Abilities or Feats visibly *lost* a rail block, and they are
+          the two places a readout helps most - what the class wants from
+          the scores being set, and where a half-feat's +1 would land.
+        */}
+        {section === 'abilities' && (
+          <Panel
+            title={`What a ${ctx.primary.klass.name} wants`}
+            subtitle="The class's priority order — where an increase pays off first."
+          >
+            <ul className="reasons">
+              {[...ABILITIES]
+                .sort((a, b) => (ctx.abilityPriority[b] ?? 0) - (ctx.abilityPriority[a] ?? 0))
+                .map((ability) => (
+                  <li key={ability}>
+                    <Delta value={ctx.mods[ability]} />
+                    <span>
+                      <b>{ABILITY_NAMES[ability]}</b> — {ctx.scores[ability]} now
+                      {(ctx.abilityPriority[ability] ?? 0) >= 3
+                        ? ' · primary'
+                        : (ctx.abilityPriority[ability] ?? 0) >= 2
+                          ? ' · secondary'
+                          : ''}
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          </Panel>
+        )}
+
+        {section === 'feats' && (
+          <Panel
+            title="Room to grow"
+            subtitle="Odd scores are half-feat bait — a +1 there buys a whole modifier. Even scores need +2 or a different feat."
+          >
+            <ul className="reasons">
+              {[...ABILITIES]
+                .sort((a, b) => (ctx.abilityPriority[b] ?? 0) - (ctx.abilityPriority[a] ?? 0))
+                .map((ability) => {
+                  const score = ctx.scores[ability];
+                  return (
+                    <li key={ability}>
+                      <span>
+                        <b>{ABILITY_NAMES[ability]}</b> — {score}
+                        {score >= 20
+                          ? ' · at the cap'
+                          : score % 2 === 1
+                            ? ' · odd: a half-feat +1 rounds it up'
+                            : ''}
+                      </span>
+                    </li>
+                  );
+                })}
+            </ul>
+          </Panel>
+        )}
 
         {/*
           The two scalings, pinned rather than shown on one section.

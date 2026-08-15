@@ -80,16 +80,18 @@ for (const theme of ['dark', 'light']) {
 
   await page.getByRole('button', { name: /^Order/ }).first().click();
   await page.waitForTimeout(700);
-  const minusFive = page
-    .locator('.init-list li')
-    .filter({ hasText: /fighter/i })
-    .getByTitle('Five damage')
-    .first();
-  say((await minusFive.count()) === 1, `${theme}: the fighter's −5 button is in the Order drawer`);
+  // §80: the ±5 pair became the shared typed field - fill 5, press Damage.
+  const fighterRow = page.locator('.init-list li').filter({ hasText: /fighter/i }).first();
+  const damageInput = fighterRow.getByLabel(/damage or healing/i);
+  say((await damageInput.count()) === 1, `${theme}: the fighter's damage field is in the Order drawer`);
+  const hitForFive = async () => {
+    await damageInput.fill('5');
+    await fighterRow.getByRole('button', { name: 'Damage', exact: true }).click();
+  };
 
-  // Nine clicks: 49 hit points down to 4, every flash given time to die out.
+  // Nine hits: 49 hit points down to 4, every flash given time to die out.
   for (let hit = 0; hit < 9; hit++) {
-    await minusFive.click();
+    await hitForFive();
     await page.waitForTimeout(120);
   }
   await page.waitForTimeout(1700);
@@ -97,7 +99,7 @@ for (const theme of ['dark', 'light']) {
   say(before !== null, `${theme}: the at-4-hp board settles for the before-frame`);
 
   // The kill. ~150ms in, the fall (650ms) and its flicker are mid-flight.
-  await minusFive.click();
+  await hitForFive();
   await page.waitForTimeout(150);
   const mid = await frameHash(page);
   say(mid !== null && mid !== before, `${theme}: the death is visibly in flight 150ms after the kill`);

@@ -135,26 +135,29 @@ describe('the pointer inverse', () => {
   });
 
   /*
-    The recorded quirk: a wall DRAWS `WALL_STEPS` higher than its elevation,
-    but the inverse iterates elevation values only - so clicking where the
-    wall's cap is painted resolves as if the wall were at ground height, and
-    can land on the square visually behind it.
-
-    Pinned deliberately. This was IsoMap's behavior before the extraction, and
-    §66.1's one promise is "a move, not a rewrite" - fixing it here would have
-    changed where clicks land in the shipping SVG view mid-refactor. If this
-    test ever fails because somebody taught the inverse about WALL_STEPS *in
-    both views on purpose*, delete it with a clear conscience and the ROADMAP
-    line that tracks the fix.
+    §80: the WALL_STEPS quirk, fixed on purpose. §66.1 reproduced IsoMap's
+    old behavior byte-for-byte - a wall drew two steps higher than it
+    hit-tested, so a click on its painted cap landed on the square behind
+    it - and pinned it by name, with instructions to replace the pin the
+    day the inverse was taught about walls in both views deliberately.
+    This is that day: `squareAtPoint` iterates drawn heights now, so the
+    cap answers as the wall, and so does the skirt below it.
   */
-  it('hit-tests a wall at its ground height, not its drawn cap (the WALL_STEPS quirk)', () => {
+  it('hit-tests a wall where it is drawn - the cap answers as the wall (§80)', () => {
     const proj = isoProjection(arena(10, 8), {}, { '5,4': 'wall' }, 0);
     const wall = { x: 5, y: 4 };
-    // Where the cap is painted...
-    const cap = proj.centreOf(wall, proj.drawZ(wall));
-    // ...is not where the wall answers. The ground-height centre is.
-    expect(proj.squareAtPoint(cap)).not.toEqual(wall);
+    // Where the cap is painted IS where the wall answers...
+    expect(proj.squareAtPoint(proj.centreOf(wall, proj.drawZ(wall)))).toEqual(wall);
+    // ...and the skirt at ground height still answers the wall too.
     expect(proj.squareAtPoint(proj.centreOf(wall, 0))).toEqual(wall);
+  });
+
+  it('a raised wall answers at its raised cap, at every facing (§80)', () => {
+    for (let facing = 0; facing < 4; facing++) {
+      const proj = isoProjection(arena(10, 8), { '5,4': 1 }, { '5,4': 'wall' }, facing);
+      const wall = { x: 5, y: 4 };
+      expect(proj.squareAtPoint(proj.centreOf(wall, proj.drawZ(wall)))).toEqual(wall);
+    }
   });
 });
 

@@ -28,16 +28,14 @@ import type { Frame } from './camera';
  * inverse, so rotating never touches the data - only which corner of it is
  * near.
  *
- * ## One recorded quirk, reproduced on purpose
+ * ## The quirk that was, fixed
  *
- * A painted wall *draws* `WALL_STEPS` higher than its elevation, but
- * `squareAtPoint` iterates only the elevation values - so a wall's cap
- * hit-tests as if it were at ground height, and a click on the top of a wall
- * can land on the square visually behind it. That was `IsoMap`'s behavior
- * before the extraction, and this module keeps it byte-for-byte: fixing it
- * here would have changed the SVG view inside a phase whose whole promise is
- * "a pure move". It is pinned by name in `iso.test.ts`, and fixing it for
- * both views at once is a recorded ROADMAP item rather than a drive-by.
+ * §66.1 extracted this module with one recorded reproduction: a wall drew
+ * `WALL_STEPS` higher than it hit-tested, so a click on its painted cap
+ * could land on the square visually behind it. Reproduced then because the
+ * extraction's promise was "a move, not a rewrite"; fixed in §80, once and
+ * for both renderers, in `squareAtPoint` - which now iterates the heights
+ * things are drawn at, not just the heights the ground has.
  */
 
 /** Half a diamond's width and height, and pixels per step of elevation. */
@@ -183,7 +181,22 @@ export function isoProjection(
     */
     const sx = point.x + minX;
     const sy = point.y;
-    const levels = [...new Set([...Object.values(elevation), 0])].sort((a, b) => b - a);
+    /*
+      §80: the heights anything is *drawn* at - ground elevations plus each
+      wall's painted cap. For a year this iterated elevations only, so a
+      click on a wall's cap resolved as if the wall were at ground height
+      and landed on the square visually behind it (the WALL_STEPS quirk,
+      §66.1's one recorded reproduction). Matching against `drawZ` makes
+      the click land where the eye says it should, in both renderers at
+      once, because both consume this inverse. A click on the wall's skirt
+      still answers the wall, through the z = 0 fallback below.
+    */
+    const wallCaps = Object.entries(terrain)
+      .filter(([, kind]) => kind === 'wall')
+      .map(([key]) => (elevation[key] ?? 0) + WALL_STEPS);
+    const levels = [...new Set([...Object.values(elevation), ...wallCaps, 0])].sort(
+      (a, b) => b - a,
+    );
     let flat: Square | null = null;
     for (const z of levels) {
       const gy = sy + z * ZH;
@@ -193,7 +206,7 @@ export function isoProjection(
       if (rotated.x < 0 || rotated.y < 0 || rotated.x >= gw || rotated.y >= gh) continue;
       // The inverse lands in the rotated frame; the data lives in the real one.
       const at = unorient(rotated);
-      if (zOf(at) === z) return at;
+      if (drawZ(at) === z) return at;
       if (z === 0) flat = at;
     }
     return flat;

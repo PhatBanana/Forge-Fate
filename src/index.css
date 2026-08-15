@@ -5120,7 +5120,16 @@ dl.detail-list {
   align-items: center;
 }
 
-.pcard-amount {
+/*
+  §80: `input.`, not just the class. The global `input[type='number']` rule
+  sets `width: 100%` and outranks a lone class, so this 60px never actually
+  applied - the play card's flex row happened to shrink the field to sanity,
+  which passed for the width working. The Order drawer's wrapping row has no
+  such accident: there the 100% basis took a whole line and squeezed the
+  combatant's name to nothing. Matching the element ties the specificity and
+  lets source order decide, in this rule's favour.
+*/
+input.pcard-amount {
   width: 60px;
   text-align: center;
   font-family: var(--mono);
@@ -6771,6 +6780,39 @@ dl.detail-list {
   margin: 0;
   padding: 0;
   font-size: 12px;
+  /* §80: the whole log renders now, so it scrolls in place instead of
+     stretching the drawer past the board. */
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+/* §80: the drawer's one-line purpose, promoted from a hover tooltip. */
+.drawer-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/*
+  §80: state worn on the initiative row - hidden, surprised, dormant used
+  to live only inside the buttons that toggle them.
+*/
+.init-flags {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.init-flags i {
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  padding: 1px 7px;
 }
 
 .battle-log li {
@@ -7791,6 +7833,30 @@ dl.detail-list {
   */
   .btl-stage:has(.btl-drawer) .hud-cam {
     left: 10px;
+  }
+
+  /*
+    §80, found by the probe on an iPad: the bar reads its height from
+    `--hud-bottom`, which this block inflates to `52% + 54px` so the
+    bottom-docked drawer and cockpit have somewhere to be. The bar is not
+    that whole area - it is the row of buttons at the end of it - but it
+    took the height anyway and covered, at z-index 12, both panels it had
+    just opened. On a tablet the Fighters drawer opened *underneath* its
+    own scrim: the party was on screen and untouchable. The bar keeps the
+    height it has up on the desktop; the reservation stays the drawer's.
+  */
+  .btl-bar {
+    height: 54px;
+  }
+
+  /*
+    And with the same box, the drawer wins it. The desktop keeps them apart
+    by side - "left, so it never fights the cockpit" - which is not
+    available once both are docked along the bottom. A drawer is the thing
+    being looked at right now and the only one of the two that closes.
+  */
+  .btl-drawer {
+    z-index: 13;
   }
 }
 

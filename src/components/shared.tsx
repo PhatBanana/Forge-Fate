@@ -32,6 +32,56 @@ export function RatingTag({ rating }: { rating: Rating }) {
 }
 
 /**
+ * §80: one way to say "17 damage", everywhere.
+ *
+ * Damage entry is the single most repeated act in a fight and the app had
+ * grown three dialects for it: a character's card offered a typed amount
+ * with Damage/Heal, the monster cockpit offered ±5 and nothing else (a DM
+ * rolling 17 pressed a button four times and apologised for the spare 3),
+ * and the Order drawer gave monsters a raw hit-point input while characters
+ * got a read-only number. This is the card's idiom - the one that matches
+ * how dice actually land - extracted so every surface speaks it.
+ *
+ * The field clears after each apply: the number was this hit's, not a
+ * setting.
+ */
+export function DamageField({
+  label,
+  onDamage,
+  onHeal,
+}: {
+  /** Accessible name for the amount, e.g. "Damage or healing for Goblin A". */
+  label: string;
+  onDamage: (amount: number) => void;
+  onHeal: (amount: number) => void;
+}) {
+  const [amount, setAmount] = useState('');
+  const apply = (fn: (amount: number) => void) => {
+    const n = Math.max(0, Math.floor(Number(amount) || 0));
+    if (n > 0) fn(n);
+    setAmount('');
+  };
+  return (
+    <>
+      <input
+        type="number"
+        min={0}
+        className="pcard-amount"
+        aria-label={label}
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+      />
+      <button className="btn btn-sm" onClick={() => apply(onDamage)}>
+        Damage
+      </button>
+      <button className="btn btn-sm" onClick={() => apply(onHeal)}>
+        Heal
+      </button>
+    </>
+  );
+}
+
+/**
  * A destructive action that asks before it acts, in place.
  *
  * §76. The app had grown two rules about destruction and applied them

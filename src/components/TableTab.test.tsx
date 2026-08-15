@@ -135,6 +135,27 @@ const rowFor = (name: string): HTMLElement => {
   return row as HTMLElement;
 };
 
+/* §80: the row's nine buttons went behind one door. These keep the tests
+   speaking intent - "deal 5 damage", "use the row's menu" - while the map
+   from intent to clicks lives here once. */
+const rowDamage = async (user: ReturnType<typeof userEvent.setup>, name: string, n: number) => {
+  const row = rowFor(name);
+  fireEvent.change(within(row).getByLabelText(/damage or healing/i), {
+    target: { value: String(n) },
+  });
+  await user.click(within(row).getByRole('button', { name: 'Damage' }));
+};
+
+const rowMenuClick = async (
+  user: ReturnType<typeof userEvent.setup>,
+  name: string,
+  item: string | RegExp,
+) => {
+  const row = rowFor(name);
+  await user.click(within(row).getByRole('button', { name: /^More for/ }));
+  await user.click(within(within(row).getByRole('menu')).getByRole('menuitem', { name: item }));
+};
+
 describe('putting a fight together', () => {
   it('pitches the empty table and its pitch opens the right drawers (§77)', async () => {
     const user = userEvent.setup();
@@ -227,7 +248,7 @@ describe('hit points have one home', () => {
     const max = deriveBuild(view.roster.entries[0].build).hp.total;
     await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
-    await user.click(within(rowFor(name)).getByRole('button', { name: '−5' }));
+    await rowDamage(user, name, 5);
 
     // Not in the encounter - in the roster entry the character sheet reads.
     const entry = view.roster.entries.find((e) => e.id === id)!;
@@ -242,8 +263,9 @@ describe('hit points have one home', () => {
     const max = deriveBuild(view.roster.entries[0].build).hp.total;
     await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
-    await user.click(within(rowFor(name)).getByRole('button', { name: '−5' }));
-    await user.click(within(rowFor(name)).getByRole('button', { name: '+5' }));
+    await rowDamage(user, name, 5);
+    fireEvent.change(within(rowFor(name)).getByLabelText(/damage or healing/i), { target: { value: '5' } });
+    await user.click(within(rowFor(name)).getByRole('button', { name: 'Heal' }));
     expect(hpNow(view.roster.entries[0].play, max)).toBe(max);
   });
 
@@ -258,7 +280,7 @@ describe('hit points have one home', () => {
       (li) => li.querySelector('b')?.textContent === 'Goblin',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
-    await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
+    await rowDamage(user, 'Goblin', 5);
     expect(view.encounter.combatants[0]).toMatchObject({ kind: 'monster', hp: 2, maxHp: 7 });
   });
 });
@@ -376,7 +398,7 @@ describe('the mini window', () => {
     const name = view.roster.entries[0].build.name;
     await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
-    await user.click(within(rowFor(name)).getByRole('button', { name: /pop out/i }));
+    await rowMenuClick(user, name, /pop out/i);
 
     const panel = screen.getByRole('dialog', { name });
     // The real sheet, not a summary of it - so the boxes a sheet has are here.
@@ -390,7 +412,7 @@ describe('the mini window', () => {
     const max = deriveBuild(view.roster.entries[0].build).hp.total;
     await open(user, 'Party');
     await user.click(screen.getByRole('button', { name }));
-    await user.click(within(rowFor(name)).getByRole('button', { name: /pop out/i }));
+    await rowMenuClick(user, name, /pop out/i);
 
     const panel = screen.getByRole('dialog', { name });
     await user.click(within(panel).getByRole('button', { name: /^damage$/i }));
@@ -398,7 +420,13 @@ describe('the mini window', () => {
     // Nothing was synced: the sheet in the window and the row in the tracker
     // are reading one PlayState.
     expect(hpNow(view.roster.entries[0].play, max)).toBeLessThanOrEqual(max);
-    expect(within(rowFor(name)).getByRole('button', { name: /close window/i })).toBeInTheDocument();
+    // The row's ⋯ menu still knows the window is open (§80: it moved in there).
+    await user.click(within(rowFor(name)).getByRole('button', { name: /^More for/ }));
+    expect(
+      within(within(rowFor(name)).getByRole('menu')).getByRole('menuitem', {
+        name: /close window/i,
+      }),
+    ).toBeInTheDocument();
   });
 
   it('opens a monster’s stat block', async () => {
@@ -412,7 +440,7 @@ describe('the mini window', () => {
       (li) => li.querySelector('b')?.textContent === 'Goblin',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
-    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /pop out/i }));
+    await rowMenuClick(user, 'Goblin', /pop out/i);
 
     const panel = screen.getByRole('dialog', { name: 'Goblin' });
     expect(within(panel).getByText(/Nimble Escape/)).toBeInTheDocument();
@@ -436,14 +464,19 @@ describe('the mini window', () => {
     }
 
     const [first, second] = view.roster.entries.map((e) => e.build.name);
-    await user.click(within(rowFor(first)).getByRole('button', { name: /pop out/i }));
-    await user.click(within(rowFor(second)).getByRole('button', { name: /pop out/i }));
+    await rowMenuClick(user, first, /pop out/i);
+    await rowMenuClick(user, second, /pop out/i);
     expect(screen.getAllByRole('dialog')).toHaveLength(2);
 
     // And each row still speaks only for its own window.
-    await user.click(within(rowFor(first)).getByRole('button', { name: /close window/i }));
+    await rowMenuClick(user, first, /close window/i);
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
-    expect(within(rowFor(second)).getByRole('button', { name: /close window/i })).toBeInTheDocument();
+    await user.click(within(rowFor(second)).getByRole('button', { name: /^More for/ }));
+    expect(
+      within(within(rowFor(second)).getByRole('menu')).getByRole('menuitem', {
+        name: /close window/i,
+      }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -1010,7 +1043,8 @@ describe('your own monsters', () => {
     const row = rowFor('Something that was here');
     expect(within(row).getByText(/deleted from your bestiary/i)).toBeInTheDocument();
     expect(within(row).queryByText(/still loading/i)).toBeNull();
-    expect((within(row).getByLabelText(/hit points/i) as HTMLInputElement).value).toBe('9');
+    // §80: hit points read as a display now - damage goes through the field.
+    expect(within(row).getByText('9')).toBeInTheDocument();
   });
 });
 
@@ -1286,7 +1320,7 @@ describe('running the monsters', () => {
     await fightWithGoblin(user, view);
 
     // The goblin goes first.
-    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /roll init/i }));
+    await rowMenuClick(user, 'Goblin', /roll init/i);
     await open(user, 'Order');
     fireEvent.change(within(rowFor('Goblin')).getByLabelText(/goblin initiative/i), {
       target: { value: '30' },
@@ -1878,10 +1912,11 @@ describe('the pointer’s loop', () => {
 
     // Damage floats red off the token; healing floats green.
     const name = view.roster.entries[0].build.name;
-    await user.click(within(rowFor(name)).getByRole('button', { name: '−5' }));
+    await rowDamage(user, name, 5);
     const float = document.querySelector('.dmap-float');
     expect(float?.textContent).toBe('-5');
-    await user.click(within(rowFor(name)).getByRole('button', { name: '+5' }));
+    fireEvent.change(within(rowFor(name)).getByLabelText(/damage or healing/i), { target: { value: '5' } });
+    await user.click(within(rowFor(name)).getByRole('button', { name: 'Heal' }));
     expect(document.querySelector('.dmap-float.is-heal')?.textContent).toBe('+5');
   });
 
@@ -2002,7 +2037,7 @@ describe('the pointer’s loop', () => {
 
     // The fighter hides: a d20 plus their real Stealth lands on the combatant,
     // the token goes translucent, the log says the number.
-    await user.click(within(rowFor(name)).getByRole('button', { name: 'Hide' }));
+    await rowMenuClick(user, name, 'Hide');
     const fighter = () => view.encounter.combatants.find((c) => c.kind === 'character')!;
     expect(fighter().hidden).toBeGreaterThanOrEqual(1);
     expect(document.querySelector('.dmap-token.is-hiding')).toBeTruthy();
@@ -2048,8 +2083,8 @@ describe('the pointer’s loop', () => {
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
 
     // Seven off the goblin drops it (7 hp): taken 7, one knockdown.
-    await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
-    await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
+    await rowDamage(user, 'Goblin', 5);
+    await rowDamage(user, 'Goblin', 5);
     await open(user, 'Order');
     await user.click(screen.getByRole('button', { name: /end the fight/i }));
     await open(user, 'After');
@@ -2078,8 +2113,8 @@ describe('the pointer’s loop', () => {
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
-    await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
-    await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
+    await rowDamage(user, 'Goblin', 5);
+    await rowDamage(user, 'Goblin', 5);
     await open(user, 'Order');
     await user.click(screen.getByRole('button', { name: /end the fight/i }));
 
@@ -2114,8 +2149,8 @@ describe('the pointer’s loop', () => {
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
-    await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
-    await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
+    await rowDamage(user, 'Goblin', 5);
+    await rowDamage(user, 'Goblin', 5);
     await open(user, 'Order');
     await user.click(screen.getByRole('button', { name: /end the fight/i }));
     await open(user, 'After');
@@ -2150,8 +2185,8 @@ describe('the pointer’s loop', () => {
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
-    await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
-    await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
+    await rowDamage(user, 'Goblin', 5);
+    await rowDamage(user, 'Goblin', 5);
     await open(user, 'Order');
     await user.click(screen.getByRole('button', { name: /end the fight/i }));
     await open(user, 'After');
@@ -2830,7 +2865,7 @@ describe('the pointer’s loop', () => {
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
     expect(view.encounter.combatants[0]).toMatchObject({ hp: 7 });
-    await user.click(within(rowFor('Goblin')).getByRole('button', { name: '−5' }));
+    await rowDamage(user, 'Goblin', 5);
     // Two of seven left: under half, above nothing.
     expect(document.querySelector('.strip-tile.is-bloodied')).toBeTruthy();
     expect(document.querySelector('.strip-tile.is-hit')).toBeTruthy();
@@ -3408,7 +3443,7 @@ describe('the enemy turn', () => {
 
     // The cockpit follows the turn until the DM looks at somebody else.
     const name = view.roster.entries[0].build.name;
-    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
+    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(`Show ${name} in the rail`) }));
     expect(plan()).toBeNull();
   });
 
@@ -3458,9 +3493,9 @@ describe('shoving, and the ledge behind them', () => {
     boxMap();
     const put = (at: { x: number; y: number }) =>
       fireEvent.pointerDown(mapEl(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
-    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
+    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(`Show ${name} in the rail`) }));
     put({ x: 10, y: 10 });
-    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /show goblin in the rail/i }));
     put({ x: 11, y: 10 });
 
     await open(user, 'Order');
@@ -3510,7 +3545,7 @@ describe('shoving, and the ledge behind them', () => {
     // end the fight so placement is free again, then move it out of reach.
     await open(user, 'Order');
     await user.click(screen.getByRole('button', { name: /end the fight/i }));
-    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /show goblin in the rail/i }));
     boxMap();
     fireEvent.pointerDown(mapEl(), { clientX: 30.5 * 10, clientY: 10.5 * 10 });
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
@@ -3596,9 +3631,9 @@ describe('grappling, and getting free', () => {
     boxMap();
     const put = (at: { x: number; y: number }) =>
       fireEvent.pointerDown(mapEl(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
-    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
+    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(`Show ${name} in the rail`) }));
     put({ x: 10, y: 10 });
-    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /show goblin in the rail/i }));
     put({ x: 11, y: 10 });
 
     await open(user, 'Order');
@@ -3746,7 +3781,7 @@ describe('grappling, and getting free', () => {
     // same thing a teleport is as far as the hold is concerned.
     await open(user, 'Order');
     await user.click(screen.getByRole('button', { name: /end the fight/i }));
-    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /show goblin in the rail/i }));
     boxMap();
     fireEvent.pointerDown(mapEl(), { clientX: 30.5 * 10, clientY: 10.5 * 10 });
 
@@ -3774,7 +3809,7 @@ describe('light and darkness', () => {
     await user.click(screen.getByRole('button', { name }));
     // Adding is not selecting: the row's own button is what puts somebody in
     // the cockpit, and the light tool hands its torch to whoever is there.
-    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
+    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(`Show ${name} in the rail`) }));
     boxMap();
     fireEvent.pointerDown(mapEl(), { clientX: 10.5 * 10, clientY: 10.5 * 10 });
     await open(user, 'Field');
@@ -3920,9 +3955,9 @@ describe('light and darkness', () => {
     boxMap();
     const put = (at: { x: number; y: number }) =>
       fireEvent.pointerDown(mapEl(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
-    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
+    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(`Show ${name} in the rail`) }));
     put({ x: 10, y: 10 });
-    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /show goblin in the rail/i }));
     put({ x: 11, y: 10 });
 
     await open(user, 'Field');
@@ -4009,7 +4044,7 @@ describe('surprise', () => {
   it('lets the DM mark somebody, and spends their whole first turn', async () => {
     const user = userEvent.setup();
     const { view, name } = await lineUp(user);
-    await user.click(within(rowFor(name)).getByRole('button', { name: 'Surprised' }));
+    await rowMenuClick(user, name, 'Surprised');
     expect(view.encounter.combatants[0].surprised).toBe(true);
 
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
@@ -4025,7 +4060,7 @@ describe('surprise', () => {
   it('takes their feet away for that turn, and gives them back for the next', async () => {
     const user = userEvent.setup();
     const { view, name } = await lineUp(user);
-    await user.click(within(rowFor(name)).getByRole('button', { name: 'Surprised' }));
+    await rowMenuClick(user, name, 'Surprised');
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
 
     // The cockpit's move bar is the readout: nought of nought while it lasts.
@@ -4046,19 +4081,18 @@ describe('surprise', () => {
     // The goblin lies in wait. Its Stealth roll is real, so the fight is
     // started until the roll is one the party cannot beat - the point being
     // that the *rule* fires, not that a particular die did.
-    /** Its Hide button reads "Hidden 14" once it is, so step out by that name. */
-    const hideButton = () =>
-      within(rowFor('Goblin')).getByRole('button', { name: /^(Hide|Hidden \d+)$/ });
+    /** §80: Hide and Step out of hiding both live behind the row's ⋯ menu. */
+    const toggleHide = () => rowMenuClick(user, 'Goblin', /^(Hide|Step out of hiding)$/);
     let caught = false;
     for (let i = 0; i < 40 && !caught; i++) {
       if (view.encounter.combatants.find((c) => c.kind === 'monster')?.hidden === undefined) {
-        await user.click(hideButton());
+        await toggleHide();
       }
       await user.click(screen.getByRole('button', { name: /start the fight/i }));
       caught = !!view.encounter.combatants.find((c) => c.kind === 'character')?.surprised;
       await user.click(screen.getByRole('button', { name: /end the fight/i }));
       if (!caught && view.encounter.combatants.find((c) => c.kind === 'monster')?.hidden !== undefined) {
-        await user.click(hideButton());
+        await toggleHide();
       }
     }
     expect(caught).toBe(true);
@@ -4068,9 +4102,9 @@ describe('surprise', () => {
   it('refuses the walk while it lasts', async () => {
     const user = userEvent.setup();
     const { view, name } = await lineUp(user);
-    await user.click(within(rowFor(name)).getByRole('button', { name: 'Surprised' }));
+    await rowMenuClick(user, name, 'Surprised');
     boxMap();
-    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
+    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(`Show ${name} in the rail`) }));
     fireEvent.pointerDown(mapEl(), { clientX: 10.5 * 10, clientY: 10.5 * 10 });
     await user.click(screen.getByRole('button', { name: /start the fight/i }));
 
@@ -4118,9 +4152,9 @@ describe('the optional rules', () => {
     boxMap();
     const put = (at: { x: number; y: number }) =>
       fireEvent.pointerDown(mapEl(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
-    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
+    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(`Show ${name} in the rail`) }));
     put({ x: 10, y: 10 });
-    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /show goblin in the rail/i }));
     put({ x: 11, y: 10 });
 
     await open(user, 'Order');
@@ -4304,9 +4338,9 @@ describe('conditions that change the dice', () => {
     boxMap();
     const put = (at: { x: number; y: number }) =>
       fireEvent.pointerDown(mapEl(), { clientX: (at.x + 0.5) * 10, clientY: (at.y + 0.5) * 10 });
-    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(name) }));
+    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(`Show ${name} in the rail`) }));
     put({ x: 10, y: 10 });
-    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /goblin/i }));
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /show goblin in the rail/i }));
     put({ x: 11, y: 10 });
 
     await open(user, 'Order');
@@ -4371,7 +4405,7 @@ describe('conditions that change the dice', () => {
       (li) => li.querySelector('b')?.textContent === 'Zombie',
     ) as HTMLElement;
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
-    await user.click(within(rowFor('Zombie')).getByRole('button', { name: /zombie/i }));
+    await user.click(within(rowFor('Zombie')).getByRole('button', { name: /show zombie in the rail/i }));
 
     // Poisoned is not even offered - the stat block says it cannot land.
     const select = screen.getByLabelText(/add a condition to zombie/i);

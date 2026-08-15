@@ -49,7 +49,6 @@ import {
   removeCombatant,
   rollMonsterInitiative,
   setInitiative,
-  setMonsterHp,
   sortCombatants,
   placeCombatant,
   recordDamage,
@@ -132,7 +131,7 @@ import {
 } from '../engine/light';
 import type { Eyes, LightLevel } from '../engine/light';
 import { sensesFor, sensesForMonster } from '../engine/senses';
-import { ConfirmButton, Panel } from './shared';
+import { ConfirmButton, DamageField, Panel } from './shared';
 import { ShortcutsHelp } from './ShortcutsHelp';
 import { MonsterCard } from './MonsterCard';
 import { PopOut } from './PopOut';
@@ -436,6 +435,10 @@ export function TableTab({
   const [drawer, setDrawer] = useState<string | null>(null);
   /* §79: the Keys dialog - opened by its button or by `?`. */
   const [keysOpen, setKeysOpen] = useState(false);
+  /* §80: which initiative row's ⋯ menu is open, and which Remove is armed -
+     the roster's `menuFor`/`confirming` pair, on the fight's rows. */
+  const [rowMenuFor, setRowMenuFor] = useState<string | null>(null);
+  const [confirmingRemove, setConfirmingRemove] = useState<string | null>(null);
 
   /*
     Whether the cockpit is still taking width from the board.
@@ -3467,135 +3470,192 @@ export function TableTab({
                   </button>
 
                   {hp && (
+                    /* §80: a display, not an input. Monsters used to carry a
+                       raw hit-point field here while characters were
+                       read-only - four dialects for one operation. Damage
+                       goes through the shared field like everywhere else. */
                     <span className="init-hp">
-                      {combatant.kind === 'monster' ? (
-                        <input
-                          type="number"
-                          aria-label={`${nameOf(combatant)} hit points`}
-                          value={hp.now}
-                          onChange={(e) =>
-                            setEncounter(
-                              setMonsterHp(encounter, combatant.id, Number(e.target.value) || 0),
-                            )
-                          }
-                        />
-                      ) : (
-                        <b>{hp.now}</b>
-                      )}
+                      <b>{hp.now}</b>
                       <span className="of">/ {hp.max}</span>
                     </span>
                   )}
 
+                  {/* §80: state at a glance - these lived only inside button
+                      labels, so a hidden, surprised or dormant combatant read
+                      as an ordinary row until you went looking. */}
+                  {(combatant.hidden !== undefined ||
+                    !!combatant.surprised ||
+                    (combatant.kind === 'monster' && !!combatant.dormant)) && (
+                    <span className="init-flags">
+                      {combatant.hidden !== undefined && <i>hidden {combatant.hidden}</i>}
+                      {!!combatant.surprised && <i>surprised</i>}
+                      {combatant.kind === 'monster' && !!combatant.dormant && <i>dormant</i>}
+                    </span>
+                  )}
+
                   <span className="init-actions">
-                    <button
-                      className="btn btn-sm"
-                      title="Five damage"
-                      onClick={() => applyHp(combatant, 5)}
-                    >
-                      −5
-                    </button>
-                    <button
-                      className="btn btn-sm"
-                      title="Heal five"
-                      onClick={() => applyHp(combatant, -5)}
-                    >
-                      +5
-                    </button>
-                    <button className="btn btn-sm" onClick={() => rollFor(combatant)}>
-                      Roll init
-                    </button>
-                    <button
-                      className="btn btn-sm"
-                      aria-pressed={popped.includes(combatant.id)}
-                      title={`Open ${nameOf(combatant)} in its own window`}
-                      onClick={() =>
-                        popped.includes(combatant.id) ? unpop(combatant.id) : popOut(combatant.id)
-                      }
-                    >
-                      {popped.includes(combatant.id) ? 'Close window' : 'Pop out'}
-                    </button>
-                    {isRunning(encounter) && (
-                      <button
-                        className="btn btn-sm"
-                        title="Step down the order past whoever is next"
-                        onClick={() => setEncounter(delayTurn(encounter, combatant.id))}
-                      >
-                        Delay
-                      </button>
-                    )}
                     {/*
-                      The DM's override, because "the DM determines who might
-                      be surprised" is the rule's first sentence and the
-                      arithmetic the fight does on start is only its default.
-                      Offered before the fight as well as during it: an ambush
-                      is usually decided while everyone is still being placed.
+                      §80: the nine-button wall goes behind one door. This row
+                      grew a button per feature for ten sections and hit nine
+                      per combatant - the exact wall CharactersTab tore down in
+                      its roster (its comment is the design brief). What stays
+                      out is what every turn touches: damage, Delay, and the
+                      menu. Remove confirms on the row, like a character's
+                      delete always has.
                     */}
-                    <button
-                      className={`btn btn-sm ${combatant.surprised ? 'btn-primary' : ''}`}
-                      aria-pressed={!!combatant.surprised}
-                      title={
-                        combatant.surprised
-                          ? 'Surprised — no action, no movement and no reaction on their first turn. Press to wake them.'
-                          : 'Mark them surprised: their first turn passes'
-                      }
-                      onClick={() =>
-                        setEncounter(
-                          setSurprised(encounter, combatant.id, !combatant.surprised),
-                        )
-                      }
-                    >
-                      Surprised
-                    </button>
-                    {combatant.kind === 'monster' && (
-                      <button
-                        className="btn btn-sm"
-                        title={
-                          combatant.dormant
-                            ? 'Bring it into the fight: it takes turns again'
-                            : 'Stand it down: the turn order passes over it until the party finds it'
-                        }
-                        onClick={() =>
-                          setEncounter(
-                            appendLog(
-                              setDormant(encounter, combatant.id, !combatant.dormant),
-                              combatant.dormant
-                                ? `${combatant.label} activates!`
-                                : `${combatant.label} stands down.`,
-                            ),
-                          )
-                        }
-                      >
-                        {combatant.dormant ? 'Wake' : 'Dormant'}
-                      </button>
+                    {confirmingRemove === combatant.id ? (
+                      <>
+                        <button
+                          className="btn btn-sm btn-danger"
+                          onClick={() => {
+                            setEncounter(removeCombatant(encounter, combatant.id));
+                            setConfirmingRemove(null);
+                          }}
+                        >
+                          Really remove
+                        </button>
+                        <button className="btn btn-sm" onClick={() => setConfirmingRemove(null)}>
+                          Keep
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <DamageField
+                          label={`Damage or healing for ${nameOf(combatant)}`}
+                          onDamage={(n) => applyHp(combatant, n)}
+                          onHeal={(n) => applyHp(combatant, -n)}
+                        />
+                        {isRunning(encounter) && (
+                          <button
+                            className="btn btn-sm"
+                            title="Step down the order past whoever is next"
+                            onClick={() => setEncounter(delayTurn(encounter, combatant.id))}
+                          >
+                            Delay
+                          </button>
+                        )}
+                        <span className="row-menu">
+                          <button
+                            className="btn btn-sm"
+                            aria-haspopup="menu"
+                            aria-expanded={rowMenuFor === combatant.id}
+                            aria-label={`More for ${nameOf(combatant)}`}
+                            onClick={() =>
+                              setRowMenuFor(rowMenuFor === combatant.id ? null : combatant.id)
+                            }
+                          >
+                            ⋯
+                          </button>
+                          {rowMenuFor === combatant.id && (
+                            <>
+                              {/* The backdrop swallows the click that would
+                                  otherwise land on the row below - same
+                                  reasoning as the roster's menu. */}
+                              <div className="menu-backdrop" onClick={() => setRowMenuFor(null)} />
+                              <div className="row-menu-list" role="menu">
+                                <button
+                                  role="menuitem"
+                                  onClick={() => {
+                                    rollFor(combatant);
+                                    setRowMenuFor(null);
+                                  }}
+                                >
+                                  Roll init
+                                </button>
+                                <button
+                                  role="menuitem"
+                                  onClick={() => {
+                                    if (popped.includes(combatant.id)) unpop(combatant.id);
+                                    else popOut(combatant.id);
+                                    setRowMenuFor(null);
+                                  }}
+                                >
+                                  {popped.includes(combatant.id) ? 'Close window' : 'Pop out'}
+                                </button>
+                                {/*
+                                  The DM's override, because "the DM determines
+                                  who might be surprised" is the rule's first
+                                  sentence and the arithmetic the fight does on
+                                  start is only its default.
+                                */}
+                                <button
+                                  role="menuitem"
+                                  title={
+                                    combatant.surprised
+                                      ? 'Surprised — no action, no movement and no reaction on their first turn. Press to wake them.'
+                                      : 'Mark them surprised: their first turn passes'
+                                  }
+                                  onClick={() => {
+                                    setEncounter(
+                                      setSurprised(encounter, combatant.id, !combatant.surprised),
+                                    );
+                                    setRowMenuFor(null);
+                                  }}
+                                >
+                                  {combatant.surprised ? 'Wake from surprise' : 'Surprised'}
+                                </button>
+                                {combatant.kind === 'monster' && (
+                                  <button
+                                    role="menuitem"
+                                    title={
+                                      combatant.dormant
+                                        ? 'Bring it into the fight: it takes turns again'
+                                        : 'Stand it down: the turn order passes over it until the party finds it'
+                                    }
+                                    onClick={() => {
+                                      setEncounter(
+                                        appendLog(
+                                          setDormant(encounter, combatant.id, !combatant.dormant),
+                                          combatant.dormant
+                                            ? `${combatant.label} activates!`
+                                            : `${combatant.label} stands down.`,
+                                        ),
+                                      );
+                                      setRowMenuFor(null);
+                                    }}
+                                  >
+                                    {combatant.dormant ? 'Wake' : 'Dormant'}
+                                  </button>
+                                )}
+                                <button
+                                  role="menuitem"
+                                  title={
+                                    combatant.hidden !== undefined
+                                      ? `Hiding — Stealth ${combatant.hidden}. Press to step out.`
+                                      : 'Roll Stealth and hide: unseen until spotted, until attacking, or until revealed by hand'
+                                  }
+                                  onClick={() => {
+                                    if (combatant.hidden !== undefined) {
+                                      setEncounter(
+                                        appendLog(
+                                          setHidden(encounter, combatant.id, undefined),
+                                          `${nameOf(combatant)} steps out of hiding.`,
+                                        ),
+                                      );
+                                    } else {
+                                      rollHide(combatant);
+                                    }
+                                    setRowMenuFor(null);
+                                  }}
+                                >
+                                  {combatant.hidden !== undefined ? 'Step out of hiding' : 'Hide'}
+                                </button>
+                                <button
+                                  role="menuitem"
+                                  className="is-danger"
+                                  onClick={() => {
+                                    setConfirmingRemove(combatant.id);
+                                    setRowMenuFor(null);
+                                  }}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </span>
+                      </>
                     )}
-                    <button
-                      className="btn btn-sm"
-                      title={
-                        combatant.hidden !== undefined
-                          ? `Hiding — Stealth ${combatant.hidden}. Press to step out.`
-                          : 'Roll Stealth and hide: unseen until spotted, until attacking, or until revealed by hand'
-                      }
-                      onClick={() => {
-                        if (combatant.hidden !== undefined) {
-                          setEncounter(
-                            appendLog(
-                              setHidden(encounter, combatant.id, undefined),
-                              `${nameOf(combatant)} steps out of hiding.`,
-                            ),
-                          );
-                          return;
-                        }
-                        rollHide(combatant);
-                      }}
-                    >
-                      {combatant.hidden !== undefined ? `Hidden ${combatant.hidden}` : 'Hide'}
-                    </button>
-                    <button
-                      className="btn btn-sm"
-                      onClick={() => setEncounter(removeCombatant(encounter, combatant.id))}
-                    >
-                      Remove
-                    </button>
                   </span>
                 </li>
                 </React.Fragment>
@@ -4357,8 +4417,11 @@ export function TableTab({
     <>
       {(encounter.log?.length ?? 0) > 0 && (
         <Panel title="What happened" subtitle="The fight's own record, newest first.">
+          {/* §80: the whole log - the bar hint had promised it for four
+              sections while this sliced at twelve, and a DM reconstructing
+              round two had no way to read line thirteen. It scrolls. */}
           <ul className="battle-log">
-            {encounter.log!.slice(0, 12).map((entry) => (
+            {encounter.log!.map((entry) => (
               <li key={entry.id}>{entry.text}</li>
             ))}
           </ul>
@@ -4366,6 +4429,32 @@ export function TableTab({
       )}
     </>
   );
+
+  /*
+    §80: the After drawer while the fight is still on. The debrief rightly
+    waits for the dust - but pressing After mid-fight used to open a frame
+    holding twelve log lines and nothing else, which read as a broken
+    drawer. A running fight has running totals; say them.
+  */
+  const midFightPanel = (() => {
+    if (!isRunning(encounter)) return null;
+    // The round and whose turn it is are known from the first second; the
+    // damage lead joins the line once anyone has drawn blood.
+    const rows = encounter.combatants
+      .map((c) => ({ name: nameOf(c), ...(encounter.tally?.[c.id] ?? { dealt: 0, taken: 0, kills: 0, drops: 0 }) }))
+      .filter((r) => r.dealt || r.taken);
+    const lead = rows.length ? [...rows].sort((a, b) => b.dealt - a.dealt)[0] : null;
+    return (
+      <Panel
+        title="So far this fight"
+        subtitle={`Round ${encounter.round}${active ? ` · ${nameOf(active)} is up` : ''} · ${lead ? `leading damage: ${lead.name} (${lead.dealt}).` : 'no damage dealt yet.'}`}
+      >
+        <p className="muted" style={{ margin: 0 }}>
+          The full debrief - the table, the MVP, the payout - arrives when the fight ends.
+        </p>
+      </Panel>
+    );
+  })();
 
   /*
     The stage, and the two drawers that used to sit above and below it.
@@ -5288,12 +5377,13 @@ export function TableTab({
   ) : selectedMonster ? (
     <div className="rail-monster">
       <div className="row" style={{ gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
-        <button className="btn btn-sm" onClick={() => applyHp(selected, 5)}>
-          −5
-        </button>
-        <button className="btn btn-sm" onClick={() => applyHp(selected, -5)}>
-          +5
-        </button>
+        {/* §80: a typed amount, like the character card - a DM who rolled 17
+            used to press ±5 four times and swallow the difference. */}
+        <DamageField
+          label={`Damage or healing for ${nameOf(selected)}`}
+          onDamage={(n) => applyHp(selected, n)}
+          onHeal={(n) => applyHp(selected, -n)}
+        />
         <button className="btn btn-sm" onClick={() => popOut(selected.id)}>
           Pop out
         </button>
@@ -5897,8 +5987,10 @@ export function TableTab({
     { id: 'field', label: 'Field', hint: 'The ground, the dungeon, fog and the camera', content: fieldPanel },
     { id: 'areas', label: 'Areas', hint: 'Spells on the ground, and the saves they call for', content: <>{zonePanel}{savesPanel}</> },
     { id: 'order', label: 'Order', hint: 'Initiative, hit points, conditions', content: fightPanel },
-    { id: 'plan', label: 'Prep', hint: 'What this fight will do, and the drawer of saved ones', content: <>{forecastPanel}{libraryPanel}</> },
-    { id: 'after', label: 'After', hint: 'The debrief, the payout and the whole log', content: <>{debriefPanel}{logPanel}</> },
+    /* §80: hints are visible text in the open drawer now, so each is worded
+       to not echo a panel title it sits above. */
+    { id: 'plan', label: 'Prep', hint: 'The forecast, and the shelf of saved fights', content: <>{forecastPanel}{libraryPanel}</> },
+    { id: 'after', label: 'After', hint: 'How it went, the payout, and the whole record', content: <>{midFightPanel}{debriefPanel}{logPanel}</> },
   ] as const;
   const openDrawer = drawers.find((d) => d.id === drawer);
 
@@ -6037,6 +6129,10 @@ export function TableTab({
             className="btl-drawer"
             onClose={() => setDrawer(null)}
           >
+            {/* §80: the hint was a title= tooltip on the bar button - hover
+                only, so a finger or a keyboard never read what "Prep" or
+                "Areas" meant. Said once, visibly, where the drawer opens. */}
+            <p className="drawer-hint">{openDrawer.hint}</p>
             {openDrawer.content}
           </HudPanel>
         )}

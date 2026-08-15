@@ -91,17 +91,19 @@ for (const theme of ['dark', 'light']) {
   // so all three frames share whatever layout the drawer brings.
   await page.getByRole('button', { name: /^Order/ }).first().click();
   await page.waitForTimeout(700);
-  const minusFive = page
-    .locator('.init-list li')
-    .filter({ hasText: /fighter/i })
-    .getByTitle('Five damage')
-    .first();
-  say((await minusFive.count()) === 1, `${theme}: the fighter's −5 button is in the Order drawer`);
+  // §80: the ±5 pair became the shared typed field - fill 5, press Damage.
+  const fighterRow = page.locator('.init-list li').filter({ hasText: /fighter/i }).first();
+  const damageInput = fighterRow.getByLabel(/damage or healing/i);
+  say((await damageInput.count()) === 1, `${theme}: the fighter's damage field is in the Order drawer`);
+  const hitForFive = async () => {
+    await damageInput.fill('5');
+    await fighterRow.getByRole('button', { name: 'Damage', exact: true }).click();
+  };
 
   const before = await frameHash(page);
   say(before !== null, `${theme}: the before-frame reads back`);
 
-  await minusFive.click();
+  await hitForFive();
   // ~120ms in: the shake (380ms) and the wash (450ms) are both mid-flight.
   await page.waitForTimeout(120);
   const mid = await frameHash(page);
