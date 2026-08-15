@@ -135,6 +135,61 @@ for (const theme of ['dark', 'light']) {
     `834+touch: with a drawer open the camera cluster stays on the left edge (x=${Math.round(camBox?.x ?? -1)})`,
   );
 
+  /*
+    Added in §80, which found what this probe walked straight past.
+
+    This block opened the Fighters drawer and then asked only where the
+    camera cluster had gone - so it passed while the drawer itself was
+    unusable. The bar takes its height from `--hud-bottom`, which the
+    ≤900px block inflates to `52% + 54px` to reserve room for the docked
+    drawer and cockpit; the bar took that whole area, at z-index 12, and
+    covered the panel it had just opened. The party was on screen, painted
+    under the bar's own scrim, and untouchable.
+
+    Two questions, because either alone can be satisfied while the drawer
+    is still broken: does the bar stay a row, and is the drawer's content
+    what the finger actually lands on.
+  */
+  const bars = await page.locator('.btl-bar').boundingBox();
+  const drawerBox = await page.locator('.btl-drawer').boundingBox();
+  say(
+    bars !== null && bars.height <= 120,
+    `834+touch: the command bar is a row, not the whole reserved area (${Math.round(bars?.height ?? 0)}px)`,
+  );
+  say(
+    bars !== null && drawerBox !== null && bars.y >= drawerBox.y + drawerBox.height - 1,
+    `834+touch: the bar sits below the drawer rather than over it`,
+  );
+
+  // And the last word belongs to the document: whatever is topmost at the
+  // middle of a drawer control has to be inside the drawer.
+  const chip = page.locator('.btl-drawer button').filter({ hasText: 'Example Fighter' }).first();
+  const onTop = await chip.evaluate((el) => {
+    const b = el.getBoundingClientRect();
+    const hit = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+    return { inDrawer: !!hit?.closest('.btl-drawer'), what: hit?.className || hit?.tagName || '?' };
+  });
+  say(onTop.inDrawer, `834+touch: the open drawer takes the tap, not the bar (${onTop.what})`);
+
+  /*
+    Which means it can be used: the chip adds the fighter to the fight.
+    Caught, and given a timeout of its own, because an unreachable chip
+    makes this click hang for Playwright's full 30 seconds and then throw -
+    which ends the run on a stack trace instead of a report, and the three
+    checks above are the ones that say *why*.
+  */
+  let added = false;
+  try {
+    await chip.click({ timeout: 4000 });
+    await page.waitForTimeout(600);
+    // The chip's own pressed state, not the turn order: the order lives in
+    // the Order drawer, and this one is open on Fighters.
+    added = (await chip.getAttribute('aria-pressed')) === 'true';
+  } catch {
+    added = false;
+  }
+  say(added, `834+touch: and tapping a party chip actually brings them in`);
+
   await page.screenshot({ path: `scratchpad/run78-tablet.png`, fullPage: false });
   say(errors.length === 0, `834+touch: no console errors${errors.length ? ` - ${errors[0]}` : ''}`);
   await ctx.close();
