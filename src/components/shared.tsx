@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { ABILITY_NAMES, RATING_LABELS } from '../types';
 import type { Rating } from '../types';
@@ -28,6 +29,70 @@ export function Panel({
 
 export function RatingTag({ rating }: { rating: Rating }) {
   return <span className={`tag rating-${rating}`}>{RATING_LABELS[rating]}</span>;
+}
+
+/**
+ * A destructive action that asks before it acts, in place.
+ *
+ * §76. The app had grown two rules about destruction and applied them
+ * unevenly: deleting a character or a monster asked "Really delete / Keep"
+ * on the row, while clearing a whole encounter, deleting a saved dungeon,
+ * or wiping a campaign fired on the first click. This is the asking made
+ * reusable - the same two-button shape, armed by the first press,
+ * disarmed by "Keep" or by going through with it.
+ *
+ * CharactersTab keeps its own copy (CharactersTab.tsx, the `confirming`
+ * state): its confirmation is armed from inside the row's ⋯ menu, a wiring
+ * this component deliberately doesn't reproduce. That copy is the reference
+ * implementation; this is the same idiom for the plain case.
+ */
+export function ConfirmButton({
+  label,
+  confirmLabel,
+  onConfirm,
+  className = '',
+  title,
+  ariaLabel,
+  disabled,
+}: {
+  label: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  className?: string;
+  title?: string;
+  ariaLabel?: string;
+  disabled?: boolean;
+}) {
+  const [armed, setArmed] = useState(false);
+  if (!armed) {
+    return (
+      <button
+        className={`btn btn-sm ${className}`}
+        title={title}
+        aria-label={ariaLabel}
+        disabled={disabled}
+        onClick={() => setArmed(true)}
+      >
+        {label}
+      </button>
+    );
+  }
+  return (
+    <>
+      <button
+        className="btn btn-sm btn-danger"
+        onClick={() => {
+          setArmed(false);
+          onConfirm();
+        }}
+      >
+        {confirmLabel}
+      </button>
+      <button className="btn btn-sm" onClick={() => setArmed(false)}>
+        Keep
+      </button>
+    </>
+  );
 }
 
 /**

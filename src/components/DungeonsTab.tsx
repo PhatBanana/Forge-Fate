@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ConfirmButton } from './shared';
 import { DungeonMap } from './DungeonMap';
 import type { Token } from './DungeonMap';
 import { loadBestiary, mergeBestiary } from '../bestiary';
@@ -66,6 +67,10 @@ export function DungeonsTab() {
   const [library, setLibrary] = useState(loadDungeons);
   useEffect(() => saveDungeons(library), [library]);
   const [name, setName] = useState('');
+  /* §76: saving used to be silent - the row appears in the list below, but
+     the eye is on the button. The label answers for a moment instead, the
+     same way "Copy share link" answers with "Link copied". */
+  const [justSaved, setJustSaved] = useState(false);
 
   const [draft, setDraft] = useState<DungeonMapFields>({
     mapSeed: DEFAULT_SEED,
@@ -357,15 +362,19 @@ export function DungeonsTab() {
             </button>
           ))}
           {(draft.terrain || draft.elevation) && (
-            <button
-              type="button"
-              className="brush dgn-clear"
-              onClick={() =>
+            /* §76: this wore the brush costume, sitting in the rail styled
+               like one more tool to try - and it erased every painted square
+               and every raised floor on the first click, with no undo. Now
+               it dresses as the destructive act it is, and asks first. */
+            <ConfirmButton
+              label="Clear all"
+              confirmLabel="Really clear"
+              className="dgn-clear"
+              title="Erase all painted terrain and elevation"
+              onConfirm={() =>
                 setDraft((prev) => ({ ...prev, terrain: undefined, elevation: undefined }))
               }
-            >
-              Clear all
-            </button>
+            />
           )}
         </aside>
 
@@ -550,9 +559,13 @@ export function DungeonsTab() {
             <button
               className="btn btn-sm btn-primary dgn-wide"
               disabled={!name.trim()}
-              onClick={() => setLibrary(putDungeon(library, name.trim(), draft))}
+              onClick={() => {
+                setLibrary(putDungeon(library, name.trim(), draft));
+                setJustSaved(true);
+                setTimeout(() => setJustSaved(false), 2500);
+              }}
             >
-              Save this map
+              {justSaved ? 'Saved' : 'Save this map'}
             </button>
             {library.length === 0 ? (
               <p className="dgn-note">Nothing saved yet. Build a place and name it.</p>
@@ -585,13 +598,14 @@ export function DungeonsTab() {
                       >
                         Open
                       </button>
-                      <button
-                        className="btn btn-sm"
-                        aria-label={`Delete ${saved.name}`}
-                        onClick={() => setLibrary(removeDungeon(library, saved.id))}
-                      >
-                        Delete
-                      </button>
+                      {/* §76: asked-for, like a character's delete always
+                          was. A saved dungeon can be hours of drawing. */}
+                      <ConfirmButton
+                        label="Delete"
+                        confirmLabel="Really delete"
+                        ariaLabel={`Delete ${saved.name}`}
+                        onConfirm={() => setLibrary(removeDungeon(library, saved.id))}
+                      />
                     </span>
                   </li>
                 ))}

@@ -35,6 +35,8 @@ describe('starting one', () => {
   it('says nothing has been fought yet rather than showing an empty list', async () => {
     const user = userEvent.setup();
     render(<CampaignTab roster={roster()} />);
+    // §76: a name first - the nameless press used to invent "A new campaign".
+    await user.type(screen.getByLabelText(/name this campaign/i), 'Quiet');
     await user.click(screen.getByRole('button', { name: /start one/i }));
     expect(screen.getByText(/Nothing fought yet/)).toBeInTheDocument();
   });
@@ -46,6 +48,7 @@ describe('the party', () => {
     const start = roster();
     const before = JSON.stringify(start);
     render(<CampaignTab roster={start} />);
+    await user.type(screen.getByLabelText(/name this campaign/i), 'Ours');
     await user.click(screen.getByRole('button', { name: /start one/i }));
 
     const name = start.entries[0].build.name;
@@ -105,8 +108,17 @@ describe('closing one down', () => {
     render(<CampaignTab roster={roster()} />);
     await user.type(screen.getByLabelText(/name this campaign/i), 'Brief');
     await user.click(screen.getByRole('button', { name: /start one/i }));
+    // §76: the first press only asks - a campaign's chronicle cannot be
+    // rebuilt from anything else in the app.
     await user.click(screen.getByRole('button', { name: /delete brief/i }));
+    expect(loadCampaigns().campaigns).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: /really delete/i }));
     expect(screen.queryByText('The chronicle')).not.toBeInTheDocument();
     expect(loadCampaigns().campaigns).toEqual([]);
+  });
+
+  it('will not start a campaign with no name (§76)', () => {
+    render(<CampaignTab roster={roster()} />);
+    expect(screen.getByRole('button', { name: /start one/i })).toBeDisabled();
   });
 });

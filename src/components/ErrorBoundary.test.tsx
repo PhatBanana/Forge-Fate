@@ -87,6 +87,29 @@ describe('when a character cannot be rendered', () => {
     expect(reload).toHaveBeenCalled();
   });
 
+  /**
+   * §76: a failed lazy chunk is a network problem, not a broken character -
+   * the recovery must be a reload, never an offer to delete somebody.
+   */
+  it('recognises a chunk-load failure and offers only a reload', async () => {
+    localStorage.setItem(KEY, roster('a', ['a']));
+    function ChunkBoom(): React.ReactNode {
+      throw new Error('Failed to fetch dynamically imported module: /assets/TableTab-abc.js');
+    }
+    render(
+      <ErrorBoundary rosterKey={KEY}>
+        <ChunkBoom />
+      </ErrorBoundary>,
+    );
+
+    expect(screen.getByText('Part of the app did not load')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /discard this character/i })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /reload the app/i }));
+    expect(reload).toHaveBeenCalled();
+    // And the roster was never touched.
+    expect(JSON.parse(localStorage.getItem(KEY)!).entries).toHaveLength(1);
+  });
+
   /** Offered before anything destructive, so a bug never costs someone a roster. */
   it('can hand the whole roster over as a file first', async () => {
     localStorage.setItem(KEY, roster('a', ['a']));

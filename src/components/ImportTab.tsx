@@ -21,12 +21,18 @@ export function ImportTab({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
+  /* §76: a clean import used to look exactly like nothing happening - the
+     warnings panel only appears when something went partly wrong, so the
+     best outcome was the silent one. This names what arrived. */
+  const [importedName, setImportedName] = useState<string | null>(null);
+  const [downloaded, setDownloaded] = useState(false);
 
   const characterId = parseCharacterId(url);
 
   const apply = (result: { build: Build; warnings: string[] }) => {
     setWarnings(result.warnings);
     setError(null);
+    setImportedName(result.build.name || 'Unnamed character');
     onImport(result.build);
   };
 
@@ -34,6 +40,7 @@ export function ImportTab({
     setBusy(true);
     setError(null);
     setWarnings([]);
+    setImportedName(null);
     try {
       apply(await fetchDdbCharacter(url, build.ruleset));
     } catch (e) {
@@ -46,6 +53,7 @@ export function ImportTab({
   const handlePaste = () => {
     setError(null);
     setWarnings([]);
+    setImportedName(null);
     try {
       apply(buildFromDdb(JSON.parse(json), build.ruleset));
     } catch (e) {
@@ -64,10 +72,12 @@ export function ImportTab({
   const handleNativeFile = async (file: File) => {
     setError(null);
     setWarnings([]);
+    setImportedName(null);
     try {
       const parsed = JSON.parse(await file.text());
       if (parsed && typeof parsed === 'object' && 'baseScores' in parsed) {
         onImport(parsed as Build);
+        setImportedName((parsed as Build).name || 'Unnamed character');
         setWarnings(['Loaded a build saved by this app.']);
       } else {
         apply(buildFromDdb(parsed, build.ruleset));
@@ -168,8 +178,15 @@ export function ImportTab({
               }}
             />
           </label>
-          <button className="btn" onClick={exportBuild}>
-            Download this build as JSON
+          <button
+            className="btn"
+            onClick={() => {
+              exportBuild();
+              setDownloaded(true);
+              setTimeout(() => setDownloaded(false), 2500);
+            }}
+          >
+            {downloaded ? 'Downloaded' : 'Download this build as JSON'}
           </button>
         </Panel>
       </div>
@@ -178,6 +195,15 @@ export function ImportTab({
         {error && (
           <Panel title="Import failed">
             <div className="callout error">{error}</div>
+          </Panel>
+        )}
+
+        {importedName && !error && (
+          <Panel title="Imported">
+            <div className="callout" role="status">
+              <b>{importedName}</b> is loaded as the active character. The Builder and the sheet
+              show it now.
+            </div>
           </Panel>
         )}
 

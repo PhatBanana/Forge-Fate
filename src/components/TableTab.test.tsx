@@ -1352,14 +1352,37 @@ describe('the fight’s clocks and the drawer', () => {
     await user.click(screen.getByRole('button', { name: /save this fight/i }));
     expect(screen.getByText('The kennel')).toBeInTheDocument();
 
-    // Clear the table, then load it back.
+    // Clear the table - §76 makes it ask first - then load it back.
     await open(user, 'Order');
     await user.click(screen.getByRole('button', { name: /^clear$/i }));
+    await user.click(screen.getByRole('button', { name: /really clear/i }));
     expect(view.encounter.combatants).toHaveLength(0);
     await open(user, 'Prep');
     await user.click(screen.getByRole('button', { name: /load the kennel/i }));
     expect(view.encounter.combatants).toHaveLength(1);
     expect(view.encounter.round).toBe(0);
+  });
+
+  it('Clear asks first, Keep declines, and the cleared fight can be restored (§76)', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Order');
+
+    // The first press destroys nothing.
+    await user.click(screen.getByRole('button', { name: /^clear$/i }));
+    expect(view.encounter.combatants).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: 'Keep' }));
+    expect(view.encounter.combatants).toHaveLength(1);
+
+    // Confirmed, the table empties - and offers the fight back.
+    await user.click(screen.getByRole('button', { name: /^clear$/i }));
+    await user.click(screen.getByRole('button', { name: /really clear/i }));
+    expect(view.encounter.combatants).toHaveLength(0);
+    await user.click(screen.getByRole('button', { name: /restore last encounter/i }));
+    expect(view.encounter.combatants).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: /restore last encounter/i })).not.toBeInTheDocument();
   });
 
   it('shows the balance line as soon as both sides exist', async () => {

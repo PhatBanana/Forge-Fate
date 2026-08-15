@@ -132,7 +132,7 @@ import {
 } from '../engine/light';
 import type { Eyes, LightLevel } from '../engine/light';
 import { sensesFor, sensesForMonster } from '../engine/senses';
-import { Panel } from './shared';
+import { ConfirmButton, Panel } from './shared';
 import { MonsterCard } from './MonsterCard';
 import { PopOut } from './PopOut';
 import { HudPanel } from './HudPanel';
@@ -380,6 +380,14 @@ export function TableTab({
     and need no arming - setup is setup.
   */
   const [moveArmed, setMoveArmed] = useState(false);
+  /*
+    §76: what "Clear" just destroyed, held for one act of regret. Clearing an
+    encounter erases combatants, positions, the log and the loaded dungeon -
+    the most un-reconstructable state in the app - so the old encounter is
+    kept in memory until a new combatant arrives or it is restored. Memory
+    only, same stance as the Builder's undo: a refresh forgets it.
+  */
+  const [cleared, setCleared] = useState<EncounterState | null>(null);
   /**
    * A hand reaching for somebody: the next click on a combatant resolves the
    * contest. The mode was chosen when it was armed, because the SRD leaves the
@@ -3348,8 +3356,29 @@ export function TableTab({
             </button>
           )}
           {encounter.combatants.length > 0 && (
-            <button className="btn btn-sm" onClick={() => setEncounter(emptyEncounter())}>
-              Clear
+            /* §76: this used to fire on the first click, one slot from "End
+               the fight" and styled the same - the worst unguarded
+               destruction in the app. Now it asks, and keeps what it took. */
+            <ConfirmButton
+              label="Clear"
+              confirmLabel="Really clear"
+              title="Empty the table: combatants, positions, log and map"
+              onConfirm={() => {
+                setCleared(encounter);
+                setMoveArmed(false);
+                setEncounter(emptyEncounter());
+              }}
+            />
+          )}
+          {cleared && encounter.combatants.length === 0 && (
+            <button
+              className="btn btn-sm"
+              onClick={() => {
+                setEncounter(cleared);
+                setCleared(null);
+              }}
+            >
+              Restore last encounter
             </button>
           )}
         </div>

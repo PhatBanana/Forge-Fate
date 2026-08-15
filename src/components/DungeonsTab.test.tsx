@@ -104,7 +104,12 @@ describe('the drawer', () => {
     expect((screen.getByLabelText(/map seed/i) as HTMLInputElement).value).toBe('the kennel');
     expect(document.querySelector('.dmap-t-pillar')).toBeTruthy();
 
+    // §76: delete asks first, and Keep declines.
     await user.click(screen.getByRole('button', { name: /delete the kennel/i }));
+    await user.click(screen.getByRole('button', { name: 'Keep' }));
+    expect(screen.getByText('the kennel, level B2')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /delete the kennel/i }));
+    await user.click(screen.getByRole('button', { name: /really delete/i }));
     expect(screen.getByText(/nothing saved yet/i)).toBeInTheDocument();
   });
 });

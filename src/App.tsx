@@ -96,7 +96,14 @@ const DungeonsTab = lazy(async () => ({
   a glitch, and an empty box that is replaced reads as nothing at all.
 */
 function TabLoading() {
-  return <p className="muted" style={{ padding: '24px 0' }}>Loading…</p>;
+  /* §76: role="status" so a screen reader hears the wait instead of a silent
+     page change, and --text-dim rather than the faint token, which fails AA
+     against the page background in parchment. */
+  return (
+    <p role="status" style={{ padding: '24px 0', color: 'var(--text-dim)' }}>
+      Loading…
+    </p>
+  );
 }
 
 const RULESET_CHOSEN_KEY = 'dnd-forge:ruleset-chosen';

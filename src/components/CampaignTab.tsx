@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Panel } from './shared';
+import { ConfirmButton, Panel } from './shared';
 import {
   activeCampaign,
   addCampaign,
@@ -58,6 +58,9 @@ export function CampaignTab({ roster }: { roster: Roster }) {
           <button
             className="btn btn-sm btn-primary"
             style={{ flex: '0 0 auto' }}
+            /* §76: disabled until named, as the Dungeons save already is - an
+               empty press used to invent "A new campaign" on your behalf. */
+            disabled={!name.trim()}
             onClick={() => {
               setFile(addCampaign(file, name));
               setName('');
@@ -109,13 +112,14 @@ export function CampaignTab({ roster }: { roster: Roster }) {
             >
               {one.id === file.activeId ? 'Playing' : 'Play'}
             </button>{' '}
-            <button
-              className="btn btn-sm"
-              aria-label={`Delete ${one.name}`}
-              onClick={() => setFile(removeCampaign(file, one.id))}
-            >
-              Delete
-            </button>{' '}
+            {/* §76: a campaign is a party and its whole chronicle - the one
+                record in the app that cannot be rebuilt from anything else. */}
+            <ConfirmButton
+              label="Delete"
+              confirmLabel="Really delete"
+              ariaLabel={`Delete ${one.name}`}
+              onConfirm={() => setFile(removeCampaign(file, one.id))}
+            />{' '}
             <b>{one.name}</b>
             <span className="src">
               {' '}

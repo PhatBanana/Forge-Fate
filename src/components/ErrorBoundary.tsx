@@ -87,6 +87,36 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (!this.state.error) return this.props.children;
 
+    /*
+      §76: a failed lazy chunk lands here too - stale service worker, a
+      deploy that cache-busted the hashes, offline on a screen not yet
+      cached. That is a network problem, and the recovery below offers to
+      delete a character to fix it, which is the wrong tool presented with
+      total confidence. Recognise the failure by its message and offer the
+      recovery that actually fits: reload, so the app refetches its files.
+    */
+    const chunkFailed = /dynamically imported module|Loading chunk|import\(\)|Failed to fetch/i.test(
+      this.state.error.message,
+    );
+    if (chunkFailed) {
+      return (
+        <div className="stack" style={{ maxWidth: 620, margin: '48px auto' }}>
+          <section className="panel">
+            <h2>Part of the app did not load</h2>
+            <p className="panel-sub">
+              A file failed to download - usually a connection hiccup, or the app updated while
+              this page was open. Your characters are safe; nothing needs discarding.
+            </p>
+            <div className="row" style={{ marginTop: 14 }}>
+              <button className="btn btn-primary" onClick={() => location.reload()}>
+                Reload the app
+              </button>
+            </div>
+          </section>
+        </div>
+      );
+    }
+
     return (
       <div className="stack" style={{ maxWidth: 620, margin: '48px auto' }}>
         <section className="panel">

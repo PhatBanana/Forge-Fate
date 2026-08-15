@@ -5260,11 +5260,13 @@ dl.detail-list {
   color: var(--on-accent);
 }
 
-/* Clear all is destructive and sits apart from the brushes it undoes. */
+/*
+  Clear all is destructive and sits apart from the brushes it undoes. §76
+  took the brush costume off it entirely - it is a plain button now (with
+  the two-step confirm), so the rule only holds it clear of the rail.
+*/
 .dgn-clear {
-  margin-top: 6px;
-  border-top: 1px solid rgba(242, 237, 226, 0.18);
-  border-style: dashed !important;
+  margin-top: 10px;
 }
 
 .dgn-side {

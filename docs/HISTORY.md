@@ -5305,3 +5305,54 @@ open, Character landing on the sheet, and the pairings screen reachable
 from the Builder but absent from the hub.
 
 **Gates.** 2167 tests / 100 files, tsc, oxlint, build in budget.
+
+## 76. The safety net: asked-for destruction, honest failure
+
+*The §75 audit's second tranche: "go through and fix the issues you
+found" - this section is the safety findings.*
+
+The app had grown two rules about destruction and applied them unevenly.
+Deleting a character or a bestiary monster asked "Really delete / Keep"
+on the row; clearing a whole encounter, deleting a saved dungeon, wiping
+every painted square, and deleting a campaign - party, ledger and
+chronicle entire - all fired on the first click, unguarded and with no
+undo behind them.
+
+**One confirm, everywhere.** `ConfirmButton` in shared.tsx is the
+Characters idiom made reusable: the first press arms it, "Keep"
+disarms, "Really X" goes through. The battle's Clear, the dungeon's
+Delete and Clear all, and the campaign's Delete all wear it now.
+CharactersTab keeps its own copy on purpose - its confirm is armed from
+inside the row's ⋯ menu - and stands as the reference implementation.
+
+**Clear keeps what it took.** The encounter is the most
+un-reconstructable state in the app - combatants, positions, the log,
+the loaded dungeon - so confirming Clear stashes it in memory and the
+setup row offers "Restore last encounter" until something new joins the
+table. Memory only, the same stance as the Builder's undo: a refresh
+forgets. A general undo outside the Builder stays deferred; this covers
+the loss that hurt.
+
+**Clear all takes off the brush costume.** It sat in the tool rail
+styled as one more brush to try. It is a plain button now, held apart
+from the rail, and it asks.
+
+**Small honesties.** The campaign's "Start one" disables until named -
+an empty press used to invent "A new campaign" on your behalf, where the
+dungeon's save already knew better. Saving a dungeon answers "Saved" for
+a beat, the way "Copy share link" answers "Link copied"; a clean import
+names who arrived instead of looking exactly like nothing happening; the
+export button answers "Downloaded". The lazy-tab "Loading…" carries
+role="status" and readable contrast. And the error boundary recognises a
+failed chunk load - a network problem - and offers "Reload the app"
+instead of confidently proposing to delete a character to fix it.
+
+**Pinned.** ConfirmButton's machine in shared.test.tsx; Clear's
+ask-keep-restore round-trip in the battle suite; the dungeon and
+campaign confirms and the no-name guard in theirs; the chunk-error
+branch in the boundary's. Deliberate pin changes: the clear-and-reload
+prep test clicks twice now, and two campaign tests name their campaign
+first. The probe walks Clear/Keep/Restore, Clear all, Saved, and
+Delete/Really delete in both themes.
+
+**Gates.** 2174 tests / 101 files, tsc, oxlint, build in budget.
