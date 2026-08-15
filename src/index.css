@@ -7431,6 +7431,25 @@ dl.detail-list {
   border-radius: var(--radius);
 }
 
+/*
+  §77: the empty table's pitch, floating where the eye lands. It reuses the
+  campaign's .empty-pitch bones but sits on the board, under the drawers
+  (z-index below the HudPanels' 10+) so opening one covers it - which is
+  exactly the promotion it is asking you to make. --panel over the sunken
+  token because the board behind it is dark glass in both themes.
+*/
+.btl-pitch {
+  position: absolute;
+  z-index: 5;
+  top: calc(var(--hud-top, 0px) + 18vh);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(440px, calc(100vw - 32px));
+  background: var(--panel);
+  border-style: solid;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
 .btl-tail p {
   margin: 0 0 4px;
 }
@@ -7788,7 +7807,7 @@ dl.detail-list {
 }
 
 /*
-  Seven destinations reading as three decisions: play, create, keep. Groups
+  Six destinations reading as three decisions: play, create, keep. Groups
   rather than a shorter list, because nothing reachable today should become
   unreachable to make a menu prettier.
 */

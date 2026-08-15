@@ -248,7 +248,7 @@ export function ImportTab({
                 They are free text on D&amp;D Beyond's side, so they start empty here rather than
                 being guessed at. Class options — invocations, metamagic, maneuvers, fighting styles
                 — along with languages, tools and which spells are prepared today also start empty
-                and are set on the Builder tab. A magic item that sets an ability score is flagged
+                and are set in the Builder. A magic item that sets an ability score is flagged
                 rather than absorbed.
               </dd>
             </div>

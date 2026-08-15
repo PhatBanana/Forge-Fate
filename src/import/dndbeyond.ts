@@ -545,7 +545,7 @@ export function buildFromDdb(raw: unknown, fallbackRuleset: Ruleset = '2014'): I
   const ruleset = detected.ruleset;
   if (!detected.certain) {
     warnings.push(
-      `Could not tell which ruleset this sheet uses, so it was imported as ${ruleset}. Switch it on the Builder tab if that is wrong.`,
+      `Could not tell which ruleset this sheet uses, so it was imported as ${ruleset}. Switch it in the Builder if that is wrong.`,
     );
   }
 
@@ -652,7 +652,7 @@ export function buildFromDdb(raw: unknown, fallbackRuleset: Ruleset = '2014'): I
     );
     if (mismatch) {
       warnings.push(
-        `The sheet's racial ability increases do not match this app's entry for ${expectedRace.name}. Check the lineage on the Builder tab.`,
+        `The sheet's racial ability increases do not match this app's entry for ${expectedRace.name}. Check the lineage in the Builder.`,
       );
     }
   }
@@ -683,7 +683,7 @@ export function buildFromDdb(raw: unknown, fallbackRuleset: Ruleset = '2014'): I
   const proficiencies = readProficiencies(data, grantedSkills);
   if (proficiencies.skillIds.length && !background) {
     warnings.push(
-      `${proficiencies.skillIds.length} skill ${proficiencies.skillIds.length === 1 ? 'proficiency was' : 'proficiencies were'} read from the sheet. Without a background, any that came from one will show as your own picks - set it on the Builder tab.`,
+      `${proficiencies.skillIds.length} skill ${proficiencies.skillIds.length === 1 ? 'proficiency was' : 'proficiencies were'} read from the sheet. Without a background, any that came from one will show as your own picks - set it in the Builder.`,
     );
   }
 
@@ -746,14 +746,14 @@ export function buildFromDdb(raw: unknown, fallbackRuleset: Ruleset = '2014'): I
     equipped = equipBestArmor(build);
     if (equipped.defenses.armorId !== 'none') {
       warnings.push(
-        `No armor was equipped on the sheet, so the character has been placed in ${ARMOR_BY_ID[equipped.defenses.armorId].name.toLowerCase()}, the best their proficiencies allow. Adjust it on the Builder tab.`,
+        `No armor was equipped on the sheet, so the character has been placed in ${ARMOR_BY_ID[equipped.defenses.armorId].name.toLowerCase()}, the best their proficiencies allow. Adjust it in the Builder.`,
       );
     }
   }
 
   if (!pack.mainHandId) {
     warnings.push(
-      'No weapon was equipped on the sheet, so a default loadout was assumed - set it on the Builder tab so combat feats are scored correctly.',
+      'No weapon was equipped on the sheet, so a default loadout was assumed - set it in the Builder so combat feats are scored correctly.',
     );
   }
 

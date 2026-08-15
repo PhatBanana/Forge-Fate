@@ -5356,3 +5356,55 @@ first. The probe walks Clear/Keep/Restore, Clear all, Saved, and
 Delete/Really delete in both themes.
 
 **Gates.** 2174 tests / 101 files, tsc, oxlint, build in budget.
+
+## 77. Doors and first steps
+
+*The §75 audit's onboarding tranche.*
+
+**"Show me an example" shows you the example.** Both first-run answers
+used to drop you on the main menu - after the setup screen had promised
+the damage curve, the feat rankings and the sheet. `chooseStart` now
+lands both answers in the Builder, where the answer points; the wordmark
+chip is one press from the menu. The App tests that pinned the old
+landing were changed deliberately, and the hub-and-spoke helper walks
+home through the wordmark the way a person now would.
+
+**The hub stops greeting strangers with their own name.** The roster is
+never empty by construction - `loadRoster` seeds a starter and
+`removeCharacter` refuses to return nothing - which made the title
+screen's "start with a character" welcome unreachable dead code: a
+brand-new visitor read "Unnamed character · 1 saved" before making
+anything. `isPristine(roster)` (storage.ts) tells the untouched starter
+from a real character; pristine shows the welcome and no count.
+
+**The empty battle pitches.** The hub's primary button led to an empty
+board, six unexplained drawer names and a cockpit asking you to pick
+from an empty order. The board now carries the campaign screen's
+`.empty-pitch` idiom, floated on the glass: what a battle is, and two
+buttons that open the right drawers - "Add the fighters" and "Load a
+dungeon". It leaves the moment anybody joins the fight.
+
+**Dungeons has a door to the fight.** The flagship loop - draw a place,
+save it, fight in it - ended at a note saying the battle screen has a
+picker, four screens away. Saved rows now carry **"Use in a battle"**:
+App hands the id to the battle screen, which applies it through the same
+`applyDungeon` write the Field picker uses, once the bestiary is loaded
+so denizens resolve, then reports done so a later visit does not reload
+the map over a live fight.
+
+**Words that matched the app three redesigns ago.** Ten user-facing
+strings still said "tab" - including the campaign's chronicle sending
+you to "the Play tab's debrief", a screen renamed twice since. Swept to
+the current names; the stale "seven destinations" claims count six now;
+and the Dungeons camera comment stops claiming a parity it does not
+have.
+
+**Pinned.** isPristine's edges in storage.test.ts; the new landings in
+App.test.tsx; the pitch and its drawer-openers, and the handed-in
+dungeon load, in the battle suite; the "Use in a battle" callback in the
+Dungeons suite. The probe splits the first-run flows across its two
+themes - blank lands in the Builder and the hub greets a pristine
+roster; example lands on the example - then walks the pitch and the
+door in both.
+
+**Gates.** 2181 tests / 101 files, tsc, oxlint, build in budget.

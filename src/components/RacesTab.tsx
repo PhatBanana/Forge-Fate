@@ -81,7 +81,7 @@ export function RacesTab({
         <p className="muted" style={{ marginTop: 12 }}>
           {ruleset === '2024'
             ? 'Species ratings here reflect traits only, so they compress toward the middle by design — in 2024 the ability increases that used to separate them come from your background instead.'
-            : "These ratings assume 2014 rules, where lineages give fixed ability increases. With Tasha's custom origin switched on (Builder tab), ability increases stop mattering and only the traits do — which flattens most of this table."}
+            : "These ratings assume 2014 rules, where lineages give fixed ability increases. With Tasha's custom origin switched on (in the Builder), ability increases stop mattering and only the traits do — which flattens most of this table."}
         </p>
       </Panel>
 

@@ -56,14 +56,6 @@ describe('where to start', () => {
   const answerRuleset = async () =>
     userEvent.click(screen.getAllByRole('button', { name: /use these rules/i })[0]);
 
-  /*
-    §31.2 put a main menu where the Builder used to be. Answering the setup
-    questions now lands you on it rather than in a form, so a test that wants
-    the Builder presses the Builder - which is what a person does.
-  */
-  const fromMenu = async (label: RegExp) =>
-    userEvent.click(screen.getByRole('button', { name: label }));
-
   it('asks after the ruleset, and not before', async () => {
     render(<App />);
     expect(screen.queryByText(/where would you like to start/i)).not.toBeInTheDocument();
@@ -72,23 +64,26 @@ describe('where to start', () => {
     expect(screen.getByText(/where would you like to start/i)).toBeInTheDocument();
   });
 
+  /*
+    §77: answering the second question lands you in the Builder itself - both
+    answers are about building, and "show me an example" used to promise the
+    damage curve and then drop you on the main menu to go find it.
+  */
   it('hands over a blank sheet when that is what was asked for', async () => {
     render(<App />);
     await answerRuleset();
     await userEvent.click(screen.getByRole('button', { name: /start blank/i }));
-    await fromMenu(/build a character/i);
 
-    // Level 1, unnamed, and nothing in hand.
+    // Level 1, unnamed, and nothing in hand - already on the Builder.
     const name = screen.getByLabelText(/^name$/i) as HTMLInputElement;
     expect(name.value).toBe('');
     expect(screen.getByText('At a glance').closest('.panel')).toHaveTextContent(/LEVEL\s*1/i);
   });
 
-  it('keeps the example and names it, so it is never mistaken for your own', async () => {
+  it('keeps the example, names it, and lands on it (§77)', async () => {
     render(<App />);
     await answerRuleset();
     await userEvent.click(screen.getByRole('button', { name: /show me an example/i }));
-    await fromMenu(/build a character/i);
 
     expect((screen.getByLabelText(/^name$/i) as HTMLInputElement).value).toBe('Example Fighter');
   });
@@ -202,8 +197,8 @@ describe('undo', () => {
   it('is still empty after the first-run questions are answered', async () => {
     render(<App />);
     await userEvent.click(screen.getAllByRole('button', { name: /use these rules/i })[0]);
+    // §77: the example answer lands straight in the Builder.
     await userEvent.click(screen.getByRole('button', { name: /show me an example/i }));
-    await userEvent.click(screen.getByRole('button', { name: /build a character/i }));
 
     expect(screen.getByRole('button', { name: /undo/i })).toBeDisabled();
   });
@@ -220,7 +215,9 @@ describe('hub and spoke', () => {
   const toMenu = async () => {
     render(<App />);
     await userEvent.click(screen.getAllByRole('button', { name: /use these rules/i })[0]);
+    // §77 lands the example answer in the Builder; the wordmark walks home.
     await userEvent.click(screen.getByRole('button', { name: /show me an example/i }));
+    await userEvent.click(screen.getByRole('button', { name: /forge\s*&\s*fate/i }));
   };
 
   it('offers no second navigation on a screen - the strip is gone', async () => {

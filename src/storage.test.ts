@@ -8,6 +8,7 @@ import {
   addCharacter,
   duplicateCharacter,
   hydrateBuild,
+  isPristine,
   loadRoster,
   removeCharacter,
   renameCharacter,
@@ -40,6 +41,45 @@ const named = (name: string) => ({ ...emptyBuild(), name });
 function rosterOf(...names: string[]): Roster {
   return names.reduce((roster, name) => addCharacter(roster, named(name)), loadRoster());
 }
+
+describe('isPristine (§77)', () => {
+  /*
+    The roster is never empty by construction, so the hub's "start with a
+    character" welcome needs a way to tell the untouched starter from a
+    character somebody made. Blank name, first level, nothing picked.
+  */
+  const blank = () => ({
+    ...emptyBuild(),
+    name: '',
+    classes: [{ classId: 'fighter' as const, level: 1 }],
+    featIds: [],
+    skillIds: [],
+    spellIds: [],
+  });
+
+  it('is true for the untouched blank starter', () => {
+    const roster = updateActive(loadRoster(), blank());
+    expect(isPristine(roster)).toBe(true);
+  });
+
+  it('turns false the moment the character is named or levelled', () => {
+    expect(isPristine(updateActive(loadRoster(), { ...blank(), name: 'Thistle' }))).toBe(false);
+    expect(
+      isPristine(
+        updateActive(loadRoster(), { ...blank(), classes: [{ classId: 'fighter', level: 2 }] }),
+      ),
+    ).toBe(false);
+  });
+
+  it('is false once a second character exists', () => {
+    const roster = addCharacter(updateActive(loadRoster(), blank()), blank());
+    expect(isPristine(roster)).toBe(false);
+  });
+
+  it('is false for the example fighter, which is a loaded character', () => {
+    expect(isPristine(updateActive(loadRoster(), named('Example Fighter')))).toBe(false);
+  });
+});
 
 describe('loading a roster', () => {
   it('starts with one empty character when there is nothing saved', () => {

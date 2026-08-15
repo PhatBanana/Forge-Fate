@@ -19,7 +19,7 @@ import type { ReactNode } from 'react';
  *
  * ## Shape
  *
- * Seven destinations read as three decisions: Play, at the top and primary;
+ * Six destinations read as three decisions: Play, at the top and primary;
  * Create, the desk work; World, the things that outlive one evening. Groups
  * rather than a shorter list, because nothing that is reachable today should
  * become unreachable to make a menu prettier.

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DungeonsTab } from './DungeonsTab';
@@ -111,5 +111,22 @@ describe('the drawer', () => {
     await user.click(screen.getByRole('button', { name: /delete the kennel/i }));
     await user.click(screen.getByRole('button', { name: /really delete/i }));
     expect(screen.getByText(/nothing saved yet/i)).toBeInTheDocument();
+  });
+
+  it('carries "Use in a battle" on a saved row and hands over the id (§77)', async () => {
+    localStorage.setItem(
+      'dnd-forge:dungeons:v1',
+      JSON.stringify({
+        dungeons: [
+          { id: 'd9', name: 'the vault', savedAt: 1, map: { mapSeed: 'x', mapSize: 'small', mapRooms: 2 } },
+        ],
+      }),
+    );
+    const user = userEvent.setup();
+    const onBattle = vi.fn();
+    render(<DungeonsTab onBattle={onBattle} />);
+
+    await user.click(screen.getByRole('button', { name: /use the vault in a battle/i }));
+    expect(onBattle).toHaveBeenCalledWith('d9');
   });
 });

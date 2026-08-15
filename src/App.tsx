@@ -15,6 +15,7 @@ import {
   activeEncounter,
   activePlay,
   addCharacter,
+  isPristine,
   loadRoster,
   saveRoster,
   updateActive,
@@ -257,6 +258,9 @@ export default function App() {
     question the link already answered.
   */
   const [tab, setTab] = useState<Tab>(() => (tokenFromLocation() ? 'builder' : 'title'));
+  /* §77: a dungeon on its way to the battle screen - set by the Dungeons
+     screen's "Use in a battle", consumed once by TableTab, then cleared. */
+  const [pendingDungeon, setPendingDungeon] = useState<string | null>(null);
   const [roster, setRoster] = useState<Roster>(loadRoster);
   /*
     Monsters you made, kept in their own store rather than on the roster.
@@ -388,6 +392,13 @@ export default function App() {
       ),
     );
     setSetup(null);
+    /*
+      §77: land where the answer points. "Show me an example" promised the
+      damage curve, the feat rankings and the sheet - and then dropped you on
+      the main menu to go find them. Both answers are about building, so both
+      land in the Builder; the wordmark chip is one press from the menu.
+    */
+    setTab('builder');
   };
 
   const ctx = useMemo(() => deriveBuild(build), [build]);
@@ -628,7 +639,9 @@ export default function App() {
           id: 'characters',
           label: 'Characters & bestiary',
           hint: 'The roster, monsters you made, import and export',
-          state: `${roster.entries.length} saved`,
+          /* §77: "1 saved" before anybody saved anything was the starter
+             entry talking. Pristine shows nothing, like the empty dungeons. */
+          state: isPristine(roster) ? undefined : `${roster.entries.length} saved`,
         },
         {
           id: 'dungeons',
@@ -650,7 +663,11 @@ export default function App() {
     return (
       <div className="app is-title">
         <TitleScreen
-          character={roster.entries.length ? build.name || 'Unnamed character' : null}
+          /* §77: the roster is never empty by construction, so the pristine
+             check is what makes the welcome line reachable - a brand-new
+             visitor should read "start with a character", not be told an
+             "Unnamed character" they never made is loaded. */
+          character={isPristine(roster) ? null : build.name || 'Unnamed character'}
           campaign={playing ? playing.name : null}
           groups={groups}
           onPick={(id) => setTab(id as Tab)}
@@ -849,6 +866,8 @@ export default function App() {
             ruleset={build.ruleset}
             onHome={() => setTab('title')}
             onSheet={() => setTab('sheet')}
+            pendingDungeonId={pendingDungeon}
+            onPendingDungeonDone={() => setPendingDungeon(null)}
           />
         )}
         {tab === 'characters' && (
@@ -862,7 +881,16 @@ export default function App() {
             onPrint={() => setTab('sheet')}
           />
         )}
-        {tab === 'dungeons' && <DungeonsTab />}
+        {tab === 'dungeons' && (
+          <DungeonsTab
+            /* §77: "Use in a battle" - the drawn place goes to the fight in
+               one press instead of a four-screen walk through the picker. */
+            onBattle={(dungeonId) => {
+              setPendingDungeon(dungeonId);
+              setTab('table');
+            }}
+          />
+        )}
         {tab === 'campaign' && <CampaignTab roster={roster} />}
       </Suspense>
       </main>

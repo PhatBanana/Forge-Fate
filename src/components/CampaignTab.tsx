@@ -168,7 +168,7 @@ export function CampaignTab({ roster }: { roster: Roster }) {
         >
           {campaign.chronicle.length === 0 && (
             <p className="muted">
-              Nothing fought yet. Award a fight in the Play tab's debrief and it lands here.
+              Nothing fought yet. Award a fight in the battle's After drawer and it lands here.
             </p>
           )}
           {campaign.chronicle.map((chapter) => (

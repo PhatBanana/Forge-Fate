@@ -289,6 +289,30 @@ export function activeBuild(roster: Roster): Build {
   return roster.entries.find((e) => e.id === roster.activeId)?.build ?? emptyBuild();
 }
 
+/**
+ * §77: whether the roster is still the untouched starter.
+ *
+ * The roster is never empty by construction - `loadRoster` seeds one blank
+ * entry and `removeCharacter` refuses to hand back nothing - which meant the
+ * title screen's "start with a character" welcome was unreachable dead code:
+ * a brand-new visitor read "Unnamed character · 1 saved" before they had
+ * made anything. Pristine means one entry that nobody has written on yet: no
+ * name, first level, nothing picked. The moment any of that changes the hub
+ * starts reporting it as a real character, which it then is.
+ */
+export function isPristine(roster: Roster): boolean {
+  if (roster.entries.length !== 1) return false;
+  const build = roster.entries[0].build;
+  return (
+    !build.name.trim() &&
+    build.classes.length === 1 &&
+    build.classes[0].level === 1 &&
+    !(build.featIds ?? []).length &&
+    !(build.skillIds ?? []).length &&
+    !(build.spellIds ?? []).length
+  );
+}
+
 /** Record what has been spent, without touching the character itself. */
 export function updatePlay(roster: Roster, id: string, play: PlayState): Roster {
   return {

@@ -63,7 +63,17 @@ import type { DungeonMapFields } from '../dungeons';
  * square.
  */
 
-export function DungeonsTab() {
+export function DungeonsTab({
+  onBattle,
+}: {
+  /**
+   * §77: take this saved map straight to the battle screen. The app's
+   * flagship loop - draw a place, save it, fight in it - used to end at a
+   * note saying the battle screen has a picker, four screens away. This is
+   * the door.
+   */
+  onBattle?: (dungeonId: string) => void;
+} = {}) {
   const [library, setLibrary] = useState(loadDungeons);
   useEffect(() => saveDungeons(library), [library]);
   const [name, setName] = useState('');
@@ -276,8 +286,11 @@ export function DungeonsTab() {
             camera={camera}
             onCamera={setCamera}
           />
-          {/* The same camera cluster the battle screen wears, in the same
-              corner, doing the same thing. One control, learnt once. */}
+          {/* §77: honestly, a *subset* of the battle screen's camera cluster -
+              zoom only. The battle adds Plan/Tactical, Rotate and Classic,
+              plus WASD/Q/E keys; the editor is one top-down drawing surface,
+              so those controls have nothing here to control. Full parity is
+              a roadmap question, not a fact this comment gets to claim. */}
           <div className="hud-cam">
             <div className="hud-cam-row">
               <div className="seg">
@@ -598,6 +611,16 @@ export function DungeonsTab() {
                       >
                         Open
                       </button>
+                      {onBattle && (
+                        <button
+                          className="btn btn-sm btn-primary"
+                          aria-label={`Use ${saved.name} in a battle`}
+                          title="Open the battle screen with this map loaded"
+                          onClick={() => onBattle(saved.id)}
+                        >
+                          Use in a battle
+                        </button>
+                      )}
                       {/* §76: asked-for, like a character's delete always
                           was. A saved dungeon can be hours of drawing. */}
                       <ConfirmButton

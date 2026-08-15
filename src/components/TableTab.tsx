@@ -217,6 +217,8 @@ export function TableTab({
   ruleset,
   onHome,
   onSheet,
+  pendingDungeonId,
+  onPendingDungeonDone,
 }: {
   roster: Roster;
   onChange: (roster: Roster) => void;
@@ -247,6 +249,17 @@ export function TableTab({
    * is that rule finished rather than a new one.
    */
   onSheet?: () => void;
+  /**
+   * §77: a dungeon chosen on the Dungeons screen, to load on arrival.
+   *
+   * "Use in a battle" on a saved map is the door that closes the app's
+   * flagship loop - draw, save, fight - which used to take four screens and
+   * a picker to walk. The id arrives as a prop, is applied once the bestiary
+   * is ready (denizens resolve through it), and the callback clears it so a
+   * later visit to the battle does not reload the map over a live fight.
+   */
+  pendingDungeonId?: string | null;
+  onPendingDungeonDone?: () => void;
 }) {
   const { monsters: srd, loading } = useMonsters();
 
@@ -841,6 +854,22 @@ export function TableTab({
   };
 
   const byId = useMemo(() => new Map(monsters.map((m) => [m.id, m])), [monsters]);
+
+  /*
+    §77: the Dungeons screen's "Use in a battle" door. Applied through the
+    same applyDungeon write the Field picker uses, once the bestiary has
+    loaded - a map's denizens resolve against it, and applying early would
+    silently skip them. Deps are deliberately only the trigger and the
+    readiness flag: this runs once per handed-in id, not on every encounter
+    write after it.
+  */
+  useEffect(() => {
+    if (!pendingDungeonId || loading) return;
+    const saved = dungeonLibrary.find((d) => d.id === pendingDungeonId);
+    if (saved) setEncounter(applyDungeon(encounter, saved.map, (id) => byId.get(id)));
+    onPendingDungeonDone?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingDungeonId, loading]);
 
   /*
     Derived character state, once per entry rather than once per render of a
@@ -4627,7 +4656,7 @@ export function TableTab({
                 if (saved) setEncounter(applyDungeon(encounter, saved.map, (id) => byId.get(id)));
               }}
             >
-              <option value="">— saved in the Dungeons tab —</option>
+              <option value="">— saved on the Dungeons screen —</option>
               {dungeonLibrary.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
@@ -4644,7 +4673,7 @@ export function TableTab({
           : layout
             ? `Hand-built · ${dungeon.rooms.length} ${dungeon.rooms.length === 1 ? 'room' : 'rooms'} · each square is 5 ft.`
             : `Seed ${seed} · ${dungeon.rooms.length} rooms · each square is 5 ft.`}
-        {' '}Rooms, corridors and denizens are drawn in the Dungeons tab; this drawer
+        {' '}Rooms, corridors and denizens are drawn on the Dungeons screen; this drawer
         loads what it saves.
       </p>
 
@@ -5882,6 +5911,31 @@ export function TableTab({
           it, and it disappears entirely before anybody has rolled initiative.
         */}
         <div className="btl-timeline">{strip}</div>
+
+        {/*
+          §77: the hub's primary button leads here, and a cold arrival used
+          to be an empty board, six unexplained drawer names and a cockpit
+          asking you to pick from an empty order. The pitch names the two
+          first moves and presses their drawers open. It leaves the moment
+          anybody joins the fight.
+        */}
+        {encounter.combatants.length === 0 && (
+          <div className="btl-pitch empty-pitch">
+            <h3>An empty table</h3>
+            <p>
+              A battle is fighters on a map. Bring in your party and some monsters, give them
+              ground to stand on, and the initiative takes it from there.
+            </p>
+            <div className="row" style={{ gap: 8 }}>
+              <button className="btn btn-sm btn-primary" onClick={() => setDrawer('party')}>
+                Add the fighters
+              </button>
+              <button className="btn btn-sm" onClick={() => setDrawer('field')}>
+                Load a dungeon
+              </button>
+            </div>
+          </div>
+        )}
 
         {/*
           The right edge: the turn above, the cockpit below it.

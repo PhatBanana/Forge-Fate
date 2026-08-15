@@ -136,6 +136,20 @@ const rowFor = (name: string): HTMLElement => {
 };
 
 describe('putting a fight together', () => {
+  it('pitches the empty table and its pitch opens the right drawers (§77)', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+
+    // A cold arrival reads what a battle is and where to start.
+    expect(screen.getByText('An empty table')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /add the fighters/i }));
+    expect(screen.getByText('Your party')).toBeInTheDocument();
+
+    // The moment anybody joins, the pitch leaves the board.
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    expect(screen.queryByText('An empty table')).not.toBeInTheDocument();
+  });
+
   it('adds a character from the roster by reference', async () => {
     const user = userEvent.setup();
     const view = setup(party());
@@ -611,6 +625,44 @@ describe('the battlefield loads, it does not build', () => {
     expect(view.encounter.terrain).toEqual({ '2,2': 'wall' });
     // The old rooms are gone from under them; everyone comes off the map.
     expect(view.encounter.combatants.every((c) => !c.at)).toBe(true);
+    localStorage.removeItem('dnd-forge:dungeons:v1');
+  });
+
+  it('loads a dungeon handed in from the Dungeons screen and reports done (§77)', async () => {
+    localStorage.setItem(
+      'dnd-forge:dungeons:v1',
+      JSON.stringify({
+        dungeons: [
+          {
+            id: 'd2',
+            name: 'the kennel',
+            savedAt: 1,
+            map: { mapSeed: 'the kennel', mapSize: 'small', mapRooms: 3 },
+          },
+        ],
+      }),
+    );
+    const onChange = vi.fn();
+    const onDone = vi.fn();
+    let roster = party();
+    onChange.mockImplementation((next: Roster) => {
+      roster = next;
+    });
+    render(
+      <TableTab
+        roster={roster}
+        onChange={onChange}
+        bestiary={[]}
+        ruleset="2014"
+        pendingDungeonId="d2"
+        onPendingDungeonDone={onDone}
+      />,
+    );
+
+    // Applied once the bestiary is ready (denizens resolve through it).
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(activeEncounter(roster).mapSeed).toBe('the kennel');
+    expect(activeEncounter(roster).mapRooms).toBe(3);
     localStorage.removeItem('dnd-forge:dungeons:v1');
   });
 });
