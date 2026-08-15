@@ -4663,3 +4663,103 @@ describe('the trackers that were only ever watched', () => {
     if (!stoodUp) expect(later.successes + later.failures).toBeGreaterThan(firstTotal - 1);
   });
 });
+
+/**
+ * §81. The furniture, at the table.
+ *
+ * The engine's own rules are pinned in `engine/furniture.test.ts`; what needs
+ * a component test is the part that only exists here - that the battle screen
+ * reads the *seen* dungeon rather than the authored one, that the reveal is a
+ * button the DM presses, and that a walk over a trap says so.
+ */
+describe('what the dungeon was hiding', () => {
+  /** A hand-built map: two rooms, the second secret, a trap in the first. */
+  const withFurniture = () => ({
+    ...party(),
+    encounter: {
+      ...emptyEncounter(),
+      mapRooms: 0,
+      mapLayout: {
+        rooms: [
+          { id: 1, x: 2, y: 2, w: 6, h: 6 },
+          { id: 2, x: 12, y: 2, w: 4, h: 4, hidden: true },
+        ],
+        corridors: [],
+        doors: [{ x: 12, y: 3, locked: true }],
+        traps: [{ x: 5, y: 5, note: 'scything blade' }],
+      },
+    },
+  });
+
+  it('keeps a secret room off the board until the DM reveals it', async () => {
+    const user = userEvent.setup();
+    const view = setup(withFurniture());
+    await open(user, 'Field');
+
+    // Not drawn: the battle map is handed a dungeon that does not contain it,
+    // so this is absence rather than styling.
+    const roomNumbers = () =>
+      [...document.querySelectorAll('.dmap-number')].map((n) => n.textContent);
+    expect(roomNumbers()).toEqual(['1']);
+    // Its door went with it - a door into rock is not a door.
+    expect(document.querySelectorAll('.dmap-door')).toHaveLength(0);
+
+    // The DM's own list, and the click that ends the secret.
+    await user.click(screen.getByRole('button', { name: /reveal room 2/i }));
+    expect(roomNumbers()).toEqual(['1', '2']);
+    expect(document.querySelectorAll('.dmap-door')).toHaveLength(1);
+    expect(document.querySelector('.dmap-bar')).toBeTruthy();
+    expect(logOf(view)).toMatch(/finds a hidden room/i);
+
+    // And it is the fight that remembers, not the map: the layout the
+    // encounter carries still says hidden, so the saved dungeon is reusable.
+    expect(view.encounter.revealed).toEqual([2]);
+    expect(view.encounter.mapLayout?.rooms[1].hidden).toBe(true);
+    // Revealed once; the button has nothing left to offer.
+    expect(screen.queryByRole('button', { name: /reveal room 2/i })).not.toBeInTheDocument();
+  });
+
+  it('springs a trap the walk crosses, once, and says what it was', async () => {
+    const user = userEvent.setup();
+    const view = setup(withFurniture());
+    const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name }));
+
+    // Placed by hand west of the trap, before the fight - placement is free.
+    boxMap();
+    await user.click(within(rowFor(name)).getByRole('button', { name: new RegExp(`Show ${name} in the rail`) }));
+    fireEvent.pointerDown(mapEl(), { clientX: 3.5 * 10, clientY: 5.5 * 10 });
+    expect(view.encounter.combatants[0].at).toEqual({ x: 3, y: 5 });
+
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+    // An armed trap is not drawn for the table - that is what armed means.
+    expect(document.querySelector('.dmap-trap')).toBeNull();
+
+    // Walk east across 5,5.
+    await user.click(
+      within(document.querySelector('.pcard .cmd-menu') as HTMLElement).getByRole('button', {
+        name: /^Move/,
+      }),
+    );
+    boxMap();
+    fireEvent.pointerDown(mapEl(), { clientX: 6.5 * 10, clientY: 5.5 * 10 });
+
+    expect(logOf(view)).toMatch(/sets off a trap: scything blade/i);
+    expect(view.encounter.sprung).toEqual(['5,5']);
+    // Now everybody can see it.
+    expect(document.querySelector('.dmap-trap')).toBeTruthy();
+
+    // Walking back over it is walking over a sprung trap, not a second one.
+    const before = (view.encounter.log ?? []).length;
+    await user.click(
+      within(document.querySelector('.pcard .cmd-menu') as HTMLElement).getByRole('button', {
+        name: /^Move/,
+      }),
+    );
+    boxMap();
+    fireEvent.pointerDown(mapEl(), { clientX: 4.5 * 10, clientY: 5.5 * 10 });
+    expect(logOf(view).match(/sets off a trap/gi)?.length).toBe(1);
+    expect((view.encounter.log ?? []).length).toBeGreaterThanOrEqual(before);
+  });
+});

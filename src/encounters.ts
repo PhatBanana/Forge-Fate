@@ -2,6 +2,7 @@ import type { EncounterState } from './encounter';
 import { emptyEncounter } from './encounter';
 import { hydrateElevation, hydrateTerrain } from './terrain';
 import { hydrateZones } from './zones';
+import { hydrateFurniture } from './engine/furniture';
 import { newId } from './storage';
 import { read, write } from './persist';
 
@@ -66,6 +67,8 @@ function hydrateSaved(parsed: unknown): SavedEncounter | null {
       terrain: hydrateTerrain(raw.encounter.terrain),
       elevation: hydrateElevation(raw.encounter.elevation),
       zones: hydrateZones(raw.encounter.zones),
+      // §81: furniture state travels with a saved fight, like the zones do.
+      ...hydrateFurniture(raw.encounter),
     },
   };
 }

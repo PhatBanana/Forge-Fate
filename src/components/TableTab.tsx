@@ -152,6 +152,7 @@ import { GlIsoMap } from './GlIsoMap';
 import { read, write } from '../persist';
 import { canUseWebGl } from '../engine/gl/context';
 import { DEFAULT_SEED, dungeonFrom } from '../engine/dungeon';
+import { revealRoom, secretRooms, seen, springTraps, trapSaid, trapsOn } from '../engine/furniture';
 import { CharacterSheet } from './CharacterSheet';
 
 /**
@@ -567,9 +568,26 @@ export function TableTab({
   // §73: a hand-built layout, when the loaded dungeon carries one, wins over
   // the generator - the same rule the Dungeons editor lives by.
   const layout = encounter.mapLayout;
-  const dungeon = useMemo(
+  /*
+    §81: two dungeons, and the difference is the whole of hidden rooms.
+
+    `authored` is what the DM built - every room, secret ones included. It is
+    used for exactly one thing: the list of what is still to be found, in the
+    Field drawer, where the DM reveals them.
+
+    `dungeon` is what the table sees, and it is the one every other line in
+    this file reads: the maps, the pathing, the sight model, the deployment,
+    `groundCells`. Resolving hiding once, here, is what keeps a renderer from
+    having to remember the rule - and §32.1 already paid for one drawing
+    disagreeing with one hit test.
+  */
+  const authored = useMemo(
     () => dungeonFrom(seed, size, rooms, layout),
     [seed, rooms, size, layout],
+  );
+  const dungeon = useMemo(
+    () => seen(authored, encounter.revealed),
+    [authored, encounter.revealed],
   );
 
   const paintAt = (at: Square) => {
@@ -831,6 +849,20 @@ export function TableTab({
         placeCombatant(enc, dragged.id, draggedTo),
         `${nameOf(self)} drags ${nameOf(dragged)} along.`,
       );
+    }
+
+    /*
+      §81: the place bites too, and before the fight's own hazards do - a
+      trap belongs to the architecture, which was here first. Once each: the
+      square goes onto the fight's sprung list, so walking back over it later
+      is walking over a sprung trap.
+
+      What it *does* is the DM's, deliberately. There is no licensed trap
+      table to read a number out of, and a number this app invented would be
+      one a table believed - the same line §42 drew around lair actions.
+    */
+    for (const trap of trapsOn(dungeon, route, encounter.sprung)) {
+      enc = appendLog(springTraps(enc, [trap]), trapSaid(trap, nameOf(self)));
     }
 
     let next: Roster;
@@ -4570,6 +4602,10 @@ export function TableTab({
              same washes, same handlers - only the projection differs. */
           const mapProps = {
             dungeon,
+            /* §81: sprung traps are drawn for everyone - that is what being
+               sprung means. Armed ones are not, and `authoring` stays off:
+               this is the table's map, not the workshop's. */
+            sprung: encounter.sprung,
             // While aiming, each targetable token carries its odds - the
             // same number the chip shows, floated over the head X-COM puts
             // it on.
@@ -4790,6 +4826,41 @@ export function TableTab({
         {' '}Rooms, corridors and denizens are drawn on the Dungeons screen; this drawer
         loads what it saves.
       </p>
+
+      {/*
+        §81: the secret rooms, and the DM's hand on the reveal.
+
+        The reveal is deliberately a button rather than something the walk
+        does by itself. A hidden room is found by a search, a spoken
+        description, a lever somebody pulled - none of which this app sees.
+        What it can do is make the moment one click, and then be honest
+        everywhere at once: the floor appears, the pathing allows it, the
+        fog re-derives, both renderers draw it.
+      */}
+      {secretRooms(authored, encounter.revealed).length > 0 && (
+        <div className="btl-secrets">
+          <span className="k">Not yet found</span>
+          <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+            {secretRooms(authored, encounter.revealed).map((room) => (
+              <button
+                key={room.id}
+                className="btn btn-sm"
+                title={`Put room ${room.id} on the map - ${room.w}×${room.h} squares at ${room.x},${room.y}`}
+                onClick={() =>
+                  setEncounter(
+                    appendLog(
+                      revealRoom(encounter, room.id),
+                      `The party finds a hidden room (room ${room.id}).`,
+                    ),
+                  )
+                }
+              >
+                Reveal room {room.id}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
         <button

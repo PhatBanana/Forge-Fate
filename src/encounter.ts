@@ -196,6 +196,17 @@ export interface EncounterState {
    */
   zones?: import('./zones').Zone[];
   /**
+   * §81: the secret rooms this party has found, by room id.
+   *
+   * On the fight rather than on the map, and that is the whole point of the
+   * field: a revealed room is true of an afternoon, not of a place. The saved
+   * dungeon goes on hiding it, so the same map runs again next month for
+   * somebody else. `engine/furniture.ts` is the only thing that reads it.
+   */
+  revealed?: number[];
+  /** §81: traps already sprung, by square key, so one fires once. */
+  sprung?: string[];
+  /**
    * The last thirty things that happened, newest first, in sentences.
    *
    * A character's rolls land in their own sheet's log; a monster has no sheet,

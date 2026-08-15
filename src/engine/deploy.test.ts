@@ -29,6 +29,7 @@ const threeRooms = (): Dungeon => ({
   ],
   corridors: [],
   doors: [],
+  traps: [],
 });
 
 describe('the party and the monsters part ways', () => {
@@ -100,6 +101,7 @@ describe('the party and the monsters part ways', () => {
       ],
       corridors: [],
       doors: [],
+      traps: [],
     };
     // Nothing outside the two rooms is open, so overflow has nowhere to go.
     const insideEither = (at: { x: number; y: number }) =>
@@ -120,6 +122,7 @@ describe('the degenerate maps', () => {
       rooms: [{ id: 1, x: 2, y: 2, w: 6, h: 6 }],
       corridors: [],
       doors: [],
+      traps: [],
     };
     const plan = planDeployment(dungeon, openEverywhere, ['a'], ['m1']);
     expect(plan.get('a')).toEqual({ x: 2, y: 2 });

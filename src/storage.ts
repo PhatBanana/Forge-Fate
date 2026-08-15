@@ -7,6 +7,7 @@ import type { EncounterState } from './encounter';
 import { hydrateElevation, hydrateTerrain } from './terrain';
 import { hydrateLayout } from './engine/dungeon';
 import { hydrateZones } from './zones';
+import { hydrateFurniture } from './engine/furniture';
 import { emptyBuild, weaponsForProfile } from './engine/character';
 import { defaultDefenses } from './engine/defense';
 import { CLASSES } from './data/classes';
@@ -216,6 +217,8 @@ function hydrateEncounter(
     zones: hydrateZones(parsed.zones),
     // §73: a hand-built architecture, believed only as far as it verifies.
     mapLayout: hydrateLayout(parsed.mapLayout) ?? undefined,
+    // §81: which secret rooms this party found and which traps it sprang.
+    ...hydrateFurniture(parsed),
   };
 }
 

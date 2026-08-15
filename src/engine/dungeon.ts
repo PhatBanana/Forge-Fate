@@ -61,6 +61,13 @@ export interface Room {
   y: number;
   w: number;
   h: number;
+  /**
+   * §81: a room the party has not found. Hidden is not a drawing style - a
+   * hidden room is *not there* for everyone but the DM, in both renderers,
+   * in the pathing and in the deployment, until the encounter reveals it.
+   * See `engine/furniture.ts`, which is the only thing that resolves it.
+   */
+  hidden?: boolean;
 }
 
 export interface Corridor {
@@ -71,6 +78,31 @@ export interface Corridor {
 export interface Door {
   x: number;
   y: number;
+  /**
+   * §81: barred on the map, and nothing else. Whether it opens is a pick, a
+   * break or a key, and every one of those is a ruling with a DC the DM sets
+   * against a character the app cannot see the far side of - so the app says
+   * *locked* and stays out of it. The same line §42 drew around lair actions
+   * and §62 around starting wealth: draw the fact, decline the invention.
+   */
+  locked?: boolean;
+}
+
+/**
+ * §81: something waiting on a square. Architecture rather than a zone: it
+ * belongs to the *place* and is saved with it, where §23's zones belong to a
+ * fight and tick down inside it.
+ *
+ * The note is the DM's own words - "scything blade, DC 15 Dex for 2d10" -
+ * because there is no licensed trap table to read damage out of, and a
+ * number this app invented would be a number a table trusted. Springing one
+ * announces it and marks the square; what it does is the DM's call, the same
+ * way finding it is.
+ */
+export interface Trap {
+  x: number;
+  y: number;
+  note?: string;
 }
 
 export interface Dungeon {
@@ -80,6 +112,8 @@ export interface Dungeon {
   rooms: Room[];
   corridors: Corridor[];
   doors: Door[];
+  /** §81. Empty on a generated map: the generator authors no furniture. */
+  traps: Trap[];
 }
 
 export interface DungeonOptions {
@@ -248,7 +282,7 @@ export function generateDungeon(seed: string, options: DungeonOptions = {}): Dun
     wants to lay their own rooms out needs somewhere with none already on it.
   */
   if (options.rooms === 0) {
-    return { seed, width, height, rooms: [], corridors: [], doors: [] };
+    return { seed, width, height, rooms: [], corridors: [], doors: [], traps: [] };
   }
 
   const target = Math.max(2, options.rooms ?? DEFAULTS.rooms);
@@ -300,7 +334,7 @@ export function generateDungeon(seed: string, options: DungeonOptions = {}): Dun
 
   const doors = dedupe(corridors.flatMap((corridor) => doorsFor(rooms, corridor)));
 
-  return { seed, width, height, rooms: order, corridors, doors };
+  return { seed, width, height, rooms: order, corridors, doors, traps: [] };
 }
 
 // ------------------------------------------------------- §73: custom layouts
@@ -320,14 +354,21 @@ export interface DungeonLayout {
   rooms: Room[];
   corridors: Corridor[];
   doors: Door[];
+  /**
+   * §81. Optional rather than required because every layout written before
+   * §81 exists without it, and a stored map is a thing this app promises to
+   * keep - the same reason `terrain` and `elevation` are optional on a fight.
+   */
+  traps?: Trap[];
 }
 
 /** The generated architecture, materialised for editing. */
-export function layoutOf(dungeon: Dungeon): DungeonLayout {
+export function layoutOf(dungeon: Dungeon): DungeonLayout & { traps: Trap[] } {
   return {
     rooms: dungeon.rooms.map((r) => ({ ...r })),
     corridors: dungeon.corridors.map((c) => ({ points: c.points.map((p) => ({ ...p })) })),
     doors: dungeon.doors.map((d) => ({ ...d })),
+    traps: dungeon.traps.map((t) => ({ ...t })),
   };
 }
 
@@ -344,7 +385,16 @@ export function dungeonFrom(
   layout?: DungeonLayout,
 ): Dungeon {
   const { width, height } = MAP_SIZES[size];
-  if (layout) return { seed, width, height, ...layoutOf({ seed, width, height, ...layout }) };
+  // §81: `traps` is optional on a stored layout and required on a dungeon, so
+  // the default lands here, in the one constructor everything goes through.
+  if (layout) {
+    return {
+      seed,
+      width,
+      height,
+      ...layoutOf({ seed, width, height, ...layout, traps: layout.traps ?? [] }),
+    };
+  }
   return generateDungeon(seed, { rooms, width, height });
 }
 
@@ -423,12 +473,29 @@ export function removeCorridorAt(
   return { ...layout, corridors: keep };
 }
 
-/** Place or remove a door. Refused outside a room - a door needs a wall. */
-export function toggleDoor(layout: DungeonLayout, at: { x: number; y: number }): DungeonLayout {
-  const existing = layout.doors.filter((d) => !(d.x === at.x && d.y === at.y));
-  if (existing.length !== layout.doors.length) return { ...layout, doors: existing };
-  if (!insideAny(layout.rooms, at.x, at.y)) return layout;
-  return { ...layout, doors: [...layout.doors, { x: at.x, y: at.y }] };
+/**
+ * The door tool's whole state machine: none → door → locked → none.
+ *
+ * §81 turned this from a toggle into a cycle, which is why it changed name.
+ * A three-state control on one square beats a second tool that can only be
+ * used where the first one has already been: locking a door is a property of
+ * *that door*, and the click that made it is the click to say so.
+ *
+ * Refused outside a room - a door needs a wall.
+ */
+export function cycleDoor(layout: DungeonLayout, at: { x: number; y: number }): DungeonLayout {
+  const standing = layout.doors.find((d) => d.x === at.x && d.y === at.y);
+  if (!standing) {
+    if (!insideAny(layout.rooms, at.x, at.y)) return layout;
+    return { ...layout, doors: [...layout.doors, { x: at.x, y: at.y }] };
+  }
+  if (!standing.locked) {
+    return {
+      ...layout,
+      doors: layout.doors.map((d) => (d === standing ? { ...d, locked: true } : d)),
+    };
+  }
+  return { ...layout, doors: layout.doors.filter((d) => d !== standing) };
 }
 
 /**
@@ -444,9 +511,14 @@ export function hydrateLayout(raw: unknown): DungeonLayout | null {
   if (!Array.isArray(layout.rooms) || !Array.isArray(layout.corridors) || !Array.isArray(layout.doors)) {
     return null;
   }
-  const rooms = layout.rooms.filter(
-    (r): r is Room => point(r) && num((r as Room).w) && num((r as Room).h) && num((r as Room).id),
-  );
+  const flag = (v: unknown): true | undefined => (v === true ? true : undefined);
+  const rooms = layout.rooms
+    .filter(
+      (r): r is Room => point(r) && num((r as Room).w) && num((r as Room).h) && num((r as Room).id),
+    )
+    // §81: the furniture flags survive a reload, and only as themselves - a
+    // truthy string in stored JSON is not a hidden room.
+    .map((r) => ({ ...r, hidden: flag(r.hidden) }));
   const corridors = layout.corridors.filter(
     (c): c is Corridor =>
       !!c &&
@@ -455,6 +527,13 @@ export function hydrateLayout(raw: unknown): DungeonLayout | null {
       (c as Corridor).points.length === 3 &&
       (c as Corridor).points.every(point),
   );
-  const doors = layout.doors.filter(point);
-  return { rooms, corridors, doors };
+  const doors = layout.doors
+    .filter(point)
+    .map((d) => ({ x: d.x, y: d.y, locked: flag((d as Door).locked) }));
+  const traps = (Array.isArray(layout.traps) ? layout.traps : []).filter(point).map((t) => ({
+    x: t.x,
+    y: t.y,
+    note: typeof (t as Trap).note === 'string' ? (t as Trap).note : undefined,
+  }));
+  return { rooms, corridors, doors, traps };
 }

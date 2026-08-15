@@ -12,7 +12,7 @@ import {
   removeCorridorAt,
   removeRoomAt,
   seedFrom,
-  toggleDoor,
+  cycleDoor,
 } from './dungeon';
 import type { Dungeon, Room } from './dungeon';
 
@@ -269,7 +269,7 @@ describe('custom layouts (§73)', () => {
 
   it('drops doors whose room went with the erase', () => {
     let layout = addRoom(blank, { x: 0, y: 0 }, { x: 4, y: 4 }, bounds);
-    layout = toggleDoor(layout, { x: 2, y: 4 });
+    layout = cycleDoor(layout, { x: 2, y: 4 });
     expect(layout.doors).toHaveLength(1);
     const after = removeRoomAt(layout, { x: 2, y: 2 });
     expect(after.rooms).toHaveLength(0);
@@ -296,12 +296,19 @@ describe('custom layouts (§73)', () => {
     expect(gone.corridors).toHaveLength(0);
   });
 
-  it('refuses a door in the void, and toggles one on a floor', () => {
+  it('refuses a door in the void, and cycles one on a floor', () => {
+    /*
+      §81 made this a three-state cycle - none, door, locked, none - because
+      barring a door is a property of that door and belongs to the click that
+      made it. The refusal in the void is unchanged.
+    */
     const layout = addRoom(blank, { x: 0, y: 0 }, { x: 2, y: 2 }, bounds);
-    expect(toggleDoor(layout, { x: 9, y: 9 })).toBe(layout);
-    const on = toggleDoor(layout, { x: 1, y: 1 });
+    expect(cycleDoor(layout, { x: 9, y: 9 })).toBe(layout);
+    const on = cycleDoor(layout, { x: 1, y: 1 });
     expect(on.doors).toEqual([{ x: 1, y: 1 }]);
-    expect(toggleDoor(on, { x: 1, y: 1 }).doors).toHaveLength(0);
+    const locked = cycleDoor(on, { x: 1, y: 1 });
+    expect(locked.doors).toEqual([{ x: 1, y: 1, locked: true }]);
+    expect(cycleDoor(locked, { x: 1, y: 1 }).doors).toHaveLength(0);
   });
 
   it('lets a hand-built layout win over the seed, and only then', () => {
@@ -323,7 +330,10 @@ describe('custom layouts (§73)', () => {
       { x: 1, y: 1 },
       { x: 8, y: 8 },
     );
-    expect(hydrateLayout(JSON.parse(JSON.stringify(layout)))).toEqual(layout);
+    // §81: the hydrator normalises - a layout written before traps existed
+    // comes back with an empty list rather than a missing field, so every
+    // consumer downstream can read `traps` without asking whether it is there.
+    expect(hydrateLayout(JSON.parse(JSON.stringify(layout)))).toEqual({ ...layout, traps: [] });
     expect(hydrateLayout(null)).toBeNull();
     expect(hydrateLayout({ rooms: 'nope' })).toBeNull();
     // A corrupt room is dropped; the legal corridor survives.
@@ -332,6 +342,6 @@ describe('custom layouts (§73)', () => {
       corridors: layout.corridors,
       doors: [{ x: 1 }],
     });
-    expect(dirty).toEqual({ rooms: [], corridors: layout.corridors, doors: [] });
+    expect(dirty).toEqual({ rooms: [], corridors: layout.corridors, doors: [], traps: [] });
   });
 });

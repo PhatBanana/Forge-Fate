@@ -194,8 +194,21 @@ export function DungeonMap({
   camera,
   onCamera,
   focus = null,
+  authoring = false,
+  sprung = [],
 }: {
   dungeon: Dungeon;
+  /**
+   * §81: the DM's own view of the furniture. In the editor a hidden room is
+   * drawn dashed and every trap is marked, because that is the screen where
+   * they are authored. At the table it is false, and the map draws only what
+   * the table can see - a hidden room is already absent from the dungeon it
+   * was handed (see `engine/furniture.ts`), and a trap shows once it is
+   * sprung and not before.
+   */
+  authoring?: boolean;
+  /** §81: traps already set off, by square key, drawn for everyone. */
+  sprung?: string[];
   tokens?: Token[];
   /** What the DM painted onto squares. See `terrain.ts`. */
   terrain?: TerrainMap;
@@ -440,7 +453,7 @@ export function DungeonMap({
       {dungeon.rooms.map((room) => (
         <g key={room.id}>
           <rect
-            className="dmap-room"
+            className={`dmap-room ${room.hidden ? 'is-hidden' : ''}`}
             x={room.x * CELL}
             y={room.y * CELL}
             width={room.w * CELL}
@@ -461,15 +474,53 @@ export function DungeonMap({
       ))}
 
       {dungeon.doors.map((door) => (
-        <rect
-          key={`${door.x},${door.y}`}
-          className="dmap-door"
-          x={door.x * CELL + CELL * 0.2}
-          y={door.y * CELL + CELL * 0.2}
-          width={CELL * 0.6}
-          height={CELL * 0.6}
-        />
+        <g key={`${door.x},${door.y}`}>
+          <rect
+            className={`dmap-door ${door.locked ? 'is-locked' : ''}`}
+            x={door.x * CELL + CELL * 0.2}
+            y={door.y * CELL + CELL * 0.2}
+            width={CELL * 0.6}
+            height={CELL * 0.6}
+          />
+          {/* §81: the bar across a locked door. A shape rather than only a
+              colour, for the same reason the turn marker is a bar - a map
+              that says "locked" in a hue alone says it to some people. */}
+          {door.locked && (
+            <line
+              className="dmap-bar"
+              x1={door.x * CELL + CELL * 0.1}
+              y1={(door.y + 0.5) * CELL}
+              x2={door.x * CELL + CELL * 0.9}
+              y2={(door.y + 0.5) * CELL}
+            />
+          )}
+          {door.locked && <title>Locked door</title>}
+        </g>
       ))}
+
+      {/*
+        §81: traps. In the editor every one is marked, because that is where
+        they are placed; at the table only the sprung ones, because a trap
+        the party can see on the shared board is not a trap.
+      */}
+      {dungeon.traps
+        .filter((trap) => authoring || sprung.includes(`${trap.x},${trap.y}`))
+        .map((trap) => {
+          const cx = (trap.x + 0.5) * CELL;
+          const cy = (trap.y + 0.5) * CELL;
+          const armed = !sprung.includes(`${trap.x},${trap.y}`);
+          return (
+            <g key={`t${trap.x},${trap.y}`} className={`dmap-trap ${armed ? '' : 'is-sprung'}`}>
+              <circle cx={cx} cy={cy} r={CELL * 0.32} />
+              <line x1={cx - CELL * 0.18} y1={cy - CELL * 0.18} x2={cx + CELL * 0.18} y2={cy + CELL * 0.18} />
+              <line x1={cx + CELL * 0.18} y1={cy - CELL * 0.18} x2={cx - CELL * 0.18} y2={cy + CELL * 0.18} />
+              <title>
+                {armed ? 'Trap' : 'Sprung trap'}
+                {trap.note ? ` — ${trap.note}` : ''}
+              </title>
+            </g>
+          );
+        })}
 
       {/*
         Height first, terrain over it, tokens over both. Elevation is a wash on

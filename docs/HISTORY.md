@@ -5611,3 +5611,71 @@ and asks the document what is on top of an open drawer on an iPad.
 **Gates.** 2190 tests / 103 files, tsc, oxlint, build in budget; run80 both
 themes at 1360×900 plus the iPad Pro 11 touch context, with run68 and run70
 re-pointed at the shared field and re-run green.
+
+---
+
+## 81. Dungeon furniture
+
+*Locked doors, hidden rooms, traps — designed alongside §73/§74 and held back
+until the reveal question had an answer.*
+
+**Why it waited.** ROADMAP carried these three as a sketch for two sections,
+not because the fields were hard but because each needed a decision the map
+had never had to make. The battle screen is one screen both sides of the
+table look at. "The players cannot see this yet" has to mean something
+concrete when the thing not to be seen is drawn on a board everyone is
+leaning over, and *drawn faintly* is not it — faint is still seen. The three
+answer it differently, and the differences are the design.
+
+**A locked door has no reveal problem at all.** Everyone can see a door is
+barred; whether it opens is a pick, a break or a key, and every one of those
+is a ruling with a DC set against a character the app cannot see the far side
+of. So `Door` gains `locked?`, the map draws the bar, and the app stays out of
+it — the line §42 drew around lair actions and §62 around starting wealth.
+The Door tool became a cycle rather than a toggle (none → door → locked →
+none), because barring a door is a property of *that door* and belongs to the
+click that made it; `toggleDoor` changed name to `cycleDoor` to say so.
+
+**A hidden room is absent, not faint.** `seen(dungeon, revealed)` removes it
+from the architecture outright — and its doors and its traps with it, because
+a door into rock is not a door. The battle screen resolves hiding *once*,
+where it builds its dungeon, and every consumer downstream reads the result:
+both renderers, `groundCells`, the sight model, the pathing, the deployment.
+None of them learned a new rule, which is the point — a renderer that had to
+remember to skip hidden rooms is a renderer that will forget, and §32.1
+already paid for one drawing disagreeing with one hit test. The tactical
+views need no change at all: the floor simply is not there.
+
+**A trap is invisible until it is sprung**, which is a thing that happens to
+a walk, so it rides the same walk-settlement hook §23's hazards use — before
+them, because the architecture was here first. What it *does* is the DM's,
+deliberately: there is no licensed trap table to read damage out of, and a
+number this app invented would be a number a table believed. The trap carries
+the DM's own words instead ("scything blade, DC 15 Dex"), springing announces
+them, and the square is marked for everyone from then on. That is a departure
+from the ROADMAP sketch, which had a sprung trap becoming a §23 zone; a zone
+needs effects, and effects would have meant inventing the numbers.
+
+**Where the state lives is the other half.** Which rooms this party found and
+which traps it sprang are on the *fight*, not the map. Reveal a room and the
+saved dungeon still hides it, so the same map runs again next month for
+somebody else — which is what makes a dungeon a thing you keep. The reveal
+itself is a button in the Field drawer rather than something the walk does by
+itself: a secret room is found by a search, a description, a lever nobody
+told the app about. What the app can do is make the moment one click and then
+be honest everywhere at once.
+
+**Pinned.** `engine/furniture.test.ts` owns the rules — what `seen` removes
+and gives back, that it is the same object when nothing is hidden, the trap
+that does not fire for the square a walk started on, the one that does not
+fire twice, the flags a hydrator refuses to believe. The editor's three tools
+are pinned in DungeonsTab.test by what they leave on the drawing, including
+the round trip through the drawer. The battle suite pins the two things only
+it can see: the hidden room absent from the board until the DM's button, and
+a walk across a trap that logs the DM's words once. The probe authors a map
+in the editor, saves it, carries it into a battle through "Use in a battle",
+and checks the room, the door and the trap are all missing over there before
+revealing brings them back.
+
+**Gates.** 2218 tests / 105 files, tsc, oxlint, build in budget; run81 both
+themes at 1360×900.

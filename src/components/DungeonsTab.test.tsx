@@ -60,6 +60,100 @@ describe('the brushes', () => {
   });
 });
 
+/**
+ * §81. The furniture tools. Each one is a click on a square that changes the
+ * architecture rather than the paint, so each is checked by what it leaves on
+ * the drawing - which is also what the battle screen will read.
+ */
+describe('the furniture tools', () => {
+  /** Room 1 of the default map holds square 5,4 - where the brush tests paint. */
+  const clickSquare = (x: number, y: number) => {
+    giveMapABox();
+    fireEvent.pointerDown(mapSvg(), { clientX: x * 10 + 5, clientY: y * 10 + 5 });
+    fireEvent.pointerUp(mapSvg());
+  };
+
+  it('cycles a door through barred and away again', async () => {
+    const user = userEvent.setup();
+    render(<DungeonsTab />);
+    // A room of our own, so the square is certainly inside one.
+    await user.click(screen.getByRole('button', { name: 'Room' }));
+    giveMapABox();
+    fireEvent.pointerDown(mapSvg(), { clientX: 25, clientY: 25 });
+    fireEvent.pointerMove(mapSvg(), { clientX: 65, clientY: 65 });
+    fireEvent.pointerUp(mapSvg());
+
+    /* The default map is generated and already carries doors of its own, so
+       this counts the change rather than the total. No generated door is
+       locked, which makes the bar a clean zero to start from. */
+    const doors = () => document.querySelectorAll('.dmap-door').length;
+    const bars = () => document.querySelectorAll('.dmap-bar').length;
+
+    await user.click(screen.getByRole('button', { name: 'Door' }));
+    const before = doors();
+    expect(bars()).toBe(0);
+
+    clickSquare(3, 3);
+    expect(doors()).toBe(before + 1);
+    expect(bars()).toBe(0);
+
+    clickSquare(3, 3);
+    expect(doors()).toBe(before + 1);
+    expect(bars()).toBe(1);
+
+    clickSquare(3, 3);
+    expect(doors()).toBe(before);
+    expect(bars()).toBe(0);
+  });
+
+  it('hides a room, and says so on the editor’s own map', async () => {
+    const user = userEvent.setup();
+    render(<DungeonsTab />);
+    await user.click(screen.getByRole('button', { name: 'Hidden' }));
+    clickSquare(5, 4);
+    // The editor draws it dashed, because this is where it is authored. The
+    // battle screen is handed a dungeon without it at all - see the engine.
+    expect(document.querySelector('.dmap-room.is-hidden')).toBeTruthy();
+    clickSquare(5, 4);
+    expect(document.querySelector('.dmap-room.is-hidden')).toBeNull();
+  });
+
+  it('arms a trap with the DM’s own words, anywhere on the grid', async () => {
+    const user = userEvent.setup();
+    render(<DungeonsTab />);
+    await user.click(screen.getByRole('button', { name: 'Trap' }));
+    await user.type(screen.getByLabelText(/what it does/i), 'scything blade, DC 15 Dex');
+    clickSquare(5, 4);
+
+    const trap = document.querySelector('.dmap-trap');
+    expect(trap).toBeTruthy();
+    expect(trap?.querySelector('title')?.textContent).toMatch(/scything blade/);
+
+    // Armed, not sprung - the editor shows both states differently.
+    expect(document.querySelector('.dmap-trap.is-sprung')).toBeNull();
+    clickSquare(5, 4);
+    expect(document.querySelector('.dmap-trap')).toBeNull();
+  });
+
+  it('carries all three into the drawer and back', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<DungeonsTab />);
+    await user.click(screen.getByRole('button', { name: 'Hidden' }));
+    clickSquare(5, 4);
+    await user.click(screen.getByRole('button', { name: 'Trap' }));
+    clickSquare(6, 4);
+
+    await user.type(screen.getByLabelText(/name this dungeon/i), 'the sunken abbey');
+    await user.click(screen.getByRole('button', { name: /save this map/i }));
+    unmount();
+
+    render(<DungeonsTab />);
+    await user.click(screen.getByRole('button', { name: /open the sunken abbey/i }));
+    expect(document.querySelector('.dmap-room.is-hidden')).toBeTruthy();
+    expect(document.querySelector('.dmap-trap')).toBeTruthy();
+  });
+});
+
 describe('the generator inputs', () => {
   it('drives the map from seed, size and rooms', async () => {
     const user = userEvent.setup();

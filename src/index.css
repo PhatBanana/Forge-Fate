@@ -4929,6 +4929,89 @@ dl.detail-list {
   stroke-width: 1.2;
 }
 
+/*
+  §81: the furniture. A locked door keeps the door and gains a bar across it;
+  a hidden room is dashed *in the editor only* - at the table it is not drawn
+  at all, because it is not in the dungeon the battle screen was handed; and a
+  trap is a crossed circle, solid while armed and faded once it has gone off.
+  Shapes rather than hues alone, the rule §79 set for the whole app.
+*/
+.dmap-door.is-locked {
+  fill: var(--ink-faint, var(--paper));
+}
+
+.dmap-bar {
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.dmap-room.is-hidden {
+  stroke-dasharray: 5 4;
+  opacity: 0.75;
+}
+
+.dmap-trap circle {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 2;
+}
+
+.dmap-trap line {
+  stroke: var(--ink);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.dmap-trap.is-sprung {
+  opacity: 0.5;
+}
+
+.dmap-trap.is-sprung circle {
+  stroke-dasharray: none;
+}
+
+/* §81: the DM's own list of what the party has not found yet, in the Field
+   drawer. Dashed, like the hidden rooms it is about. */
+.btl-secrets {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.btl-secrets .k {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 6px;
+}
+
+/* §81: the trap tool's note box, in the editor's brush rail. */
+.dgn-note {
+  display: block;
+  margin: 2px 0 8px;
+}
+
+.dgn-note span {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 3px;
+}
+
+.dgn-note input {
+  font-size: 12px;
+  padding: 5px 7px;
+}
+
 @media print {
   /* The map prints; the controls above it are how you got here. */
   .dmap {

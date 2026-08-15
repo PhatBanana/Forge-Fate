@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ConfirmButton } from './shared';
 import { DungeonMap } from './DungeonMap';
+import { toggleHidden, toggleTrap } from '../engine/furniture';
 import type { Token } from './DungeonMap';
 import { loadBestiary, mergeBestiary } from '../bestiary';
 import { searchMonsters } from '../data/monsters';
@@ -16,7 +17,7 @@ import {
   randomSeed,
   removeCorridorAt,
   removeRoomAt,
-  toggleDoor,
+  cycleDoor,
 } from '../engine/dungeon';
 import type { DungeonLayout, MapSize } from '../engine/dungeon';
 import { MAX_SCALE, WHOLE_MAP, clampCamera } from '../engine/camera';
@@ -88,8 +89,20 @@ export function DungeonsTab({
     mapRooms: 8,
   });
   const [brush, setBrush] = useState<
-    TerrainKind | 'raise' | 'lower' | 'room' | 'corridor' | 'door' | 'erase-arch' | 'monster' | null
+    | TerrainKind
+    | 'raise'
+    | 'lower'
+    | 'room'
+    | 'corridor'
+    | 'door'
+    | 'hidden'
+    | 'trap'
+    | 'erase-arch'
+    | 'monster'
+    | null
   >(null);
+  /** §81: what the next trap gets written on it. One box, reused per stamp. */
+  const [trapNote, setTrapNote] = useState('');
   const [hover, setHover] = useState<Square | null>(null);
   /*
     §73: a two-corner tool mid-gesture. The room and corridor tools anchor on
@@ -160,7 +173,21 @@ export function DungeonsTab({
       return;
     }
     if (brush === 'door') {
-      setDraft((prev) => ({ ...prev, layout: toggleDoor(editable(prev), at) }));
+      setDraft((prev) => ({ ...prev, layout: cycleDoor(editable(prev), at) }));
+      return;
+    }
+    /*
+      §81. Hidden takes the room under the click; a trap takes the square
+      itself, which is why it is legal on bare corridor floor where a door
+      is not. The note is whatever is in the box beside the tool - the DM's
+      own words, since there is no trap table to read a number out of.
+    */
+    if (brush === 'hidden') {
+      setDraft((prev) => ({ ...prev, layout: toggleHidden(editable(prev), at) }));
+      return;
+    }
+    if (brush === 'trap') {
+      setDraft((prev) => ({ ...prev, layout: toggleTrap(editable(prev), at, trapNote) }));
       return;
     }
     if (brush === 'erase-arch') {
@@ -248,10 +275,16 @@ export function DungeonsTab({
     ];
   }, [anchor, stretch, brush]);
 
-  const architecture: { id: 'room' | 'corridor' | 'door' | 'erase-arch'; label: string; title: string }[] = [
+  const architecture: {
+    id: 'room' | 'corridor' | 'door' | 'hidden' | 'trap' | 'erase-arch';
+    label: string;
+    title: string;
+  }[] = [
     { id: 'room', label: 'Room', title: 'Drag a rectangle to add a room. A single square is a closet.' },
     { id: 'corridor', label: 'Corridor', title: 'Drag from one square to another; the corridor takes an L, doors appear where it meets rooms.' },
-    { id: 'door', label: 'Door', title: 'Click a square inside a room to place or remove a door.' },
+    { id: 'door', label: 'Door', title: 'Click a square inside a room: once for a door, again to bar it, again to take it away.' },
+    { id: 'hidden', label: 'Hidden', title: 'Click a room to hide it. A hidden room is not on the battle map at all until you reveal it there.' },
+    { id: 'trap', label: 'Trap', title: 'Click any square to arm or disarm a trap. It is invisible on the battle map until somebody walks onto it.' },
     { id: 'erase-arch', label: 'Erase', title: 'Click to remove — a door first, then the room under the click, then any corridor through it.' },
   ];
 
@@ -275,6 +308,9 @@ export function DungeonsTab({
         <div className="map-stage">
           <DungeonMap
             dungeon={dungeon}
+            /* §81: the author's view - hidden rooms dashed, every trap marked.
+               The battle screen passes nothing and sees what the table sees. */
+            authoring
             tokens={denizenTokens}
             terrain={draft.terrain}
             elevation={draft.elevation}
@@ -330,6 +366,10 @@ export function DungeonsTab({
               ? 'Drag from corner to corner · release to place it'
               : brush === 'door'
                 ? 'Click inside a room to place or remove a door'
+                : brush === 'hidden'
+                  ? 'Click a room to hide it from the battle map · click again to unhide'
+                : brush === 'trap'
+                  ? 'Click any square to arm a trap · click it again to disarm'
                 : brush === 'erase-arch'
                   ? 'Click a door, room or corridor to remove it'
                   : brush
@@ -364,6 +404,23 @@ export function DungeonsTab({
               {b.label}
             </button>
           ))}
+          {/*
+            §81: the note rides with the tool rather than opening a dialog per
+            trap. A DM arming six darts down a corridor types "poison dart, DC
+            15 Dex, 2d4" once and clicks six times, which is the shape the
+            work actually has.
+          */}
+          {brush === 'trap' && (
+            <label className="dgn-note">
+              <span>What it does</span>
+              <input
+                type="text"
+                value={trapNote}
+                placeholder="scything blade, DC 15 Dex"
+                onChange={(e) => setTrapNote(e.target.value)}
+              />
+            </label>
+          )}
           <h2 className="dgn-rail-title">Brushes</h2>
           {brushes.map((b) => (
             <button
