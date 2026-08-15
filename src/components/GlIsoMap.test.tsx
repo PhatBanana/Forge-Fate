@@ -50,7 +50,8 @@ describe('which renderer answers', () => {
     const { container } = render(<GlIsoMap dungeon={dungeon} />);
     const canvas = container.querySelector('canvas.dmap.glmap');
     expect(canvas).not.toBeNull();
-    expect(canvas?.getAttribute('aria-label')).toMatch(/tactical view of the map/i);
+    // §79: the label counts the board and points at the readable paths.
+    expect(canvas?.getAttribute('aria-label')).toMatch(/tactical map/i);
     expect(container.querySelector('svg.isomap')).toBeNull();
     // And the renderer was actually driven, not merely created.
     const built = vi.mocked(createRenderer).mock.results[0].value;

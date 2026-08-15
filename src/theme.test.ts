@@ -112,11 +112,21 @@ describe.each([
 ])('the %s palette', (_name, scope) => {
   const p = palette(scope);
 
-  it('reads at 4.5:1 or better for every text colour', () => {
+  it('reads at 4.5:1 or better for every text colour, on every painted ground', () => {
+    /*
+      §79: this loop tested `--panel` alone for a year, and the app paints
+      text on four grounds. `--text-faint` passed on the panel by 0.07 and
+      failed on the raised strip tiles; `--accent` failed on the page
+      itself in parchment. Testing every surface a token actually sits on
+      is three more entries here, and it is the difference between a
+      contrast test and a contrast alibi.
+    */
     const failures: string[] = [];
-    for (const name of ['text', 'text-dim', 'text-faint', 'accent', 'sky', 'blue', 'orange', 'red', 'green']) {
-      const ratio = contrast(p[name], p.panel);
-      if (ratio < 4.5) failures.push(`--${name} on --panel is ${ratio.toFixed(2)}:1`);
+    for (const ground of ['panel', 'bg', 'bg-raised', 'bg-sunken']) {
+      for (const name of ['text', 'text-dim', 'text-faint', 'accent', 'sky', 'blue', 'orange', 'red', 'green']) {
+        const ratio = contrast(p[name], p[ground]);
+        if (ratio < 4.5) failures.push(`--${name} on --${ground} is ${ratio.toFixed(2)}:1`);
+      }
     }
     expect(failures).toEqual([]);
   });

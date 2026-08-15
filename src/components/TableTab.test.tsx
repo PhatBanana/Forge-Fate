@@ -150,6 +150,18 @@ describe('putting a fight together', () => {
     expect(screen.queryByText('An empty table')).not.toBeInTheDocument();
   });
 
+  it('? opens the Keys dialog and Esc closes it without touching the board (§79)', async () => {
+    const user = userEvent.setup();
+    setup(party());
+
+    await user.keyboard('?');
+    expect(screen.getByRole('dialog', { name: /keyboard shortcuts/i })).toBeInTheDocument();
+    expect(screen.getByText('End the turn')).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: /keyboard shortcuts/i })).not.toBeInTheDocument();
+  });
+
   it('adds a character from the roster by reference', async () => {
     const user = userEvent.setup();
     const view = setup(party());
@@ -1310,6 +1322,8 @@ describe('running the monsters', () => {
 
     // Hit or miss, the fight's log says which, against the real AC.
     expect(screen.getByText(/scimitar \d+ vs AC 16/i)).toBeInTheDocument();
+    // §79: and the tail is a live region, so the swing was announced too.
+    expect(screen.getByRole('log')).toHaveTextContent(/scimitar \d+ vs AC 16/i);
     // And if it hit, the character's own hit points moved; never above max.
     expect(hpNow(view.roster.entries[0].play, max)).toBeLessThanOrEqual(max);
     // Aim consumed either way.

@@ -50,10 +50,13 @@ export function RacesTab({
             <i className="swatch red" /> Avoid — the numbers fight you
           </span>
         </div>
-        <div className="btn-row">
+        {/* §79: which mode is on used to be said only by a colour class -
+            to a screen reader all four buttons read identically. */}
+        <div className="btn-row" role="group" aria-label="How to slice the ratings">
           {ruleset === '2024' && (
             <button
               className={`btn btn-sm ${mode === 'by-background' ? 'btn-primary' : ''}`}
+              aria-pressed={mode === 'by-background'}
               onClick={() => setMode('by-background')}
             >
               Best backgrounds for a class
@@ -61,18 +64,21 @@ export function RacesTab({
           )}
           <button
             className={`btn btn-sm ${mode === 'by-class' ? 'btn-primary' : ''}`}
+            aria-pressed={mode === 'by-class'}
             onClick={() => setMode('by-class')}
           >
             Best species for a class
           </button>
           <button
             className={`btn btn-sm ${mode === 'by-race' ? 'btn-primary' : ''}`}
+            aria-pressed={mode === 'by-race'}
             onClick={() => setMode('by-race')}
           >
             Best classes for a lineage
           </button>
           <button
             className={`btn btn-sm ${mode === 'matrix' ? 'btn-primary' : ''}`}
+            aria-pressed={mode === 'matrix'}
             onClick={() => setMode('matrix')}
           >
             Full matrix

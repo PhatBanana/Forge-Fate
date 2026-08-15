@@ -172,16 +172,37 @@ function Floating({
   // lives.
   const { at, handle } = useDragPosition();
 
+  /*
+    §79: a dialog role without the dialog contract is worse than none - it
+    promises focus behaviour it does not have. The minimum honoured here:
+    focus lands on Close when the float opens, returns to where it was when
+    the float closes, and Escape closes it. A full focus trap stays
+    deferred; the float deliberately lets the DM keep working the board
+    behind it, which a trap would forbid.
+  */
+  const closer = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    closer.current?.focus();
+    return () => opener?.focus?.();
+  }, []);
+
   return (
     <div
       className="popout-float"
       style={{ transform: `translate(${at.x}px, ${at.y}px)` }}
       role="dialog"
       aria-label={title}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.stopPropagation();
+          onClose();
+        }
+      }}
     >
       <div className="popout-bar" {...handle}>
         <span>{title}</span>
-        <button type="button" onClick={onClose} aria-label={`Close ${title}`}>
+        <button ref={closer} type="button" onClick={onClose} aria-label={`Close ${title}`}>
           ✕
         </button>
       </div>

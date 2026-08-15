@@ -320,7 +320,10 @@ export function DungeonsTab({
             </div>
           </div>
 
-          <div className="hud-legend" aria-hidden="true">
+          {/* §79: no longer aria-hidden - the tool guidance changes with the
+              brush, and role="status" announces the change instead of
+              keeping the instructions from the people who cannot hover. */}
+          <div className="hud-legend" role="status">
             {brush === 'monster'
               ? 'Click the map to stand the picked monster there · one per click'
               : brush === 'room' || brush === 'corridor'

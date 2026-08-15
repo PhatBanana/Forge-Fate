@@ -261,7 +261,12 @@ export function IsoMap({
       width={w}
       height={h}
       style={{ '--map-ratio': `${w} / ${h}` } as CSSProperties}
-      role="img"
+      /* §79: `role="group"`, not `img`. An image role prunes the subtree
+         from the accessibility tree, which silently discarded every
+         per-token <title> below - the names, the zone labels, the condition
+         lists. A group keeps the label and lets the children speak, which is
+         the whole reason Classic look is the accessible tactical mode. */
+      role="group"
       aria-label={`Tactical view of the map from seed ${dungeon.seed}`}
       onContextMenu={cam.onContextMenu}
       onPointerDown={(e) => {

@@ -28,6 +28,7 @@ import {
 } from '../engine/gl/sprites';
 import { motionFor, pruneAnims } from '../engine/gl/motion';
 import type { TokenAnim } from '../engine/gl/motion';
+import { useReducedMotion } from './useReducedMotion';
 import { groundCells } from '../engine/iso';
 
 /**
@@ -107,6 +108,7 @@ function GlSurface({
     setState per animation frame would be sixty commits a second.
   */
   const anims = useRef<TokenAnim[]>([]);
+  const reducedMotion = useReducedMotion();
   const seenSeqs = useRef<
     Record<string, { flash?: number; lunge?: number; walk?: number; down?: boolean }>
   >({});
@@ -227,7 +229,15 @@ function GlSurface({
     const now = performance.now();
     for (const token of tokens) {
       const seen = seenSeqs.current[token.id];
-      if (seen) {
+      /*
+        §79: reduced motion is enforced here, at the one gate every
+        animation enters through. Nothing is enqueued, so `motionFor`
+        naturally answers stillness and tokens snap to their end states -
+        the walk arrives, the death lies down - without the motion module
+        (pure, node-tested functions of elapsed time) learning anything
+        about user preferences.
+      */
+      if (seen && !reducedMotion) {
         if (token.flash && token.flash !== seen.flash) {
           anims.current.push({ id: token.id, kind: 'hit', start: now });
         }
@@ -334,13 +344,34 @@ function GlSurface({
     return standing.reduce((top, t) => (proj.depthOf(t.at) >= proj.depthOf(top.at) ? t : top));
   };
 
+  /*
+    §79: what the canvas cannot say, said beside it. A canvas is one opaque
+    box to a screen reader, and this one used to answer with a seed number
+    for the entire combat surface. The visually-hidden list mirrors the
+    board - who stands where, who is down - from the same tokens array the
+    pixels draw from, so it cannot drift. Full keyboard play on the GL
+    board stays honest future work; Classic look remains the
+    keyboard-and-reader tactical mode, and the toggle beside the camera
+    says so.
+  */
+  const boardSummary =
+    tokens.length === 0
+      ? 'Nobody on the map yet.'
+      : tokens
+          .map(
+            (t) =>
+              `${t.title ?? t.label} at column ${t.at.x + 1}, row ${t.at.y + 1}${t.down ? ', down' : ''}`,
+          )
+          .join('; ');
+
   return (
+    <>
     <canvas
       ref={canvasRef}
       className="dmap glmap"
       style={{ '--map-ratio': `${proj.w} / ${proj.h}` } as CSSProperties}
       role="img"
-      aria-label={`Tactical view of the map from seed ${dungeon.seed}`}
+      aria-label={`Tactical map. ${tokens.length} on the board. The list after this canvas names them; the Classic look toggle offers the fully readable map.`}
       onContextMenu={cam.onContextMenu}
       onPointerDown={(e) => {
         if (!dragging.current && cam.onPointerDown(e)) return;
@@ -408,6 +439,8 @@ function GlSurface({
         if (token) onTokenOpen?.(token.id);
       }}
     />
+    <p className="sr-only">{boardSummary}</p>
+    </>
   );
 }
 

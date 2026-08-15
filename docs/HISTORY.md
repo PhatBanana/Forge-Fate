@@ -5459,3 +5459,71 @@ an example" gained one wordmark step home - eighteen probes patched,
 run75-77 re-run green.
 
 **Gates.** 2181 tests / 101 files, tsc, oxlint, build in budget.
+
+## 79. Heard and seen
+
+*The §75 audit's accessibility tranche - the app played fair with eyes
+and mice, and with nothing else.*
+
+**The fight is announced.** Every attack, save, death and turn was
+written to the log and told to nobody: the on-board tail was
+aria-hidden and no live region existed anywhere. The tail *is* the live
+region now - `role="log" aria-live="polite"`, one copy of the text,
+visible to everyone, each prepended line announced as it arrives. It
+stays mounted before the first line (a region born with its first
+message is often never announced) and CSS hides the empty pill.
+
+**The keys are findable.** The only documentation of the battle's
+shortcuts was a floating legend marked aria-hidden with pointer-events:
+none - invisible to assistive tech and untouchable by a finger, for
+exactly the users guaranteed to need it. A visible **Keys** button and
+the `?` key open a real dialog: labelled, focus in on open and handed
+back on close, Esc dismisses without waking the map's Escape chain, and
+the bindings arrive as data. The glass keeps a one-line reminder; the
+Dungeons brush legend, which is guidance rather than keys, is simply no
+longer hidden and announces as the brush changes.
+
+**Stillness reaches the GL board.** `prefers-reduced-motion` lived in
+one CSS block and never touched the canvas - lunges, hit shake, damage
+flashes, walks and the death dissolve all played at full amplitude for
+the people who asked for none. A `useReducedMotion` hook (live, jsdom
+guarded) gates the one door every animation enters through: nothing is
+enqueued, so tokens snap to their end states and the pure motion module
+never learns about user preferences.
+
+**The maps speak.** The SVG board's `role="img"` was pruning every
+per-token `<title>` from the accessibility tree - the names, the zone
+labels, the condition lists, silently discarded; it is a labelled group
+now, and Classic look's tooltip finally says in the UI what HISTORY
+recorded in §66: it is the keyboard-and-reader tactical mode. The GL
+canvas, one opaque box that used to answer with a seed number, carries
+a visually-hidden board summary - who stands where, who is down -
+derived from the same tokens the pixels draw. Full keyboard play on the
+GL board stays honest future work.
+
+**Contrast, tested where it is painted.** The theme test's loop had
+checked text tokens against `--panel` alone for a year while the app
+painted them on four grounds - `--text-faint` passed on the panel by
+0.07 and failed on the raised strip tiles. The loop now covers every
+ground; the failures it immediately found (parchment's faint text,
+accent and orange on the page; dark's faint text and red on raised
+tiles) were lifted to 4.5:1 with minimal moves. Six rules that put
+`var(--bg)` on the accent fill - 4.13:1 in parchment - now wear the
+`--on-accent` token the test has always guaranteed.
+
+**Smaller honesties.** The species screen's four mode buttons said
+which was on only through a colour class - identical to a screen
+reader; they carry `aria-pressed` in a labelled group. The pop-out
+float's `role="dialog"` finally honours the contract it claimed: focus
+in on open, back on close, Esc closes; a full trap stays deferred
+because the float deliberately lets the DM keep working the board.
+
+**Pinned.** The tail's announcement rides the attack test; ? and the
+focus contract in ShortcutsHelp.test and the battle suite; the hook's
+three states in useReducedMotion.test; the widened contrast loop is
+itself the pin - it failed first, then the tokens moved. The probe
+opens the dialog with the real `?`, watches focus land back on Keys,
+reads the computed accent ink, finds the live region and the canvas
+summary, and runs the board under emulated reduced motion.
+
+**Gates.** 2187 tests / 103 files, tsc, oxlint, build in budget.

@@ -133,6 +133,7 @@ import {
 import type { Eyes, LightLevel } from '../engine/light';
 import { sensesFor, sensesForMonster } from '../engine/senses';
 import { ConfirmButton, Panel } from './shared';
+import { ShortcutsHelp } from './ShortcutsHelp';
 import { MonsterCard } from './MonsterCard';
 import { PopOut } from './PopOut';
 import { HudPanel } from './HudPanel';
@@ -433,6 +434,8 @@ export function TableTab({
     hide the map on arrival - which is the exact defect §31.3 exists to fix.
   */
   const [drawer, setDrawer] = useState<string | null>(null);
+  /* §79: the Keys dialog - opened by its button or by `?`. */
+  const [keysOpen, setKeysOpen] = useState(false);
 
   /*
     Whether the cockpit is still taking width from the board.
@@ -4613,7 +4616,9 @@ export function TableTab({
                   aria-label="Classic look"
                   aria-pressed={classicLook}
                   className={classicLook ? 'is-on' : ''}
-                  title="The vector board instead of the PS1 renderer — also the view that prints"
+                  /* §79: the honest stance HISTORY records, finally said in
+                     the UI - the canvas cannot name its tokens to a reader. */
+                  title="The vector board instead of the PS1 renderer — the keyboard-and-screen-reader-friendly map, and the view that prints"
                   onClick={() => chooseLook(!classicLook)}
                 >
                   Classic
@@ -4621,16 +4626,32 @@ export function TableTab({
               )}
             </div>
           )}
+          <div className="seg">
+            <ShortcutsHelp
+              open={keysOpen}
+              onOpen={() => setKeysOpen(true)}
+              onClose={() => setKeysOpen(false)}
+              shortcuts={[
+                { keys: 'Space or N', does: 'End the turn' },
+                { keys: 'Esc', does: 'Cancel what is armed - a move, an aim, a drawer' },
+                { keys: 'Hold H', does: 'Fade the HUD to see the whole board' },
+                { keys: 'Double-click a token', does: 'Open its sheet or stat block' },
+                { keys: 'W A S D', does: 'Pan the camera' },
+                { keys: '+ / −', does: 'Zoom in and out' },
+                { keys: '0', does: 'Fit the whole map' },
+                { keys: 'Q / E', does: 'Rotate the tactical view a quarter turn' },
+                { keys: '?', does: 'Open this list' },
+              ]}
+            />
+          </div>
         </div>
-        {/* The keys, said once. A camera nobody can find is a camera nobody
-            has - and the rotate pair only means anything in the tactical
-            view, so it is only offered there. */}
+        {/* §79: the one-line reminder stays on the glass; the full list
+            moved into the Keys dialog, which a keyboard and a finger can
+            actually reach - the old legend was aria-hidden with
+            pointer-events: none, documenting the keyboard to everyone
+            except keyboard users. */}
         <div className="hud-legend" aria-hidden="true">
-          Space ends the turn · Esc cancels · hold H to see the board · double-click a token
-          opens the sheet
-          <br />
-          WASD moves the camera · right-drag or wheel · +/− zooms, 0 fits
-          {view === 'tactical' ? ' · Q/E turn the view' : ''}
+          Space ends the turn · Esc cancels · ? shows every key
         </div>
       </div>
   );
@@ -5672,6 +5693,12 @@ export function TableTab({
       const target = e.target as HTMLElement | null;
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
       if (e.key === 'Escape') {
+        // The Keys dialog handles its own Escape and stops propagation;
+        // this line only catches a dialog whose focus wandered.
+        if (keysOpen) {
+          setKeysOpen(false);
+          return;
+        }
         if (aim) setAim(null);
         else if (grab) setGrab(null);
         else if (placingLight) setPlacingLight(null);
@@ -5684,6 +5711,11 @@ export function TableTab({
         // pressing Escape mid-aim means "put the bow down", not "close the
         // bestiary I opened a minute ago".
         else if (drawer) setDrawer(null);
+        return;
+      }
+      // §79: ? opens the Keys dialog - the shape every terminal app taught.
+      if (e.key === '?') {
+        setKeysOpen((was) => !was);
         return;
       }
       if ((e.key === ' ' || e.key.toLowerCase() === 'n') && isRunning(encounter)) {
@@ -5975,13 +6007,21 @@ export function TableTab({
           opening anything. The whole log is behind the After drawer; this is
           the tail, which is the part anybody actually looks at.
         */}
-        {(encounter.log?.length ?? 0) > 0 && (
-          <div className="btl-tail" aria-hidden="true">
-            {encounter.log!.slice(0, 3).map((entry) => (
-              <p key={entry.id}>{entry.text}</p>
-            ))}
-          </div>
-        )}
+        {/*
+          §79: the fight, said out loud. The tail was aria-hidden, and no
+          live region existed anywhere - every attack, save, death and turn
+          was written to the log and announced to nobody. The tail itself is
+          the live region now: one copy of the text, visible to everyone,
+          and each prepended line is announced politely as it arrives. The
+          container stays mounted even empty (a live region that appears
+          together with its first message is often not announced at all);
+          CSS hides the empty pill.
+        */}
+        <div className="btl-tail" role="log" aria-live="polite">
+          {(encounter.log ?? []).slice(0, 3).map((entry) => (
+            <p key={entry.id}>{entry.text}</p>
+          ))}
+        </div>
 
         {/*
           The drawer, over the map rather than under it. One at a time, because
