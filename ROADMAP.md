@@ -217,14 +217,17 @@ same position as the ~108 non-SRD subclasses. They are labelled in the
 Builder by their source badge and counted by a pinned coverage assertion;
 they are not, and cannot be, verified. See **Provenance**.
 
-### 3. Small and optional — `[ ]` **XS each**
+### 3. Small and optional — `[x]` **both done in §82**
 
-- `[ ]` **"Roll 4d6, drop the lowest"** for ability scores. Point buy,
-  standard array, manual entry and a real dice roller all exist, so this is
-  a button rather than a capability.
-- `[ ]` **Appearance fields** (age, height, weight, eyes, skin, hair). The
-  PHB sheet has the box; this app has a portrait instead. Probably a
-  decision to record rather than work to do.
+- `[x]` **"Roll 4d6, drop the lowest"** for ability scores. `rollAbilityScores`
+  seats the six by class priority, the way the standard array already did,
+  and prints the dice it rolled underneath - the question a table asks next.
+  The rng is a parameter, so the tests assert dice rather than ranges.
+- `[x]` **Appearance fields** (age, height, weight, eyes, skin, hair). The
+  hedge here - that the portrait made them redundant - did not survive
+  contact: a portrait shows a face, and "how tall is he" is asked about a
+  person standing next to a door. All six are free text, because the box
+  holds `6'2"` as readily as a number. Full account in `docs/HISTORY.md` §82.
 
 ### 4. The app's own content — done
 

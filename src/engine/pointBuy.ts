@@ -1,5 +1,7 @@
 import { ABILITIES } from '../types';
 import type { AbilityScores } from '../types';
+import { rollDie } from './dice';
+import type { Rng } from './dice';
 
 export const POINT_BUY_BUDGET = 27;
 export const POINT_BUY_MIN = 8;
@@ -68,4 +70,45 @@ export function assignStandardArray(priority: Record<string, number>): AbilitySc
     scores[ability] = STANDARD_ARRAY[i];
   });
   return scores;
+}
+
+/**
+ * §82: "roll 4d6, drop the lowest", six times.
+ *
+ * The oldest way to make a character, and the last of the four this app was
+ * missing - point buy, the standard array and typing a number you rolled
+ * elsewhere have all been here since the Builder had an Abilities section.
+ *
+ * The rng is a parameter for the reason every other roll in this app takes
+ * one: a test that cannot fix the dice can only assert ranges, and ranges are
+ * how a broken roller passes. `engine/dice.ts` owns the die itself.
+ */
+export function roll4d6DropLowest(rng: Rng): number {
+  const dice = [rollDie(6, rng), rollDie(6, rng), rollDie(6, rng), rollDie(6, rng)];
+  const lowest = Math.min(...dice);
+  // `indexOf` rather than a filter: four sixes drops one six, not all four.
+  dice.splice(dice.indexOf(lowest), 1);
+  return dice.reduce((total, die) => total + die, 0);
+}
+
+/**
+ * Six rolls, seated by what the class wants - the same courtesy
+ * `assignStandardArray` does, and for the same reason: a player who rolls a
+ * 17 and a 9 knows which one the Fighter wants in Strength, and making them
+ * drag numbers around to say so is a chore rather than a choice. The rolls
+ * come back too, in the order they were made, because "what did I actually
+ * roll" is the question the table asks next.
+ */
+export function rollAbilityScores(
+  priority: Record<string, number>,
+  rng: Rng,
+): { scores: AbilityScores; rolled: number[] } {
+  const rolled = Array.from({ length: 6 }, () => roll4d6DropLowest(rng));
+  const seated = [...rolled].sort((a, b) => b - a);
+  const order = [...ABILITIES].sort((a, b) => priority[b] - priority[a]);
+  const scores: AbilityScores = { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 };
+  order.forEach((ability, i) => {
+    scores[ability] = seated[i];
+  });
+  return { scores, rolled };
 }

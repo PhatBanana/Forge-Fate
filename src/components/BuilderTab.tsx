@@ -25,7 +25,9 @@ import {
   assignStandardArray,
   optimalPointBuy,
   pointsSpent,
+  rollAbilityScores,
 } from '../engine/pointBuy';
+import { defaultRng } from '../engine/dice';
 import { analyze, problemsOnly } from '../engine/analyze';
 import { recommendNext } from '../engine/recommend';
 import type { Suggestion } from '../engine/recommend';
@@ -208,6 +210,17 @@ export function BuilderTab({
   */
   const [section, setSection] = useState<Section>('identity');
   useSectionSpy(setSection);
+
+  /*
+    §82: the last roll's six dice, shown under the scores.
+
+    Component state rather than part of the build: the *scores* are the
+    character and are saved; what the dice said on the way to them is a fact
+    about the minute they were rolled in. Storing it would put a number on
+    every saved sheet that nothing reads and that a hand-edit would make a
+    lie - the same reasoning that keeps the AC curve's toggle out of a build.
+  */
+  const [rolled, setRolled] = useState<number[] | null>(null);
 
   /*
     Which catalogue is open. One, for the whole Builder.
@@ -701,8 +714,40 @@ export function BuilderTab({
               >
                 Standard array
               </button>
+              {/*
+                §82: the oldest way, and the last one this app was missing.
+                It seats the rolls by what the class wants, the courtesy the
+                standard array already does - a player who rolls a 17 and a 9
+                knows which the Fighter wants, and dragging numbers to say so
+                is a chore rather than a choice. The scores stay editable
+                afterwards, so a table that rolls in order can move them.
+              */}
+              <button
+                className="btn btn-sm"
+                title="Roll 4d6 and drop the lowest, six times — the rolls are shown below"
+                onClick={() => {
+                  const { scores, rolled } = rollAbilityScores(ctx.abilityPriority, defaultRng);
+                  setRolled(rolled);
+                  patch({ baseScores: scores });
+                }}
+              >
+                Roll 4d6
+              </button>
             </span>
           </div>
+
+          {/*
+            What the dice actually said, in the order they were said - the
+            question a table asks straight after "roll for stats", and one the
+            seated scores cannot answer once they are sorted.
+          */}
+          {rolled && (
+            <p className="muted rolled-line" role="status">
+              Rolled {rolled.join(', ')} — seated by what a{' '}
+              {ctx.primary.klass.name} wants. Point buy does not apply to rolled
+              scores; edit any of them by hand.
+            </p>
+          )}
 
           <p className="muted" style={{ marginTop: 10 }}>
             {build.ruleset === '2024' ? 'Your background grants' : 'Lineage grants'}{' '}

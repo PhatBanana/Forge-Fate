@@ -754,6 +754,26 @@ export interface CharacterDetails {
   playerName: string;
   alignment: string;
   experience: string;
+  /**
+   * §82: the PHB's appearance boxes, as free text.
+   *
+   * Strings rather than numbers, and deliberately: the box on the page holds
+   * `6'2"` and `13 stone` and `180 lb` and `unknown - she does not say`, and
+   * a number field would have to pick one of those and refuse the rest. The
+   * optimizer has no opinion about any of them, which is exactly why they
+   * live here beside Bonds rather than in the build.
+   *
+   * The app has a portrait (§99) and the ROADMAP wondered whether that made
+   * these redundant. It does not: a portrait shows a face, and "how tall is
+   * he" is a question asked at a table about a person standing next to a
+   * door. Both, and each cheap.
+   */
+  age: string;
+  height: string;
+  weight: string;
+  eyes: string;
+  skin: string;
+  hair: string;
   personality: string;
   ideals: string;
   bonds: string;
@@ -778,6 +798,12 @@ export function emptyDetails(): CharacterDetails {
     playerName: '',
     alignment: '',
     experience: '',
+    age: '',
+    height: '',
+    weight: '',
+    eyes: '',
+    skin: '',
+    hair: '',
     personality: '',
     ideals: '',
     bonds: '',

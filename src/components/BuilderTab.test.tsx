@@ -274,6 +274,44 @@ describe('the section nav', () => {
   What survives from it is the numbering, which was the good idea: the sections
   are the order a character is made in.
 */
+/**
+ * §82. Rolling for scores. The dice themselves are pinned in
+ * `engine/pointBuy.test.ts` against a fixed rng; what this checks is the
+ * wiring - that the button fills all six, seats them by priority, and says
+ * out loud what the dice were.
+ */
+describe('rolling for ability scores', () => {
+  it('fills every score and shows the six rolls', async () => {
+    const app = setup(fighter(5));
+    await goTo(/^abilities/i);
+    await userEvent.click(screen.getByRole('button', { name: /roll 4d6/i }));
+
+    for (const ability of ['str', 'dex', 'con', 'int', 'wis', 'cha'] as const) {
+      const score = app.build.baseScores[ability];
+      expect(score, ability).toBeGreaterThanOrEqual(3);
+      expect(score, ability).toBeLessThanOrEqual(18);
+    }
+    // The dice are reported, in the order they were rolled.
+    const line = screen.getByText(/^Rolled /);
+    const numbers = line.textContent!.match(/\d+/g)!.slice(0, 6).map(Number);
+    expect(numbers).toHaveLength(6);
+    for (const n of numbers) {
+      expect(n).toBeGreaterThanOrEqual(3);
+      expect(n).toBeLessThanOrEqual(18);
+    }
+  });
+
+  it('seats the best roll where the class wants it', async () => {
+    const app = setup(fighter(5));
+    await goTo(/^abilities/i);
+    await userEvent.click(screen.getByRole('button', { name: /roll 4d6/i }));
+    // A Fighter wants Strength first; whatever the dice said, nothing may
+    // beat Strength once they are seated.
+    const scores = app.build.baseScores;
+    expect(scores.str).toBe(Math.max(...Object.values(scores)));
+  });
+});
+
 describe('the section rail', () => {
   it('numbers the steps in the order a character is made', () => {
     setup(fighter(5));

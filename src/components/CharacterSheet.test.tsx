@@ -192,6 +192,39 @@ describe('the roleplay boxes', () => {
   });
 });
 
+/**
+ * §82. The appearance boxes: the last thing the PHB page had a box for and
+ * this sheet did not. Free text, six of them, and each one writes straight
+ * back onto the character like every other roleplay box.
+ */
+describe('the appearance boxes', () => {
+  it('has all six the printed sheet asks for', () => {
+    setup(fighter());
+    for (const label of ['Age', 'Height', 'Weight', 'Eyes', 'Skin', 'Hair']) {
+      expect(screen.getByLabelText(new RegExp(`^${label}$`, 'i'))).toBeInTheDocument();
+    }
+  });
+
+  it('writes what you type back onto the character', async () => {
+    const app = setup(fighter());
+    // Free text on purpose: a height is 6'2" as often as it is a number, and
+    // a number field would have to refuse one of those.
+    await userEvent.type(screen.getByLabelText(/^height$/i), '6');
+    const last = app.onBuildChange.mock.calls.at(-1)![0] as Build;
+    expect(last.details.height).toBe('6');
+  });
+
+  it('takes a written height whole, apostrophe and all', async () => {
+    const app = setup(buildOf({ ...fighter(), details: { ...fighter().details, height: `6'2"` } }));
+    expect((screen.getByLabelText(/^height$/i) as HTMLInputElement).value).toBe(`6'2"`);
+    // And it is still just a string on the way out.
+    await userEvent.type(screen.getByLabelText(/^eyes$/i), 'g');
+    const last = app.onBuildChange.mock.calls.at(-1)![0] as Build;
+    expect(last.details.eyes).toBe('g');
+    expect(last.details.height).toBe(`6'2"`);
+  });
+});
+
 describe('hit points', () => {
   it('starts at full', () => {
     const { ctx } = setup(fighter());

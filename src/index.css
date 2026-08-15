@@ -2708,6 +2708,37 @@ dl.detail-list {
   padding: 2px 4px;
 }
 
+/*
+  §82: the appearance boxes. Three across on the page, so six fields cost two
+  short rows rather than six - the sheet is one page and stays one page. The
+  input borrows `.cs-written`'s rule-and-caption look because it *is* that
+  thing: a box on paper somebody writes in.
+*/
+.cs-look {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px 8px;
+}
+
+.cs-lookfield input {
+  display: block;
+  width: 100%;
+  border-bottom: 1px solid var(--rule);
+  font-weight: 600;
+  min-height: 20px;
+  padding: 1px 3px;
+  font-size: 11px;
+}
+
+.cs-lookfield span {
+  display: block;
+  font-size: 8px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding-left: 3px;
+}
+
 .cs-headfield span,
 .cs-written span {
   display: block;

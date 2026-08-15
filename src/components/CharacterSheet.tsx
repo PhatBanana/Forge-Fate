@@ -1389,6 +1389,39 @@ export function CharacterSheet({
 
         {/* ---------------------------------------------- column three */}
         <div className="cs-col">
+          {/*
+            §82: the PHB's appearance boxes, above the personality prose they
+            belong beside on the paper page. Six short fields in one grid
+            rather than six full-width rows: "6'2"" needs an inch of paper,
+            and a column of nearly-empty boxes is how a sheet stops being one
+            page. All free text - see `CharacterDetails` for why not numbers.
+          */}
+          <Box label="Appearance">
+            <div className="cs-look">
+              {(
+                [
+                  ['Age', 'age', '31'],
+                  ['Height', 'height', `6'2"`],
+                  ['Weight', 'weight', '180 lb'],
+                  ['Eyes', 'eyes', 'grey'],
+                  ['Skin', 'skin', 'weathered'],
+                  ['Hair', 'hair', 'black, cropped'],
+                ] as const
+              ).map(([label, key, placeholder]) => (
+                <label className="cs-lookfield" key={key}>
+                  <input
+                    type="text"
+                    value={details[key]}
+                    placeholder={placeholder}
+                    aria-label={label}
+                    onChange={(e) => setDetail({ [key]: e.target.value })}
+                  />
+                  <span>{label}</span>
+                </label>
+              ))}
+            </div>
+          </Box>
+
           <Prose
             label="Personality traits"
             value={details.personality}

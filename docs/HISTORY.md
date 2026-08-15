@@ -5677,5 +5677,64 @@ in the editor, saves it, carries it into a battle through "Use in a battle",
 and checks the room, the door and the trap are all missing over there before
 revealing brings them back.
 
-**Gates.** 2218 tests / 105 files, tsc, oxlint, build in budget; run81 both
+**Gates.** 2218 tests / 104 files, tsc, oxlint, build in budget; run81 both
+themes at 1360×900.
+
+---
+
+## 82. The small and optional
+
+*The two items ROADMAP §3 had carried as `[ ]` **XS each** since the survey —
+done, and one of them was a question rather than a task.*
+
+**Roll 4d6, drop the lowest.** The oldest way to make a character, and the
+last of the four this app was missing: point buy, the standard array and
+typing a total you rolled elsewhere have all been in the Builder since it had
+an Abilities section. `rollAbilityScores` seats the six by what the class
+wants — the courtesy `assignStandardArray` already does, and for the same
+reason: a player who rolls a 17 and a 9 knows which one the Fighter wants in
+Strength, and dragging numbers around to say so is a chore rather than a
+choice. The scores stay editable afterwards, so a table that rolls in order
+down the sheet can move them.
+
+The dice come back too, in the order they were rolled, and are printed under
+the scores — "what did I actually roll" is the question a table asks next,
+and seated scores cannot answer it once they are sorted. They live in
+component state rather than on the build: the *scores* are the character, and
+what the dice said on the way to them is a fact about the minute they were
+rolled in. Storing it would put a number on every saved sheet that nothing
+reads and that a hand-edit would turn into a lie.
+
+The rng is a parameter, as it is everywhere else in this app, which is what
+lets the tests assert dice rather than ranges — including the one that would
+have caught the obvious bug: a filter rather than an `indexOf` drops *every*
+copy of the lowest, so four sixes would score zero instead of eighteen.
+
+**The appearance boxes, and the question attached to them.** ROADMAP listed
+age, height, weight, eyes, skin and hair with a hedge: "the PHB sheet has the
+box; this app has a portrait instead. Probably a decision to record rather
+than work to do." Resolved in favour of building, on two grounds. The
+machinery was already there — `CharacterDetails` has held free-text boxes
+beside Bonds since §54, the paper sheet already renders them, and six more
+fields is a grid and a hydrator default. And the premise was wrong: a
+portrait shows a face, while "how tall is he" is a question asked at a table
+about a person standing next to a door. Both, and each cheap.
+
+All six are strings, deliberately. The box on the page holds `6'2"` and
+`13 stone` and `180 lb` and *unknown — she does not say*, and a number field
+would have to pick one of those and refuse the rest. They sit three across in
+one grid above the personality prose, because six full-width rows is how a
+one-page sheet stops being one page.
+
+**Pinned.** `engine/pointBuy.test.ts` is new and drives the roller from a
+fixed rng: one die dropped and only one, four sixes scoring eighteen, the
+seating putting the best roll where the class wants it, and the rolls handed
+back unsorted. The Builder test checks the wiring — six scores in range,
+nothing beating a Fighter's Strength. The sheet test checks all six boxes
+exist and that a written height survives with its apostrophe. The probe rolls
+in a real browser, checks the printed dice are the same six numbers as the
+seated scores, rolls again to prove the rng is not stuck, and types a height
+on the sheet before reloading the whole app to see it come back.
+
+**Gates.** 2230 tests / 105 files, tsc, oxlint, build in budget; run82 both
 themes at 1360×900.
