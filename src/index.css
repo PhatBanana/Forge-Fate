@@ -5687,6 +5687,7 @@ dl.detail-list {
   top: calc(var(--hud-top, 0px) + 8px);
   left: 10px;
   z-index: 4;
+  transition: left 0.15s ease;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -7454,6 +7455,16 @@ dl.detail-list {
   left: 8px;
   bottom: var(--hud-bottom);
   width: min(480px, 52vw);
+}
+
+/*
+  §75: an open drawer owns the left edge, so the camera cluster slides out
+  from under it instead of becoming unclickable - the §70 probe had to
+  close a drawer to reach Classic look, and a probe fumbling for a button
+  is a user fumbling for it.
+*/
+.btl-stage:has(.btl-drawer) .hud-cam {
+  left: calc(min(480px, 52vw) + 18px);
   /* Above every docked float: a drawer is the thing you are looking at right
      now, and it is the one panel that closes. */
   z-index: 14;
@@ -7495,6 +7506,10 @@ dl.detail-list {
   align-items: center;
   gap: 6px;
   padding: 0 10px 8px;
+  /* §75: belt and braces under the shrink - if a future button pushes the
+     row past the window, it scrolls rather than silently clipping a menu
+     off the end, which is how "the Field button disappeared" got reported. */
+  overflow-x: auto;
   /* Same idea as the timeline's scrim: the bar sits ON the board now, so it
      wears the battle HUD's dark glass instead of resting on page colour. */
   background: linear-gradient(transparent, rgba(24, 22, 18, 0.32) 30%, rgba(24, 22, 18, 0.55));

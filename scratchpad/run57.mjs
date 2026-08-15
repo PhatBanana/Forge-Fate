@@ -42,8 +42,13 @@ for (const theme of ['dark', 'light']) {
   await press(/^Battle →$/);
   say(await page.locator('.btl-bar').count() > 0, `${theme}: Builder → Battle, one press`);
 
-  await press(/^Builder$/);
-  say(/builder/i.test(await screen()), `${theme}: Battle → Builder, one press`);
+  // §75 merged the bar's Sheet and Builder exits into one Character button;
+  // the sheet's own "Edit in Builder" door finishes the trip.
+  await press(/^Character$/);
+  say(/sheet/i.test(await screen()), `${theme}: Battle → sheet, one press`);
+
+  await press(/Edit in Builder/);
+  say(/builder/i.test(await screen()), `${theme}: sheet → Builder, one press`);
 
   await press(/^Character sheet →$/);
   say(/sheet/i.test(await screen()), `${theme}: Builder → sheet, as before`);
@@ -51,12 +56,10 @@ for (const theme of ['dark', 'light']) {
   await press(/^Battle →$/);
   say(await page.locator('.btl-bar').count() > 0, `${theme}: sheet → Battle, one press`);
 
-  await press(/^Sheet$/);
-  say(/sheet/i.test(await screen()), `${theme}: Battle → sheet, one press`);
-
   // And the hub is still there, unchanged - the doors are between neighbours,
-  // not a second navigation system growing back.
-  await page.locator('.gbar-home').first().click();
+  // not a second navigation system growing back. The battle's way home is the
+  // bar's Menu button; the desk screens keep the wordmark chip.
+  await page.getByRole('button', { name: /^Menu$/ }).first().click();
   await page.waitForTimeout(500);
   say(await page.locator('.title-menu').count() > 0, `${theme}: the wordmark still reaches the menu`);
 

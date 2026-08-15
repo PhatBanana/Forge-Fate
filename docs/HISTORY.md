@@ -5251,3 +5251,57 @@ in both themes: search, stamp, wander, save, load on the battle screen -
 the standing goblin arrives placed, and deploy seats the wanderer.
 
 **Gates.** 2167 tests / 100 files, tsc, oxlint, build in budget.
+
+## 75. The UI pass: fewer doors, each in the right wall
+
+*"Anything to help with UI. any menus that dont need to exist or can be
+bundled together. or possible the opposite if there are menus that need
+to be split" - then "go through and fix the issues you found."*
+
+The audit measured before it moved anything: the battle bar had grown to
+ten shrink-only buttons, which below ~860px pushed the tenth off the
+edge - the earlier report that "there is no longer a place on field
+button" was this, the bar clipping, not the button gone. The fixes are
+merges where two doors led to one errand, one split where a control sat
+in the wrong drawer, and a demotion where the hub advertised a
+subordinate screen.
+
+**The bar is eight buttons.** Party and Bestiary merged into
+**Fighters** - both were "who is in this fight", and every add-a-monster
+test opened them as a pair anyway. The Sheet and Builder exits merged
+into **Character** - the sheet already carries "Edit in Builder", so two
+bar slots bought one click. And the bar itself learned `overflow-x:
+auto`, so whatever width remains, a button can scroll into reach rather
+than vanish.
+
+**The group save moved in with the areas.** DC, damage and "Roll the
+room" lived in Order; the fireball that calls for them is drawn in
+Areas. They now share the drawer with the zone shelf - the room rolls
+right after the hazard lands - and Order is initiative, hit points and
+conditions, whole.
+
+**The camera dodges the drawer.** An open drawer owns the left edge
+where the camera cluster lives; the §70 probe had to close a drawer to
+press Classic look, and a probe fumbling for a button is a user fumbling
+for it. `.btl-stage:has(.btl-drawer) .hud-cam` slides the cluster to the
+drawer's right edge, with a transition so it visibly steps aside.
+
+**The Field drawer leads with its verbs.** The dungeon picker and
+"Put everyone on the map" come first; the house-rule toggles moved below
+them; a note says plainly that rooms, corridors and denizens are drawn
+in the Dungeons tab.
+
+**Species × Class left the hub.** It is a Builder satellite, not a
+destination - it now hangs off the Builder's game bar, with "Back to the
+Builder" as its one exit, and the hub's Create group is the shorter for
+it.
+
+**Pinned.** The test helpers translate the old drawer names, so four
+thousand lines of suite state intent ("open the Party") and one map
+states the wiring. The probe walks the whole pass in both themes: eight
+buttons whole at 820px, party and bestiary in one drawer, the save form
+in Areas and gone from Order, Classic look pressable while a drawer is
+open, Character landing on the sheet, and the pairings screen reachable
+from the Builder but absent from the hub.
+
+**Gates.** 2167 tests / 100 files, tsc, oxlint, build in budget.

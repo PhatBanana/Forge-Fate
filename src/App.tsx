@@ -612,7 +612,6 @@ export default function App() {
           state: build.name?.trim() || undefined,
         },
         { id: 'sheet', label: 'The character sheet', hint: 'The paper one, and the dice that go with it' },
-        { id: 'pairings', label: 'Species × Class', hint: 'What each pairing is worth, before you commit to one' },
       ],
     },
     {
@@ -713,8 +712,20 @@ export default function App() {
           </button>
           <span className="gbar-screen">{TAB_LABELS[tab]}</span>
           <span className="gbar-actions">
+            {tab === 'pairings' && (
+              <button className="btn btn-sm" onClick={() => setTab('builder')}>
+                Back to the Builder
+              </button>
+            )}
             {tab === 'builder' && (
               <>
+                <button
+                  className="btn btn-sm"
+                  title="Every species × class pairing rated - the reference this screen decides against"
+                  onClick={() => setTab('pairings')}
+                >
+                  Species × Class
+                </button>
                 <button
                   className="btn btn-sm"
                   onClick={stepBack}
@@ -830,7 +841,6 @@ export default function App() {
             bestiary={bestiary}
             ruleset={build.ruleset}
             onHome={() => setTab('title')}
-            onEdit={() => setTab('builder')}
             onSheet={() => setTab('sheet')}
           />
         )}

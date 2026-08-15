@@ -421,7 +421,7 @@ section has gone since.
 | 5e core mechanics: grapple, light, surprise, the small rules | 39-42 |
 | Builder correctness, and the audits that found it | 43-52 |
 
-## Dungeon furniture: hidden rooms, locked doors, traps (§75, designed not built)
+## Dungeon furniture: hidden rooms, locked doors, traps (designed, not built)
 
 Asked for alongside §73/§74. Not rushed in with them because each piece
 needs a *reveal* decision the map does not currently have to make - the

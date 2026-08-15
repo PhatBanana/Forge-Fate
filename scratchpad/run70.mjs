@@ -54,7 +54,7 @@ for (const theme of ['dark', 'light']) {
   await page.waitForTimeout(900);
   await page.getByRole('button', { name: /run a battle|resume the fight/i }).first().click();
   await page.waitForTimeout(1200);
-  await page.getByRole('button', { name: /^Party/ }).first().click();
+  await page.getByRole('button', { name: /^Fighters/ }).first().click();
   await page.waitForTimeout(500);
   await page.getByRole('button', { name: /example fighter/i }).first().click();
   await page.waitForTimeout(500);

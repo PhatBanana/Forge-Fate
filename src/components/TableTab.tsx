@@ -216,7 +216,6 @@ export function TableTab({
   bestiary,
   ruleset,
   onHome,
-  onEdit,
   onSheet,
 }: {
   roster: Roster;
@@ -247,7 +246,6 @@ export function TableTab({
    * Every other pair in the app already carries a door to its partner. This
    * is that rule finished rather than a new one.
    */
-  onEdit?: () => void;
   onSheet?: () => void;
 }) {
   const { monsters: srd, loading } = useMonsters();
@@ -4582,29 +4580,11 @@ export function TableTab({
       subtitle="The ground you are fighting on, and how the table is looking at it."
     >
       {/*
-        The optional rules, where the rule applies. Off is the book: the
-        app's claim is that it plays fifth edition, and a number quietly
-        disagreeing with it would make every other number harder to trust.
-        The log names each one either way, so a fight can be read back and
-        understood whichever way the switch was set.
-      */}
-      <div className="row" style={{ gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
-        {HOUSE_RULE_INFO.map((rule) => (
-          <label className="checkbox" key={rule.id} title={rule.hint}>
-            <input
-              type="checkbox"
-              checked={houseRules[rule.id]}
-              onChange={(e) => setHouseRules({ ...houseRules, [rule.id]: e.target.checked })}
-            />
-            <span>{rule.label}</span>
-          </label>
-        ))}
-      </div>
-
-      {/*
-        The picker: the Dungeons tab's drawer, read-only from here. Loading
-        copies the saved map's fields onto the live encounter in one write -
-        tokens come off, because the rooms they stood in are gone.
+        §75: the panel leads with its verbs - load a place, seat everyone -
+        and the switches follow. The picker is the Dungeons tab's drawer,
+        read-only from here; loading copies the saved map's fields onto the
+        live encounter in one write, and tokens come off, because the rooms
+        they stood in are gone.
       */}
       {dungeonLibrary.length > 0 && (
         <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -4635,6 +4615,8 @@ export function TableTab({
           : layout
             ? `Hand-built · ${dungeon.rooms.length} ${dungeon.rooms.length === 1 ? 'room' : 'rooms'} · each square is 5 ft.`
             : `Seed ${seed} · ${dungeon.rooms.length} rooms · each square is 5 ft.`}
+        {' '}Rooms, corridors and denizens are drawn in the Dungeons tab; this drawer
+        loads what it saves.
       </p>
 
       <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -4662,6 +4644,26 @@ export function TableTab({
         )}
       </div>
 
+
+            {/*
+        The optional rules, where the rule applies. Off is the book: the
+        app's claim is that it plays fifth edition, and a number quietly
+        disagreeing with it would make every other number harder to trust.
+        The log names each one either way, so a fight can be read back and
+        understood whichever way the switch was set.
+      */}
+      <div className="row" style={{ gap: 12, flexWrap: 'wrap', margin: '8px 0' }}>
+        {HOUSE_RULE_INFO.map((rule) => (
+          <label className="checkbox" key={rule.id} title={rule.hint}>
+            <input
+              type="checkbox"
+              checked={houseRules[rule.id]}
+              onChange={(e) => setHouseRules({ ...houseRules, [rule.id]: e.target.checked })}
+            />
+            <span>{rule.label}</span>
+          </label>
+        ))}
+      </div>
 
       <div className="row" style={{ alignItems: 'center', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
         <label className="checkbox" style={{ margin: 0 }}>
@@ -5787,12 +5789,20 @@ export function TableTab({
     about a fight rather than for running one. Kept-but-unused code that
     carries its own tests reads as load-bearing, so it goes.
   */
+  /*
+    §75: seven drawers became six, and the bar's three exits became two,
+    because the bar had quietly grown to ten buttons against a layout whose
+    own comment promised seven. The merges are by subject, not just by
+    count: Fighters is one answer to "who is in this fight" (the party
+    list, then the bestiary the §11.3 search already spanned), and the
+    group-save form lives with Areas because the room usually rolls right
+    after the fireball lands on it.
+  */
   const drawers = [
-    { id: 'party', label: 'Party', hint: 'Who is in the fight, and who could be', content: partyPanel },
-    { id: 'foes', label: 'Bestiary', hint: 'Search the stat blocks and add them', content: monstersPanel },
+    { id: 'party', label: 'Fighters', hint: 'The party, the bestiary, and who joins the fight', content: <>{partyPanel}{monstersPanel}</> },
     { id: 'field', label: 'Field', hint: 'The ground, the dungeon, fog and the camera', content: fieldPanel },
-    { id: 'areas', label: 'Areas', hint: 'Spells on the ground', content: zonePanel },
-    { id: 'order', label: 'Order', hint: 'Initiative, hit points, conditions, saves', content: <>{fightPanel}{savesPanel}</> },
+    { id: 'areas', label: 'Areas', hint: 'Spells on the ground, and the saves they call for', content: <>{zonePanel}{savesPanel}</> },
+    { id: 'order', label: 'Order', hint: 'Initiative, hit points, conditions', content: fightPanel },
     { id: 'plan', label: 'Prep', hint: 'What this fight will do, and the drawer of saved ones', content: <>{forecastPanel}{libraryPanel}</> },
     { id: 'after', label: 'After', hint: 'The debrief, the payout and the whole log', content: <>{debriefPanel}{logPanel}</> },
   ] as const;
@@ -5934,20 +5944,10 @@ export function TableTab({
             <button
               type="button"
               className="btl-cmd btl-cmd-home"
-              title="The character sheet for whoever is loaded. The fight stays on the table."
+              title="The loaded character's sheet - the Builder is one click from there. The fight stays on the table."
               onClick={onSheet}
             >
-              Sheet
-            </button>
-          )}
-          {onEdit && (
-            <button
-              type="button"
-              className="btl-cmd btl-cmd-home"
-              title="Edit the loaded character. The fight stays on the table."
-              onClick={onEdit}
-            >
-              Builder
+              Character
             </button>
           )}
           {onHome && (

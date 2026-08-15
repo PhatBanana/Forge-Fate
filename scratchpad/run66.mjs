@@ -85,7 +85,7 @@ const enterBattle = async (page, theme) => {
   await page.getByRole('button', { name: /run a battle|resume the fight/i }).first().click();
   await page.waitForTimeout(1200);
   // Somebody on the board, so there is a pawn to draw and click.
-  await page.getByRole('button', { name: /^Party/ }).first().click();
+  await page.getByRole('button', { name: /^Fighters/ }).first().click();
   await page.waitForTimeout(500);
   await page.getByRole('button', { name: /example fighter/i }).first().click();
   await page.waitForTimeout(500);

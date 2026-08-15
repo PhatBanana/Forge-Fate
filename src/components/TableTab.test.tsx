@@ -74,17 +74,25 @@ function setup(initial: Roster, bestiary: Monster[] = [], ruleset: Ruleset = '20
   helpers that have no `user` in scope, and a synchronous `fireEvent` is enough
   to press a button that only flips component state.
 */
+/*
+  §75 merged Party and Bestiary into one Fighters drawer; the hundred-odd
+  call sites keep their old names and this remap keeps them honest, because
+  both panels now live behind the one button.
+*/
+const DRAWER_OF: Record<string, string> = { Party: 'Fighters', Bestiary: 'Fighters' };
+
 const openSync = (label: string) => {
   const bar = document.querySelector('.btl-bar');
   if (!bar) return;
-  const button = within(bar as HTMLElement).queryByRole('button', { name: label });
+  const name = DRAWER_OF[label] ?? label;
+  const button = within(bar as HTMLElement).queryByRole('button', { name });
   if (button && button.getAttribute('aria-pressed') !== 'true') fireEvent.click(button);
 };
 
 const open = async (user: ReturnType<typeof userEvent.setup>, label: string) => {
   const bar = document.querySelector('.btl-bar');
   if (!bar) return;
-  const button = within(bar as HTMLElement).getByRole('button', { name: label });
+  const button = within(bar as HTMLElement).getByRole('button', { name: DRAWER_OF[label] ?? label });
   if (button.getAttribute('aria-pressed') !== 'true') await user.click(button);
 };
 
@@ -1261,8 +1269,9 @@ describe('running the monsters', () => {
     const view = setup(party());
     await fightWithGoblin(user, view);
 
-    // DC 30: everybody fails, so the arithmetic is deterministic.
-    await open(user, 'Order');
+    // DC 30: everybody fails, so the arithmetic is deterministic. The group
+    // save moved in with the areas (§75): the room rolls where the hazard is.
+    await open(user, 'Areas');
     fireEvent.change(screen.getByLabelText('DC'), { target: { value: '30' } });
     fireEvent.change(screen.getByLabelText('Damage'), { target: { value: '8' } });
     await user.click(screen.getByRole('button', { name: /roll the room/i }));
@@ -1300,7 +1309,7 @@ describe('the fight’s clocks and the drawer', () => {
     await user.click(within(entry).getByRole('button', { name: 'Add' }));
 
     // Fireball the room: everyone fails at DC 30, 20 damage → DC 10 vs half.
-    await open(user, 'Order');
+    await open(user, 'Areas');
     fireEvent.change(screen.getByLabelText('DC'), { target: { value: '30' } });
     fireEvent.change(screen.getByLabelText('Damage'), { target: { value: '22' } });
     await user.click(screen.getByRole('button', { name: /roll the room/i }));
@@ -4135,12 +4144,12 @@ describe('ground that helps, and ground that picks a side', () => {
 
     // Roll the room once with no aura, then again standing in one: the same
     // character's bonus is three higher, which is the whole feature.
-    await open(user, 'Order');
+    await open(user, 'Areas');
     await user.click(screen.getByRole('button', { name: /roll the room/i }));
     const before = [...document.querySelectorAll('.reasons li')][0]?.textContent ?? '';
 
     await dropAt6(user, 'aura-of-protection', standing);
-    await open(user, 'Order');
+    await open(user, 'Areas');
     await user.click(screen.getByRole('button', { name: /roll the room/i }));
     const after = [...document.querySelectorAll('.reasons li')][0]?.textContent ?? '';
 
