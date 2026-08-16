@@ -48,6 +48,7 @@ export function CharactersTab({
   onEdit,
   onPrint,
   onImport,
+  say,
 }: {
   roster: Roster;
   onChange: (roster: Roster) => void;
@@ -57,11 +58,12 @@ export function CharactersTab({
   onEdit: () => void;
   onPrint: () => void;
   onImport: (build: Build) => void;
+  /** §83: what the app says back when the control that caused it is gone. */
+  say?: (text: string) => void;
 }) {
   const [section, setSection] = useState<Section>('roster');
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [compareWith, setCompareWith] = useState<string | null>(null);
 
   // Escape closes the menu, as it closes anything that opens over the page.
@@ -81,8 +83,16 @@ export function CharactersTab({
     const url = shareUrl(entry.build);
     try {
       await navigator.clipboard.writeText(url);
-      setCopiedId(entry.id);
-      setTimeout(() => setCopiedId(null), 2500);
+      /*
+        §83: this used to flip the menu item's own label to "Link copied" on
+        a 2.5-second timer - inside `{menuFor === entry.id && ...}`, while the
+        same click ran `setMenuFor(null)`. The menu was unmounted before the
+        flip rendered, so the acknowledgement was never once seen by anybody;
+        the state and its timer were dead code that looked like a feature.
+        This is the exact shape the toast layer exists for: the control that
+        caused it is gone by the time there is anything to say.
+      */
+      say?.(`Share link copied — ${entry.build.name || 'Unnamed character'}`);
     } catch {
       // Clipboard needs a secure context and permission. Fall back to showing
       // the link so it can be copied by hand rather than failing silently.
@@ -279,7 +289,7 @@ export function CharactersTab({
                             setMenuFor(null);
                           }}
                         >
-                          {copiedId === entry.id ? 'Link copied' : 'Copy share link'}
+                          Copy share link
                         </button>
                         <button
                           role="menuitem"

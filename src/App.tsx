@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { flush } from './persist';
 import { originalsShown, setOriginalsShown } from './originals';
 import { RULESETS, RULESET_LABELS } from './types';
@@ -26,6 +26,9 @@ import { loadBestiary, saveBestiary } from './bestiary';
 import type { Monster } from './data/monsters';
 import { decodeBuild, tokenFromLocation } from './share';
 import { canRedo, canUndo, forget, historyFor, record, redo, undo } from './undo';
+import { push } from './toast';
+import type { Toast } from './toast';
+import { ToastHost } from './components/ToastHost';
 import {
   applyTheme,
   loadThemeChoice,
@@ -296,6 +299,19 @@ export default function App() {
   const incoming = share.build;
   const linkError = share.error;
   const clearShare = () => setShare({ build: null, error: null });
+
+  /*
+    §83: what the app says back, when the control that caused it is not under
+    the user's eye. See `toast.ts` for the rule - a label flip on the button
+    you just pressed is still the better answer, and the three the app already
+    has are staying.
+  */
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const say = useCallback(
+    (text: string, action?: { label: string; onAct: () => void }) =>
+      setToasts((current) => push(current, text, action)),
+    [],
+  );
 
   // Undo lives in memory, not in the saved roster: a deep stack across several
   // characters would multiply the roster on disk many times over, to keep
@@ -870,6 +886,7 @@ export default function App() {
             ruleset={build.ruleset}
             onHome={() => setTab('title')}
             onSheet={() => setTab('sheet')}
+            say={say}
             pendingDungeonId={pendingDungeon}
             onPendingDungeonDone={() => setPendingDungeon(null)}
             aside={<ThemeToggle choice={themeChoice} onChange={chooseTheme} />}
@@ -884,6 +901,7 @@ export default function App() {
             onImport={setBuild}
             onEdit={() => setTab('builder')}
             onPrint={() => setTab('sheet')}
+            say={say}
           />
         )}
         {tab === 'dungeons' && (
@@ -893,12 +911,24 @@ export default function App() {
             onBattle={(dungeonId) => {
               setPendingDungeon(dungeonId);
               setTab('table');
+              /* §83: the clearest case for a toast in the app - the press
+                 leaves the screen it was made on, so a label flip would be
+                 acknowledging to nobody. */
+              say('Loaded into the battle. The map is on the board.');
             }}
           />
         )}
         {tab === 'campaign' && <CampaignTab roster={roster} />}
       </Suspense>
       </main>
+      {/*
+        §83: inside `App` rather than beside it in `main.tsx`, where
+        `UpdatePrompt` lives - these are answers to things done in here, and
+        the state that holds them is here. The prompt stays outside the error
+        boundary because it may be the fix for the thing that broke; a toast
+        about a saved map is not.
+      */}
+      <ToastHost toasts={toasts} onChange={setToasts} />
     </div>
   );
 }

@@ -5738,3 +5738,74 @@ on the sheet before reloading the whole app to see it come back.
 
 **Gates.** 2230 tests / 105 files, tsc, oxlint, build in budget; run82 both
 themes at 1360×900.
+
+---
+
+## 83. The toast layer
+
+*The first of the eight §76–§80 deferred, and the one the rest of them want:
+§84's undo says "Undone — Redo" through this.*
+
+**§76 was right, and half-right.** It wanted acknowledgement and shipped
+label flips rather than a toast layer — "Save this map" becomes "Saved" for a
+moment, the `CharactersTab` idiom from §44. That is the better answer whenever
+the control is under your eye: it needs no machinery and cannot be missed,
+because you are already looking at the button you pressed. It says nothing at
+all when the button has gone. So the rule this section writes down is not
+"toasts replace flips":
+
+> If the control that caused it is under the user's eye, flip its label. If it
+> is not, say it in the toast layer.
+
+All three flips §76 shipped are on buttons the user is watching, so **all
+three stay** — the plan for this section said to retire them and the plan was
+wrong; looking at where each one fires is what settled it.
+
+**The defect that proved the layer.** `CharactersTab`'s "Copy share link"
+acknowledged itself by flipping that menu item's label to "Link copied" on a
+2.5-second timer. The item lives inside `{menuFor === entry.id && …}`, and the
+same click runs `setMenuFor(null)`. The menu was unmounted before the flip
+could render: **nobody has ever seen that acknowledgement**, and the state and
+its timer were dead code wearing the shape of a feature. No test caught it,
+because a test can only pin what somebody thought to look at. It is a toast
+now, and the toast is pinned.
+
+**`toast.ts`, and time as a parameter.** A pure store — push, dismiss, hold,
+release, expire — where `expire(toasts, now)` takes the clock rather than
+reading it, the same choice `undo.ts` made about coalescing and for the same
+reason: a lifecycle you cannot fast-forward is one you test by waiting. Newest
+first, capped at three (a fourth means the app is narrating rather than
+answering), and each toast may carry exactly one action, because two buttons
+on a strip that runs away from you is a dialog.
+
+`expire` returns **the same array** when nothing is due. It runs on a timer,
+and a fresh array every tick would re-render the host for ever.
+
+**The host is the live region, not a second one.** §79 learned this when a
+visually-hidden mirror of the combat log made `getByText` find two of
+everything: the visible element carries `role="status"` itself, so there is one
+copy of the text, announced once. `status` rather than `alert` — these answer
+something the user just did rather than interrupting them.
+
+**Held while you reach for it.** A toast under the pointer, or with focus
+inside it, does not expire, and its clock restarts when released. The oldest
+bug this kind of component has is vanishing as the click lands, and §84's
+"Redo" is precisely the toast people will reach for.
+
+**Where it says things.** Four call sites, each one where the control is gone
+by the time there is news: the share link above; "Use in a battle", which
+leaves the screen the button was on; loading a dungeon, and seating everyone,
+which both happen on the board *behind* the drawer holding the button that did
+it — the seating says how many, which is the part the board does not answer at
+a glance.
+
+**Pinned.** `toast.test.ts` drives the whole lifecycle from a clock it owns,
+including the four-sixes-shaped bug: a held toast that survives ten times its
+life, and a released one that gets a full life rather than expiring instantly.
+`ToastHost.test.tsx` pins the region contract and that the action runs before
+its toast is cleared. The probe copies a share link in a real browser, watches
+the menu close on the same click, finds the news anyway, and waits out the
+expiry.
+
+**Gates.** 2246 tests / 107 files, tsc, oxlint, build in budget; run83 both
+themes at 1360×900.

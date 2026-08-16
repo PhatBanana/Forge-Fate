@@ -19,11 +19,13 @@ function setup(initial: Roster) {
   const onChange = vi.fn();
   const onPrint = vi.fn();
   const onImport = vi.fn();
+  const say = vi.fn();
   let roster = initial;
 
   const props = () => ({
     roster,
     onChange,
+    say,
     onEdit,
     onPrint,
     onImport,
@@ -38,7 +40,7 @@ function setup(initial: Roster) {
     view.rerender(<CharactersTab {...props()} />);
   });
 
-  return { onEdit, onChange, onPrint, onImport, get roster() { return roster; } };
+  return { onEdit, onChange, onPrint, onImport, say, get roster() { return roster; } };
 }
 
 /** The occasional actions live behind the row's ⋯ button. */
@@ -232,6 +234,28 @@ describe('the row menu', () => {
 
     await userEvent.click(document.querySelector('.menu-backdrop') as HTMLElement);
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  /**
+   * §83, and a real defect rather than a gap: the acknowledgement for this
+   * used to be a label flip on the menu item itself - inside
+   * `{menuFor === entry.id && ...}`, while the same click ran
+   * `setMenuFor(null)`. The menu unmounted before the flip could render, so
+   * nobody ever saw it, and no test caught it because none asserted a thing
+   * that was never visible. It says so out loud now.
+   */
+  it('says the link was copied, somewhere the closed menu is not', async () => {
+    const clipboard = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText: clipboard } });
+
+    const app = setup(rosterOf(fighter(), wizard()));
+    await openMenu('Basher');
+    await userEvent.click(screen.getByRole('menuitem', { name: /copy share link/i }));
+
+    expect(clipboard).toHaveBeenCalledOnce();
+    // The menu is gone, which is exactly why the news cannot live in it.
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(app.say).toHaveBeenCalledWith(expect.stringMatching(/link copied/i));
   });
 
   it('closes on Escape', async () => {

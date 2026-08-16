@@ -220,6 +220,7 @@ export function TableTab({
   onSheet,
   pendingDungeonId,
   onPendingDungeonDone,
+  say,
   aside,
 }: {
   roster: Roster;
@@ -262,6 +263,12 @@ export function TableTab({
    */
   pendingDungeonId?: string | null;
   onPendingDungeonDone?: () => void;
+  /**
+   * §83: the battle is the screen where this matters most - almost every
+   * control is in a drawer covering the board it acts on, so the result of a
+   * press is behind the thing that made it.
+   */
+  say?: (text: string) => void;
   /** §78: the theme toggle, passed in like the title screen's corner takes
       it - the battle wears no gbar, so the command bar carries it. */
   aside?: React.ReactNode;
@@ -3367,6 +3374,14 @@ export function TableTab({
     let next = encounter;
     for (const [id, at] of plan) next = placeCombatant(next, id, at);
     setEncounter(next);
+    /* §83: the seating happens on the board, behind the open Field drawer
+       that holds this button. The count is the part you cannot see at a
+       glance anyway - "nobody had anywhere to go" is worth saying. */
+    say?.(
+      plan.size
+        ? `Seated ${plan.size} on the map.`
+        : 'Nobody to seat — everyone is already standing somewhere.',
+    );
   };
 
   const rollAll = () =>
@@ -4803,7 +4818,12 @@ export function TableTab({
               value=""
               onChange={(e) => {
                 const saved = dungeonLibrary.find((d) => d.id === e.target.value);
-                if (saved) setEncounter(applyDungeon(encounter, saved.map, (id) => byId.get(id)));
+                if (saved) {
+                  setEncounter(applyDungeon(encounter, saved.map, (id) => byId.get(id)));
+                  // Same reason as the deployment: the map changed behind the
+                  // drawer this select is in.
+                  say?.(`Loaded ${saved.name}.`);
+                }
               }}
             >
               <option value="">— saved on the Dungeons screen —</option>

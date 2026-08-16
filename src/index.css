@@ -4139,6 +4139,77 @@ dl.detail-list {
   color: var(--text);
 }
 
+/*
+  §83: the toast stack. Bottom-left, because `.update-prompt` owns
+  bottom-centre and the battle screen's command bar owns the bottom edge to
+  the right - and the prompt is the one floating thing that must not have to
+  compete for space.
+
+  Column-reverse so the newest is nearest the corner and older ones rise away
+  from it: the eye starts at the bottom and the newest is the one worth
+  reading. Same frame as the prompt, one size down.
+*/
+.toasts {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 49;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  max-width: min(360px, calc(100vw - 32px));
+  /* The stack itself is not a click target - only the toasts in it are. */
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+  padding: 8px 8px 8px 12px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.toast-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.toast-close:hover {
+  color: var(--text);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* §79's rule: the movement is an enhancement, and the toast is legible
+     without it. Nothing here is load-bearing. */
+  .toast {
+    animation: toast-in 140ms ease-out;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
 .update-prompt-text {
   flex: 1;
   min-width: 200px;
