@@ -5809,3 +5809,89 @@ expiry.
 
 **Gates.** 2246 tests / 107 files, tsc, oxlint, build in budget; run83 both
 themes at 1360×900.
+
+## 84. Undo everywhere
+
+`undo.ts` has been generic since §48 — `History<T>`, `record`/`undo`/`redo`,
+nothing in it Build-shaped — and it served exactly one screen for thirty-six
+sections. This section spends it: the battle, the dungeon editor and the
+campaign each get a way back, and the engine needed one addition to make that
+honest.
+
+**Wrap the setter, do not sweep the call sites.** Each screen renames the
+setter it already writes through and defines a recording one under the old
+name — `onChange: writeRoster` in `TableTab`, `[draft, writeDraft]` in
+`DungeonsTab`, `[file, writeFile]` in `CampaignTab`. Every existing write
+becomes undoable at once, none can be forgotten later, and what each component
+hands upward is unchanged. Twenty call sites in the battle alone, none of them
+touched.
+
+**The battle records the whole roster, not the encounter.** This is the point
+rather than an accident. A walk moves a token (encounter) *and* spends
+movement (play); a hit moves hit points (play) and writes the log (encounter).
+Recording either half would undo half a thing. `setEncounter` is one line on
+top of the roster write, so the funnel was already there.
+
+**`recordStep`: the recorder for screens where speed is not one gesture.**
+`record`'s 700ms coalescing is right for the Builder — a nine-letter name is
+one step back, not nine — and it was wrong in the battle the first time it ran.
+Seating a fighter and clearing the table half a second later are two
+decisions, and merging them meant the first Undo threw away the fighter as
+well as restoring nothing. A test caught it, then the same shape turned up
+twice more: Clear all in the editor, and delete-a-campaign after any press.
+
+What coalescing was actually protecting against there is narrower: one handler
+writing twice records the *same* previous value twice, costing two presses to
+walk back one change. `recordStep` handles exactly that — identical
+consecutive states collapse, nothing else does — and leaves the window to the
+surfaces that need it.
+
+So the split is per *kind of write*, not per screen, and two screens use both:
+
+| Write | Recorder | Why |
+|---|---|---|
+| Battle, everything | `recordStep` | Every write is a press or a resolved action |
+| Editor, brush strokes | `record` | `paintAt` fires on every pointer-move; a drag is one act |
+| Editor, Clear all | `recordStep` | A press is not part of the stroke before it |
+| Campaign, presses | `recordStep` | Start, play, delete, tick somebody in |
+| Campaign, notes | `record` | The one typing surface on the screen |
+
+**§76's stopgap retires.** "Restore last encounter" was a single snapshot held
+until a new combatant arrived, offered only when the table was empty — the
+best a section without undo could do. It is gone: Clear now walks back through
+the same forty-step stack as everything else, and its test presses Undo
+instead.
+
+**What it says.** Every undo pushes a §83 toast carrying Redo, because a stack
+that moves silently is one you cannot trust — and this is why the toast layer
+was built first. The battle names the head count when it changes
+("Undone — 5 in the fight.") and says the plain word when it does not: a
+number is what people undo *about* on that screen, and "Undone — 14 hit
+points" for one tick of damage is narration.
+
+**Ctrl+Z on both maps.** The battle folds it into the handler that already
+owns WASD and Escape, above that handler's modifier bail-out — undo is the one
+command there that *wants* a modifier, and the camera's guard would have eaten
+it. The editor gains its own listener, since the rail buttons are a long way
+from the square you just painted. Both bow out when a text field has focus:
+Ctrl+Z there belongs to the browser's own text history.
+
+Neither listener has a dependency array, matching the battle's existing one. A
+stale closure here steps back to a map two strokes old.
+
+**Three stacks, not one.** Each history is component state, so it dies with
+the screen and cannot reach across into another — the probe checks that the
+editor arrives with an empty stack after an undo on the campaign screen.
+`undo.ts` argues the memory-only stance for the Builder and it holds here:
+forty copies of a fight is a strange thing to keep for ever to serve one
+afternoon.
+
+**Pinned.** Five new `undo.test.ts` cases on `recordStep` including the pair
+`record` merges; six on the editor (a stroke is one step, Ctrl+Z, the text
+field exemption, Clear all); five on the campaign (both recorders, and the
+deleted campaign coming back); four on the battle, plus §76's rewritten test.
+`run84.mjs` drives all three screens in both themes and reads the toast's own
+Redo.
+
+**Gates.** 2267 tests / 107 files, tsc, oxlint, build in budget; run84 both
+themes at 1360×900, with run80, run81 and run83 green as the regression net.

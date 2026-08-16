@@ -43,6 +43,13 @@ export const TOAST_MS = 4000;
  */
 export const TOAST_LIMIT = 3;
 
+/**
+ * What a screen is handed so it can say something. One name for it, because
+ * §84 gives three more screens a reason to and a prop typed slightly
+ * differently in each is how "Redo" quietly stops being offered.
+ */
+export type Say = (text: string, action?: ToastAction) => void;
+
 export interface ToastAction {
   label: string;
   onAct: () => void;

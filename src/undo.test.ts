@@ -8,6 +8,7 @@ import {
   forget,
   historyFor,
   record,
+  recordStep,
   redo,
   undo,
 } from './undo';
@@ -142,5 +143,53 @@ describe('histories per character', () => {
     expect(forget(histories, 'a')).toEqual({});
     // And leaves the object alone when there is nothing to forget.
     expect(forget(histories, 'missing')).toBe(histories);
+  });
+});
+
+describe('recordStep: the recorder for surfaces where speed is not one gesture', () => {
+  it('keeps two quick changes as two steps', () => {
+    // The same pair `record` would merge - and merging them is the bug §84
+    // found the moment undo reached the battle screen: seat a fighter, clear
+    // the table half a second later, and one Undo threw the fighter away too.
+    const coalesced = record(record(emptyHistory<State>(), 'a', 100), 'b', 200);
+    expect(coalesced.past).toEqual(['a']);
+
+    const stepped = recordStep(recordStep(emptyHistory<State>(), 'a'), 'b');
+    expect(stepped.past).toEqual(['a', 'b']);
+  });
+
+  it('collapses the same state recorded twice, which is what it does instead', () => {
+    // One handler writing twice records the *same* previous value twice, and
+    // that would cost two presses to walk back one change.
+    const history = recordStep(recordStep(emptyHistory<State>(), 'a'), 'a');
+    expect(history.past).toEqual(['a']);
+  });
+
+  it('still abandons the redo branch when it collapses', () => {
+    // A skipped entry is still a fresh edit, and every editor drops the
+    // future on one.
+    const withFuture = { past: ['a'], future: ['z'], lastPushAt: 0 };
+    const history = recordStep(withFuture, 'a');
+    expect(history.past).toEqual(['a']);
+    expect(canRedo(history)).toBe(false);
+  });
+
+  it('walks back one step at a time, the way undo expects', () => {
+    let history = emptyHistory<State>();
+    history = recordStep(history, 'one');
+    history = recordStep(history, 'two');
+
+    const back = undo(history, 'three')!;
+    expect(back.value).toBe('two');
+    const further = undo(back.history, back.value)!;
+    expect(further.value).toBe('one');
+    expect(canUndo(further.history)).toBe(false);
+  });
+
+  it('honours the same forty-step limit', () => {
+    let history = emptyHistory<State>();
+    for (let i = 0; i < HISTORY_LIMIT + 5; i++) history = recordStep(history, `state-${i}`);
+    expect(history.past).toHaveLength(HISTORY_LIMIT);
+    expect(history.past[0]).toBe('state-5');
   });
 });

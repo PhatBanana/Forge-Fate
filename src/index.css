@@ -5520,6 +5520,23 @@ input.pcard-amount {
 }
 
 /*
+  §84: the way back, below the brushes and above the destructive one. Two
+  buttons side by side in a rail that is otherwise a single column, because
+  Undo and Redo are one control with two directions and stacking them would
+  read as two more tools.
+*/
+.dgn-undo {
+  display: flex;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.dgn-undo .btn {
+  flex: 1;
+  padding-inline: 4px;
+}
+
+/*
   Clear all is destructive and sits apart from the brushes it undoes. §76
   took the brush costume off it entirely - it is a plain button now (with
   the two-step confirm), so the rule only holds it clear of the rail.

@@ -224,3 +224,98 @@ describe('the drawer', () => {
     expect(onBattle).toHaveBeenCalledWith('d9');
   });
 });
+
+/**
+ * §84. The way back.
+ *
+ * The editor is the screen where coalescing earns its keep: `paintAt` fires
+ * on pointer-down *and* on every pointer-move of a drag, so a stroke across
+ * nine squares is nine writes and one mistake. `record`'s window keeps the
+ * first of a burst, so one press undoes the stroke rather than a ninth of it.
+ */
+describe('undo', () => {
+  it('has nothing to undo before anything is drawn', () => {
+    render(<DungeonsTab />);
+    expect(screen.getByRole('button', { name: /↶ Undo/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /↷ Redo/ })).toBeDisabled();
+  });
+
+  it('takes back a painted square and puts it back again', async () => {
+    const user = userEvent.setup();
+    render(<DungeonsTab />);
+    await user.click(screen.getByRole('button', { name: 'Pillar' }));
+    giveMapABox();
+    fireEvent.pointerDown(mapSvg(), { clientX: 55, clientY: 45 });
+    fireEvent.pointerUp(mapSvg());
+    expect(document.querySelector('.dmap-t-pillar')).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: /↶ Undo/ }));
+    expect(document.querySelector('.dmap-t-pillar')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: /↷ Redo/ }));
+    expect(document.querySelector('.dmap-t-pillar')).toBeTruthy();
+  });
+
+  it('undoes a whole stroke, not one square of it', async () => {
+    const user = userEvent.setup();
+    render(<DungeonsTab />);
+    await user.click(screen.getByRole('button', { name: 'Pillar' }));
+    giveMapABox();
+    // One drag: down, then three moves across neighbouring squares.
+    fireEvent.pointerDown(mapSvg(), { clientX: 55, clientY: 45 });
+    fireEvent.pointerMove(mapSvg(), { clientX: 65, clientY: 45, buttons: 1 });
+    fireEvent.pointerMove(mapSvg(), { clientX: 75, clientY: 45, buttons: 1 });
+    fireEvent.pointerMove(mapSvg(), { clientX: 85, clientY: 45, buttons: 1 });
+    fireEvent.pointerUp(mapSvg());
+    expect(document.querySelectorAll('.dmap-t-pillar').length).toBeGreaterThan(1);
+
+    await user.click(screen.getByRole('button', { name: /↶ Undo/ }));
+    // The whole stroke, in one press - not three more waiting behind it.
+    expect(document.querySelectorAll('.dmap-t-pillar')).toHaveLength(0);
+    expect(screen.getByRole('button', { name: /↶ Undo/ })).toBeDisabled();
+  });
+
+  it('answers Ctrl+Z, because nobody drawing looks away to press a button', async () => {
+    const user = userEvent.setup();
+    render(<DungeonsTab />);
+    await user.click(screen.getByRole('button', { name: 'Pillar' }));
+    giveMapABox();
+    fireEvent.pointerDown(mapSvg(), { clientX: 55, clientY: 45 });
+    fireEvent.pointerUp(mapSvg());
+
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+    expect(document.querySelector('.dmap-t-pillar')).toBeNull();
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true });
+    expect(document.querySelector('.dmap-t-pillar')).toBeTruthy();
+  });
+
+  it('leaves Ctrl+Z alone while a text field has it', async () => {
+    const user = userEvent.setup();
+    render(<DungeonsTab />);
+    await user.click(screen.getByRole('button', { name: 'Pillar' }));
+    giveMapABox();
+    fireEvent.pointerDown(mapSvg(), { clientX: 55, clientY: 45 });
+    fireEvent.pointerUp(mapSvg());
+
+    // The name box's own text history is the browser's business, not the map's.
+    const field = screen.getByLabelText(/name this dungeon/i);
+    fireEvent.keyDown(field, { key: 'z', ctrlKey: true });
+    expect(document.querySelector('.dmap-t-pillar')).toBeTruthy();
+  });
+
+  it('takes back Clear all, which is the one press worth the whole feature', async () => {
+    const user = userEvent.setup();
+    render(<DungeonsTab />);
+    await user.click(screen.getByRole('button', { name: 'Pillar' }));
+    giveMapABox();
+    fireEvent.pointerDown(mapSvg(), { clientX: 55, clientY: 45 });
+    fireEvent.pointerUp(mapSvg());
+
+    await user.click(screen.getByRole('button', { name: /clear all/i }));
+    await user.click(screen.getByRole('button', { name: /really clear/i }));
+    expect(document.querySelector('.dmap-t-pillar')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: /↶ Undo/ }));
+    expect(document.querySelector('.dmap-t-pillar')).toBeTruthy();
+  });
+});

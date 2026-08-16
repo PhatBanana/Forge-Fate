@@ -50,6 +50,31 @@ export function record<T>(history: History<T>, previous: T, now: number = Date.n
   return { past, future: [], lastPushAt: now };
 }
 
+/**
+ * Record without coalescing, for surfaces where speed does not mean "one
+ * gesture".
+ *
+ * §84 needed this the moment undo reached the battle. `record`'s window is
+ * right for the Builder and for the dungeon editor, where a burst is a name
+ * being typed or a brush being dragged - forty writes that are obviously one
+ * act. In a fight it is wrong: seating a fighter and then clearing the table
+ * are two deliberate presses, and a DM who does them half a second apart
+ * means both. Merging them means the first Undo throws away the thing they
+ * were trying to get back.
+ *
+ * What coalescing was actually protecting against there is narrower and is
+ * handled exactly: one handler writing twice records the *same* previous
+ * value twice, which would cost two presses to walk back one change. So
+ * identical consecutive states collapse, and nothing else does.
+ */
+export function recordStep<T>(history: History<T>, previous: T): History<T> {
+  if (history.past.length > 0 && history.past[history.past.length - 1] === previous) {
+    // Still a fresh edit, so the redo branch goes - just not a new entry.
+    return history.future.length ? { ...history, future: [] } : history;
+  }
+  return { past: [...history.past, previous].slice(-HISTORY_LIMIT), future: [], lastPushAt: 0 };
+}
+
 export function canUndo<T>(history: History<T>): boolean {
   return history.past.length > 0;
 }

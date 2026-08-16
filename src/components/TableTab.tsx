@@ -153,6 +153,9 @@ import { read, write } from '../persist';
 import { canUseWebGl } from '../engine/gl/context';
 import { DEFAULT_SEED, dungeonFrom } from '../engine/dungeon';
 import { revealRoom, secretRooms, seen, springTraps, trapSaid, trapsOn } from '../engine/furniture';
+import { canRedo, canUndo, emptyHistory, recordStep, redo, undo } from '../undo';
+import type { Say } from '../toast';
+import type { History } from '../undo';
 import { CharacterSheet } from './CharacterSheet';
 
 /**
@@ -213,7 +216,7 @@ const missingBlock = (loading: boolean) =>
 
 export function TableTab({
   roster,
-  onChange,
+  onChange: writeRoster,
   bestiary,
   ruleset,
   onHome,
@@ -268,7 +271,7 @@ export function TableTab({
    * control is in a drawer covering the board it acts on, so the result of a
    * press is behind the thing that made it.
    */
-  say?: (text: string) => void;
+  say?: Say;
   /** §78: the theme toggle, passed in like the title screen's corner takes
       it - the battle wears no gbar, so the command bar carries it. */
   aside?: React.ReactNode;
@@ -405,14 +408,6 @@ export function TableTab({
     and need no arming - setup is setup.
   */
   const [moveArmed, setMoveArmed] = useState(false);
-  /*
-    §76: what "Clear" just destroyed, held for one act of regret. Clearing an
-    encounter erases combatants, positions, the log and the loaded dungeon -
-    the most un-reconstructable state in the app - so the old encounter is
-    kept in memory until a new combatant arrives or it is restored. Memory
-    only, same stance as the Builder's undo: a refresh forgets it.
-  */
-  const [cleared, setCleared] = useState<EncounterState | null>(null);
   /**
    * A hand reaching for somebody: the next click on a combatant resolves the
    * contest. The mode was chosen when it was armed, because the SRD leaves the
@@ -558,6 +553,64 @@ export function TableTab({
   >(null);
 
   const encounter = activeEncounter(roster);
+  /*
+    §84: undo for the fight.
+
+    The recorded unit is the whole **roster**, not the encounter, and that is
+    the point rather than an accident. A walk moves a token (encounter) *and*
+    spends movement (play state); a hit moves hit points (play) and writes the
+    log (encounter). Recording either half alone would undo half a thing.
+
+    Wrapping the prop rather than sweeping the file is deliberate too: all
+    twenty writes in here already go through `onChange`, so every one of them
+    becomes undoable at once and none can be forgotten later. What the battle
+    hands upward is unchanged.
+
+    The history is component state, so it dies when you leave the screen -
+    `undo.ts` argues this for the Builder and the argument is the same here:
+    forty copies of a fight is a strange thing to keep for ever to serve one
+    afternoon.
+
+    `recordStep` rather than `record` because the battle's bursts are not the
+    Builder's: two presses half a second apart are two decisions here, and
+    coalescing them would make the first Undo overshoot the thing being
+    reached for. See its header.
+  */
+  const [history, setHistory] = useState<History<Roster>>(emptyHistory);
+  const onChange = (next: Roster) => {
+    if (next === roster) return;
+    setHistory((current) => recordStep(current, roster));
+    writeRoster(next);
+  };
+
+  /*
+    What came back, when it is visible enough to be worth naming. A stack that
+    moves silently is one you cannot trust, but "Undone — 14 hit points" for a
+    single tick of damage is narration. The head count is the one number that
+    answers the question people actually undo about: whether the fight is
+    still there. Everything else gets the plain word.
+  */
+  const describe = (restored: Roster): string => {
+    const before = activeEncounter(restored).combatants.length;
+    const now = encounter.combatants.length;
+    return before === now ? 'Undone.' : `Undone — ${before} in the fight.`;
+  };
+
+  const stepBack = () => {
+    const step = undo(history, roster);
+    if (!step) return;
+    setHistory(step.history);
+    writeRoster(step.value);
+    say?.(describe(step.value), { label: 'Redo', onAct: stepForward });
+  };
+
+  const stepForward = () => {
+    const step = redo(history, roster);
+    if (!step) return;
+    setHistory(step.history);
+    writeRoster(step.value);
+  };
+
   const setEncounter = (next: typeof encounter) => onChange(updateEncounter(roster, next));
 
   /*
@@ -3444,28 +3497,20 @@ export function TableTab({
           {encounter.combatants.length > 0 && (
             /* §76: this used to fire on the first click, one slot from "End
                the fight" and styled the same - the worst unguarded
-               destruction in the app. Now it asks, and keeps what it took. */
+               destruction in the app. Now it asks, and §84's undo keeps what
+               it took: the one-shot "Restore last encounter" that stood here
+               was the stopgap and has retired into the general stack, which
+               reaches forty steps rather than one and does not forget the
+               moment a new combatant arrives. */
             <ConfirmButton
               label="Clear"
               confirmLabel="Really clear"
               title="Empty the table: combatants, positions, log and map"
               onConfirm={() => {
-                setCleared(encounter);
                 setMoveArmed(false);
                 setEncounter(emptyEncounter());
               }}
             />
-          )}
-          {cleared && encounter.combatants.length === 0 && (
-            <button
-              className="btn btn-sm"
-              onClick={() => {
-                setEncounter(cleared);
-                setCleared(null);
-              }}
-            >
-              Restore last encounter
-            </button>
           )}
         </div>
 
@@ -5920,6 +5965,16 @@ export function TableTab({
         press moves the view by the same visible amount at every zoom - a fixed
         number of squares would crawl when zoomed out and leap when zoomed in.
       */
+      /*
+        §84: undo, before the bail-out below - it is the one command in this
+        handler that *wants* a modifier, and the camera's guard would eat it.
+      */
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) stepForward();
+        else stepBack();
+        return;
+      }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const STEP = 0.15;
       switch (e.key.toLowerCase()) {
@@ -6247,6 +6302,31 @@ export function TableTab({
               {d.label}
             </button>
           ))}
+          {/*
+            §84: the way back, before the ways out. Undo belongs with the
+            commands rather than with the doors - it acts on the fight, it does
+            not leave it - so it sits at the end of the drawers and before the
+            group that departs. Disabled rather than hidden, because a control
+            that appears when it becomes possible is one nobody finds.
+          */}
+          <button
+            type="button"
+            className="btl-cmd"
+            disabled={!canUndo(history)}
+            title="Undo the last thing that changed the fight (Ctrl+Z)"
+            onClick={stepBack}
+          >
+            ↶ Undo
+          </button>
+          <button
+            type="button"
+            className="btl-cmd"
+            disabled={!canRedo(history)}
+            title="Put it back (Ctrl+Shift+Z)"
+            onClick={stepForward}
+          >
+            ↷ Redo
+          </button>
           {/*
             The three ways out, grouped at the end and styled apart from the
             drawers beside them - a drawer opens something over the board, and

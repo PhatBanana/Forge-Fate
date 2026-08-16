@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { ConfirmButton } from './shared';
 import { DungeonMap } from './DungeonMap';
 import { toggleHidden, toggleTrap } from '../engine/furniture';
+import { canRedo, canUndo, emptyHistory, record, recordStep, redo, undo } from '../undo';
+import type { History } from '../undo';
+import type { Say } from '../toast';
 import type { Token } from './DungeonMap';
 import { loadBestiary, mergeBestiary } from '../bestiary';
 import { searchMonsters } from '../data/monsters';
@@ -66,6 +69,7 @@ import type { DungeonMapFields } from '../dungeons';
 
 export function DungeonsTab({
   onBattle,
+  say,
 }: {
   /**
    * §77: take this saved map straight to the battle screen. The app's
@@ -74,6 +78,8 @@ export function DungeonsTab({
    * the door.
    */
   onBattle?: (dungeonId: string) => void;
+  /** §83/§84: an undo fired from a keystroke has nowhere else to say so. */
+  say?: Say;
 } = {}) {
   const [library, setLibrary] = useState(loadDungeons);
   useEffect(() => saveDungeons(library), [library]);
@@ -83,11 +89,78 @@ export function DungeonsTab({
      same way "Copy share link" answers with "Link copied". */
   const [justSaved, setJustSaved] = useState(false);
 
-  const [draft, setDraft] = useState<DungeonMapFields>({
+  const [draft, writeDraft] = useState<DungeonMapFields>({
     mapSeed: DEFAULT_SEED,
     mapSize: 'medium',
     mapRooms: 8,
   });
+  /*
+    §84: undo for the drawing.
+
+    Wrapping the setter rather than sweeping seventeen call sites, the same
+    move §84 makes in the battle - and here it buys something extra. `paintAt`
+    fires on pointer-down *and* on every pointer-move of a drag, so a stroke
+    across nine squares is nine writes. `record`'s coalescing keeps the first
+    of a burst, which is exactly the right answer: one step back undoes the
+    stroke, not one square of it.
+  */
+  const [history, setHistory] = useState<History<DungeonMapFields>>(emptyHistory);
+  const setDraft = (
+    next: DungeonMapFields | ((prev: DungeonMapFields) => DungeonMapFields),
+  ) => {
+    setHistory((current) => record(current, draft));
+    writeDraft(next);
+  };
+
+  /*
+    The exception, and the campaign screen has the same pair for the same
+    reason: a *press* is not a burst. Clearing the map moments after painting
+    it is two decisions, and coalescing them would fold the clear into the
+    stroke before it - so Undo would put back a map with nothing on it, which
+    is the one thing the person pressing it did not want.
+  */
+  const stepDraft = (next: DungeonMapFields) => {
+    setHistory((current) => recordStep(current, draft));
+    writeDraft(next);
+  };
+
+  const stepBack = () => {
+    const step = undo(history, draft);
+    if (!step) return;
+    setHistory(step.history);
+    writeDraft(step.value);
+    say?.('Undone.', { label: 'Redo', onAct: stepForward });
+  };
+
+  const stepForward = () => {
+    const step = redo(history, draft);
+    if (!step) return;
+    setHistory(step.history);
+    writeDraft(step.value);
+  };
+
+  /*
+    Ctrl+Z, because the rail buttons are a long way from the square you just
+    painted and nobody drawing looks away to undo. No dependency array, the
+    same as the battle's handler: the listener closes over `history` and
+    `draft`, and a stale one would step back to a map two strokes old.
+
+    Typing bows out first - the name field and the trap note are text, and
+    Ctrl+Z there belongs to the browser's own text history, not to the map.
+  */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z') return;
+      e.preventDefault();
+      if (e.shiftKey) stepForward();
+      else stepBack();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
   const [brush, setBrush] = useState<
     | TerrainKind
     | 'raise'
@@ -434,6 +507,30 @@ export function DungeonsTab({
               {b.label}
             </button>
           ))}
+          {/* §84: a way back for the drawing, in the rail with the tools that
+              need one. A whole stroke is one step, because `record` coalesces
+              the burst a drag lands. */}
+          <div className="dgn-undo">
+            <button
+              type="button"
+              className="btn btn-sm"
+              disabled={!canUndo(history)}
+              title="Undo the last change to this map (Ctrl+Z)"
+              onClick={stepBack}
+            >
+              ↶ Undo
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm"
+              disabled={!canRedo(history)}
+              title="Put it back (Ctrl+Shift+Z)"
+              onClick={stepForward}
+            >
+              ↷ Redo
+            </button>
+          </div>
+
           {(draft.terrain || draft.elevation) && (
             /* §76: this wore the brush costume, sitting in the rail styled
                like one more tool to try - and it erased every painted square
@@ -444,9 +541,7 @@ export function DungeonsTab({
               confirmLabel="Really clear"
               className="dgn-clear"
               title="Erase all painted terrain and elevation"
-              onConfirm={() =>
-                setDraft((prev) => ({ ...prev, terrain: undefined, elevation: undefined }))
-              }
+              onConfirm={() => stepDraft({ ...draft, terrain: undefined, elevation: undefined })}
             />
           )}
         </aside>

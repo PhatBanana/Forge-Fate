@@ -10,7 +10,11 @@ import {
   totalEarned,
   updateCampaign,
 } from '../campaign';
+import type { CampaignFile } from '../campaign';
 import type { Roster } from '../storage';
+import { canRedo, canUndo, emptyHistory, record, recordStep, redo, undo } from '../undo';
+import type { History } from '../undo';
+import type { Say } from '../toast';
 
 /**
  * The thing that outlives a fight.
@@ -30,10 +34,64 @@ import type { Roster } from '../storage';
  * The roster is read but never written. Choosing who is at the table is not
  * editing a character, and this tab must not be able to lose one.
  */
-export function CampaignTab({ roster }: { roster: Roster }) {
-  const [file, setFile] = useState(loadCampaigns);
+export function CampaignTab({
+  roster,
+  say,
+}: {
+  roster: Roster;
+  /** §84: an undo has to say what came back, and nothing here flips a label. */
+  say?: Say;
+}) {
+  const [file, writeFile] = useState(loadCampaigns);
   useEffect(() => saveCampaigns(file), [file]);
   const [name, setName] = useState('');
+
+  /*
+    §84: undo, on the smallest surface of the three and the one where it
+    matters most in a single case - a deleted campaign is the one record in
+    the app that cannot be rebuilt from anything else. §76 gave that a
+    confirm; this gives it a way back after the confirm was wrong.
+
+    Same wrapper trick as the battle and the editor: the setter that writes is
+    renamed, and `setFile` becomes the recording one, so every call site
+    already written records without being touched.
+
+    This screen is the one that needs *both* recorders, and that is what makes
+    the distinction worth having a name. Its presses - start one, play,
+    delete, tick somebody into the party - are each a decision, so they take
+    `recordStep`. Its one text box is typing, so it takes `record` and a
+    sentence of notes is one step back rather than sixty. Using either alone
+    would break the other: coalescing everything loses the deleted campaign
+    behind whatever was clicked half a second earlier, and coalescing nothing
+    lets a paragraph push it off the end of a forty-deep stack.
+  */
+  const [history, setHistory] = useState<History<CampaignFile>>(emptyHistory);
+  const setFile = (next: CampaignFile) => {
+    if (next === file) return;
+    setHistory((current) => recordStep(current, file));
+    writeFile(next);
+  };
+
+  const typeIntoFile = (next: CampaignFile) => {
+    if (next === file) return;
+    setHistory((current) => record(current, file));
+    writeFile(next);
+  };
+
+  const stepBack = () => {
+    const step = undo(history, file);
+    if (!step) return;
+    setHistory(step.history);
+    writeFile(step.value);
+    say?.('Undone.', { label: 'Redo', onAct: stepForward });
+  };
+
+  const stepForward = () => {
+    const step = redo(history, file);
+    if (!step) return;
+    setHistory(step.history);
+    writeFile(step.value);
+  };
 
   const campaign = activeCampaign(file);
   const change = (fn: Parameters<typeof updateCampaign>[2]) =>
@@ -69,6 +127,30 @@ export function CampaignTab({ roster }: { roster: Roster }) {
             Start one
           </button>
         </div>
+
+        {/* §84: shown once there is anything to lose, and kept on screen while
+            there is anything to get back - so deleting the last campaign does
+            not take its own way back down with it. */}
+        {(file.campaigns.length > 0 || canUndo(history)) && (
+          <div className="row" style={{ gap: 6, marginBottom: 8 }}>
+            <button
+              className="btn btn-sm"
+              disabled={!canUndo(history)}
+              title="Undo the last change to your campaigns"
+              onClick={stepBack}
+            >
+              ↶ Undo
+            </button>
+            <button
+              className="btn btn-sm"
+              disabled={!canRedo(history)}
+              title="Put it back"
+              onClick={stepForward}
+            >
+              ↷ Redo
+            </button>
+          </div>
+        )}
 
         {/*
           §38: the empty state sells the record rather than apologising for
@@ -203,7 +285,9 @@ export function CampaignTab({ roster }: { roster: Roster }) {
             value={campaign.notes}
             onChange={(e) => {
               const notes = e.target.value;
-              change((c) => ({ ...c, notes }));
+              // The one typing surface on the screen, and so the one write
+              // that coalesces. See the header on the two recorders.
+              typeIntoFile(updateCampaign(file, campaign.id, (c) => ({ ...c, notes })));
             }}
           />
           <p className="hint">

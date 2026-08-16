@@ -1463,7 +1463,7 @@ describe('the fight’s clocks and the drawer', () => {
     expect(view.encounter.round).toBe(0);
   });
 
-  it('Clear asks first, Keep declines, and the cleared fight can be restored (§76)', async () => {
+  it('Clear asks first, Keep declines, and the cleared fight can be undone (§76, §84)', async () => {
     const user = userEvent.setup();
     const view = setup(party());
     await open(user, 'Party');
@@ -1476,11 +1476,14 @@ describe('the fight’s clocks and the drawer', () => {
     await user.click(screen.getByRole('button', { name: 'Keep' }));
     expect(view.encounter.combatants).toHaveLength(1);
 
-    // Confirmed, the table empties - and offers the fight back.
+    // Confirmed, the table empties - and §84's Undo brings it back. The
+    // one-shot "Restore last encounter" this test used to press has retired
+    // into the general stack, so the way back is the same one every other
+    // mistake on this screen uses.
     await user.click(screen.getByRole('button', { name: /^clear$/i }));
     await user.click(screen.getByRole('button', { name: /really clear/i }));
     expect(view.encounter.combatants).toHaveLength(0);
-    await user.click(screen.getByRole('button', { name: /restore last encounter/i }));
+    await user.click(screen.getByRole('button', { name: /↶ Undo/ }));
     expect(view.encounter.combatants).toHaveLength(1);
     expect(screen.queryByRole('button', { name: /restore last encounter/i })).not.toBeInTheDocument();
   });
@@ -4761,5 +4764,68 @@ describe('what the dungeon was hiding', () => {
     fireEvent.pointerDown(mapEl(), { clientX: 4.5 * 10, clientY: 5.5 * 10 });
     expect(logOf(view).match(/sets off a trap/gi)?.length).toBe(1);
     expect((view.encounter.log ?? []).length).toBeGreaterThanOrEqual(before);
+  });
+});
+
+/**
+ * §84. The way back on the busiest screen in the app.
+ *
+ * What is recorded here is the whole **roster**, not the encounter, and that
+ * is the point: a walk moves a token and spends movement, a hit moves hit
+ * points and writes the log. Recording either half alone would undo half a
+ * thing. So these tests reach for the halves - a damage tick, whose hit
+ * points live in `play`, and a clear, whose combatants live in the encounter.
+ */
+describe('undo (§84)', () => {
+  it('has nothing to undo on an untouched screen', () => {
+    setup(party());
+    expect(screen.getByRole('button', { name: /↶ Undo/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /↷ Redo/ })).toBeDisabled();
+  });
+
+  it('takes back damage, which lives in play rather than the encounter', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    const max = deriveBuild(view.roster.entries[0].build).hp.total;
+    const hp = () => hpNow(view.roster.entries[0].play, max);
+
+    await open(user, 'Order');
+    await rowDamage(user, view.roster.entries[0].build.name, 5);
+    expect(hp()).toBe(max - 5);
+
+    await user.click(screen.getByRole('button', { name: /↶ Undo/ }));
+    expect(hp()).toBe(max);
+    // And forward again, because a stack that only goes one way is a trapdoor.
+    await user.click(screen.getByRole('button', { name: /↷ Redo/ }));
+    expect(hp()).toBe(max - 5);
+  });
+
+  it('keeps two quick presses as two steps', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+    await open(user, 'Party');
+    // Seat both fighters in quick succession - a coalescing recorder would
+    // fold them into one and the first Undo would empty the table.
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await user.click(screen.getByRole('button', { name: view.roster.entries[1].build.name }));
+    expect(view.encounter.combatants).toHaveLength(2);
+
+    await user.click(screen.getByRole('button', { name: /↶ Undo/ }));
+    expect(view.encounter.combatants).toHaveLength(1);
+  });
+
+  it('answers Ctrl+Z and Ctrl+Shift+Z from the board', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    expect(view.encounter.combatants).toHaveLength(1);
+
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+    expect(view.encounter.combatants).toHaveLength(0);
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true });
+    expect(view.encounter.combatants).toHaveLength(1);
   });
 });

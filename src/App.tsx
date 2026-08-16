@@ -916,9 +916,10 @@ export default function App() {
                  acknowledging to nobody. */
               say('Loaded into the battle. The map is on the board.');
             }}
+            say={say}
           />
         )}
-        {tab === 'campaign' && <CampaignTab roster={roster} />}
+        {tab === 'campaign' && <CampaignTab roster={roster} say={say} />}
       </Suspense>
       </main>
       {/*

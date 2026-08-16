@@ -122,3 +122,77 @@ describe('closing one down', () => {
     expect(screen.getByRole('button', { name: /start one/i })).toBeDisabled();
   });
 });
+
+/**
+ * §84. The way back.
+ *
+ * This screen needs both recorders and so it is the one that checks both: its
+ * presses are decisions and stay separate, its one text box is typing and
+ * coalesces. The case that matters most is a deleted campaign - the one
+ * record in the app that cannot be rebuilt from anything else.
+ */
+describe('undo', () => {
+  const start = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
+    await user.type(screen.getByLabelText(/name this campaign/i), name);
+    await user.click(screen.getByRole('button', { name: /start one/i }));
+  };
+
+  it('offers nothing to undo on an empty screen', () => {
+    render(<CampaignTab roster={roster()} />);
+    expect(screen.queryByRole('button', { name: /↶ Undo/ })).not.toBeInTheDocument();
+  });
+
+  it('brings back a deleted campaign, chronicle and all', async () => {
+    const user = userEvent.setup();
+    saveCampaigns(addCampaign(emptyCampaigns(), 'The Sunless Citadel'));
+    render(<CampaignTab roster={roster()} />);
+
+    await user.click(screen.getByRole('button', { name: /delete the sunless citadel/i }));
+    await user.click(screen.getByRole('button', { name: /really delete/i }));
+    expect(loadCampaigns().campaigns).toEqual([]);
+
+    // The button stays on screen with nothing left to list, which is exactly
+    // when it is needed.
+    await user.click(screen.getByRole('button', { name: /↶ Undo/ }));
+    expect(activeCampaign(loadCampaigns())?.name).toBe('The Sunless Citadel');
+    expect(screen.getByText('The Sunless Citadel')).toBeInTheDocument();
+  });
+
+  it('puts the deletion back on Redo', async () => {
+    const user = userEvent.setup();
+    saveCampaigns(addCampaign(emptyCampaigns(), 'Brief'));
+    render(<CampaignTab roster={roster()} />);
+    await user.click(screen.getByRole('button', { name: /delete brief/i }));
+    await user.click(screen.getByRole('button', { name: /really delete/i }));
+    await user.click(screen.getByRole('button', { name: /↶ Undo/ }));
+    await user.click(screen.getByRole('button', { name: /↷ Redo/ }));
+    expect(loadCampaigns().campaigns).toEqual([]);
+  });
+
+  it('keeps two quick presses as two steps', async () => {
+    const user = userEvent.setup();
+    const start_ = roster();
+    render(<CampaignTab roster={start_} />);
+    await start(user, 'Ours');
+    // Straight into ticking somebody in - fast enough that a coalescing
+    // recorder would fold the two together and lose the campaign on one press.
+    await user.click(screen.getByRole('checkbox', { name: new RegExp(start_.entries[0].build.name) }));
+    expect(activeCampaign(loadCampaigns())?.partyIds).toHaveLength(1);
+
+    await user.click(screen.getByRole('button', { name: /↶ Undo/ }));
+    expect(activeCampaign(loadCampaigns())?.partyIds).toEqual([]);
+    // And the campaign itself is still there.
+    expect(activeCampaign(loadCampaigns())?.name).toBe('Ours');
+  });
+
+  it('takes a sentence of notes back in one press, not sixty', async () => {
+    const user = userEvent.setup();
+    render(<CampaignTab roster={roster()} />);
+    await start(user, 'Ours');
+    await user.type(screen.getByLabelText(/campaign notes/i), 'the door was trapped');
+    expect(activeCampaign(loadCampaigns())?.notes).toBe('the door was trapped');
+
+    await user.click(screen.getByRole('button', { name: /↶ Undo/ }));
+    expect(activeCampaign(loadCampaigns())?.notes).toBe('');
+  });
+});

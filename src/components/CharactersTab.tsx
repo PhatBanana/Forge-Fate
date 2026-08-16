@@ -13,6 +13,7 @@ import {
 import type { Roster, RosterEntry } from '../storage';
 import type { Monster } from '../data/monsters';
 import { shareUrl } from '../share';
+import type { Say } from '../toast';
 import { Panel } from './shared';
 import { CompareView } from './CompareView';
 import { ImportTab } from './ImportTab';
@@ -59,7 +60,7 @@ export function CharactersTab({
   onPrint: () => void;
   onImport: (build: Build) => void;
   /** §83: what the app says back when the control that caused it is gone. */
-  say?: (text: string) => void;
+  say?: Say;
 }) {
   const [section, setSection] = useState<Section>('roster');
   const [menuFor, setMenuFor] = useState<string | null>(null);
