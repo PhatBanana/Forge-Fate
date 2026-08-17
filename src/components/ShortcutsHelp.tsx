@@ -15,6 +15,14 @@ import { useEffect, useRef } from 'react';
  * different keys, and a help surface that hardcodes one screen's bindings
  * quietly rots when the bindings move.
  */
+/**
+ * What Tab can land on. Deliberately the short list rather than the
+ * exhaustive one: this dialog is a heading, a button and a list of key
+ * bindings, and a selector that also hunts for `[contenteditable]` and
+ * `<audio controls>` would be answering a question nobody here asks.
+ */
+const FOCUSABLE = 'button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
 export function ShortcutsHelp({
   shortcuts,
   open,
@@ -62,6 +70,32 @@ export function ShortcutsHelp({
               // fire and put down whatever the DM had armed.
               e.stopPropagation();
               onClose();
+              return;
+            }
+            /*
+              §85: the trap `aria-modal="true"` has been promising since §79.
+              A modal that lets Tab wander out onto the board behind it leaves
+              a keyboard user reading a page they cannot see, with no way back
+              but Escape - and they have no reason to know Escape is the way.
+
+              This dialog has exactly one focusable (Close), so `first` and
+              `last` are the same element and both branches simply hold focus
+              where it is. That is the correct behaviour and it is why the
+              general form is written out rather than special-cased: a second
+              button added here later works without anybody remembering to
+              come back.
+
+              `PopOut` deliberately does **not** do this; its header says why.
+            */
+            if (e.key !== 'Tab') return;
+            const focusable = [...e.currentTarget.querySelectorAll<HTMLElement>(FOCUSABLE)];
+            if (!focusable.length) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            const here = document.activeElement;
+            if (e.shiftKey ? here === first : here === last) {
+              e.preventDefault();
+              (e.shiftKey ? last : first).focus();
             }
           }}
         >

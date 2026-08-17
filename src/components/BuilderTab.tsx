@@ -1,3 +1,4 @@
+import { useRovingTabs } from './useRovingTabs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ABILITIES, ABILITY_NAMES, RULESETS, RULESET_LABELS } from '../types';
@@ -2022,6 +2023,9 @@ function SpellsPanel({
   const casting = ctx.spellcasting;
   const groups = spellGroups(ctx);
   const [level, setLevel] = useState(0);
+  /* §85: ten levels wearing role="tab", answering no arrow key and costing
+     ten presses of Tab to walk past. */
+  const { tablistProps, tabProps } = useRovingTabs();
   const [query, setQuery] = useState('');
   // A character who does not cast still needs this panel if they are carrying a
   // spell from a class they used to have - otherwise it is stranded on the
@@ -2244,12 +2248,13 @@ function SpellsPanel({
       )}
 
       {!search && !hasNothingToShow && (
-        <div className="spell-levels" role="tablist">
+        <div className="spell-levels" role="tablist" {...tablistProps}>
           {groups.map((group) => (
             <button
               key={group.level}
               role="tab"
               aria-selected={group.level === active.level}
+              {...tabProps(group.level === active.level)}
               onClick={() => setLevel(group.level)}
             >
               {group.level === 0 ? 'Cantrips' : group.level}

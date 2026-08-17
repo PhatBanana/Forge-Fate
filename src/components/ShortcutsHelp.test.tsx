@@ -39,3 +39,27 @@ describe('ShortcutsHelp', () => {
     expect(screen.getByRole('button', { name: 'Keys' })).toHaveFocus();
   });
 });
+
+/*
+  §85: the trap `aria-modal="true"` had been promising since §79. A modal
+  that lets Tab wander onto the board behind it leaves a keyboard user
+  reading a page they cannot see, with no way back but a key nobody told
+  them about.
+*/
+describe('the focus trap', () => {
+  it('holds Tab inside the dialog, both ways', async () => {
+    const user = userEvent.setup();
+    render(<Host />);
+    await user.click(screen.getByRole('button', { name: 'Keys' }));
+    const close = screen.getByRole('button', { name: 'Close' });
+    expect(close).toHaveFocus();
+
+    // One focusable, so both directions hold it where it is - and the opener
+    // behind the dialog never gets it.
+    await user.tab();
+    expect(close).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(close).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Keys' })).not.toHaveFocus();
+  });
+});

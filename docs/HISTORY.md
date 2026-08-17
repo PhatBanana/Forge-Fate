@@ -5895,3 +5895,93 @@ Redo.
 
 **Gates.** 2267 tests / 107 files, tsc, oxlint, build in budget; run84 both
 themes at 1360×900, with run80, run81 and run83 green as the regression net.
+
+## 85. Every map, without a mouse
+
+Four deferred items that turned out to be one subject: the app can be driven
+without a pointer. Two of them close notes earlier sections wrote down as
+open questions rather than as omissions, which is the whole reason they were
+findable at all.
+
+### The board cursor
+
+§79 looked at the GL canvas, found a surface that cannot be reached without a
+mouse, and shipped the honest workaround — a line saying Classic was the
+keyboard-friendly map. This is the real answer, and the shape of it is
+**§66.1's, not a new idea**.
+
+The tempting fix was to teach the canvas its own keyboard: a second
+implementation of "where am I pointing", drifting from the SVG one inside a
+section. Instead the cursor is *one square in `TableTab` state*, and both
+renderers draw it through the `cursor` prop they have shared since §63.
+Neither knows a keyboard exists.
+
+- **Arrow keys move it**, and the *first* press summons it rather than moving
+  it — onto whoever is up, so the walk starts where the fight is rather than
+  in the corner of a forty-square map. Pressing an arrow to find the cursor
+  and having it already gone a square is how you lose track of it.
+- **Enter takes the path a click takes** — `tokenClick` if somebody is
+  standing there, `paintAt` if nobody is. So every mode the board already has
+  (aiming, moving, shoving, placing a light) answers the keyboard for free,
+  and none of them can answer it differently.
+- **Space stays the end-turn key.** A key that meant "act here" with the
+  cursor down and "end my turn" without it is one a DM presses at the wrong
+  moment exactly once.
+- Escape drops it, after every armed tool and before the drawer: a cursor is a
+  place being pointed at, not a thing in hand.
+- The camera follows it through `focus`, which already existed for the turn.
+  Arrowing off the edge of a zoomed board was the one way to lose it entirely.
+
+**And the board can now be read, not only driven.** One line names the square,
+whoever is on it and their hit points, or the ground and its elevation — built
+from the *encounter* rather than from either renderer, which is why it is true
+in both views. It IS the live region, per §79's rule, so it is announced once.
+This is the half of the canvas problem §79 could only work around; the Classic
+tooltip now claims only what is still true of it — screen readers and printing.
+
+### The editor's camera
+
+`DungeonsTab` carried a comment saying its zoom-only cluster was a subset of
+the battle's, and that full parity was "a roadmap question, not a fact this
+comment gets to claim". Answered: WASD pans, `+`/`-`/`0` zoom and fit. **Not Q
+and E** — rotation belongs to a view with depth, and the editor is one
+top-down drawing surface with nothing to rotate. The comment now says what is
+true and what is deliberately absent.
+
+Typing bows out first in both handlers: a W in a dungeon's name must not slide
+the map sideways.
+
+### `useRovingTabs`
+
+Three rows of buttons wore `role="tab"`, and a screen reader announced "tab, 1
+of 10" for the Builder's spell levels. The user pressed the arrow key that
+announcement promises and nothing happened; Tab walked through all ten
+instead. The role was a claim the markup did not honour.
+
+Thirty lines, **no state and no effect** — the DOM already knows which tab has
+focus and which is selected. It also learns no screen's selection setter:
+moving to a tab focuses it and then *clicks* it, so each tablist's existing
+`onClick` selects exactly as it does for the mouse. That is what makes three
+call sites two props each rather than three wirings. Automatic activation,
+because all three switch between views of things you already have.
+
+### Two dialogs, two answers
+
+`ShortcutsHelp` gets a real focus trap — the one `aria-modal="true"` had been
+promising since §79. `PopOut` keeps its non-trap, and its header now says that
+is **a decision rather than a gap**: a pop-out exists so a DM can keep a stat
+block open *while working the board behind it*, and several can be open at
+once. Trapping Tab there would forbid the only thing it is for. It carries
+`role="dialog"` without `aria-modal`, and the two differ for that reason.
+
+**Pinned.** `useRovingTabs.test.tsx` owns the tablist rule (wrap, Home/End,
+one tab stop, disabled tabs skipped, other keys untouched) with one wiring
+assertion at a real call site; seven cases on the board cursor; four on the
+editor's camera keys; one on the trap. `run85.mjs` does the part jsdom cannot:
+jsdom has no WebGL, so every component test of the cursor runs against the SVG
+board — only the browser can show the *canvas* being walked by the arrow keys,
+which is the claim this section is actually making.
+
+**Gates.** 2290 tests / 108 files, tsc, oxlint, build in budget; run85 both
+themes at 1360×900, with run78, run80, run81, run83 and run84 green as the
+regression net.

@@ -1,3 +1,4 @@
+import { useRovingTabs } from './useRovingTabs';
 import { useEffect, useState } from 'react';
 import type { Build } from '../types';
 import { RULESET_LABELS } from '../types';
@@ -63,6 +64,8 @@ export function CharactersTab({
   say?: Say;
 }) {
   const [section, setSection] = useState<Section>('roster');
+  /* §85: the row claimed role="tab" and answered no arrow key. */
+  const { tablistProps, tabProps } = useRovingTabs();
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [compareWith, setCompareWith] = useState<string | null>(null);
@@ -103,10 +106,11 @@ export function CharactersTab({
 
   return (
     <div className="stack">
-      <nav className="subtabs" role="tablist" aria-label="Character sections">
+      <nav className="subtabs" role="tablist" aria-label="Character sections" {...tablistProps}>
         <button
           role="tab"
           aria-selected={section === 'roster'}
+          {...tabProps(section === 'roster')}
           onClick={() => setSection('roster')}
         >
           Your characters
@@ -114,6 +118,7 @@ export function CharactersTab({
         <button
           role="tab"
           aria-selected={section === 'bestiary'}
+          {...tabProps(section === 'bestiary')}
           onClick={() => setSection('bestiary')}
         >
           Bestiary
@@ -121,6 +126,7 @@ export function CharactersTab({
         <button
           role="tab"
           aria-selected={section === 'transfer'}
+          {...tabProps(section === 'transfer')}
           onClick={() => setSection('transfer')}
         >
           Import / Export

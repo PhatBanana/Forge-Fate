@@ -23,7 +23,7 @@ import {
   cycleDoor,
 } from '../engine/dungeon';
 import type { DungeonLayout, MapSize } from '../engine/dungeon';
-import { MAX_SCALE, WHOLE_MAP, clampCamera } from '../engine/camera';
+import { MAX_SCALE, WHOLE_MAP, clampCamera, panBy } from '../engine/camera';
 import type { Camera } from '../engine/camera';
 import { TERRAIN, paint, step } from '../terrain';
 import type { TerrainKind } from '../terrain';
@@ -140,22 +140,65 @@ export function DungeonsTab({
   };
 
   /*
-    Ctrl+Z, because the rail buttons are a long way from the square you just
-    painted and nobody drawing looks away to undo. No dependency array, the
-    same as the battle's handler: the listener closes over `history` and
-    `draft`, and a stale one would step back to a map two strokes old.
+    The editor from the keyboard.
 
-    Typing bows out first - the name field and the trap note are text, and
-    Ctrl+Z there belongs to the browser's own text history, not to the map.
+    §84 put Ctrl+Z here, because the rail buttons are a long way from the
+    square you just painted and nobody drawing looks away to undo. §85 gives
+    the camera the same keys the battle has had since §34.4 - and that is this
+    file's honest comment finally answered rather than restated. It said full
+    parity was a roadmap question; the answer is *most of it*. WASD pans,
+    +/-/0 zoom and fit. Not Q and E: rotation belongs to the tactical view,
+    and the editor is one top-down drawing surface with nothing to rotate.
+
+    No dependency array, the same as the battle's handler: the listener closes
+    over `history` and `draft`, and a stale one would step back to a map two
+    strokes old.
+
+    Typing bows out first - the name field and the trap note are text, and a
+    W in a dungeon's name must not slide the map sideways.
   */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
-      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z') return;
-      e.preventDefault();
-      if (e.shiftKey) stepForward();
-      else stepBack();
+
+      // Undo before the bail-out below: it is the one command here that
+      // *wants* a modifier, and the camera's guard would eat it.
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) stepForward();
+        else stepBack();
+        return;
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      // A fraction of what is on screen, not a distance - so one press moves
+      // the view by the same visible amount at every zoom.
+      const STEP = 0.15;
+      switch (e.key.toLowerCase()) {
+        case 'w':
+          setCamera((c) => panBy(c, 0, -STEP));
+          break;
+        case 's':
+          setCamera((c) => panBy(c, 0, STEP));
+          break;
+        case 'a':
+          setCamera((c) => panBy(c, -STEP, 0));
+          break;
+        case 'd':
+          setCamera((c) => panBy(c, STEP, 0));
+          break;
+        case '0':
+          setCamera(WHOLE_MAP);
+          break;
+        default:
+          // `=` is the unshifted key `+` lives on, and `_` the one `-` does.
+          if (e.key === '+' || e.key === '=') {
+            setCamera((c) => clampCamera({ ...c, scale: Math.min(MAX_SCALE, c.scale * 1.3) }));
+          } else if (e.key === '-' || e.key === '_') {
+            setCamera((c) => clampCamera({ ...c, scale: c.scale / 1.3 }));
+          }
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -395,11 +438,13 @@ export function DungeonsTab({
             camera={camera}
             onCamera={setCamera}
           />
-          {/* §77: honestly, a *subset* of the battle screen's camera cluster -
-              zoom only. The battle adds Plan/Tactical, Rotate and Classic,
-              plus WASD/Q/E keys; the editor is one top-down drawing surface,
-              so those controls have nothing here to control. Full parity is
-              a roadmap question, not a fact this comment gets to claim. */}
+          {/* §77 called this a *subset* of the battle's camera cluster and
+              said full parity was a roadmap question. §85 answered it: the
+              keys are here now - WASD pans, +/-/0 zoom and fit, the same as
+              the board. What stays absent stays absent on purpose. Plan and
+              Tactical, Rotate and Classic are views of a scene with depth;
+              this is one top-down drawing surface, and there is nothing here
+              to rotate or to look at from another angle. */}
           <div className="hud-cam">
             <div className="hud-cam-row">
               <div className="seg">

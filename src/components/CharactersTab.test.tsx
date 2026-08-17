@@ -277,3 +277,15 @@ describe('the row menu', () => {
     ).toBeInTheDocument();
   });
 });
+
+/* §85: the tablist rule lives in `useRovingTabs.test.tsx`. This is the one
+   assertion that says this row is actually wired to it. */
+describe('the sections tablist', () => {
+  it('answers the arrow key its role promises', async () => {
+    const user = userEvent.setup();
+    setup(rosterOf(fighter()));
+    await user.click(screen.getByRole('tab', { name: /your characters/i }));
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByRole('tab', { name: /bestiary/i })).toHaveAttribute('aria-selected', 'true');
+  });
+});

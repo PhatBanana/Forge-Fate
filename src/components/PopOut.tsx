@@ -176,9 +176,18 @@ function Floating({
     §79: a dialog role without the dialog contract is worse than none - it
     promises focus behaviour it does not have. The minimum honoured here:
     focus lands on Close when the float opens, returns to where it was when
-    the float closes, and Escape closes it. A full focus trap stays
-    deferred; the float deliberately lets the DM keep working the board
-    behind it, which a trap would forbid.
+    the float closes, and Escape closes it.
+
+    **§85: the missing trap is a decision, not a gap.** §79 left it "deferred",
+    which reads like a job somebody forgot; §85 went through every dialog in
+    the app and this one keeps its non-trap on purpose. `ShortcutsHelp` is
+    `aria-modal` - it is a page of text that owns the screen until dismissed,
+    so it got a real trap. A pop-out is the opposite: it exists so a DM can
+    keep a monster's stat block open *while working the board behind it*, and
+    several can be open at once. Trapping Tab inside one would forbid the only
+    thing it is for, and would be lying twice over about a surface that is not
+    modal and does not claim to be - which is why it carries `role="dialog"`
+    without `aria-modal`, and why the two dialogs differ.
   */
   const closer = useRef<HTMLButtonElement>(null);
   useEffect(() => {

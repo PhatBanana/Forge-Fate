@@ -1,3 +1,4 @@
+import { useRovingTabs } from './useRovingTabs';
 import { useState } from 'react';
 import type { Build } from '../types';
 import type { BuildContext } from '../engine/character';
@@ -32,17 +33,25 @@ export function SheetTab({
   onBuildChange: (build: Build) => void;
 }) {
   const [layout, setLayout] = useState<Layout>('sheet');
+  /* §85: the row claimed role="tab" and answered no arrow key. */
+  const { tablistProps, tabProps } = useRovingTabs();
 
   return (
     <div className="print-sheet">
       <div className="print-controls">
-        <div className="spell-levels" role="tablist" style={{ margin: 0 }}>
-          <button role="tab" aria-selected={layout === 'sheet'} onClick={() => setLayout('sheet')}>
+        <div className="spell-levels" role="tablist" style={{ margin: 0 }} {...tablistProps}>
+          <button
+            role="tab"
+            aria-selected={layout === 'sheet'}
+            {...tabProps(layout === 'sheet')}
+            onClick={() => setLayout('sheet')}
+          >
             Character sheet
           </button>
           <button
             role="tab"
             aria-selected={layout === 'summary'}
+            {...tabProps(layout === 'summary')}
             onClick={() => setLayout('summary')}
           >
             Build summary

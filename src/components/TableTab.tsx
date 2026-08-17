@@ -6,7 +6,7 @@ import { exhaustionEffect, speedAfterExhaustion } from '../engine/exhaustion';
 import { formatCr, legendaryCost, monsterMod, monsterSummary, parseUsage, searchMonsters } from '../data/monsters';
 import { isCustom, mergeBestiary } from '../bestiary';
 import { useMonsters } from './useMonsters';
-import { elevationAt, keyOf } from '../terrain';
+import { TERRAIN_BY_KIND, elevationAt, keyOf } from '../terrain';
 import { lineOfSight, walkable } from '../engine/sight';
 import { routeTo, walkMap } from '../engine/path';
 import type { Walker } from '../engine/path';
@@ -408,6 +408,28 @@ export function TableTab({
     and need no arming - setup is setup.
   */
   const [moveArmed, setMoveArmed] = useState(false);
+  /**
+   * §85: the board cursor - a square the arrow keys move and Enter acts on.
+   *
+   * §79 looked at the GL board, found a canvas that cannot name anything to a
+   * reader, and shipped the honest workaround: a line saying Classic is the
+   * keyboard-friendly map. This is the real answer, and the shape of it is
+   * §66.1's rather than a new idea. The temptation was to teach the canvas its
+   * own keyboard - a second implementation of "where am I pointing", drifting
+   * from the SVG one within a section. Instead the cursor is **one square in
+   * this component's state**, and both renderers draw it from the `cursor`
+   * prop they have both had since §63. Neither knows a keyboard exists.
+   *
+   * Enter takes the path a click takes - `tokenClick` if somebody is standing
+   * there, `paintAt` if nobody is - so every mode the board already has
+   * (aiming, moving, shoving, placing a light) answers the keyboard for free
+   * and cannot answer it differently.
+   *
+   * Null until an arrow key is pressed. An always-on cursor would fight the
+   * pointer for the `cursor` prop and put a marker on a board nobody asked to
+   * mark; inert until summoned, and Escape puts it down like everything else.
+   */
+  const [boardAt, setBoardAt] = useState<Square | null>(null);
   /**
    * A hand reaching for somebody: the next click on a combatant resolves the
    * contest. The mode was chosen when it was armed, because the SRD leaves the
@@ -2807,6 +2829,36 @@ export function TableTab({
     the strip and the order rows still merely select, because inspecting a
     goblin from the rail must never be an assault.
   */
+  /**
+   * §85: what the cursor is standing on, said in words.
+   *
+   * This is the payoff §79 could not have. A canvas cannot name anything to a
+   * screen reader and the SVG board names its tokens but not its ground, so
+   * "what is on square 12, 7" was a question only a sighted mouse user could
+   * ask. One sentence answers it in both views, because it is built from the
+   * **encounter** rather than from either renderer - the same reason §66.1
+   * put one projection behind both.
+   *
+   * Row and column are counted from one. The grid is a thing on a table being
+   * read aloud, not an array index.
+   */
+  const cursorSays = ((): string => {
+    if (!boardAt) return '';
+    const where = `Row ${boardAt.y + 1}, column ${boardAt.x + 1}`;
+    const standing = encounter.combatants.find(
+      (c) => c.at && c.at.x === boardAt.x && c.at.y === boardAt.y,
+    );
+    if (standing) {
+      const hp = hpOf(standing);
+      return `${where} — ${nameOf(standing)}${hp ? `, ${hp.now} of ${hp.max} hit points` : ''}`;
+    }
+    const ground = TERRAIN_BY_KIND[(encounter.terrain ?? {})[keyOf(boardAt)]]?.label;
+    const up = elevationAt(encounter.elevation ?? {}, boardAt);
+    return `${where} — ${ground ?? 'open ground'}${
+      up ? `, ${up > 0 ? 'raised' : 'sunken'} ${Math.abs(up)}` : ''
+    }`;
+  })();
+
   const tokenClick = (id: string) => {
     // An armed shove takes the click before anything else: the tool in hand
     // is the tool that answers, same as an armed aim.
@@ -4689,7 +4741,11 @@ export function TableTab({
               ...ghostZone,
             ],
             reach,
-            cursor: placing ? hover : null,
+            /* §85: one square, both renderers. The keyboard's cursor wins
+               over the pointer's when it is down, because it is the one that
+               had to be summoned - a hover is where the mouse happens to be,
+               and a board cursor is where somebody put it. */
+            cursor: boardAt ?? (placing ? hover : null),
             note: rulerNote,
             noteAt: measuring?.to ?? null,
             ruler: measuring ? { points: measuring.points } : null,
@@ -4711,7 +4767,12 @@ export function TableTab({
             // Keep whoever is up in sight - but only once they have left the
             // window, which at the fitted view never happens. Each map
             // projects the square itself; see `useMapCamera`.
-            focus: isRunning(encounter) ? (active?.at ?? null) : null,
+            //
+            // §85: the cursor outranks the turn while it is down. Arrowing
+            // off the visible edge of a zoomed-in board and having the camera
+            // stay behind is the one way to lose a cursor entirely, and the
+            // machinery to prevent it was already here.
+            focus: boardAt ?? (isRunning(encounter) ? (active?.at ?? null) : null),
           };
           return view === 'tactical' ? (
             <GlIsoMap {...mapProps} orientation={facing} classic={classicLook} />
@@ -4801,9 +4862,12 @@ export function TableTab({
                   aria-label="Classic look"
                   aria-pressed={classicLook}
                   className={classicLook ? 'is-on' : ''}
-                  /* §79: the honest stance HISTORY records, finally said in
-                     the UI - the canvas cannot name its tokens to a reader. */
-                  title="The vector board instead of the PS1 renderer — the keyboard-and-screen-reader-friendly map, and the view that prints"
+                  /* §79 said this was the keyboard-friendly map, because it
+                     was: the canvas could not be driven without a mouse.
+                     §85's cursor works in both views, so the claim narrows
+                     to the half that is still true - the canvas cannot name
+                     its tokens to a reader, and it cannot print. */
+                  title="The vector board instead of the PS1 renderer — the screen-reader-friendly map, and the view that prints"
                   onClick={() => chooseLook(!classicLook)}
                 >
                   Classic
@@ -4818,7 +4882,11 @@ export function TableTab({
               onClose={() => setKeysOpen(false)}
               shortcuts={[
                 { keys: 'Space or N', does: 'End the turn' },
-                { keys: 'Esc', does: 'Cancel what is armed - a move, an aim, a drawer' },
+                // §85: first in the list under Space, because it is the one
+                // that makes the board itself reachable.
+                { keys: 'Arrow keys', does: 'Move the board cursor - the first press summons it' },
+                { keys: 'Enter', does: 'Act on the cursor - the same as clicking that square' },
+                { keys: 'Esc', does: 'Cancel what is armed - a move, an aim, the cursor, a drawer' },
                 { keys: 'Hold H', does: 'Fade the HUD to see the whole board' },
                 { keys: 'Double-click a token', does: 'Open its sheet or stat block' },
                 { keys: 'W A S D', does: 'Pan the camera' },
@@ -4834,10 +4902,23 @@ export function TableTab({
             moved into the Keys dialog, which a keyboard and a finger can
             actually reach - the old legend was aria-hidden with
             pointer-events: none, documenting the keyboard to everyone
-            except keyboard users. */}
-        <div className="hud-legend" aria-hidden="true">
-          Space ends the turn · Esc cancels · ? shows every key
-        </div>
+            except keyboard users.
+
+            §85: with the cursor down the same strip says where it is, and
+            *that* line is not aria-hidden - it is the region, in §79's sense,
+            so a reader hears each square as the arrows walk over it. This is
+            the half of the canvas problem §79 could only work around: the
+            board can now be read as well as driven, in either view. One
+            element either way, so nothing is announced twice. */}
+        {boardAt ? (
+          <div className="hud-legend" role="status">
+            {cursorSays}
+          </div>
+        ) : (
+          <div className="hud-legend" aria-hidden="true">
+            Space ends the turn · Esc cancels · ? shows every key
+          </div>
+        )}
       </div>
   );
 
@@ -5933,6 +6014,10 @@ export function TableTab({
           setPlacing(null);
           setAimFrom(null);
         } else if (saveResults) setSaveResults(null);
+        /* §85: the board cursor is the weakest thing in hand - it is a place
+           being pointed at rather than a tool armed - so it goes after every
+           tool and before the drawer. */
+        else if (boardAt) setBoardAt(null);
         // Last, because a drawer is the least urgent thing in hand: a DM
         // pressing Escape mid-aim means "put the bow down", not "close the
         // bestiary I opened a minute ago".
@@ -5976,6 +6061,54 @@ export function TableTab({
         return;
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      /*
+        §85: the board cursor. The arrow keys move it, Enter acts on the
+        square it is on, and the first press summons it rather than moving it
+        - starting on whoever is up, so the walk begins where the fight is
+        rather than in a corner of a forty-square map.
+
+        Arrow keys are the *board's*, not the camera's: WASD already pans, and
+        a keyboard user reaching for the arrows means "move the thing", which
+        on this screen is the cursor. The camera follows it through `focus`,
+        so the two never disagree about where you are looking.
+      */
+      const STEPS: Record<string, [number, number] | undefined> = {
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1],
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0],
+      };
+      const step = STEPS[e.key];
+      if (step) {
+        e.preventDefault();
+        setBoardAt((was) => {
+          const from = was ?? active?.at ?? selected?.at ?? {
+            x: Math.floor(dungeon.width / 2),
+            y: Math.floor(dungeon.height / 2),
+          };
+          // Summoned rather than moved on the first press: pressing an arrow
+          // to *find* the cursor and having it already gone a square is how
+          // you lose track of it.
+          if (!was) return from;
+          return {
+            x: Math.min(dungeon.width - 1, Math.max(0, from.x + step[0])),
+            y: Math.min(dungeon.height - 1, Math.max(0, from.y + step[1])),
+          };
+        });
+        return;
+      }
+      if (e.key === 'Enter' && boardAt) {
+        // Enter alone. Space is the end-turn key and stays it: a key that
+        // meant "act here" with the cursor down and "end my turn" without it
+        // is one a DM presses at the wrong moment exactly once.
+        e.preventDefault();
+        const standing = tokens.find((t) => t.at.x === boardAt.x && t.at.y === boardAt.y);
+        if (standing) tokenClick(standing.id);
+        else paintAt(boardAt);
+        return;
+      }
+
       const STEP = 0.15;
       switch (e.key.toLowerCase()) {
         case 'w':

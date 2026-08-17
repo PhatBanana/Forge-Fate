@@ -319,3 +319,53 @@ describe('undo', () => {
     expect(document.querySelector('.dmap-t-pillar')).toBeTruthy();
   });
 });
+
+/**
+ * §85. The camera on the keyboard.
+ *
+ * §77 left an honest comment saying full parity with the battle's camera was
+ * a roadmap question. This is the answer, and it is *most of it*: WASD pans,
+ * +/-/0 zoom and fit. Not Q and E - rotation belongs to a view with depth,
+ * and this is one top-down drawing surface.
+ */
+describe('the camera keys', () => {
+  const zoom = () => document.querySelector('.hud-zoom-n')?.textContent ?? '';
+
+  it('zooms in and out, and fits the whole map again', () => {
+    render(<DungeonsTab />);
+    expect(zoom()).toBe('1.0×');
+    fireEvent.keyDown(window, { key: '+' });
+    expect(zoom()).not.toBe('1.0×');
+    fireEvent.keyDown(window, { key: '0' });
+    expect(zoom()).toBe('1.0×');
+  });
+
+  it('takes = and - as well, the keys those two actually live on', () => {
+    render(<DungeonsTab />);
+    fireEvent.keyDown(window, { key: '=' });
+    const inned = zoom();
+    expect(inned).not.toBe('1.0×');
+    fireEvent.keyDown(window, { key: '-' });
+    expect(zoom()).not.toBe(inned);
+  });
+
+  it('pans with WASD once there is somewhere to pan to', () => {
+    render(<DungeonsTab />);
+    // Fitted, the camera has nowhere to go - the clamp holds it centred,
+    // which is right and is why this zooms in first.
+    fireEvent.keyDown(window, { key: '+' });
+    fireEvent.keyDown(window, { key: '+' });
+    const before = (document.querySelector('.dmap') as SVGSVGElement).getAttribute('viewBox');
+    fireEvent.keyDown(window, { key: 'd' });
+    expect((document.querySelector('.dmap') as SVGSVGElement).getAttribute('viewBox')).not.toBe(before);
+  });
+
+  it('leaves the keys alone while a name is being typed', async () => {
+    const user = userEvent.setup();
+    render(<DungeonsTab />);
+    // A W in "the sword cellar" must not slide the map sideways.
+    await user.type(screen.getByLabelText(/name this dungeon/i), 'wasd+');
+    expect(zoom()).toBe('1.0×');
+    expect(screen.getByLabelText(/name this dungeon/i)).toHaveValue('wasd+');
+  });
+});

@@ -4829,3 +4829,126 @@ describe('undo (§84)', () => {
     expect(view.encounter.combatants).toHaveLength(1);
   });
 });
+
+/**
+ * §85. The board cursor.
+ *
+ * §79 looked at the GL canvas, found it undriveable without a mouse, and
+ * shipped an honest line saying Classic was the keyboard-friendly map. The
+ * real answer is one square in this component's state that **both** renderers
+ * draw from the `cursor` prop they already share - so there is no second
+ * implementation of "where am I pointing" to drift, and no renderer that
+ * knows a keyboard exists.
+ */
+describe('the board cursor (§85)', () => {
+  const legend = () => document.querySelector('.hud-legend')?.textContent ?? '';
+
+  it('is not there until an arrow key summons it', async () => {
+    setup(party());
+    expect(document.querySelector('.hud-legend')).toHaveAttribute('aria-hidden', 'true');
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    // Summoned, not moved: pressing an arrow to find the cursor and having
+    // it already a square away is how you lose track of it.
+    expect(document.querySelector('.hud-legend')).not.toHaveAttribute('aria-hidden');
+    expect(legend()).toMatch(/Row \d+, column \d+/);
+  });
+
+  it('says what it is standing on, and that line is the live region', async () => {
+    setup(party());
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    const said = document.querySelector('[role="status"].hud-legend');
+    expect(said).toBeInTheDocument();
+    // §79's rule: the visible element *is* the region, so a reader hears the
+    // square once rather than twice.
+    expect(said?.textContent).toBe(legend());
+  });
+
+  it('walks a square at a time and stops at the edge rather than wrapping', async () => {
+    setup(party());
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    const start = legend();
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    expect(legend()).not.toBe(start);
+
+    // Off the left edge and it stays put - a cursor that reappeared on the
+    // far side would be a different square with the same name.
+    for (let i = 0; i < 60; i++) fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    expect(legend()).toMatch(/column 1\b/);
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    expect(legend()).toMatch(/column 1\b/);
+  });
+
+  it('names whoever is standing on the square, with their hit points', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Field');
+    await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
+
+    const at = view.encounter.combatants[0].at!;
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    walkTo(at);
+    expect(legend()).toContain(view.roster.entries[0].build.name);
+    expect(legend()).toMatch(/\d+ of \d+ hit points/);
+  });
+
+  it('Escape puts it down, like every other thing in hand', async () => {
+    setup(party());
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(document.querySelector('[role="status"].hud-legend')).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(document.querySelector('[role="status"].hud-legend')).not.toBeInTheDocument();
+  });
+
+  it('Enter takes the path a click takes', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+
+    // The light tool is the simplest thing the board can have in hand, and
+    // it lands through `paintAt` - the same function a pointer-down reaches.
+    await open(user, 'Field');
+    await user.click(screen.getByRole('button', { name: 'Torch' }));
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    fireEvent.keyDown(window, { key: 'ArrowDown' });
+    fireEvent.keyDown(window, { key: 'Enter' });
+
+    expect(view.encounter.lights?.length).toBe(1);
+    expect((view.encounter.log ?? [])[0].text).toMatch(/torch is lit/i);
+  });
+
+  it('leaves Space as the end-turn key rather than making it act', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+    const turn = view.encounter.turnIndex;
+
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    fireEvent.keyDown(window, { key: ' ' });
+    // A key that meant "act here" with the cursor down and "end my turn"
+    // without it is one a DM presses at the wrong moment exactly once. With
+    // one combatant the turn wraps to itself and the round moves instead.
+    expect([view.encounter.turnIndex, view.encounter.round]).not.toEqual([turn, 1]);
+  });
+});
+
+/** Arrow the cursor to a square, from wherever it was summoned. */
+function walkTo(at: { x: number; y: number }) {
+  const read = () => {
+    const text = document.querySelector('.hud-legend')?.textContent ?? '';
+    const m = /Row (\d+), column (\d+)/.exec(text);
+    return m ? { x: Number(m[2]) - 1, y: Number(m[1]) - 1 } : null;
+  };
+  for (let i = 0; i < 200; i++) {
+    const here = read();
+    if (!here || (here.x === at.x && here.y === at.y)) return;
+    if (here.x < at.x) fireEvent.keyDown(window, { key: 'ArrowRight' });
+    else if (here.x > at.x) fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    else if (here.y < at.y) fireEvent.keyDown(window, { key: 'ArrowDown' });
+    else fireEvent.keyDown(window, { key: 'ArrowUp' });
+  }
+}
