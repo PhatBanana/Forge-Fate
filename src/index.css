@@ -2691,6 +2691,12 @@ dl.detail-list {
 .cs-charname {
   font-size: 22px;
   font-weight: 600;
+  /* §86: fill the grid cell and be shrinkable. Without these the input keeps
+     its intrinsic twenty-character width, which escaped its cell and clipped
+     the name on any screen where the banner's columns got tight - the one
+     real defect the 380px audit found on the player screens. */
+  width: 100%;
+  min-width: 0;
 }
 
 .cs-headgrid {
@@ -4228,6 +4234,69 @@ dl.detail-list {
     right: 12px;
     transform: none;
     max-width: none;
+  }
+}
+
+/* ------------------------------------------------ §86: the narrow gate */
+
+/*
+  The battle and the editor at phone widths. Both are boards worked with two
+  hands - drawers and brush rails over a map - and at 380px their command
+  bars crush to single letters over ground nobody can hit. The scope decision
+  was to keep the player screens (hub, Builder, sheet) working on a phone and
+  have these two say so plainly rather than pretend.
+
+  CSS decides, not a resize listener: the gate div is in the DOM whenever
+  either screen is, this block alone shows it, and the block below hides the
+  screen behind it - so rotating to landscape brings the board straight back
+  with all its state, because nothing was ever unmounted.
+*/
+.narrow-gate {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  /* `.battle` is the table tab, `.stage` the dungeon workshop - the two
+     shell classes those tabs already put on the app frame. `main#content`
+     rather than `main`: the boards' own layout addresses the element as
+     `.app.battle > #content`, and an id outranks any pile of classes, so
+     this rule has to carry the id *and* one more simple selector to win. */
+  .app.battle > main#content,
+  .app.stage > main#content {
+    display: none;
+  }
+
+  .app.battle .narrow-gate,
+  .app.stage .narrow-gate {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
+    /* The shell is a 100dvh flex column with overflow hidden; the gate fills
+       the region the hidden `main` gives up, under the game bar where the
+       editor keeps one. A 100dvh min-height here would push the button out
+       of the clipped shell instead. */
+    flex: 1;
+    min-height: 0;
+    padding: 24px;
+    text-align: center;
+  }
+
+  .narrow-gate h2 {
+    margin: 0;
+    font-size: 20px;
+  }
+
+  .narrow-gate p {
+    margin: 0;
+    color: var(--text-dim);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .narrow-gate .btn {
+    align-self: center;
+    margin-top: 8px;
   }
 }
 

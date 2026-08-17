@@ -274,3 +274,49 @@ describe('hub and spoke', () => {
     expect(screen.getByLabelText(/^name$/i)).toBeInTheDocument();
   });
 });
+
+/**
+ * §86. The narrow gate.
+ *
+ * jsdom applies no media queries, so what a component test can pin is the
+ * contract's other half: the gate's markup rides with exactly the two board
+ * screens, and never with a player screen. Whether it is *visible* is the
+ * ≤480 CSS block's decision, and run86 checks that in a real browser at both
+ * widths.
+ */
+describe('the narrow gate (§86)', () => {
+  const toMenu = async () => {
+    render(<App />);
+    await userEvent.click(screen.getAllByRole('button', { name: /use these rules/i })[0]);
+    await userEvent.click(screen.getByRole('button', { name: /show me an example/i }));
+    await userEvent.click(screen.getByRole('button', { name: /forge\s*&\s*fate/i }));
+  };
+  const gate = () => document.querySelector('.narrow-gate');
+
+  it('rides with the battle, naming it and the way back', async () => {
+    await toMenu();
+    await userEvent.click(screen.getByRole('button', { name: /run a battle/i }));
+    await screen.findByRole('button', { name: 'Menu' });
+
+    expect(gate()).toBeInTheDocument();
+    expect(gate()!.textContent).toMatch(/battle screen wants a tablet or wider/i);
+    // Nothing is lost - the one sentence that stops "broken app" panic.
+    expect(gate()!.textContent).toMatch(/nothing is lost/i);
+
+    await userEvent.click(screen.getByRole('button', { name: /back to the menu/i }));
+    expect(screen.getByRole('button', { name: /run a battle/i })).toBeInTheDocument();
+  });
+
+  it('rides with the dungeon workshop, with its own words', async () => {
+    await toMenu();
+    await userEvent.click(screen.getByRole('button', { name: /^dungeons/i }));
+    await screen.findByRole('button', { name: 'Pillar' });
+    expect(gate()!.textContent).toMatch(/dungeon workshop wants a tablet or wider/i);
+  });
+
+  it('stays off the player screens, which work at phone widths', async () => {
+    await toMenu();
+    await userEvent.click(screen.getByRole('button', { name: /build a character/i }));
+    expect(gate()).not.toBeInTheDocument();
+  });
+});

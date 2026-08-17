@@ -923,6 +923,31 @@ export default function App() {
       </Suspense>
       </main>
       {/*
+        §86: the honest half of the phone decision. The battle and the editor
+        are boards worked with two hands - §31.3 built the battle as a
+        full-screen HUD deliberately - and at phone widths their command bars
+        crush to single letters over a map nobody can hit. Pretending
+        otherwise would ship a broken screen; this says what is true and
+        offers the way back. CSS decides, not a resize listener: the div is
+        in the DOM whenever either screen is, and only the ≤480 block shows
+        it (hiding the screen behind it), so rotating a phone to landscape
+        brings the board straight back.
+      */}
+      {(tab === 'table' || tab === 'dungeons') && (
+        <div className="narrow-gate">
+          <h2>{tab === 'table' ? 'The battle screen' : 'The dungeon workshop'} wants a tablet or wider</h2>
+          <p>
+            {tab === 'table'
+              ? 'It is a full-screen board with drawers on both hands, and at this width the map would be all drawer. Nothing is lost — the fight is exactly as you left it.'
+              : 'Drawing a map is two-handed work: brushes on one side, the drawing under them. Nothing is lost — your maps are exactly as you left them.'}
+          </p>
+          <p>Turn the phone sideways, or come back on a bigger screen.</p>
+          <button type="button" className="btn btn-primary" onClick={() => setTab('title')}>
+            Back to the menu
+          </button>
+        </div>
+      )}
+      {/*
         §83: inside `App` rather than beside it in `main.tsx`, where
         `UpdatePrompt` lives - these are answers to things done in here, and
         the state that holds them is here. The prompt stays outside the error

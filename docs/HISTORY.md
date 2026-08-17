@@ -5985,3 +5985,52 @@ which is the claim this section is actually making.
 **Gates.** 2290 tests / 108 files, tsc, oxlint, build in budget; run85 both
 themes at 1360×900, with run78, run80, run81, run83 and run84 green as the
 regression net.
+
+## 86. The narrow pass
+
+Sub-480px, scoped by the user's decision: the player screens work on a phone,
+and the two board screens say plainly that they want a tablet. Before this
+section the whole stylesheet held exactly one rule below 480 - the update
+prompt - so the honest first step was an audit at 380×820, not CSS.
+
+**The audit mostly closed the section on its own.** The hub, the Builder -
+ability grid, spell levels, wizard steps and all - and the Characters screen
+already walk clean at 380 with no sideways scroll and every game-bar button
+in reach: §78's single-column work carried further than the plan predicted,
+which had named the ability grid and the `.cs-look` block as likely
+offenders. Both fit. The plan was written from suspicion and the audit from
+measurement, and where they disagreed the audit won - `.cs-look` keeps its
+three columns because three columns *fit*.
+
+**One real defect, found and fixed.** The sheet's character-name input had no
+width rule, so it kept its intrinsic twenty-character size, escaped its
+banner grid cell and clipped mid-name - at 380 and equally in the 480-720
+band, where the banner's phone columns have been live since §54's era.
+`width: 100%; min-width: 0` - the input filling its cell is what the design
+already believed it did.
+
+**The narrow gate.** At ≤480 the battle's command bar crushes to single
+letters over a map nobody can hit, and the editor's brush rail floats over
+the drawing; §31.3 built both as full-screen two-handed boards deliberately.
+Each now shows a short notice naming itself - "The battle screen wants a
+tablet or wider" - with two honest sentences: nothing is lost, and the way
+back is right here. A `.narrow-gate` div rides with exactly those two tabs;
+**CSS decides, not a resize listener**. The screen behind is hidden, never
+unmounted, so rotating the phone to landscape brings the board straight back
+mid-fight. The one trap: the boards address their own `main` as
+`.app.battle > #content`, and an id outranks any pile of classes - the gate's
+hiding rule carries `main#content` to win, and says why in place.
+
+**Nothing above 480 moved.** The probe holds the boundary at 481px - one
+pixel over the line, the battle is a battle with its command bar - and the
+whole regression net (run78's tablet contexts through run85) stayed green.
+
+**Pinned.** Three App tests ride the gate with the right two tabs and keep it
+off the player screens; `run86.mjs` runs a 380×820 context in both themes -
+no sideways scroll on hub, Builder (walked end to end) and sheet, the name
+input measured inside its cell, both gates with their words, the rotation
+round-trip, the gate's button walking home - plus the 481px boundary check.
+
+**Gates.** 2293 tests / 108 files, tsc, oxlint, build in budget; run86 both
+themes at 380×820 plus the 481 boundary, with run78, run80, run81, run83,
+run84 and run85 all green as the net.
