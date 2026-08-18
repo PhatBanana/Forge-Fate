@@ -6034,3 +6034,65 @@ round-trip, the gate's button walking home - plus the 481px boundary check.
 **Gates.** 2293 tests / 108 files, tsc, oxlint, build in budget; run86 both
 themes at 380×820 plus the 481 boundary, with run78, run80, run81, run83,
 run84 and run85 all green as the net.
+
+## 87. Two refactors, and the audits that shrank them
+
+The last two items on the deferred list, both filed as "no behavior change" -
+and both turned out to be smaller than filed, for the same reason: the audit
+that each one's plan demanded came back saying most of the premise was wrong.
+Recording that is the work; §87 is the section where two suspicions retire.
+
+### Identity → ChoiceRow: audited, ruled out, recorded
+
+The plan expected a partial conversion - background and class pickers into
+ChoiceRow rows, name and ruleset left alone - and instructed reading
+ChoiceRow's header first because it states a rule the conversion had to
+honour. The header decided it, against the plan's own prediction:
+
+> Your character is always visible. The catalogue of things you have not
+> taken is not.
+
+Name, rules, species, background and class are the *first half* of that rule
+- they ARE the character - and every choice in the panel is made through a
+`Select`, which is already a closed catalogue costing one field of height.
+Wrapping those fields in collapsible rows would add a click to reach the
+things the rule says must stay on screen; converting the Selects into
+ranked-card catalogues would be a redesign wearing a refactor's name. §33
+measured this panel at 754px and called it "deliberately the one thing never
+compacted", and §87's audit confirms §33 rather than overruling it.
+
+**Zero code moved, and that is the deliverable**: the ruling now stands as a
+comment at the panel itself in `BuilderTab`, where the next survey will trip
+over it, instead of only in a HISTORY entry nobody re-reads. The §83-87 plan
+called the honest partial conversion the success case; the honest number of
+catalogues in the Character panel is zero.
+
+### The pill, written once
+
+The survey kept re-filing "pill/pip CSS consolidation", and the §83-87 plan
+already cut it down: `.pip` is a 15px circle, `.hud-pip` a clip-path HUD
+button, `.tag` a rectangular mono label - they share a word, not a shape.
+The audit added `.crow-chip` to the leave-alone list (a deliberately quieter
+12px pill on the raised ground) and confirmed the one real duplication:
+`.chip` and `.chip-btn` have carried the same four-declaration pill recipe -
+sunken fill, 1px border, full radius, 13px - as copies since each was born.
+
+The recipe now lives once, on a grouped `.chip, .chip-btn` rule, with the
+whole leave-alone ruling written above it where the next consolidation
+attempt will start. What stays separate stays for a reason: display, padding
+and colour differ because a remove-button-inside and a press-me are
+different shapes, and `.chip-btn`'s `.is-on` accent state and coarse-pointer
+size bump are its own.
+
+**Proven equal, not asserted equal.** `check87.mjs` measured the computed
+styles of a real `.chip` (a taken feat) and a real `.chip-btn` (a seat
+toggle in the Fighters drawer) against the pre-§87 build's measured values -
+padding, radius, fill, border, font, and the colour difference that has to
+survive. One reading was educational: the chip computes `display: flex`
+despite declaring `inline-flex`, before and after alike - it is a flex item
+inside `.chips`, and CSS blockifies a flex item's inline-level display. The
+check pins the measured truth rather than the declared intention.
+
+**Gates.** 2293 tests / 108 files, tsc, oxlint, build in budget; no probe of
+its own beyond `check87.mjs` - "no behavior change" means the existing net
+is the test, and run78 through run86 all stayed green.

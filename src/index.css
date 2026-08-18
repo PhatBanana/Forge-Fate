@@ -1361,15 +1361,35 @@ td.is-selected {
   gap: 6px;
 }
 
+/*
+  §87: the pill, written once. `.chip` is a removable thing you have taken -
+  a feat, an ASI - with its ✕ inside; `.chip-btn` (declared with its own
+  differences further down) is a toggle you press - a language, a seat in
+  the fight - with an `.is-on` accent state. The two shared this recipe as
+  copies since they were born, and the recipe is *all* they share: display,
+  padding and colour differ below because a remove-button-inside and a
+  press-me are different shapes.
+
+  The audit behind this also ruled **against** the wider merge the survey
+  kept suspecting, so it is recorded here where the next survey will look:
+  `.pip` is a 15px circle, `.hud-pip` a clip-path HUD button, `.tag` a
+  rectangular mono label, and `.crow-chip` a deliberately quieter 12px pill
+  on the raised ground. They share a word, not a shape, and merging any of
+  them into this rule would be worse than the duplication was.
+*/
+.chip,
+.chip-btn {
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 13px;
+}
+
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  background: var(--bg-sunken);
-  border: 1px solid var(--border);
-  border-radius: 999px;
   padding: 4px 6px 4px 12px;
-  font-size: 13px;
 }
 
 .chip button {
@@ -1794,12 +1814,10 @@ dl.detail-list {
   color: var(--red);
 }
 
+/* The pill recipe lives on `.chip, .chip-btn` beside `.chip` - §87. Only
+   what makes this one a button-you-press is declared here. */
 .chip-btn {
-  background: var(--bg-sunken);
-  border: 1px solid var(--border);
-  border-radius: 999px;
   color: var(--text-dim);
-  font-size: 13px;
   padding: 5px 14px;
 }
 

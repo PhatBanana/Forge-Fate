@@ -448,6 +448,20 @@ export function BuilderTab({
         )}
 
         <section id="section-identity" className="bsec">
+        {/*
+          §87 audited converting this panel to ChoiceRow and ruled it out, on
+          ChoiceRow's own header rule: "Your character is always visible. The
+          catalogue of things you have not taken is not." Name, rules,
+          species, background and class ARE the character - the always-visible
+          half of that rule - and every choice here is made through a Select,
+          which is already a closed catalogue costing one field of height.
+          Wrapping these in collapsible rows would add a click to reach the
+          fields the rule says must stay on screen, and converting the Selects
+          to ranked-card catalogues would be a redesign wearing a refactor's
+          name. §33 measured this panel at 754px and called it "deliberately
+          the one thing never compacted"; that stands, and now says so here
+          rather than only in HISTORY.
+        */}
         <Panel title="Character">
           <label className="field">
             <span>Name</span>
