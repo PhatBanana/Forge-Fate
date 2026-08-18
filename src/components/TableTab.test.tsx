@@ -5061,3 +5061,114 @@ describe('the board tells the future (§88)', () => {
     expect(intentLines()).toHaveLength(0);
   });
 });
+
+/**
+ * §89. Objectives.
+ *
+ * The judge is `objective.test.ts`; what the component owns is the circle:
+ * authored in Prep, drawn on the board, flagged on the glass, latched into
+ * the log when won, and written into the chronicle at payout. The stance
+ * throughout is the app's oldest: it notices, the DM rules - nothing here
+ * may end a fight.
+ */
+describe('objectives (§89)', () => {
+  const seatFighter = async (user: ReturnType<typeof userEvent.setup>, view: ReturnType<typeof setup>) => {
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+  };
+
+  it('authors Hold the line in Prep and flies the flag before the fight', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+    await seatFighter(user, view);
+    await open(user, 'Prep');
+    await user.click(screen.getByRole('button', { name: 'Hold the line' }));
+
+    expect(view.encounter.objective).toEqual({ kind: 'hold', rounds: 5 });
+    expect(document.querySelector('.turn-objective')?.textContent).toMatch(
+      /hold the line for 5 rounds/i,
+    );
+
+    // Rout takes it away again.
+    await user.click(screen.getByRole('button', { name: 'Rout' }));
+    expect(view.encounter.objective).toBeUndefined();
+  });
+
+  it('paints the mark onto the board and draws it green', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+    await seatFighter(user, view);
+    await open(user, 'Prep');
+    await user.click(screen.getByRole('button', { name: 'Reach the mark' }));
+    await user.click(screen.getByRole('button', { name: /paint the mark/i }));
+
+    boxMap();
+    fireEvent.pointerDown(mapEl(), { clientX: 10.5 * 14, clientY: 10.5 * 14 });
+    fireEvent.pointerUp(mapEl());
+    // jsdom's zero-size map: the exact square matters less than the writes.
+    expect(view.encounter.objective).toMatchObject({ kind: 'reach' });
+    const marked = (view.encounter.objective as { squares: unknown[] }).squares;
+    expect(marked).toHaveLength(1);
+    expect(document.querySelector('.dmap-zone.tint-1')).toBeTruthy();
+
+    // The same click un-paints - the tool is a toggle, like the terrain brushes.
+    fireEvent.pointerDown(mapEl(), { clientX: 10.5 * 14, clientY: 10.5 * 14 });
+    fireEvent.pointerUp(mapEl());
+    expect((view.encounter.objective as { squares: unknown[] }).squares).toHaveLength(0);
+  });
+
+  it('latches a hold win into the log, once, when round N+1 begins', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+    await seatFighter(user, view);
+    await open(user, 'Prep');
+    await user.click(screen.getByRole('button', { name: 'Hold the line' }));
+    fireEvent.change(screen.getByLabelText('Rounds'), { target: { value: '1' } });
+    expect(view.encounter.objective).toMatchObject({ kind: 'hold', rounds: 1 });
+
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+    expect(view.encounter.objective).not.toHaveProperty('wonAt');
+
+    // One combatant: ending their turn ends round 1 and begins round 2.
+    await user.click(screen.getByRole('button', { name: /end turn/i }));
+    await waitFor(() => expect(view.encounter.objective).toMatchObject({ wonAt: 2 }));
+    const lines = (view.encounter.log ?? []).map((l) => l.text);
+    expect(lines.filter((t) => /the line holds/i.test(t))).toHaveLength(1);
+    expect(document.querySelector('.turn-objective.is-won')).toBeTruthy();
+  });
+
+  it('warns while the ward is down and recovers when they are healed', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+    await seatFighter(user, view);
+    await open(user, 'Prep');
+    await user.click(screen.getByRole('button', { name: 'Protect' }));
+    expect(view.encounter.objective).toMatchObject({ kind: 'protect' });
+
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+    const name = view.roster.entries[0].build.name;
+    const max = deriveBuild(view.roster.entries[0].build).hp.total;
+    await open(user, 'Order');
+    await rowDamage(user, name, max);
+
+    // Down is a warning, not a loss: nought is not death, the table rules.
+    expect(document.querySelector('.turn-objective.is-wavering')?.textContent).toMatch(/is down!/);
+    fireEvent.change(within(rowFor(name)).getByLabelText(/damage or healing/i), {
+      target: { value: '5' },
+    });
+    await user.click(within(rowFor(name)).getByRole('button', { name: 'Heal' }));
+    expect(document.querySelector('.turn-objective.is-wavering')).toBeNull();
+  });
+
+  it('clears with the table - the objective is part of the fight', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+    await seatFighter(user, view);
+    await open(user, 'Prep');
+    await user.click(screen.getByRole('button', { name: 'Hold the line' }));
+    await open(user, 'Order');
+    await user.click(screen.getByRole('button', { name: /^clear$/i }));
+    await user.click(screen.getByRole('button', { name: /really clear/i }));
+    expect(view.encounter.objective).toBeUndefined();
+  });
+});

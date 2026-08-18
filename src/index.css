@@ -6391,6 +6391,27 @@ input.pcard-amount {
   flex: 0 0 auto;
 }
 
+/*
+  §89: the objective's flag on the glass. One short line under whose turn it
+  is; won turns green, wavering (the ward down) turns red - the two states a
+  glance must catch across a table.
+*/
+.turn-objective {
+  display: block;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.turn-objective.is-won {
+  color: var(--green);
+}
+
+.turn-objective.is-wavering,
+.turn-objective.is-lost {
+  color: var(--red);
+}
+
 /* The movement bar, folded into the cards from the dock. */
 .pcard-movebar {
   display: flex;

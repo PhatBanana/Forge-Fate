@@ -261,6 +261,7 @@ export function CampaignTab({
                 {chapter.xp.toLocaleString()} XP
                 {chapter.rounds ? ` · ${chapter.rounds} round${chapter.rounds === 1 ? '' : 's'}` : ''}
                 {chapter.mvp ? ` · ${chapter.mvp}` : ''}
+                {chapter.objective ? ` · ⚑ ${chapter.objective}` : ''}
                 {chapter.at ? ` · ${new Date(chapter.at).toLocaleDateString()}` : ''}
               </span>
             </p>

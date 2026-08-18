@@ -2,6 +2,7 @@ import { defaultRng, parseNotation, rollD20, rollNotation } from './engine/dice'
 import type { Rng } from './engine/dice';
 import type { LightLevel, LightSource } from './engine/light';
 import type { Monster } from './data/monsters';
+import type { Objective } from './engine/objective';
 import { initiativeMod } from './data/monsters';
 
 /**
@@ -141,6 +142,14 @@ export interface MonsterCombatant {
 export type Combatant = CharacterCombatant | MonsterCombatant;
 
 export interface EncounterState {
+  /**
+   * §89: what this fight is for, when it is for something other than the
+   * rout. Authored in the Prep drawer, judged by `engine/objective.ts`,
+   * recorded by the debrief. On the fight rather than in component state for
+   * the same reason the map seed is: it is part of the session, it must
+   * survive a reload, and clearing the table should take it too.
+   */
+  objective?: Objective;
   combatants: Combatant[];
   /**
    * Whose turn it is, as an index into the sorted order. -1 before the fight

@@ -6168,3 +6168,66 @@ renderer. The probe relearned §80's lesson the hard way: SVG `<text>` has no
 
 **Gates.** 2305 tests / 109 files, tsc, oxlint, build in budget; run88 both
 themes at 1360×900, with run78 through run86 and check87 green as the net.
+
+## 89. Objectives: what the fight is for
+
+Every fight the app has run had the same unwritten objective - kill
+everything, open the After drawer. That is one mission type, and it is the
+one tactics games use least: X-COM extracts and escorts, Fire Emblem defends
+gates and seizes thrones, Into the Breach counts the turns the grid has to
+survive. §89 lets the DM author the mission: **Hold the line** for N rounds,
+**Reach the mark** painted on the board, **Protect** a named combatant. The
+rout stays the default and stays implicit - the After drawer has been its
+judge since §29 and needs no help.
+
+**The judge is pure and the stance is the house stance.** `engine/objective.ts`
+is a verdict function over facts the encounter already holds:
+`judgeObjective(objective, {round, standing, party, wardStanding})` returns
+open, wavering, won or lost - and *nothing ends a fight*. The app notices,
+the DM rules, exactly as flanking never added the advantage. Three rulings
+inside carry the argument: a fight at round 0 judges nothing, because
+deployment is deployment; a loss is never latched, because every loss here -
+the party down, the ward down - is a state a Revivify can walk back, and
+refusing to notice the recovery would be ruling; protect is never
+engine-won, because it is a constraint the fight ends under, and *wavers*
+rather than loses while the ward is at nought - dropping to zero is not
+dying in fifth edition, and the table rules on the corpse case.
+
+**Standing and mapped are two facts.** The first draft derived the party
+from tokens and a map-less fight read as a wipe. `FightFacts` now carries
+`standing` (living characters, mapped or not - the tracker has run map-less
+fights since §12) beside `party` (squares, which only the mark consults).
+
+**Only the win latches, through the front door.** A component effect watches
+the derived verdict and writes `wonAt` plus a log line through the ordinary
+encounter write - so the announcement lands in the log, survives a reload,
+and un-latches under §84's Undo like any other write. The toast says it out
+loud for the eye that was on the board. A win latched stays won when the
+rogue steps off the mark: an announcement should not flicker.
+
+**Authoring rode Prep; rendering rode the channels.** The objective lives on
+`EncounterState` - saved, cleared and undone with the fight - and is authored
+in the Prep drawer: four kind buttons, a rounds count, a ward picker, and a
+paint-the-mark tool that toggles squares exactly as the terrain brushes do
+(Escape drops it, drawer-close does not). The mark draws as a synthetic
+green zone in the map props - all three renderers for free, §88's trick -
+and the flag flies on the turn strip: what the fight is for before it
+starts, where that stands while it runs (`round 3 of 5`, `the mark waits`,
+`Sera is down!`). The debrief opens with the chronicle clause
+(`Hold the line for 3 rounds — done in round 4`), and the campaign chapter
+remembers it - a chronicle that says what the fight was *for*, not just what
+it cost.
+
+**Pinned.** Fifteen `objective.test.ts` cases on the judge (the latch is the
+caller's, the answer is the engine's; the map-less hold; the ward healed
+back up), five component tests (author + paint, the latch firing once into
+log and toast, the flag counting, protect wavering, the chronicle), and
+`run89.mjs` in both themes: paint two squares, watch them draw green, reload
+mid-deployment and find mark and party both back, stand on the mark, start
+the fight, and read the won flag, the toast and the log line. The probe's
+lesson: a mid-fight drag is §22.5's armed, budgeted move - the probe walks
+onto the mark during free placement and lets round 1 begin on it, which is
+exactly the semantics the judge documents.
+
+**Gates.** 2325 tests / 110 files, tsc, oxlint, build in budget; run89 both
+themes at 1360×900, with run78 through run88 and check87 green as the net.

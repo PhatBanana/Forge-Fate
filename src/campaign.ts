@@ -45,6 +45,8 @@ export interface Chapter {
   xp: number;
   /** Who dealt the most damage. Absent when nobody dealt any. */
   mvp?: string;
+  /** §89: how the objective ended, as one clause - absent for a plain rout. */
+  objective?: string;
 }
 
 export interface Campaign {

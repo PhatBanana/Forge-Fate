@@ -144,6 +144,14 @@ import { isMelee, routineOptions, routineReach, singleStrikes } from '../engine/
 import { meleeReach, opportunityStrike, provokedBy } from '../engine/reactions';
 import { expectedDamage, planTurn } from '../engine/enemyTurn';
 import { threatened } from '../engine/foresight';
+import {
+  chronicleLine,
+  describeObjective,
+  judgeObjective,
+  progressLine,
+  toggleMark,
+} from '../engine/objective';
+import type { FightFacts, Objective } from '../engine/objective';
 import type { IntentSegment } from '../engine/foresight';
 import type { Actor } from '../engine/enemyTurn';
 import { MAX_SCALE, WHOLE_MAP, clampCamera, panBy } from '../engine/camera';
@@ -461,6 +469,10 @@ export function TableTab({
    * same gesture and a DM should not have to learn a second one.
    */
   const [placingLight, setPlacingLight] = useState<string | null>(null);
+  /* §89: the mark-painting tool. Armed from the Prep drawer's objective
+     block; each map click toggles a marked square. A tool like the light
+     tool, so Escape and the one-tool-in-hand rule already know it. */
+  const [placingMark, setPlacingMark] = useState(false);
   /** The optional rules this table has switched on. Off is the book. */
   /*
     Which drawer is open over the map, or none.
@@ -685,6 +697,23 @@ export function TableTab({
   );
 
   const paintAt = (at: Square) => {
+    /*
+      §89: the mark tool ahead of everything - like the light, it is a tool
+      deliberately armed a moment ago, and a click while it is up means
+      "here". Toggling through `toggleMark` so re-clicking un-paints, and the
+      tool stays armed for the next square; Escape or the Prep button puts
+      it down.
+    */
+    if (placingMark) {
+      const current = encounter.objective;
+      if (current?.kind === 'reach') {
+        setEncounter({
+          ...encounter,
+          objective: { ...current, squares: toggleMark(current.squares, at) },
+        });
+      }
+      return;
+    }
     // A light being placed claims the click first: it is the simplest tool
     // in hand and has no second step to get wrong.
     if (placingLight) {
@@ -1932,6 +1961,59 @@ export function TableTab({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showDanger, showIntents, encounter, byId, derived, sightContext, zoneOverlays, partyApproach]);
+
+  /*
+    §89: the objective, judged. Facts first - squares of the living party,
+    whether the named ward still has hit points - then the verdict, fully
+    derived so a Revivify or a heal changes it the moment it changes the
+    fight. Nothing here ends anything: the app notices, the DM rules,
+    exactly the jurisdiction flanking settled.
+  */
+  const objectiveWard = useMemo(() => {
+    const objective = encounter.objective;
+    if (objective?.kind !== 'protect') return undefined;
+    return encounter.combatants.find((c) => c.id === objective.combatantId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [encounter.objective, encounter.combatants]);
+
+  const objectiveFacts = useMemo((): FightFacts => {
+    // Standing and mapped are two facts: the tracker has run map-less
+    // fights since §12, and a party with no tokens still holds a line.
+    const living = encounter.combatants.filter(
+      (c) => c.kind === 'character' && (hpOf(c)?.now ?? 0) > 0,
+    );
+    return {
+      round: encounter.round,
+      standing: living.length,
+      party: living.filter((c) => c.at).map((c) => c.at!),
+      ...(objectiveWard ? { wardStanding: (hpOf(objectiveWard)?.now ?? 0) > 0 } : {}),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [encounter.combatants, encounter.round, objectiveWard, roster.entries]);
+
+  const objectiveVerdict = encounter.objective
+    ? judgeObjective(encounter.objective, objectiveFacts)
+    : null;
+
+  /*
+    The win latches - once, through the ordinary write path, so it lands in
+    the log, survives a reload, and un-latches under Undo like anything else.
+    Only the win: the header of `engine/objective.ts` argues why a loss never
+    does. The toast is for the eye that was on the board, not the flag.
+  */
+  useEffect(() => {
+    const objective = encounter.objective;
+    if (!objective || objective.wonAt !== undefined) return;
+    if (objectiveVerdict?.state !== 'won') return;
+    setEncounter(
+      appendLog(
+        { ...encounter, objective: { ...objective, wonAt: encounter.round } },
+        `Objective: ${objectiveVerdict.line}`,
+      ),
+    );
+    say?.(objectiveVerdict.line);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [encounter, objectiveVerdict]);
 
   /**
    * An exchange of blows, composed onto the given roster and RETURNED.
@@ -4558,6 +4640,16 @@ export function TableTab({
             xp: spoils.total,
             ...(encounter.endedAfter ? { rounds: encounter.endedAfter } : {}),
             ...(mvpName() ? { mvp: mvpName()! } : {}),
+            /* §89: the one moment the app knows how the mission ended. */
+            ...(encounter.objective
+              ? {
+                  objective: chronicleLine(
+                    encounter.objective,
+                    objectiveFacts,
+                    objectiveWard ? nameOf(objectiveWard) : undefined,
+                  ),
+                }
+              : {}),
           }),
         ),
       );
@@ -4667,6 +4759,18 @@ export function TableTab({
             : `MVP: ${mvp.name} — ${mvp.dealt} damage.`
         }
       >
+        {/* §89: how the mission went, above who hit hardest - X-COM's own
+            ordering, because the objective is what the fight was for. */}
+        {encounter.objective && (
+          <p className="hint" style={{ marginTop: 0 }}>
+            ⚑{' '}
+            {chronicleLine(
+              encounter.objective,
+              objectiveFacts,
+              objectiveWard ? nameOf(objectiveWard) : undefined,
+            )}
+          </p>
+        )}
         <table className="debrief">
           <thead>
             <tr>
@@ -4893,6 +4997,21 @@ export function TableTab({
                 lives only in these props, never in the encounter, so it
                 cannot leak into pathing, hazards or a save.
               */
+              /* §89: the mark, drawn the way the danger wash is - squares,
+                 tinted, labelled - but from the encounter, because unlike a
+                 forecast it is a fact about the fight. Tint 1 is the green:
+                 a goal, not a warning. */
+              ...(encounter.objective?.kind === 'reach' && encounter.objective.squares.length
+                ? [
+                    {
+                      id: 'objective-mark',
+                      label: 'The mark',
+                      tint: 1,
+                      origin: encounter.objective.squares[0],
+                      squares: encounter.objective.squares,
+                    },
+                  ]
+                : []),
               ...(foresight && foresight.danger.length
                 ? [
                     {
@@ -5677,6 +5796,133 @@ export function TableTab({
     this is the button. The pane below it follows the turn (see advance),
     so after End turn this column is the active combatant's cockpit.
   */
+  /*
+    §89: what this fight is for. One objective, three kinds beyond the
+    implicit rout, each a single parameter - X-COM's mission variety without
+    a word of licensed content, because every objective is the DM's own.
+    Authoring writes the encounter through the ordinary path: it saves with
+    a prepped fight, clears with the table, and undoes like everything else.
+  */
+  const objectivePanel = (() => {
+    const objective = encounter.objective;
+    const setObjective = (next: Objective | undefined) => {
+      if (!next || next.kind !== 'reach') setPlacingMark(false);
+      setEncounter({ ...encounter, objective: next });
+    };
+    const kindBtn = (
+      label: string,
+      pressed: boolean,
+      make: () => Objective | undefined,
+      title: string,
+    ) => (
+      <button
+        className={`btn btn-sm ${pressed ? 'btn-primary' : ''}`}
+        aria-pressed={pressed}
+        title={title}
+        onClick={() => setObjective(pressed ? undefined : make())}
+      >
+        {label}
+      </button>
+    );
+    return (
+      <Panel
+        title="The objective"
+        subtitle="What this fight is for. The app notices when it is met; ending the fight stays yours."
+      >
+        <div className="btn-row" role="group" aria-label="Objective">
+          {kindBtn(
+            'Rout',
+            !objective,
+            () => undefined,
+            'The unwritten default: the fight ends when one side is done',
+          )}
+          {kindBtn(
+            'Hold the line',
+            objective?.kind === 'hold',
+            () => ({ kind: 'hold', rounds: 5 }),
+            'Survive a set number of full rounds',
+          )}
+          {kindBtn(
+            'Reach the mark',
+            objective?.kind === 'reach',
+            () => ({ kind: 'reach', squares: [] }),
+            'Get somebody onto squares you paint on the board',
+          )}
+          {kindBtn(
+            'Protect',
+            objective?.kind === 'protect',
+            () => ({
+              kind: 'protect',
+              combatantId:
+                encounter.combatants.find((c) => c.kind === 'character')?.id ??
+                encounter.combatants[0]?.id ??
+                '',
+            }),
+            'A named combatant must still be standing when the dust settles',
+          )}
+        </div>
+
+        {objective?.kind === 'hold' && (
+          <label className="field" style={{ maxWidth: 120 }}>
+            <span>Rounds</span>
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={objective.rounds}
+              onChange={(e) =>
+                setObjective({
+                  ...objective,
+                  rounds: Math.max(1, Math.min(20, Number(e.target.value) || 1)),
+                })
+              }
+            />
+          </label>
+        )}
+
+        {objective?.kind === 'reach' && (
+          <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              className={`btn btn-sm ${placingMark ? 'btn-primary' : ''}`}
+              aria-pressed={placingMark}
+              onClick={() => setPlacingMark((was) => !was)}
+            >
+              {placingMark ? 'Painting — click squares' : 'Paint the mark'}
+            </button>
+            <span className="muted">
+              {objective.squares.length
+                ? `${objective.squares.length} ${objective.squares.length === 1 ? 'square' : 'squares'} marked`
+                : 'nothing marked yet'}
+            </span>
+          </div>
+        )}
+
+        {objective?.kind === 'protect' && (
+          <label className="field">
+            <span>Who must stand</span>
+            <select
+              value={objective.combatantId}
+              onChange={(e) => setObjective({ ...objective, combatantId: e.target.value })}
+            >
+              {encounter.combatants.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {nameOf(c)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {objective && (
+          <p className="hint">
+            {describeObjective(objective, objectiveWard ? nameOf(objectiveWard) : undefined)}.
+            {objective.wonAt !== undefined ? ` Met in round ${objective.wonAt}.` : ''}
+          </p>
+        )}
+      </Panel>
+    );
+  })();
+
   const turnPanel = (
     <div className="turn-panel">
       <span className="turn-panel-who">
@@ -5690,6 +5936,23 @@ export function TableTab({
               ? 'Ready when you are.'
               : 'Add combatants to begin.'}
         </b>
+        {/* §89: the flag. What the fight is for and where that stands, on
+            the one strip every eye returns to between turns. */}
+        {encounter.objective && objectiveVerdict && (
+          <span className={`turn-objective is-${objectiveVerdict.state}`}>
+            ⚑{' '}
+            {isRunning(encounter)
+              ? progressLine(
+                  encounter.objective,
+                  objectiveFacts,
+                  objectiveWard ? nameOf(objectiveWard) : undefined,
+                )
+              : describeObjective(
+                  encounter.objective,
+                  objectiveWard ? nameOf(objectiveWard) : undefined,
+                )}
+          </span>
+        )}
       </span>
       <button
         type="button"
@@ -6202,6 +6465,7 @@ export function TableTab({
         if (aim) setAim(null);
         else if (grab) setGrab(null);
         else if (placingLight) setPlacingLight(null);
+        else if (placingMark) setPlacingMark(false);
         else if (moveArmed) setMoveArmed(false);
         else if (placing) {
           setPlacing(null);
@@ -6461,7 +6725,7 @@ export function TableTab({
     { id: 'order', label: 'Order', hint: 'Initiative, hit points, conditions', content: fightPanel },
     /* §80: hints are visible text in the open drawer now, so each is worded
        to not echo a panel title it sits above. */
-    { id: 'plan', label: 'Prep', hint: 'The forecast, and the shelf of saved fights', content: <>{forecastPanel}{libraryPanel}</> },
+    { id: 'plan', label: 'Prep', hint: 'The objective, the forecast, and the shelf of saved fights', content: <>{objectivePanel}{forecastPanel}{libraryPanel}</> },
     { id: 'after', label: 'After', hint: 'How it went, the payout, and the whole record', content: <>{midFightPanel}{debriefPanel}{logPanel}</> },
   ] as const;
   const openDrawer = drawers.find((d) => d.id === drawer);
