@@ -6495,6 +6495,23 @@ input.pcard-amount {
   opacity: 0.55;
 }
 
+/*
+  §88: the telegraphs. Into the Breach's grammar - the walk to where a
+  monster will stand is dashed, the strike from there is solid - in one red
+  ink so the two segments read as one sentence. Fixed colors like the sight
+  lines above: the map's palette does not follow the theme.
+*/
+.dmap-intent {
+  stroke: #b8402a;
+  stroke-width: 1.6;
+  opacity: 0.9;
+}
+
+.dmap-intent.is-walk {
+  stroke-dasharray: 3 3;
+  opacity: 0.55;
+}
+
 /* Zones: four translucent washes over the paper, one per tint, fixed like the
    rest of the map's palette. The label floats above the origin square. */
 .dmap-zone rect { opacity: 0.32; }

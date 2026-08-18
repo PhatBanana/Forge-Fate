@@ -48,6 +48,28 @@ export function sightLines(
   return new Float32Array(out);
 }
 
+/**
+ * §88's telegraphs: the same centre-to-centre segments the SVG maps draw,
+ * with the walk in the dimmer ink. `gl.LINES` has no dash, so where the SVG
+ * dashes the walk this dims it - the grammar survives the medium.
+ */
+export function intentLines(
+  intents: { from: Square; to: Square; walk?: boolean }[],
+  proj: IsoProjection,
+  palette: Palette,
+): Float32Array {
+  const out: number[] = [];
+  for (const seg of intents) {
+    segment(
+      out,
+      proj.centreOf(seg.from),
+      proj.centreOf(seg.to),
+      seg.walk ? palette.intentWalk : palette.intentStrike,
+    );
+  }
+  return new Float32Array(out);
+}
+
 export function rulerLine(
   ruler: { points: Square[] } | null,
   proj: IsoProjection,

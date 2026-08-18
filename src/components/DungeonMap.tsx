@@ -176,6 +176,7 @@ export function DungeonMap({
   terrain = {},
   elevation = {},
   sight = [],
+  intents = [],
   zones = [],
   reach = [],
   cursor = null,
@@ -216,6 +217,8 @@ export function DungeonMap({
   elevation?: ElevationMap;
   /** Sight lines from the selected combatant, drawn over everything. */
   sight?: { from: Square; to: Square; visible: boolean }[];
+  /** §88: telegraphed enemy turns - the walk dashed, the strike solid. */
+  intents?: { from: Square; to: Square; walk?: boolean }[];
   /** Areas of effect, squares precomputed so the map stays a drawing. */
   zones?: {
     id: string;
@@ -630,6 +633,23 @@ export function DungeonMap({
           y1={(line.from.y + 0.5) * CELL}
           x2={(line.to.x + 0.5) * CELL}
           y2={(line.to.y + 0.5) * CELL}
+        />
+      ))}
+
+      {/*
+        §88: the telegraphs, drawn with the sight lines' geometry and their
+        own ink - the walk to where a monster will stand is dashed, the
+        strike from there is solid, exactly the grammar Into the Breach
+        taught. Same centre-to-centre line the plan itself was priced on.
+      */}
+      {intents.map((seg, i) => (
+        <line
+          key={`intent-${i}`}
+          className={`dmap-intent ${seg.walk ? 'is-walk' : ''}`}
+          x1={(seg.from.x + 0.5) * CELL}
+          y1={(seg.from.y + 0.5) * CELL}
+          x2={(seg.to.x + 0.5) * CELL}
+          y2={(seg.to.y + 0.5) * CELL}
         />
       ))}
 

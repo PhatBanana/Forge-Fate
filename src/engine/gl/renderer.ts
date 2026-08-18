@@ -79,6 +79,8 @@ export interface SceneUpdate {
   fog?: Mesh;
   cursor?: Mesh;
   sight?: Float32Array;
+  /** §88's telegraphs, drawn with the sight lines. */
+  intents?: Float32Array;
   rulerArc?: Float32Array;
   /** Depth-tested standing sprites: pawns, glyphs, markers, shadows. */
   sprites?: SpritePlacement[];
@@ -338,6 +340,7 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer | null {
     if (next.fog) setMesh('fog', next.fog);
     if (next.cursor) setMesh('cursor', next.cursor);
     if (next.sight) setLines('sight', next.sight);
+    if (next.intents) setLines('intents', next.intents);
     if (next.rulerArc) setLines('rulerArc', next.rulerArc);
     if (next.sprites) state.sprites = next.sprites;
     if (next.tokenTexts) state.tokenTexts = next.tokenTexts;
@@ -490,6 +493,7 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer | null {
     // 3. Sight lines, then 4. sprites (cutout, depth back on).
     gl.disable(gl.DEPTH_TEST);
     drawLines('sight', view);
+    drawLines('intents', view);
     gl.enable(gl.DEPTH_TEST);
     gl.depthMask(true);
     bindScene(view, 0.5);

@@ -70,6 +70,8 @@ export interface IsoMapProps {
   terrain?: TerrainMap;
   elevation?: ElevationMap;
   sight?: { from: Square; to: Square; visible: boolean }[];
+  /** §88: telegraphed enemy turns - the walk dashed, the strike solid. */
+  intents?: { from: Square; to: Square; walk?: boolean }[];
   zones?: IsoZone[];
   reach?: { at: Square; dash?: boolean }[];
   cursor?: Square | null;
@@ -102,6 +104,7 @@ export function IsoMap({
   terrain = {},
   elevation = {},
   sight = [],
+  intents = [],
   zones = [],
   reach = [],
   cursor = null,
@@ -359,6 +362,22 @@ export function IsoMap({
           <line
             key={i}
             className={`dmap-sight ${line.visible ? '' : 'is-blocked'}`}
+            x1={a.x}
+            y1={a.y}
+            x2={b.x}
+            y2={b.y}
+          />
+        );
+      })}
+
+      {/* §88: the telegraphs, on the same centre-to-centre geometry. */}
+      {intents.map((seg, i) => {
+        const a = centre(seg.from);
+        const b = centre(seg.to);
+        return (
+          <line
+            key={`intent-${i}`}
+            className={`dmap-intent ${seg.walk ? 'is-walk' : ''}`}
             x1={a.x}
             y1={a.y}
             x2={b.x}

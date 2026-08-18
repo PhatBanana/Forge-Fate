@@ -19,7 +19,7 @@ import {
   reachWash,
   zoneWash,
 } from '../engine/gl/overlays';
-import { arcLines, rulerLine, sightLines } from '../engine/gl/lines';
+import { arcLines, intentLines, rulerLine, sightLines } from '../engine/gl/lines';
 import {
   glyphSprites,
   noteText,
@@ -71,6 +71,7 @@ function GlSurface({
   terrain = {},
   elevation = {},
   sight = [],
+  intents = [],
   zones = [],
   reach = [],
   cursor = null,
@@ -291,6 +292,7 @@ function GlSurface({
       fog: fogWash(fog, ground, proj, palette),
       cursor: cursorWash(cursor, proj, palette),
       sight: sightLines(sight, proj, palette),
+      intents: intentLines(intents, proj, palette),
       rulerArc: mergeLines(rulerLine(ruler, proj, palette), arcLines(arc, proj, palette)),
       sprites: [...glyphSprites(terrain, proj), ...sprites],
       tokenTexts: texts,

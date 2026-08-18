@@ -6096,3 +6096,75 @@ check pins the measured truth rather than the declared intention.
 **Gates.** 2293 tests / 108 files, tsc, oxlint, build in budget; no probe of
 its own beyond `check87.mjs` - "no behavior change" means the existing net
 is the test, and run78 through run86 all stayed green.
+
+## 88. The board tells the future
+
+The first section after the deferred list emptied, and the first of the
+identity work: two ideas borrowed from the two tactics games that trust
+their players with information, chosen because almost everything they need
+already existed. Fire Emblem's **danger zone** - every square an enemy could
+reach and strike on its next turn, washed red. Into the Breach's
+**telegraphs** - what each enemy will actually do when its turn comes, drawn
+on the board before it happens. A VTT shows you a map; this shows you the
+next thirty seconds.
+
+**One new engine function.** `walkMap` already priced the walk, `planTurn`
+already decided the turn, `expectedDamage` already weighed the round, and
+§18.1's odds chip already floats a number over a head in all three
+renderers. `engine/foresight.ts` adds the one missing piece: `threatened` -
+a breadth-first flood turning "the squares it can stand on" into "the
+squares it can hurt", stepped like the walk, stopped by what blocks sight.
+
+**Deliberately not a line-of-sight test.** The flood turns corners more
+generously than a ray and subtracts no cover, and that is the right kind of
+wrong for a warning: FE's wash over-warns and players plant their healer by
+it; a wash that under-warned would get somebody killed by a square it called
+safe. The shot, when it comes, is still priced by `lineOfSight` exactly as
+before. Danger also uses ordinary movement only - a square reachable only by
+Dashing is a square arrived at with nothing left to swing (`planTurn`'s own
+rule 2, honoured by the wash that predicts it).
+
+**The telegraphs are the cockpit's own planner, told to everyone.** §25
+built `planTurn` to propose the active monster's turn; §88 runs it for every
+monster that will act - alive, on the map, awake - against the board as it
+stands. The walk to where it will stand draws dashed, the strike from there
+solid (the GL renderer, having no dash, dims the walk instead - the grammar
+survives the medium), and each target's incoming expectation lands on the
+§18.1 chip over their head as `~9`. The actor flattening was extracted from
+the cockpit's memo into one `battleActors` builder, because two copies of
+"who is out of the reckoning" is how two forecasts start disagreeing. An
+armed aim owns the chip channel outright; two numbers over one head is noise.
+
+**A forecast, not a promise.** Every turn taken before a monster's changes
+the board, so the lines re-form as the fight moves - which is exactly what
+ItB's telegraphs are. Budgets are fresh-turn (full speed) because both
+futures answer "when its turn comes"; the active monster mid-turn is the
+cockpit's business and its proposal already prices the remaining feet.
+
+**Rendering rode existing channels.** The danger wash is a synthetic zone in
+the map props - squares, precomputed, tinted red, empty label - so all three
+renderers drew it with zero renderer changes, and it lives only in props,
+never the encounter: it cannot leak into pathing, hazards or a save (a test
+pins that). The telegraphs are one new `intents` prop mirroring the sight
+lines in each renderer, plus an `intentLines` builder, two palette inks and
+one more line buffer on the GL side.
+
+**Offered before the fight starts, on purpose.** The wash is at its most
+useful while the party is still being placed - the deployment phase every
+tactics game runs - so the toggles (beside the camera, since they answer the
+same "how am I looking at this board" question) gate on nothing but monsters
+standing on the map. A sleeping pod is excluded from both futures: a monster
+that will not act is not a threat yet, and the wash saying so is what §19.2's
+pods are for.
+
+**Pinned.** Seven `foresight.test.ts` cases on the flood (radius in feet,
+diagonals, walls, the corner turned the long way at its true cost - the
+first draft of that test had the arithmetic wrong, not the flood); five
+component tests (toggles, deployment-time wash, telegraph + chip, view-state
+purity, the sleeping pod); `run88.mjs` in both themes, including the GL
+canvas taking both futures without a console error - jsdom never runs that
+renderer. The probe relearned §80's lesson the hard way: SVG `<text>` has no
+`innerText`, and the chip must be read through `textContent`.
+
+**Gates.** 2305 tests / 109 files, tsc, oxlint, build in budget; run88 both
+themes at 1360×900, with run78 through run86 and check87 green as the net.

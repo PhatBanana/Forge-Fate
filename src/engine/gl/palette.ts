@@ -45,6 +45,9 @@ export interface Palette {
   /** Lines. */
   sight: Rgba;
   sightBlocked: Rgba;
+  /** §88's telegraphs: the walk to where a monster will stand, the strike. */
+  intentWalk: Rgba;
+  intentStrike: Rgba;
   ruler: Rgba;
   arc: Rgba;
   cursor: Rgba;
@@ -80,6 +83,8 @@ export const LIGHT: Palette = {
   fogUnknown: [0.16, 0.13, 0.10, 0.96],
   sight: [0.30, 0.65, 0.35, 0.9],
   sightBlocked: [0.80, 0.30, 0.25, 0.9],
+  intentWalk: [0.72, 0.35, 0.20, 0.55],
+  intentStrike: [0.78, 0.22, 0.15, 0.95],
   ruler: [0.25, 0.22, 0.18, 0.95],
   arc: [0.85, 0.60, 0.20, 0.95],
   cursor: [1.0, 0.95, 0.75, 0.55],
@@ -114,6 +119,8 @@ export const DARK: Palette = {
   fogUnknown: [0.05, 0.05, 0.08, 0.97],
   sight: [0.35, 0.70, 0.40, 0.9],
   sightBlocked: [0.85, 0.35, 0.30, 0.9],
+  intentWalk: [0.85, 0.45, 0.30, 0.55],
+  intentStrike: [0.95, 0.35, 0.25, 0.95],
   ruler: [0.85, 0.80, 0.70, 0.95],
   arc: [0.90, 0.65, 0.25, 0.95],
   cursor: [1.0, 0.95, 0.75, 0.45],

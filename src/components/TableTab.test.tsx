@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TableTab } from './TableTab';
-import { activeEncounter } from '../storage';
+import { activeEncounter, updateEncounter } from '../storage';
 import type { Roster } from '../storage';
 import type { Ruleset } from '../types';
 import { emptyPlay, hpNow } from '../play';
@@ -4952,3 +4952,112 @@ function walkTo(at: { x: number; y: number }) {
     else fireEvent.keyDown(window, { key: 'ArrowUp' });
   }
 }
+
+/**
+ * §88. The board tells the future.
+ *
+ * The flood is `foresight.test.ts`, the planner is `enemyTurn.test.ts`; what
+ * a component test owns is the wiring - that the toggles exist, that the
+ * wash and the telegraphs reach the map as drawing, that the chip over a
+ * threatened head carries the planner's own number, and that all of it is
+ * view state that never touches the encounter.
+ */
+describe('the board tells the future (§88)', () => {
+  /** A fighter seated and a goblin standing next to the fight. */
+  const battlefield = async (user: ReturnType<typeof userEvent.setup>) => {
+    const view = setup(party());
+    await bestiaryReady();
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await open(user, 'Bestiary');
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
+    const entry = [...document.querySelectorAll('.mon-list li')].find(
+      (li) => li.querySelector('b')?.textContent === 'Goblin',
+    ) as HTMLElement;
+    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await open(user, 'Field');
+    await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
+    return view;
+  };
+  const dangerWash = () => document.querySelector('.dmap-zone.tint-0 rect');
+  const intentLines = () => document.querySelectorAll('.dmap-intent');
+
+  it('offers both futures beside the camera, off by default', async () => {
+    setup(party());
+    expect(screen.getByRole('button', { name: 'Danger' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Intents' })).toHaveAttribute('aria-pressed', 'false');
+    expect(intentLines()).toHaveLength(0);
+  });
+
+  it('washes the goblin reach red on Danger, before the fight even starts', async () => {
+    const user = userEvent.setup();
+    await battlefield(user);
+    expect(dangerWash()).toBeNull();
+
+    // Deployment is the moment the wash earns its keep - no Start needed.
+    await user.click(screen.getByRole('button', { name: 'Danger' }));
+    expect(dangerWash()).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: 'Danger' }));
+    expect(dangerWash()).toBeNull();
+  });
+
+  it('draws the telegraph and floats the expected damage over the target', async () => {
+    const user = userEvent.setup();
+    const view = await battlefield(user);
+    /*
+      Deployment spreads the two into different rooms, which telegraphs a
+      *walk* - honest, but not the case under test. Stand them adjacent so
+      the plan is a strike with a number on it.
+    */
+    const enc = view.encounter;
+    view.onChange(
+      updateEncounter(view.roster, {
+        ...enc,
+        combatants: enc.combatants.map((c) =>
+          c.kind === 'monster' ? { ...c, at: { x: 11, y: 10 } } : { ...c, at: { x: 10, y: 10 } },
+        ),
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Intents' }));
+
+    // Adjacent, the whole telegraph is the strike segment.
+    expect(intentLines().length).toBeGreaterThan(0);
+
+    // The chip is the §18.1 channel carrying the other direction: what is
+    // expected to land ON the fighter when the goblin's turn comes.
+    const chip = document.querySelector('.dmap-odds');
+    expect(chip?.textContent).toMatch(/^~\d+$/);
+    expect(view.encounter.combatants).toHaveLength(2);
+  });
+
+  it('keeps both futures out of the encounter - view state, not a fact', async () => {
+    const user = userEvent.setup();
+    const view = await battlefield(user);
+    const before = JSON.stringify(view.encounter);
+    await user.click(screen.getByRole('button', { name: 'Danger' }));
+    await user.click(screen.getByRole('button', { name: 'Intents' }));
+    // The wash rides the map props; the saved fight must not know about it.
+    expect(JSON.stringify(view.encounter)).toBe(before);
+    expect(view.encounter.zones ?? []).toHaveLength(0);
+  });
+
+  it('leaves a sleeping pod dark - a monster that will not act is not a threat yet', async () => {
+    const user = userEvent.setup();
+    const view = await battlefield(user);
+    // Put the goblin to sleep by hand, the way a loaded dungeon's pods start.
+    const enc = view.encounter;
+    view.onChange(
+      updateEncounter(view.roster, {
+        ...enc,
+        combatants: enc.combatants.map((c) =>
+          c.kind === 'monster' ? { ...c, dormant: true } : c,
+        ),
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Danger' }));
+    await user.click(screen.getByRole('button', { name: 'Intents' }));
+    expect(dangerWash()).toBeNull();
+    expect(intentLines()).toHaveLength(0);
+  });
+});

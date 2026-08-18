@@ -140,9 +140,11 @@ import { PlayCard } from './PlayCard';
 import { InitiativeStrip } from './InitiativeStrip';
 import { MonsterCommandMenu } from './MonsterTray';
 import type { Strike } from './MonsterTray';
-import { isMelee, routineOptions, singleStrikes } from '../engine/strikes';
+import { isMelee, routineOptions, routineReach, singleStrikes } from '../engine/strikes';
 import { meleeReach, opportunityStrike, provokedBy } from '../engine/reactions';
-import { planTurn } from '../engine/enemyTurn';
+import { expectedDamage, planTurn } from '../engine/enemyTurn';
+import { threatened } from '../engine/foresight';
+import type { IntentSegment } from '../engine/foresight';
 import type { Actor } from '../engine/enemyTurn';
 import { MAX_SCALE, WHOLE_MAP, clampCamera, panBy } from '../engine/camera';
 import type { Camera } from '../engine/camera';
@@ -327,6 +329,16 @@ export function TableTab({
     live in the Dungeons tab now; Play only looks at the ground.
   */
   const [view, setView] = useState<'map' | 'tactical'>('map');
+  /*
+    §88: the board tells the future. Two washes borrowed from the two
+    tactics games that trust their players with information - Fire Emblem's
+    danger zone (every square an enemy could reach and strike this turn) and
+    Into the Breach's telegraphs (what each enemy will actually do when its
+    turn comes). View state, not encounter state: what the table is looking
+    at, not a fact about the fight.
+  */
+  const [showDanger, setShowDanger] = useState(false);
+  const [showIntents, setShowIntents] = useState(false);
   /*
     §66: whether the tactical view draws as the PS1 renderer or the classic
     SVG. A *look* preference rather than session state, so unlike the camera
@@ -1750,14 +1762,18 @@ export function TableTab({
    *
    * It is a proposal and nothing more. Nothing here writes.
    */
-  const enemyPlan = useMemo(() => {
-    if (!isRunning(encounter) || aim || placing || moveArmed) return null;
-    if (active?.kind !== 'monster' || selected?.id !== active.id || !active.at) return null;
-    if ((hpOf(active)?.now ?? 0) <= 0 || active.dormant) return null;
-    const monster = byId.get(active.monsterId);
-    if (!monster || !walk) return null;
+  /*
+    The fight, flattened to what a decision turns on. One builder for the
+    cockpit's proposal and §88's telegraphs, because two copies of "who is
+    out of the reckoning" is how the two forecasts start disagreeing.
 
-    const actors: Actor[] = encounter.combatants.map((c) => ({
+    Out of the reckoning: a monster still asleep is not in the fight, and
+    somebody who has successfully hidden is not somewhere a plan gets to
+    know about. Both are already true of the turn order and the fog; this
+    just stops the planner from being cleverer than the goblin.
+  */
+  const battleActors = (): Actor[] =>
+    encounter.combatants.map((c) => ({
       id: c.id,
       name: nameOf(c),
       side: c.kind === 'monster' ? 'foe' : 'party',
@@ -1766,14 +1782,17 @@ export function TableTab({
       ac:
         (c.kind === 'monster' ? byId.get(c.monsterId)?.ac : derived.get(c.rosterId)?.ctx.ac.total) ??
         10,
-      /*
-        Out of the reckoning: a monster still asleep is not in the fight, and
-        somebody who has successfully hidden is not somewhere a plan gets to
-        know about. Both are already true of the turn order and the fog; this
-        just stops the planner from being cleverer than the goblin.
-      */
       out: (c.kind === 'monster' && c.dormant) || c.hidden !== undefined,
     }));
+
+  const enemyPlan = useMemo(() => {
+    if (!isRunning(encounter) || aim || placing || moveArmed) return null;
+    if (active?.kind !== 'monster' || selected?.id !== active.id || !active.at) return null;
+    if ((hpOf(active)?.now ?? 0) <= 0 || active.dormant) return null;
+    const monster = byId.get(active.monsterId);
+    if (!monster || !walk) return null;
+
+    const actors = battleActors();
 
     const candidates: Square[] = [];
     for (const key of walk.cost.keys()) {
@@ -1795,6 +1814,124 @@ export function TableTab({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [encounter, aim, placing, moveArmed, active, selected, byId, derived, walk, walkSafe, walkBudget, partyApproach]);
+
+  /**
+   * §88: the future, computed. For every monster that will actually act -
+   * alive, on the map, awake - two forecasts of its next turn:
+   *
+   * **Danger** is Fire Emblem's wash: every square it could stand on with
+   * ordinary movement (a Dash forfeits the attack - `planTurn`'s own rule 2)
+   * spread by its longest routine's reach, flooding around what blocks
+   * sight. No line-of-sight test and no cover arithmetic, and that is the
+   * right kind of wrong for a warning - over-marking keeps the healer alive,
+   * under-marking gets her killed by a square the wash called safe. The
+   * shot, if it comes, is still priced by `lineOfSight` exactly as before.
+   *
+   * **Intents** are Into the Breach's telegraphs: the same `planTurn` the
+   * cockpit proposes with, run for every monster against the board as it
+   * stands, drawn as the walk (dashed) and the strike (solid), with each
+   * target's incoming expectation summed onto the §18.1 chip over their
+   * head. Every turn taken before theirs can change the board, so the lines
+   * re-form as the fight moves - a forecast, not a promise, which is exactly
+   * what ItB's telegraphs are.
+   *
+   * Fresh-turn budgets - full speed, whatever is left of the current one -
+   * because both washes answer "when its turn comes", not "right now". The
+   * active monster mid-turn is the cockpit's business, and its proposal
+   * already prices the remaining feet.
+   */
+  const foresight = useMemo(() => {
+    // No isRunning gate on purpose: the wash is at its most useful while the
+    // party is still being placed - Fire Emblem's deployment phase - and
+    // every input it needs exists as soon as monsters stand on the map.
+    if (!showDanger && !showIntents) return null;
+
+    const dangerKeys = new Set<string>();
+    const segments: IntentSegment[] = [];
+    const incoming = new Map<string, number>();
+    const actors = battleActors();
+    const overlays = {
+      blocked: zoneOverlays.blocked,
+      difficult: zoneOverlays.difficultFor('monsters'),
+    };
+    // What an attack cannot pass, for the danger spread: the map's own rock,
+    // and terrain that blocks sight - a pillar shields the square behind it.
+    const passes = (at: Square) => {
+      if (!walkable(sightContext, at)) return false;
+      const kind = sightContext.terrain[keyOf(at)];
+      return !(kind && TERRAIN_BY_KIND[kind].blocksSight);
+    };
+
+    for (const c of encounter.combatants) {
+      if (c.kind !== 'monster' || !c.at || c.dormant) continue;
+      if ((hpOf(c)?.now ?? 0) <= 0) continue;
+      const monster = byId.get(c.monsterId);
+      if (!monster) continue;
+
+      const speed = speedOf(c);
+      const budget = { base: speed, dash: speed * 2 };
+      const mWalk = walkMap(sightContext, c.at, budget.dash, overlays, walkerOf(c));
+      const taken = new Set(
+        encounter.combatants.filter((o) => o.id !== c.id && o.at).map((o) => keyOf(o.at!)),
+      );
+
+      if (showDanger) {
+        const spots: Square[] = [c.at];
+        for (const [key, cost] of mWalk.cost) {
+          if (cost > budget.base || taken.has(key)) continue;
+          const [x, y] = key.split(',').map(Number);
+          spots.push({ x, y });
+        }
+        const routines = routineOptions(monster);
+        const reachFeet = routines.length ? Math.max(...routines.map(routineReach)) : 5;
+        for (const key of threatened(spots, reachFeet, passes)) dangerKeys.add(key);
+      }
+
+      if (showIntents) {
+        const candidates: Square[] = [];
+        for (const key of mWalk.cost.keys()) {
+          const [x, y] = key.split(',').map(Number);
+          candidates.push({ x, y });
+        }
+        const plan = planTurn({
+          self: actors.find((a) => a.id === c.id)!,
+          actors,
+          options: routineOptions(monster),
+          budget,
+          priceOf: (at) => mWalk.cost.get(keyOf(at)) ?? null,
+          candidates,
+          approach: partyApproach ? (at) => partyApproach.cost.get(keyOf(at)) ?? null : undefined,
+        });
+
+        const standAt = plan.move?.to ?? c.at;
+        if (plan.move) segments.push({ from: c.at, to: plan.move.to, walk: true });
+        if (plan.targetId) {
+          const target = encounter.combatants.find((t) => t.id === plan.targetId);
+          if (target?.at) {
+            segments.push({ from: standAt, to: target.at });
+            const ac =
+              (target.kind === 'monster'
+                ? byId.get(target.monsterId)?.ac
+                : derived.get(target.rosterId)?.ctx.ac.total) ?? 10;
+            incoming.set(
+              target.id,
+              (incoming.get(target.id) ?? 0) + expectedDamage(plan.strikes, ac),
+            );
+          }
+        }
+      }
+    }
+
+    return {
+      danger: [...dangerKeys].map((key) => {
+        const [x, y] = key.split(',').map(Number);
+        return { x, y };
+      }),
+      segments,
+      incoming,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showDanger, showIntents, encounter, byId, derived, sightContext, zoneOverlays, partyApproach]);
 
   /**
    * An exchange of blows, composed onto the given roster and RETURNED.
@@ -4726,7 +4863,16 @@ export function TableTab({
                   const shot = aimTargets.find((a) => a.id === t.id);
                   return shot ? { ...t, odds: `${Math.round(shot.chance * 100)}%` } : t;
                 })
-              : tokens,
+              : foresight && foresight.incoming.size
+                ? /* §88: the same chip §18.1 floats over a head, carrying the
+                     other direction - what is expected to land ON you when
+                     the monsters take their turns. An armed aim wins the
+                     channel outright; two numbers over one head is noise. */
+                  tokens.map((t) => {
+                    const dmg = foresight.incoming.get(t.id);
+                    return dmg !== undefined ? { ...t, odds: `~${Math.max(1, Math.round(dmg))}` } : t;
+                  })
+                : tokens,
             terrain: encounter.terrain,
             elevation: encounter.elevation,
             sight: sightLines,
@@ -4739,8 +4885,28 @@ export function TableTab({
                 squares: zoneSquares(zone),
               })),
               ...ghostZone,
+              /*
+                §88: the danger wash rides the zones channel - squares,
+                precomputed, tinted, exactly what the channel carries - so
+                both renderers draw it without learning a new prop. Tint 0
+                is the red one; the empty label keeps the board quiet. It
+                lives only in these props, never in the encounter, so it
+                cannot leak into pathing, hazards or a save.
+              */
+              ...(foresight && foresight.danger.length
+                ? [
+                    {
+                      id: 'foresight-danger',
+                      label: '',
+                      tint: 0,
+                      origin: foresight.danger[0],
+                      squares: foresight.danger,
+                    },
+                  ]
+                : []),
             ],
             reach,
+            intents: foresight?.segments ?? [],
             /* §85: one square, both renderers. The keyboard's cursor wins
                over the pointer's when it is down, because it is the one that
                had to be summoned - a hover is where the mouse happens to be,
@@ -4875,6 +5041,33 @@ export function TableTab({
               )}
             </div>
           )}
+          {/*
+            §88: the two futures, beside the camera because they answer the
+            same question the view toggle does - how the table is looking at
+            the board. Offered before the fight starts on purpose: placing
+            the party against the wash is the deployment phase every tactics
+            game runs, and the one moment the warning is cheapest to heed.
+          */}
+          <div className="seg">
+            <button
+              type="button"
+              aria-pressed={showDanger}
+              className={showDanger ? 'is-on' : ''}
+              title="Wash every square an enemy could reach and strike on its next turn — reach, not a promise of a clear shot"
+              onClick={() => setShowDanger((was) => !was)}
+            >
+              Danger
+            </button>
+            <button
+              type="button"
+              aria-pressed={showIntents}
+              className={showIntents ? 'is-on' : ''}
+              title="Draw what each enemy will do when its turn comes — the walk dashed, the strike solid, the expected damage over its target"
+              onClick={() => setShowIntents((was) => !was)}
+            >
+              Intents
+            </button>
+          </div>
           <div className="seg">
             <ShortcutsHelp
               open={keysOpen}
