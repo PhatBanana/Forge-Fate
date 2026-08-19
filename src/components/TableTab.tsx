@@ -247,6 +247,8 @@ export function TableTab({
   pendingDungeonId,
   pendingDelve,
   onPendingDungeonDone,
+  plans: plansProp,
+  onPlansChange,
   say,
   aside,
 }: {
@@ -293,6 +295,10 @@ export function TableTab({
       place asleep, the party seated at the entrance, the run chronicled. */
   pendingDelve?: boolean;
   onPendingDungeonDone?: () => void;
+  /** §93: the plan queue, shared with the seat screen when App lifts it.
+      Absent, the component keeps its own - §92's single-device shape. */
+  plans?: Intent[];
+  onPlansChange?: (plans: Intent[]) => void;
   /**
    * §83: the battle is the screen where this matters most - almost every
    * control is in a drawer covering the board it acts on, so the result of a
@@ -506,8 +512,15 @@ export function TableTab({
     through: a seat sends intents; only this device writes the fight.
     Named `plans` locally because §88's telegraph channel already answers
     to `intents` in the map props.
+
+    §93 lifted the queue to App so the seat screen writes the same one and
+    a plan survives the DM stepping out to another screen; the local state
+    remains as the fallback so this component still stands alone (every
+    §92 test, and any embedding that has no seat screen to share with).
   */
-  const [plans, setPlans] = useState<Intent[]>([]);
+  const [localPlans, setLocalPlans] = useState<Intent[]>([]);
+  const plans = plansProp ?? localPlans;
+  const setPlans = onPlansChange ?? setLocalPlans;
   /* §92: the composer's own scratch, cleared on queue. */
   const [planKind, setPlanKind] = useState<IntentKind>('attack');
   const [planTarget, setPlanTarget] = useState('');
@@ -3442,7 +3455,7 @@ export function TableTab({
   const advance = () => {
     /* §92: the ending turn takes its plan with it - a plan is for one turn,
        and one that lingered would read as next round's intention. */
-    if (isRunning(encounter) && active) setPlans((p) => withdrawIntent(p, active.id));
+    if (isRunning(encounter) && active) setPlans(withdrawIntent(plans, active.id));
     /*
       The ending turn settles its debts first: a wall of fire bites whoever
       ends a turn standing in it, composed into the same write as the turn
@@ -6263,7 +6276,7 @@ export function TableTab({
                   resolveStrikes({ name: nameOf(active!), id: active!.id }, strikes, target, {
                     spendAction: true,
                   });
-                  setPlans((p) => withdrawIntent(p, selected.id));
+                  setPlans(withdrawIntent(plans, selected.id));
                 }}
               >
                 Run it
@@ -6272,7 +6285,7 @@ export function TableTab({
             <button
               className="btn btn-sm"
               title="The plan happened at the table — clear it"
-              onClick={() => setPlans((p) => withdrawIntent(p, selected.id))}
+              onClick={() => setPlans(withdrawIntent(plans, selected.id))}
             >
               Done
             </button>
@@ -6280,7 +6293,7 @@ export function TableTab({
               className="btn btn-sm"
               title="The plan is overtaken — clear it unrun"
               onClick={() => {
-                setPlans((p) => withdrawIntent(p, selected.id));
+                setPlans(withdrawIntent(plans, selected.id));
                 say?.(`${nameOf(selected)}'s plan is declined.`);
               }}
             >
@@ -6308,7 +6321,7 @@ export function TableTab({
             Queued: {describeIntent(plan, planTargetName(plan))}{' '}
             <button
               className="btn btn-sm"
-              onClick={() => setPlans((p) => withdrawIntent(p, selected.id))}
+              onClick={() => setPlans(withdrawIntent(plans, selected.id))}
             >
               Withdraw
             </button>
@@ -6354,8 +6367,8 @@ export function TableTab({
             className="btn btn-sm btn-primary"
             disabled={planKind === 'attack' && !planTarget}
             onClick={() => {
-              setPlans((p) =>
-                queueIntent(p, {
+              setPlans(
+                queueIntent(plans, {
                   combatantId: selected.id,
                   kind: planKind,
                   ...(planKind === 'attack' && planTarget ? { targetId: planTarget } : {}),

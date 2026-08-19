@@ -107,3 +107,17 @@ export function tokenFromLocation(hash?: string): string | null {
   const raw = (hash ?? (typeof location === 'undefined' ? '' : location.hash)).replace(/^#/, '');
   return TOKEN_SHAPE.test(raw) ? raw : null;
 }
+
+/**
+ * §93: a seat in the address bar. `#seat=r3` opens the player screen holding
+ * that roster character; a bare `#seat` opens it on the picker. Returns the
+ * roster id, `''` for the bare form, and `null` when the fragment is
+ * something else - a share token, an anchor, nothing. The same fragment
+ * discipline as the share link: read synchronously at boot, stripped after.
+ */
+export function seatFromLocation(hash?: string): string | null {
+  const raw = (hash ?? (typeof location === 'undefined' ? '' : location.hash)).replace(/^#/, '');
+  if (raw === 'seat') return '';
+  const match = /^seat=(.+)$/.exec(raw);
+  return match ? decodeURIComponent(match[1]) : null;
+}

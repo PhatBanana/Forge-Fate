@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Build } from './types';
 import { emptyBuild } from './engine/character';
-import { decodeBuild, encodeBuild, shareUrl, tokenFromLocation } from './share';
+import { decodeBuild, encodeBuild, seatFromLocation, shareUrl, tokenFromLocation } from './share';
 
 function loaded(): Build {
   return {
@@ -162,5 +162,17 @@ describe('what a link deliberately leaves behind', () => {
   it('leaves a character without one alone', () => {
     const decoded = decodeBuild(encodeBuild(loaded())).build!;
     expect('portrait' in decoded.details).toBe(false);
+  });
+});
+
+describe('the seat fragment (§93)', () => {
+  it('reads a seat, a bare picker, and nothing else', () => {
+    expect(seatFromLocation('#seat=r3')).toBe('r3');
+    expect(seatFromLocation('#seat')).toBe('');
+    expect(seatFromLocation('#c1.whatever')).toBeNull();
+    expect(seatFromLocation('#builder')).toBeNull();
+    expect(seatFromLocation('')).toBeNull();
+    // Encoded ids survive the address bar.
+    expect(seatFromLocation('#seat=a%20b')).toBe('a b');
   });
 });

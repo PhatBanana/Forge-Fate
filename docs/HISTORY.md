@@ -6400,3 +6400,59 @@ rolled against the goblin's real AC.
 **Gates.** 2356 tests / 112 files, tsc, oxlint, build in budget; run92
 both themes at 1360×900, with run78 through run91 and check87 green as
 the net.
+
+## 93. The player's seat
+
+The second section of the multiplayer arc: the screen a player will hold.
+§92 settled the bones - seats, intents, the DM-runs-it rule - and this
+gives them a body sized for the hand: one character's view of the table,
+proven at 380 pixels wide, still on one device, with §94's transport left
+to slot in underneath.
+
+**The seat is the hand; the board stays with the DM.** `SeatTab` shows
+what a player at a real table holds: their own sheet's play surface (the
+same `PlayCard` the cockpit uses, taking only the three props it needs),
+where the fight stands - "Basher is up — 2 turns to yours", counted by
+walking the initiative order - and §92's composer for what they will do
+when their turn comes. What it deliberately is not: a second battle map.
+It cannot move a token, roll an attack, or end a turn, because the §92
+authority rule is enforced the strongest way there is - by having no
+button for any of it. On their turn it reads the plan back with "It is
+in the DM's cockpit — the table runs it."
+
+**One queue, at last actually one.** §92's plans lived in the battle
+component and died with it; §93 lifts them to App, so the seat and the
+cockpit write the same array and a plan survives the DM stepping out to
+another screen. The lift kept §92 intact: the battle takes the queue as
+an optional prop and falls back to its own state, so every §92 test and
+any standalone embedding is untouched. Still ephemeral - in memory beside
+the stores, never in them - which is the §92 argument carried forward
+unchanged.
+
+**Three doors in.** A hub entry beside Run a battle ("Take a seat"), a
+picker on the screen itself, and `#seat=<rosterId>` in the address bar -
+§45's fragment discipline, read synchronously at boot and stripped after,
+so a link can hand a phone its chair the moment §94 gives phones a way to
+listen. Claiming re-claims (a phone rejoining is not a second chair), and
+leaving empties only the seat, never the character.
+
+**One honest shortcut, recorded.** The composer's target list wears the
+fog's *memory* (`explored`) rather than the party's current sight - the
+seat has no sight engine, and shipping one there would be a second copy of
+the §19 model waiting to disagree with the first. A hidden monster stays
+unnameable either way; the gap is a monster standing on ground the party
+has seen but cannot see now. The cockpit's own veil still governs what
+Run it will actually do.
+
+**Pinned.** A seat-fragment suite in `share.test.ts`; five `SeatTab`
+tests (the picker claiming a chair, the truth told when you are not in
+the fight and when it has not started, the turns-to-yours count and a
+plan queued into the shared array, the your-turn read-back with no Run
+it button anywhere); `run93.mjs` in both themes - queue from the seat,
+find the same plan flying on the DM's strip with the §25.4 buttons under
+it, then shrink to 380×820 and find the seat legible, up-to-date, and
+free of sideways scroll.
+
+**Gates.** 2362 tests / 113 files, tsc, oxlint, build in budget; run93
+both themes at 1360×900 plus the 380-wide pass, with run78 through run92
+and check87 green as the net.

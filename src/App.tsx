@@ -24,9 +24,10 @@ import {
 import type { Roster } from './storage';
 import { loadBestiary, saveBestiary } from './bestiary';
 import type { Monster } from './data/monsters';
-import { decodeBuild, tokenFromLocation } from './share';
+import { decodeBuild, seatFromLocation, tokenFromLocation } from './share';
 import { canRedo, canUndo, forget, historyFor, record, redo, undo } from './undo';
 import { push } from './toast';
+import type { Intent, Seat } from './seats';
 import type { Toast } from './toast';
 import { ToastHost } from './components/ToastHost';
 import {
@@ -94,6 +95,9 @@ const DungeonsTab = lazy(async () => ({
   default: (await import('./components/DungeonsTab')).DungeonsTab,
 }));
 
+/* §93: the player's phone-sized view - the sheet, the fight, the queue. */
+const SeatTab = lazy(async () => ({ default: (await import('./components/SeatTab')).SeatTab }));
+
 /*
   Loading a chunk off a local static host takes a frame or two, so this is a
   placeholder rather than a spinner - a spinner that flashes for 30ms reads as
@@ -132,6 +136,7 @@ type Tab =
   | 'characters'
   | 'dungeons'
   | 'campaign'
+  | 'seat'
   | 'table';
 
 /*
@@ -154,6 +159,7 @@ const TAB_LABELS: Record<Tab, string> = {
   characters: 'Characters',
   dungeons: 'Dungeons',
   campaign: 'Campaign',
+  seat: 'Player seat',
   table: 'Battle',
 };
 
@@ -260,7 +266,19 @@ export default function App() {
     they came to look at a character, and a menu between them and it is a
     question the link already answered.
   */
-  const [tab, setTab] = useState<Tab>(() => (tokenFromLocation() ? 'builder' : 'title'));
+  const [tab, setTab] = useState<Tab>(() =>
+    seatFromLocation() !== null ? 'seat' : tokenFromLocation() ? 'builder' : 'title',
+  );
+  /* §93: which roster character this device's seat plays. `''` from a bare
+     `#seat` fragment lands on the picker; null means no seat taken. */
+  const [seatId, setSeatId] = useState<string | null>(() => seatFromLocation() || null);
+  const [seats, setSeats] = useState<Seat[]>([]);
+  /*
+    §92's plan queue, lifted: the battle cockpit and the player seat write
+    the same one, and a plan survives the DM stepping out to another screen.
+    Still ephemeral on purpose - in memory beside the stores, never in them.
+  */
+  const [plans, setPlans] = useState<Intent[]>([]);
   /* §77: a dungeon on its way to the battle screen - set by the Dungeons
      screen's "Use in a battle", consumed once by TableTab, then cleared.
      §90: the same door, marked when it is being entered as a delve. */
@@ -363,7 +381,7 @@ export default function App() {
     // A shared character carries the rules it was built under, so being handed
     // a link is itself the answer. Asking here would bury the character behind
     // a question the link already settled.
-    if (tokenFromLocation()) return null;
+    if (tokenFromLocation() || seatFromLocation() !== null) return null;
     try {
       const fresh =
         !localStorage.getItem(RULESET_CHOSEN_KEY) &&
@@ -637,6 +655,11 @@ export default function App() {
               hint: 'The map, the initiative, the dice',
               primary: true,
             },
+        {
+          id: 'seat',
+          label: 'Take a seat',
+          hint: 'A player\'s view — your sheet, the fight, your next move',
+        },
       ],
     },
     {
@@ -893,6 +916,8 @@ export default function App() {
             pendingDungeonId={pendingDungeon?.id ?? null}
             pendingDelve={pendingDungeon?.delve}
             onPendingDungeonDone={() => setPendingDungeon(null)}
+            plans={plans}
+            onPlansChange={setPlans}
             aside={<ThemeToggle choice={themeChoice} onChange={chooseTheme} />}
           />
         )}
@@ -924,6 +949,19 @@ export default function App() {
           />
         )}
         {tab === 'campaign' && <CampaignTab roster={roster} say={say} />}
+        {tab === 'seat' && (
+          <SeatTab
+            roster={roster}
+            onChange={setRoster}
+            plans={plans}
+            onPlansChange={setPlans}
+            seats={seats}
+            onSeatsChange={setSeats}
+            seatId={seatId}
+            onSeatChange={setSeatId}
+            say={say}
+          />
+        )}
       </Suspense>
       </main>
       {/*

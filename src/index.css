@@ -6465,6 +6465,37 @@ input.pcard-amount {
   flex: 1 1 120px;
 }
 
+/*
+  §93: the player's seat - one column sized for the hand. It reuses the
+  desk chrome and the §92 plan block; all it needs of its own is a width
+  that reads on a phone and a status line big enough to glance.
+*/
+.seat {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.seat-status {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.seat-status.is-up {
+  color: var(--accent);
+}
+
+.seat-leave {
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .seat .plan-block .row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 /* The movement bar, folded into the cards from the dock. */
 .pcard-movebar {
   display: flex;
