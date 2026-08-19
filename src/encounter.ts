@@ -3,6 +3,7 @@ import type { Rng } from './engine/dice';
 import type { LightLevel, LightSource } from './engine/light';
 import type { Monster } from './data/monsters';
 import type { Objective } from './engine/objective';
+import type { DelveState } from './engine/delve';
 import { initiativeMod } from './data/monsters';
 
 /**
@@ -150,6 +151,14 @@ export interface EncounterState {
    * survive a reload, and clearing the table should take it too.
    */
   objective?: Objective;
+  /**
+   * §90: the run this fight is part of, when the fight is a delve - the
+   * place's name, the rests taken, who fell where. On the fight for the
+   * §89 reason: part of the session, survives a reload, cleared with the
+   * table. Everything else the delve shows is derived from facts already
+   * here (rooms, fog, hit points, dormancy) by `engine/delve.ts`.
+   */
+  delve?: DelveState;
   combatants: Combatant[];
   /**
    * Whose turn it is, as an index into the sorted order. -1 before the fight

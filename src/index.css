@@ -6412,6 +6412,17 @@ input.pcard-amount {
   color: var(--red);
 }
 
+/*
+  §90: the delve's counters share the flag's dress, and the breath button
+  stays small enough to live on the strip - it appears only in the quiet
+  between rooms, and quiet should not shout.
+*/
+.turn-breath {
+  margin-top: 4px;
+  font-size: 11px;
+  padding: 2px 8px;
+}
+
 /* The movement bar, folded into the cards from the dock. */
 .pcard-movebar {
   display: flex;

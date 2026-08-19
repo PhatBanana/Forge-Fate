@@ -6231,3 +6231,70 @@ exactly the semantics the judge documents.
 
 **Gates.** 2325 tests / 110 files, tsc, oxlint, build in budget; run89 both
 themes at 1360×900, with run78 through run88 and check87 green as the net.
+
+## 90. The Delve
+
+The identity work's centrepiece, and the cheapest big feature the app has
+ever shipped - because every load-bearing piece already existed. Deployment
+has seated the party in room 1 and spread the monsters far-first since
+§22.2; fog has remembered what the party has seen since §19.1; a dormant
+monster has waited to be found since §19.2; short rests have restored the
+right resources since §51; the chronicle has taken a chapter per fight
+since §30. What no section had done was *name and pace the loop*: pick a
+drawn place, enter it at the door, survive it room by room, and have the
+record written. That is the whole of §90 - the roguelite run structure,
+X-COM's and every dungeon crawler's, composed out of parts on the shelf.
+
+**One press at the door.** "Begin a delve" sits beside §77's "Use in a
+battle" on every saved dungeon: the venue is applied, the campaign's party
+is seated without a walk through the drawers, the fog comes down, every
+monster on the table goes dormant, and the encounter takes the run's name.
+Seating happens one commit later through the ordinary deployment - the map
+memos the plan reads must describe the new ground, and this two-step is
+pinned by a component test that had to grow a stateful harness to see it
+(a synchronous rerender inside an effect-dispatched callback re-enters
+React's work loop; App holds the roster in state, so the harness does too).
+
+**Almost everything is derived.** `engine/delve.ts` stores three things -
+the name, the rests taken, who fell where - and computes the rest from
+facts the encounter already holds: a room is *unseen* until the fog
+remembers a square of it, *held* while a living monster stands in it
+(sleeping counts - a dormant guard still holds the guard room), *cleared*
+otherwise, so an empty room clears by being walked through. A hidden room
+is not on the panel until found, and finding one grows the total - exactly
+what finding a hidden room should do to a delve. A derived fact cannot
+drift from the board; only the three persisted fields could, and they are
+records, not states.
+
+**The pacing is offered, never enforced.** `breathTime` - no living monster
+awake - is the moment between rooms every crawl is made of, and it puts a
+"Catch your breath" button on the turn strip; pressing it is §51's party
+short rest with the delve counting it. Whether the party gets ten quiet
+minutes is the table's economy: the app notices, the DM rules, nothing
+limits the count. The strip itself is one mono line beside §89's flag -
+`1/8 rooms · 1 rest` - counting rather than narrating.
+
+**The fallen are a record, not a state.** A character at nought during a
+running delve is latched once - name, room, round - through the ordinary
+write path (§89's pattern: logged, reload-proof, undoable), and healing
+them back up does not un-fall them, because the chronicle keeps moments.
+Dropping to zero is still not dying in fifth edition; the line says
+"falls", and the table rules on the rest.
+
+**The chapter says what the run was.** At payout the chronicle's clause is
+the whole delve in one line - `The Sunken Vault — 6 of 8 rooms cleared,
+2 short rests; Sera fell in room 3` - in the debrief, in the campaign's
+chronicle beside §89's objective clause, written from the same derived
+facts the strip was counting all along.
+
+**Pinned.** Ten `delve.test.ts` cases (standings, the sleeping guard, the
+walked-through empty room, the breath, the words, one memorial per name);
+five component tests (the one-press door with campaign seating, the strip,
+the counted breath, the fallen latch surviving a heal, the debrief and
+chapter); `run90.mjs` in both themes driving the real loop - author a
+goblin denizen on the Dungeons screen, press Begin a delve, read the
+counters, watch the goblin stay unseen under fog, take the breath, reload
+mid-run and come back mid-run.
+
+**Gates.** 2340 tests / 111 files, tsc, oxlint, build in budget; run90 both
+themes at 1360×900, with run78 through run89 and check87 green as the net.

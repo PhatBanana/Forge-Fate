@@ -1,4 +1,4 @@
-import { addMonster, placeCombatant } from './encounter';
+import { addMonster, appendLog, placeCombatant } from './encounter';
 import type { EncounterState, Square } from './encounter';
 import type { Monster } from './data/monsters';
 import type { DungeonLayout } from './engine/dungeon';
@@ -175,4 +175,30 @@ export function applyDungeon(
     if (denizen.at) next = placeCombatant(next, id, denizen.at);
   }
   return next;
+}
+
+/**
+ * §90: the same venue, entered as a run.
+ *
+ * Composed *after* `applyDungeon` has set the ground: the fog comes down,
+ * every monster on the table goes dormant - the place is asleep until the
+ * party finds each part of it, §19.2's whole idea - and the encounter takes
+ * the delve's small persistent state: the place's name for the chapter,
+ * no rests yet, nobody fallen yet. Deployment is the caller's next write,
+ * through the same plan every fight uses (party into room 1, monsters
+ * spread far-first), because this function has no map knowledge to place
+ * anybody with - and should not grow any.
+ */
+export function beginDelve(encounter: EncounterState, name: string): EncounterState {
+  return appendLog(
+    {
+      ...encounter,
+      fog: true,
+      delve: { name, rests: 0, fallen: [] },
+      combatants: encounter.combatants.map((c) =>
+        c.kind === 'monster' ? { ...c, dormant: true } : c,
+      ),
+    },
+    `The delve begins: ${name}.`,
+  );
 }

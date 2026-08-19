@@ -32,7 +32,7 @@ import type { Zone, ZoneEffect, ZoneShape } from '../zones';
 import { simulate } from '../engine/simulate';
 import { makeRng } from '../engine/dungeon';
 import { planDeployment } from '../engine/deploy';
-import { applyDungeon, loadDungeons } from '../dungeons';
+import { applyDungeon, beginDelve, loadDungeons } from '../dungeons';
 import { loadEncounters, loadIntoPlay, putEncounter, removeEncounter, saveEncounters } from '../encounters';
 import type { Roster } from '../storage';
 import { activeEncounter, updateEncounter, updatePlay } from '../storage';
@@ -152,6 +152,16 @@ import {
   toggleMark,
 } from '../engine/objective';
 import type { FightFacts, Objective } from '../engine/objective';
+import {
+  breathTime,
+  delveLine,
+  delveProgress,
+  delveStrip,
+  recordFall,
+  roomOf,
+  roomStates,
+} from '../engine/delve';
+import type { DelveMonster } from '../engine/delve';
 import type { IntentSegment } from '../engine/foresight';
 import type { Actor } from '../engine/enemyTurn';
 import { MAX_SCALE, WHOLE_MAP, clampCamera, panBy } from '../engine/camera';
@@ -232,6 +242,7 @@ export function TableTab({
   onHome,
   onSheet,
   pendingDungeonId,
+  pendingDelve,
   onPendingDungeonDone,
   say,
   aside,
@@ -275,6 +286,9 @@ export function TableTab({
    * later visit to the battle does not reload the map over a live fight.
    */
   pendingDungeonId?: string | null;
+  /** §90: the pending dungeon is being entered as a delve - fog down, the
+      place asleep, the party seated at the entrance, the run chronicled. */
+  pendingDelve?: boolean;
   onPendingDungeonDone?: () => void;
   /**
    * §83: the battle is the screen where this matters most - almost every
@@ -473,6 +487,10 @@ export function TableTab({
      block; each map click toggles a marked square. A tool like the light
      tool, so Escape and the one-tool-in-hand rule already know it. */
   const [placingMark, setPlacingMark] = useState(false);
+  /* §90: a delve was just begun and the party still needs seating on the
+     new ground. Deployment runs one commit later than the venue change, so
+     the map memos it plans against are the delve's map, not the old one. */
+  const [delveDeploying, setDelveDeploying] = useState(false);
   /** The optional rules this table has switched on. Off is the book. */
   /*
     Which drawer is open over the map, or none.
@@ -1031,7 +1049,29 @@ export function TableTab({
   useEffect(() => {
     if (!pendingDungeonId || loading) return;
     const saved = dungeonLibrary.find((d) => d.id === pendingDungeonId);
-    if (saved) setEncounter(applyDungeon(encounter, saved.map, (id) => byId.get(id)));
+    if (saved) {
+      let next = applyDungeon(encounter, saved.map, (id) => byId.get(id));
+      if (pendingDelve) {
+        /*
+          §90: the door entered as a run. The campaign's party is seated
+          first if a campaign is being played - "the party enters at the
+          door" should not require a walk through the Fighters drawer -
+          then the fog comes down and the place goes to sleep. Seating on
+          the new ground happens one commit later (see `delveDeploying`):
+          the deployment plans against map memos, and this commit's memos
+          still describe the old venue.
+        */
+        for (const id of campaign?.partyIds ?? []) {
+          const entry = roster.entries.find((e) => e.id === id);
+          if (!entry) continue;
+          next = addCharacter(next, id, { dex: deriveBuild(entry.build).mods.dex });
+        }
+        next = beginDelve(next, saved.name);
+        setDelveDeploying(true);
+        say?.(`The delve begins: ${saved.name}.`);
+      }
+      setEncounter(next);
+    }
     onPendingDungeonDone?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingDungeonId, loading]);
@@ -2014,6 +2054,57 @@ export function TableTab({
     say?.(objectiveVerdict.line);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [encounter, objectiveVerdict]);
+
+  /*
+    §90: the delve's instrument panel, all derived - rooms from the fog and
+    the monsters' facts, a breath from nobody being awake. `dungeon` is the
+    resolved architecture, so a hidden room the party has not found is not
+    on the panel either, and finding one grows the total.
+  */
+  const delveMonsters = useMemo(
+    (): DelveMonster[] =>
+      encounter.combatants
+        .filter((c) => c.kind === 'monster')
+        .map((c) => ({
+          ...(c.at ? { at: c.at } : {}),
+          alive: c.kind === 'monster' && c.hp > 0,
+          dormant: c.kind === 'monster' && !!c.dormant,
+        })),
+    [encounter.combatants],
+  );
+  const delveRooms = encounter.delve
+    ? roomStates(dungeon.rooms, encounter.explored ?? [], delveMonsters)
+    : [];
+
+  /*
+    The fallen latch - §89's pattern. A character at nought during a running
+    delve is recorded once, with the room they were standing in, through the
+    ordinary write path: logged, reload-proof, undoable. Healing them back
+    up does not erase the record; the chronicle keeps moments, not states.
+  */
+  useEffect(() => {
+    const delve = encounter.delve;
+    if (!delve || !isRunning(encounter)) return;
+    let next = delve;
+    const lines: string[] = [];
+    for (const c of encounter.combatants) {
+      if (c.kind !== 'character' || (hpOf(c)?.now ?? 0) > 0) continue;
+      const name = nameOf(c);
+      if (next.fallen.some((f) => f.name === name)) continue;
+      const room = c.at ? roomOf(dungeon.rooms, c.at)?.id : undefined;
+      next = recordFall(next, {
+        name,
+        ...(room !== undefined ? { room } : {}),
+        round: encounter.round,
+      });
+      lines.push(`${name} falls${room !== undefined ? ` in room ${room}` : ''}.`);
+    }
+    if (next === delve) return;
+    let enc: EncounterState = { ...encounter, delve: next };
+    for (const line of lines) enc = appendLog(enc, line);
+    setEncounter(enc);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [encounter, dungeon.rooms]);
 
   /**
    * An exchange of blows, composed onto the given roster and RETURNED.
@@ -3708,6 +3799,19 @@ export function TableTab({
     );
   };
 
+  /*
+    §90: the delve's second step. `beginDelve` changed the venue; this
+    commit's memos (`dungeon`, `sightContext`) now describe the new ground,
+    so the ordinary deployment can seat the party in room 1 and spread the
+    sleeping denizens far-first - the same plan every fight uses, §22.2.
+  */
+  useEffect(() => {
+    if (!delveDeploying) return;
+    setDelveDeploying(false);
+    deploy();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [delveDeploying]);
+
   const rollAll = () =>
     setEncounter(rollMonsterInitiative(encounter, byId, defaultRng));
 
@@ -4650,6 +4754,10 @@ export function TableTab({
                   ),
                 }
               : {}),
+            /* §90: and the run, whole - the chronicle's reason to exist. */
+            ...(encounter.delve
+              ? { delve: delveLine(encounter.delve, delveProgress(delveRooms)) }
+              : {}),
           }),
         ),
       );
@@ -4691,11 +4799,18 @@ export function TableTab({
           : longRest(entry.play, hitDice, custom);
       updated = updatePlay(updated, entry.id, rested);
     }
+    /* §90: a short rest during a delve is a breath of the run - counted on
+       the strip and in the chapter, in the same write as the rest itself. */
+    const enc = activeEncounter(updated);
+    const rested =
+      kind === 'short' && enc.delve
+        ? { ...enc, delve: { ...enc.delve, rests: enc.delve.rests + 1 } }
+        : enc;
     onChange(
       updateEncounter(
         updated,
         appendLog(
-          activeEncounter(updated),
+          rested,
           kind === 'short' ? 'The party takes a short rest.' : 'The party takes a long rest.',
         ),
       ),
@@ -4769,6 +4884,12 @@ export function TableTab({
               objectiveFacts,
               objectiveWard ? nameOf(objectiveWard) : undefined,
             )}
+          </p>
+        )}
+        {/* §90: the run, said whole where the fight is settled. */}
+        {encounter.delve && (
+          <p className="hint" style={{ marginTop: 0 }}>
+            ⛏ {delveLine(encounter.delve, delveProgress(delveRooms))}
           </p>
         )}
         <table className="debrief">
@@ -5952,6 +6073,24 @@ export function TableTab({
                   objectiveWard ? nameOf(objectiveWard) : undefined,
                 )}
           </span>
+        )}
+        {/* §90: the run's counters, and - when nobody hostile is awake -
+            the breath between rooms. Offered, never enforced: whether the
+            party gets ten quiet minutes is the table's call. */}
+        {encounter.delve && (
+          <span className="turn-objective turn-delve" title={encounter.delve.name}>
+            ⛏ {delveStrip(encounter.delve, delveProgress(delveRooms))}
+          </span>
+        )}
+        {encounter.delve && isRunning(encounter) && breathTime(delveMonsters) && (
+          <button
+            type="button"
+            className="btn btn-sm turn-breath"
+            title="Nobody hostile is awake — a short rest for the whole party"
+            onClick={() => partyRests('short')}
+          >
+            Catch your breath
+          </button>
         )}
       </span>
       <button

@@ -47,6 +47,9 @@ export interface Chapter {
   mvp?: string;
   /** §89: how the objective ended, as one clause - absent for a plain rout. */
   objective?: string;
+  /** §90: the delve, as one clause - the place, the rooms, the rests, who
+      fell where. Absent when the fight was not a run through a place. */
+  delve?: string;
 }
 
 export interface Campaign {

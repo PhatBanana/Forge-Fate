@@ -77,7 +77,7 @@ export function DungeonsTab({
    * note saying the battle screen has a picker, four screens away. This is
    * the door.
    */
-  onBattle?: (dungeonId: string) => void;
+  onBattle?: (dungeonId: string, delve?: boolean) => void;
   /** §83/§84: an undo fired from a keystroke has nowhere else to say so. */
   say?: Say;
 } = {}) {
@@ -819,6 +819,19 @@ export function DungeonsTab({
                           onClick={() => onBattle(saved.id)}
                         >
                           Use in a battle
+                        </button>
+                      )}
+                      {/* §90: the same door, entered as a run - fog down,
+                          the denizens waiting, the party at the entrance,
+                          and the chronicle taking notes. */}
+                      {onBattle && (
+                        <button
+                          className="btn btn-sm"
+                          aria-label={`Begin a delve into ${saved.name}`}
+                          title="Enter under fog of war: rooms wake as they are found, and the run is chronicled"
+                          onClick={() => onBattle(saved.id, true)}
+                        >
+                          Begin a delve
                         </button>
                       )}
                       {/* §76: asked-for, like a character's delete always

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useState } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TableTab } from './TableTab';
@@ -119,9 +120,11 @@ const boxMap = () => {
   mapEl().getBoundingClientRect = () =>
     ({ left: 0, top: 0, width: 480, height: 360, right: 480, bottom: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
 };
-const goblinOf = (view: ReturnType<typeof setup>) =>
+/* §90 hands these a stateful-harness handle rather than setup()'s, so they
+   ask only for the one thing they read. */
+const goblinOf = (view: Pick<ReturnType<typeof setup>, 'encounter'>) =>
   view.encounter.combatants.find((c) => c.kind === 'monster') as MonsterCombatant;
-const logOf = (view: ReturnType<typeof setup>) =>
+const logOf = (view: Pick<ReturnType<typeof setup>, 'encounter'>) =>
   (view.encounter.log ?? []).map((l) => l.text).join('\n');
 
 const rowFor = (name: string): HTMLElement => {
@@ -5170,5 +5173,178 @@ describe('objectives (§89)', () => {
     await user.click(screen.getByRole('button', { name: /^clear$/i }));
     await user.click(screen.getByRole('button', { name: /really clear/i }));
     expect(view.encounter.objective).toBeUndefined();
+  });
+});
+
+describe('the delve (§90)', () => {
+  /*
+    The whole run in one door: a saved place with a sleeping denizen, a
+    campaign that knows who is playing, and `pendingDelve` on the way in.
+    The venue, the fog and the dormant goblin land in one write; the
+    seating lands one commit later, when the map memos describe the new
+    ground - which is exactly the two-step the component performs.
+  */
+  const DUNGEONS = 'dnd-forge:dungeons:v1';
+  const CAMPAIGNS = 'dnd-forge:campaigns:v1';
+
+  const enterDelve = async () => {
+    localStorage.setItem(
+      DUNGEONS,
+      JSON.stringify({
+        dungeons: [
+          {
+            id: 'dv1',
+            name: 'The Sunken Vault',
+            savedAt: 1,
+            map: {
+              mapSeed: 'vault',
+              mapSize: 'small',
+              mapRooms: 2,
+              layout: {
+                rooms: [
+                  { id: 1, x: 1, y: 1, w: 4, h: 4 },
+                  { id: 2, x: 10, y: 1, w: 4, h: 4 },
+                ],
+                corridors: [{ points: [{ x: 5, y: 3 }, { x: 10, y: 3 }] }],
+                doors: [],
+              },
+              denizens: [{ monsterId: 'goblin', at: { x: 11, y: 2 } }],
+            },
+          },
+        ],
+      }),
+    );
+    localStorage.setItem(
+      CAMPAIGNS,
+      JSON.stringify({
+        activeId: 'camp1',
+        campaigns: [
+          { id: 'camp1', name: 'Saturdays', createdAt: 1, partyIds: ['c0'], chronicle: [], notes: '' },
+        ],
+      }),
+    );
+
+    /*
+      A stateful harness rather than setup()'s rerender-in-onChange mock:
+      the door writes from *effects*, and a synchronous rerender inside an
+      effect-dispatched callback re-enters React's work loop. App.tsx holds
+      the roster in state, so the harness does exactly that.
+    */
+    const onDone = vi.fn();
+    let current: Roster = rosterOf(fighter());
+    function Harness() {
+      const [roster, setRoster] = useState(current);
+      current = roster;
+      return (
+        <TableTab
+          roster={roster}
+          onChange={setRoster}
+          bestiary={[]}
+          ruleset="2014"
+          pendingDungeonId="dv1"
+          pendingDelve
+          onPendingDungeonDone={onDone}
+        />
+      );
+    }
+    render(<Harness />);
+    const handle = {
+      onDone,
+      get roster() {
+        return current;
+      },
+      get encounter() {
+        return activeEncounter(current);
+      },
+    };
+    await waitFor(() =>
+      expect(
+        handle.encounter.combatants.find((c) => c.kind === 'character')?.at,
+      ).toBeTruthy(),
+    );
+    return handle;
+  };
+
+  afterEach(() => {
+    localStorage.removeItem(DUNGEONS);
+    localStorage.removeItem(CAMPAIGNS);
+  });
+
+  it('enters in one press: party seated in room 1, fog down, the denizen asleep', async () => {
+    const view = await enterDelve();
+
+    expect(view.encounter.delve).toEqual({ name: 'The Sunken Vault', rests: 0, fallen: [] });
+    expect(view.encounter.fog).toBe(true);
+    const goblin = view.encounter.combatants.find((c) => c.kind === 'monster');
+    expect(goblin).toMatchObject({ dormant: true, at: { x: 11, y: 2 } });
+    // The campaign's fighter was seated without a walk through the drawers,
+    // and deployed into room 1 - the entrance end of the corridor chain.
+    const seat = view.encounter.combatants.find((c) => c.kind === 'character')!.at!;
+    expect(seat.x).toBeGreaterThanOrEqual(1);
+    expect(seat.x).toBeLessThan(5);
+    expect(seat.y).toBeGreaterThanOrEqual(1);
+    expect(seat.y).toBeLessThan(5);
+    expect(logOf(view)).toMatch(/The delve begins: The Sunken Vault\./);
+  });
+
+  it('counts the rooms on the strip - the seen and emptied room 1, not the dark room 2', async () => {
+    await enterDelve();
+    // The fighter's sight clears room 1 the moment fog remembers it; the
+    // goblin's room is dark and unclearable from here.
+    await waitFor(() =>
+      expect(document.querySelector('.turn-delve')?.textContent).toMatch(/1\/2 rooms/),
+    );
+  });
+
+  it('offers a breath while nobody hostile is awake, and the rest is counted', async () => {
+    const user = userEvent.setup();
+    const view = await enterDelve();
+    // Not offered before the fight starts - a fresh party needs no breath.
+    expect(document.querySelector('.turn-breath')).toBeNull();
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+
+    // The goblin is dormant, so the delve is between rooms right now.
+    await user.click(screen.getByRole('button', { name: /catch your breath/i }));
+    expect(view.encounter.delve?.rests).toBe(1);
+    expect(logOf(view)).toMatch(/The party takes a short rest\./);
+    expect(document.querySelector('.turn-delve')?.textContent).toMatch(/1 rest/);
+  });
+
+  it('records who fell where, once, and healing does not un-fall them', async () => {
+    const user = userEvent.setup();
+    const view = await enterDelve();
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+
+    const name = view.roster.entries[0].build.name;
+    const max = deriveBuild(view.roster.entries[0].build).hp.total;
+    await rowDamage(user, name, max);
+    await waitFor(() =>
+      expect(view.encounter.delve?.fallen).toEqual([{ name, room: 1, round: 1 }]),
+    );
+    expect(logOf(view)).toMatch(new RegExp(`${name} falls in room 1\\.`));
+
+    fireEvent.change(within(rowFor(name)).getByLabelText(/damage or healing/i), {
+      target: { value: '5' },
+    });
+    await user.click(within(rowFor(name)).getByRole('button', { name: 'Heal' }));
+    // The chronicle keeps moments, not states.
+    expect(view.encounter.delve?.fallen).toHaveLength(1);
+  });
+
+  it('says the run whole in the debrief and writes it into the chapter', async () => {
+    const user = userEvent.setup();
+    await enterDelve();
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+
+    // The goblin dies in its sleep (7 hp); the fight ends; the dust settles.
+    await rowDamage(user, 'Goblin', 7);
+    await user.click(screen.getByRole('button', { name: /end the fight/i }));
+    await open(user, 'After');
+    expect(screen.getByText(/The Sunken Vault — 1 of 2 rooms cleared/)).toBeInTheDocument();
+
+    // Paying out files the run into the campaign's chronicle, §30's door.
+    await user.click(screen.getByRole('button', { name: /award .* xp each/i }));
+    const chapter = loadCampaigns().campaigns[0].chronicle[0];
+    expect(chapter.delve).toMatch(/^The Sunken Vault — 1 of 2 rooms cleared$/);
   });
 });

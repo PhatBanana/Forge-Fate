@@ -262,8 +262,11 @@ export default function App() {
   */
   const [tab, setTab] = useState<Tab>(() => (tokenFromLocation() ? 'builder' : 'title'));
   /* §77: a dungeon on its way to the battle screen - set by the Dungeons
-     screen's "Use in a battle", consumed once by TableTab, then cleared. */
-  const [pendingDungeon, setPendingDungeon] = useState<string | null>(null);
+     screen's "Use in a battle", consumed once by TableTab, then cleared.
+     §90: the same door, marked when it is being entered as a delve. */
+  const [pendingDungeon, setPendingDungeon] = useState<{ id: string; delve?: boolean } | null>(
+    null,
+  );
   const [roster, setRoster] = useState<Roster>(loadRoster);
   /*
     Monsters you made, kept in their own store rather than on the roster.
@@ -887,7 +890,8 @@ export default function App() {
             onHome={() => setTab('title')}
             onSheet={() => setTab('sheet')}
             say={say}
-            pendingDungeonId={pendingDungeon}
+            pendingDungeonId={pendingDungeon?.id ?? null}
+            pendingDelve={pendingDungeon?.delve}
             onPendingDungeonDone={() => setPendingDungeon(null)}
             aside={<ThemeToggle choice={themeChoice} onChange={chooseTheme} />}
           />
@@ -908,13 +912,13 @@ export default function App() {
           <DungeonsTab
             /* §77: "Use in a battle" - the drawn place goes to the fight in
                one press instead of a four-screen walk through the picker. */
-            onBattle={(dungeonId) => {
-              setPendingDungeon(dungeonId);
+            onBattle={(dungeonId, delve) => {
+              setPendingDungeon({ id: dungeonId, ...(delve ? { delve } : {}) });
               setTab('table');
               /* §83: the clearest case for a toast in the app - the press
                  leaves the screen it was made on, so a label flip would be
                  acknowledging to nobody. */
-              say('Loaded into the battle. The map is on the board.');
+              if (!delve) say('Loaded into the battle. The map is on the board.');
             }}
             say={say}
           />
