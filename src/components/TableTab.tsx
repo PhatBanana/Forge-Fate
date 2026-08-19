@@ -105,6 +105,8 @@ import {
   updateCampaign,
 } from '../campaign';
 import type { CampaignFile } from '../campaign';
+import { describeIntent, intentFor, queueIntent, withdrawIntent } from '../seats';
+import type { Intent, IntentKind } from '../seats';
 import type { Defences } from '../engine/defences';
 import { HOUSE_RULE_INFO, highGroundBonus, loadHouseRules, saveHouseRules } from '../houseRules';
 import type { HouseRules } from '../houseRules';
@@ -492,6 +494,24 @@ export function TableTab({
      new ground. Deployment runs one commit later than the venue change, so
      the map memos it plans against are the delve's map, not the old one. */
   const [delveDeploying, setDelveDeploying] = useState(false);
+  /*
+    §92: queued plans - what a player wants to do when their turn comes,
+    composed while somebody else's turn runs. Ephemeral BY DESIGN, and the
+    design is the argument: a plan is a proposal, not fight state. It must
+    not survive in a save, land in the log unrun, or be a step Undo walks
+    back through - it exists exactly until the turn it was for is over, and
+    the DM's press is what turns it into anything real. This is §25.4's
+    "the cockpit proposes, the DM runs it" with a person doing the
+    proposing, and it is the seam §93/§94's player phones will write
+    through: a seat sends intents; only this device writes the fight.
+    Named `plans` locally because §88's telegraph channel already answers
+    to `intents` in the map props.
+  */
+  const [plans, setPlans] = useState<Intent[]>([]);
+  /* §92: the composer's own scratch, cleared on queue. */
+  const [planKind, setPlanKind] = useState<IntentKind>('attack');
+  const [planTarget, setPlanTarget] = useState('');
+  const [planNote, setPlanNote] = useState('');
   /** The optional rules this table has switched on. Off is the book. */
   /*
     Which drawer is open over the map, or none.
@@ -3170,6 +3190,28 @@ export function TableTab({
     }`;
   })();
 
+  /*
+    The one answer to "may the active character swing at this monster right
+    now" - §22.6's click takes it, and §92's Run it takes the same one, so a
+    queued plan can never do what a click could not.
+  */
+  const maySwingAt = (target: Combatant | undefined): target is Combatant =>
+    !!target &&
+    isRunning(encounter) &&
+    active?.kind === 'character' &&
+    target.kind === 'monster' &&
+    (hpOf(target)?.now ?? 0) > 0 &&
+    // A charmed creature cannot attack whoever charmed it.
+    mayAttack(
+      { conditions: conditionsOf(active), conditionSources: sourcesOf(active) },
+      target.id,
+    ) &&
+    // The fog's rule, same as the aim chips: no attacking what the party
+    // cannot see, nor what is hidden in plain sight.
+    !(partyVisible && (!target.at || !partyVisible.has(keyOf(target.at)) || target.hidden)) &&
+    // A spent action means the click is inspection, not a free second swing.
+    !roster.entries.find((e) => e.id === active.rosterId)?.play.turn.action;
+
   const tokenClick = (id: string) => {
     // An armed shove takes the click before anything else: the tool in hand
     // is the tool that answers, same as an armed aim.
@@ -3178,29 +3220,10 @@ export function TableTab({
       return;
     }
     const target = encounter.combatants.find((c) => c.id === id);
-    if (
-      target &&
-      !aim &&
-      !placing &&
-      !moveArmed &&
-      isRunning(encounter) &&
-      active?.kind === 'character' &&
-      target.kind === 'monster' &&
-      (hpOf(target)?.now ?? 0) > 0 &&
-      // A charmed creature cannot attack whoever charmed it.
-      mayAttack(
-        { conditions: conditionsOf(active), conditionSources: sourcesOf(active) },
-        target.id,
-      ) &&
-      // The fog's rule, same as the aim chips: no attacking what the party
-      // cannot see, nor what is hidden in plain sight.
-      !(partyVisible && (!target.at || !partyVisible.has(keyOf(target.at)) || target.hidden)) &&
-      // A spent action means the click is inspection, not a free second swing.
-      !roster.entries.find((e) => e.id === active.rosterId)?.play.turn.action
-    ) {
-      const strikes = strikesFor(active);
+    if (target && !aim && !placing && !moveArmed && maySwingAt(target)) {
+      const strikes = strikesFor(active!);
       if (strikes.length) {
-        resolveStrikes({ name: nameOf(active), id: active.id }, strikes, target, {
+        resolveStrikes({ name: nameOf(active!), id: active!.id }, strikes, target, {
           spendAction: true,
         });
         return;
@@ -3417,6 +3440,9 @@ export function TableTab({
    * turn advance every time a character came up.
    */
   const advance = () => {
+    /* §92: the ending turn takes its plan with it - a plan is for one turn,
+       and one that lingered would read as next round's intention. */
+    if (isRunning(encounter) && active) setPlans((p) => withdrawIntent(p, active.id));
     /*
       The ending turn settles its debts first: a wall of fire bites whoever
       ends a turn standing in it, composed into the same write as the turn
@@ -6161,6 +6187,22 @@ export function TableTab({
             Catch your breath
           </button>
         )}
+        {/* §92: the active character came with a plan - one glance says so;
+            the cockpit holds the buttons. */}
+        {isRunning(encounter) &&
+          active &&
+          (() => {
+            const plan = intentFor(plans, active.id);
+            if (!plan) return null;
+            const target = plan.targetId
+              ? encounter.combatants.find((c) => c.id === plan.targetId)
+              : undefined;
+            return (
+              <span className="turn-objective turn-plan">
+                ✋ {describeIntent(plan, target ? nameOf(target) : undefined)}
+              </span>
+            );
+          })()}
       </span>
       <button
         type="button"
@@ -6172,6 +6214,164 @@ export function TableTab({
       </button>
     </div>
   );
+
+  /*
+    §92: the plan block, above the play card. Two faces of one queue:
+    while somebody ELSE is up, a selected character composes what they will
+    do (pass-the-tablet today; a phone's seat writes through the same state
+    in §93); on their OWN turn, the queued plan is read back to the DM with
+    the §25.4 buttons. Run it takes exactly the path a click takes -
+    `maySwingAt` is the same guard - so a plan can never do what a click
+    could not, and everything a plan cannot automate stays a stated
+    intention the DM performs with the ordinary controls.
+  */
+  const planTargetName = (plan: Intent): string | undefined => {
+    const target = plan.targetId
+      ? encounter.combatants.find((c) => c.id === plan.targetId)
+      : undefined;
+    return target ? nameOf(target) : undefined;
+  };
+  const planPanel = (() => {
+    if (!isRunning(encounter) || !selected || selected.kind !== 'character') return null;
+    const plan = intentFor(plans, selected.id);
+
+    // Their own turn: the plan is the DM's to run, finish or decline.
+    if (selected.id === active?.id) {
+      if (!plan) return null;
+      const target = plan.targetId
+        ? encounter.combatants.find((c) => c.id === plan.targetId)
+        : undefined;
+      const swingable = plan.kind === 'attack' && maySwingAt(target);
+      return (
+        <div className="plan-block is-up">
+          <b>The plan</b>
+          <span className="plan-line">{describeIntent(plan, planTargetName(plan))}</span>
+          <span className="row" style={{ gap: 6 }}>
+            {plan.kind === 'attack' && (
+              <button
+                className="btn btn-sm btn-primary"
+                disabled={!swingable}
+                title={
+                  swingable
+                    ? 'Roll the attack exactly as clicking the monster would'
+                    : 'Not swingable right now — down, unseen, or the action is spent'
+                }
+                onClick={() => {
+                  if (!maySwingAt(target)) return;
+                  const strikes = strikesFor(active!);
+                  if (!strikes.length) return;
+                  resolveStrikes({ name: nameOf(active!), id: active!.id }, strikes, target, {
+                    spendAction: true,
+                  });
+                  setPlans((p) => withdrawIntent(p, selected.id));
+                }}
+              >
+                Run it
+              </button>
+            )}
+            <button
+              className="btn btn-sm"
+              title="The plan happened at the table — clear it"
+              onClick={() => setPlans((p) => withdrawIntent(p, selected.id))}
+            >
+              Done
+            </button>
+            <button
+              className="btn btn-sm"
+              title="The plan is overtaken — clear it unrun"
+              onClick={() => {
+                setPlans((p) => withdrawIntent(p, selected.id));
+                say?.(`${nameOf(selected)}'s plan is declined.`);
+              }}
+            >
+              Decline
+            </button>
+          </span>
+        </div>
+      );
+    }
+
+    // Somebody else is up: compose. The same veil as the aim chips governs
+    // who can be named as a target - no planning around what the party
+    // cannot see.
+    const targets = encounter.combatants.filter(
+      (c) =>
+        c.kind === 'monster' &&
+        (hpOf(c)?.now ?? 0) > 0 &&
+        !(partyVisible && (!c.at || !partyVisible.has(keyOf(c.at)) || c.hidden)),
+    );
+    return (
+      <div className="plan-block">
+        <b>Queue for {nameOf(selected)}’s turn</b>
+        {plan && (
+          <span className="plan-line">
+            Queued: {describeIntent(plan, planTargetName(plan))}{' '}
+            <button
+              className="btn btn-sm"
+              onClick={() => setPlans((p) => withdrawIntent(p, selected.id))}
+            >
+              Withdraw
+            </button>
+          </span>
+        )}
+        <span className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+          <select
+            aria-label="What they plan to do"
+            value={planKind}
+            onChange={(e) => setPlanKind(e.target.value as IntentKind)}
+          >
+            <option value="attack">Attack</option>
+            <option value="move">Move</option>
+            <option value="dash">Dash</option>
+            <option value="dodge">Dodge</option>
+            <option value="disengage">Disengage</option>
+            <option value="help">Help</option>
+            <option value="hide">Hide</option>
+            <option value="other">Something else</option>
+          </select>
+          {planKind === 'attack' && (
+            <select
+              aria-label="Who they plan to attack"
+              value={planTarget}
+              onChange={(e) => setPlanTarget(e.target.value)}
+            >
+              <option value="">— pick a target —</option>
+              {targets.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {nameOf(t)}
+                </option>
+              ))}
+            </select>
+          )}
+          <input
+            type="text"
+            aria-label="In their own words"
+            placeholder="in their own words"
+            value={planNote}
+            onChange={(e) => setPlanNote(e.target.value)}
+          />
+          <button
+            className="btn btn-sm btn-primary"
+            disabled={planKind === 'attack' && !planTarget}
+            onClick={() => {
+              setPlans((p) =>
+                queueIntent(p, {
+                  combatantId: selected.id,
+                  kind: planKind,
+                  ...(planKind === 'attack' && planTarget ? { targetId: planTarget } : {}),
+                  ...(planNote.trim() ? { note: planNote.trim() } : {}),
+                }),
+              );
+              setPlanNote('');
+              say?.(`${nameOf(selected)}'s plan is queued.`);
+            }}
+          >
+            Queue it
+          </button>
+        </span>
+      </div>
+    );
+  })();
 
   const selectedPanel = !selected ? (
     <p className="muted">
@@ -7034,6 +7234,7 @@ export function TableTab({
             onCollapse={setCockpitShut}
             onDockChange={setCockpitDocked}
           >
+            {planPanel}
             {selectedPanel}
           </HudPanel>
         </div>

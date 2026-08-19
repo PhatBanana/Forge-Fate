@@ -6423,6 +6423,48 @@ input.pcard-amount {
   padding: 2px 8px;
 }
 
+/*
+  §92: the plan block in the cockpit - a queued proposal composing while
+  somebody else is up, and the same block reading it back with the buttons
+  when the turn arrives. `is-up` borrows the accent border because that is
+  the moment the DM must not miss.
+*/
+.plan-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-sunken);
+}
+
+.plan-block.is-up {
+  border-color: var(--accent);
+}
+
+.plan-block b {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.plan-block .plan-line {
+  font-size: 13px;
+}
+
+.plan-block select,
+.plan-block input[type='text'] {
+  font-size: 12px;
+  min-width: 0;
+}
+
+.plan-block input[type='text'] {
+  flex: 1 1 120px;
+}
+
 /* The movement bar, folded into the cards from the dock. */
 .pcard-movebar {
   display: flex;

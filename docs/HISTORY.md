@@ -6346,3 +6346,57 @@ epitaph typed on the Campaign screen and still there after a reload.
 
 **Gates.** 2350 tests / 111 files, tsc, oxlint, build in budget; run91 both
 themes at 1360×900, with run78 through run90 and check87 green as the net.
+
+## 92. Seats and intents: the table's bones
+
+The first section of the multiplayer arc, and deliberately the one with no
+network in it. The destination is phones at the table - every player
+holding their own sheet, queueing their move while somebody else's turn
+runs - and the bones of that are not a transport, they are a data model
+and an authority rule. Both are settled here, and the section ships useful
+on its own: pass-the-tablet play, today, on one device.
+
+**The authority rule is the house stance, structural at last.** The DM's
+device is the table. A player holds a *seat*; a seat never writes the
+fight - it writes an *intent*, a proposal in the command menu's own
+vocabulary, and the DM runs it. That is §25.4's "the cockpit proposes,
+the DM runs it" with a person doing the proposing, and it is what makes
+the eventual sync trivial rather than terrifying: one writer means no
+merge to resolve, ever, so §94's transport can be a dumb relay instead of
+a database. `src/seats.ts` is all of it as pure data - one seat per
+character (re-claiming is a phone rejoining, never a doubled chair), one
+plan per combatant (your latest plan is your plan), and `describeIntent`
+saying it back, with `other` deferring wholly to the player's note because
+a table's plans are bigger than any enum.
+
+**Ephemeral by design, and the design is the argument.** Plans live in
+component state beside the encounter, never on it - the user's own call,
+and the right one. A proposal is not fight state: it must not survive in
+a save, land in the log unrun, or be a step Undo walks back through. It
+exists exactly until the turn it was for ends, and `advance` takes it
+along. (Locally the state answers to `plans`, because §88's telegraph
+channel already took the name `intents`.)
+
+**Two faces of one block in the cockpit.** While somebody else is up, a
+selected character composes: what they will do, who they will do it to
+(the target list wears the same fog veil as the aim chips - no planning
+around what the party cannot see), and their own words. On their turn the
+strip flies ✋ and the block turns accent-bordered with the §25.4 buttons.
+**Run it is wired for the attack** and takes exactly the path a click
+takes - `maySwingAt`, extracted from §22.6's tokenClick, guards both, so
+a plan can never do what a click could not. Every other kind is a stated
+intention with Done and Decline: wiring Dodge or a spell through the
+command menu is real work §93 can take up, and a plan the DM performs
+with the ordinary controls is already the whole payoff at a table.
+
+**Pinned.** Three `seats.test.ts` suites on the model; three component
+tests (the composer refusing the active character and replacing plans;
+Run it spending the action through the click's own path, initiative set
+by hand so the order cannot surprise; the plan dying with its turn);
+`run92.mjs` in both themes - compose during the goblin's turn, watch the
+strip flag it, read it back words and all, run it, and find the dice
+rolled against the goblin's real AC.
+
+**Gates.** 2356 tests / 112 files, tsc, oxlint, build in budget; run92
+both themes at 1360×900, with run78 through run91 and check87 green as
+the net.

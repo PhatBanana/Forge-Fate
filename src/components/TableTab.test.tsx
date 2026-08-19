@@ -5417,3 +5417,116 @@ describe('laying to rest (§91)', () => {
     expect(screen.queryByText('The fallen')).toBeNull();
   });
 });
+
+describe('queued plans (§92)', () => {
+  /*
+    Pass-the-tablet today, the phone's seat tomorrow: a character whose turn
+    it is NOT composes a plan; at their turn the DM reads it back with the
+    §25.4 buttons. Initiative is set by hand so the order cannot surprise
+    the assertions.
+  */
+  const armed = () =>
+    rosterOf({ ...fighter(), weapons: { mainHandId: 'longsword', magicBonus: {} } }, wizard());
+
+  const setInit = (name: string, value: number) => {
+    fireEvent.change(within(rowFor(name)).getByLabelText(`${name} initiative`), {
+      target: { value: String(value) },
+    });
+  };
+
+  const seatBoth = async (
+    user: ReturnType<typeof userEvent.setup>,
+    view: ReturnType<typeof setup>,
+  ) => {
+    for (const e of view.roster.entries) {
+      await open(user, 'Party');
+      await user.click(screen.getByRole('button', { name: e.build.name }));
+    }
+  };
+
+  it('composes one plan per character while somebody else is up', async () => {
+    const user = userEvent.setup();
+    const view = setup(armed());
+    await seatBoth(user, view);
+    setInit('Basher', 20);
+    setInit('Ünwyn', 10);
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+
+    // Basher is up, so Basher gets no composer - a plan is for a turn you wait on.
+    await user.click(screen.getAllByRole('button', { name: 'Show Basher in the rail' })[0]);
+    expect(screen.queryByText(/Queue for Basher/)).toBeNull();
+
+    await user.click(screen.getAllByRole('button', { name: 'Show Ünwyn in the rail' })[0]);
+    expect(screen.getByText(/Queue for Ünwyn/)).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('What they plan to do'), 'dodge');
+    await user.type(screen.getByLabelText('In their own words'), 'behind the pillar');
+    await user.click(screen.getByRole('button', { name: 'Queue it' }));
+    expect(screen.getByText(/Queued: Dodge/)).toBeInTheDocument();
+    expect(screen.getByText(/behind the pillar/)).toBeInTheDocument();
+
+    // Queueing again replaces - your latest plan is your plan.
+    await user.selectOptions(screen.getByLabelText('What they plan to do'), 'dash');
+    await user.click(screen.getByRole('button', { name: 'Queue it' }));
+    expect(screen.getByText(/Queued: Dash/)).toBeInTheDocument();
+    expect(screen.queryByText(/Queued: Dodge/)).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Withdraw' }));
+    expect(screen.queryByText(/Queued:/)).toBeNull();
+  });
+
+  it('reads the plan back at their turn, and Run it swings the same dice as a click', async () => {
+    const user = userEvent.setup();
+    const view = setup(armed());
+    await bestiaryReady();
+    await seatBoth(user, view);
+    await open(user, 'Bestiary');
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
+    const entry = [...document.querySelectorAll('.mon-list li')].find(
+      (li) => li.querySelector('b')?.textContent === 'Goblin',
+    ) as HTMLElement;
+    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    setInit('Ünwyn', 20);
+    setInit('Basher', 10);
+    setInit('Goblin', 1);
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+
+    // Ünwyn is up; Basher queues the attack for when the turn comes round.
+    await user.click(screen.getAllByRole('button', { name: 'Show Basher in the rail' })[0]);
+    await user.selectOptions(screen.getByLabelText('What they plan to do'), 'attack');
+    await user.selectOptions(screen.getByLabelText('Who they plan to attack'), goblinOf(view).id);
+    await user.click(screen.getByRole('button', { name: 'Queue it' }));
+
+    await user.click(screen.getByRole('button', { name: /end turn/i }));
+    // Basher's turn: the strip flags the plan, the cockpit holds the buttons.
+    expect(document.querySelector('.turn-plan')?.textContent).toMatch(/Attack Goblin/);
+    await user.click(screen.getByRole('button', { name: 'Run it' }));
+
+    // The same path a click takes: the dice rolled against the goblin's AC,
+    // the action is spent, and the plan is gone.
+    expect(logOf(view)).toMatch(/Basher — Longsword \d+ vs AC 15/);
+    expect(view.roster.entries[0].play.turn.action).toBe(true);
+    expect(document.querySelector('.turn-plan')).toBeNull();
+  });
+
+  it('a plan dies with the turn it was for', async () => {
+    const user = userEvent.setup();
+    const view = setup(armed());
+    await seatBoth(user, view);
+    setInit('Basher', 20);
+    setInit('Ünwyn', 10);
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+
+    await user.click(screen.getAllByRole('button', { name: 'Show Ünwyn in the rail' })[0]);
+    await user.selectOptions(screen.getByLabelText('What they plan to do'), 'dodge');
+    await user.click(screen.getByRole('button', { name: 'Queue it' }));
+
+    await user.click(screen.getByRole('button', { name: /end turn/i }));
+    expect(document.querySelector('.turn-plan')?.textContent).toMatch(/Dodge/);
+
+    // The turn it was for ends; the plan does not haunt round two.
+    await user.click(screen.getByRole('button', { name: /end turn/i }));
+    expect(document.querySelector('.turn-plan')).toBeNull();
+    await user.click(screen.getAllByRole('button', { name: 'Show Ünwyn in the rail' })[0]);
+    expect(screen.queryByText(/Queued:/)).toBeNull();
+  });
+});
