@@ -1,4 +1,5 @@
 import type { Build } from './types';
+import type { RelayConfig } from './sync';
 import { hydrateBuild } from './storage';
 
 /**
@@ -114,10 +115,39 @@ export function tokenFromLocation(hash?: string): string | null {
  * roster id, `''` for the bare form, and `null` when the fragment is
  * something else - a share token, an anchor, nothing. The same fragment
  * discipline as the share link: read synchronously at boot, stripped after.
+ *
+ * §95 grew the fragment into a whole invitation -
+ * `#seat=r3&table=X7Q2M4&relay=wss://…` - so one link (or the QR that will
+ * someday wrap it) hands a phone its chair *and* the room it meets the
+ * table in. Parsed as query parameters, which is what the shape now is.
  */
-export function seatFromLocation(hash?: string): string | null {
+const params = (hash?: string): URLSearchParams => {
   const raw = (hash ?? (typeof location === 'undefined' ? '' : location.hash)).replace(/^#/, '');
-  if (raw === 'seat') return '';
-  const match = /^seat=(.+)$/.exec(raw);
-  return match ? decodeURIComponent(match[1]) : null;
+  return new URLSearchParams(raw);
+};
+
+export function seatFromLocation(hash?: string): string | null {
+  const parsed = params(hash);
+  return parsed.has('seat') ? (parsed.get('seat') ?? '') : null;
+}
+
+/** §95: the relay half of the invitation. Both halves or nothing - a room
+    with no relay has no door, a relay with no room has no table. */
+export function tableFromLocation(hash?: string): RelayConfig | null {
+  const parsed = params(hash);
+  const room = parsed.get('table');
+  const url = parsed.get('relay');
+  return room && url ? { url, room } : null;
+}
+
+/** §95: the invitation, whole - what the DM's screen offers to copy. */
+export function seatUrl(rosterId: string, relay: RelayConfig): string {
+  const base =
+    typeof location === 'undefined' ? '' : `${location.origin}${location.pathname}`;
+  const query = new URLSearchParams({
+    seat: rosterId,
+    table: relay.room,
+    relay: relay.url,
+  });
+  return `${base}#${query.toString()}`;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hostApply, pairedWires, seatApply } from './sync';
+import { hostApply, mergePortraits, newRoomCode, pairedWires, seatApply, slimRoster } from './sync';
 import type { TableMessage } from './sync';
 import { fighter, rosterOf, wizard } from './test/factories';
 import { hpNow } from './play';
@@ -92,5 +92,40 @@ describe('the paired wires', () => {
     off();
     seat.send({ kind: 'hello' });
     expect(heardByHost).toHaveLength(2);
+  });
+});
+
+describe('the relay trimmings (§95)', () => {
+  it('mints room codes long enough and free of lookalike letters', () => {
+    const codes = new Set(Array.from({ length: 50 }, () => newRoomCode()));
+    expect(codes.size).toBe(50);
+    for (const code of codes) expect(code).toMatch(/^[A-HJKMNP-Z2-9]{6}$/);
+  });
+
+  it('sends the roster slim and lets a seat keep the faces it knew', () => {
+    const roster = rosterOf(fighter(), wizard());
+    const withFace: typeof roster = {
+      ...roster,
+      entries: roster.entries.map((entry, i) =>
+        i === 0
+          ? {
+              ...entry,
+              build: {
+                ...entry.build,
+                details: { ...entry.build.details, portrait: 'data:image/png;base64,xyz' },
+              },
+            }
+          : entry,
+      ),
+    };
+    const slim = slimRoster(withFace);
+    expect(slim.entries[0].build.details.portrait).toBeUndefined();
+    // The wizard's entry is untouched, not rebuilt.
+    expect(slim.entries[1]).toBe(withFace.entries[1]);
+
+    // The seat that knew the face keeps it; the one that never did shows none.
+    const merged = mergePortraits(slim, withFace);
+    expect(merged.entries[0].build.details.portrait).toBe('data:image/png;base64,xyz');
+    expect(mergePortraits(slim, roster).entries[0].build.details.portrait).toBeUndefined();
   });
 });

@@ -106,6 +106,9 @@ import {
 } from '../campaign';
 import type { CampaignFile } from '../campaign';
 import { describeIntent, intentFor, queueIntent, withdrawIntent } from '../seats';
+import { newRoomCode } from '../sync';
+import type { RelayConfig } from '../sync';
+import { seatUrl } from '../share';
 import type { Intent, IntentKind } from '../seats';
 import type { Defences } from '../engine/defences';
 import { HOUSE_RULE_INFO, highGroundBonus, loadHouseRules, saveHouseRules } from '../houseRules';
@@ -249,6 +252,8 @@ export function TableTab({
   onPendingDungeonDone,
   plans: plansProp,
   onPlansChange,
+  relay,
+  onRelayChange,
   say,
   aside,
 }: {
@@ -299,6 +304,10 @@ export function TableTab({
       Absent, the component keeps its own - §92's single-device shape. */
   plans?: Intent[];
   onPlansChange?: (plans: Intent[]) => void;
+  /** §95: the table's room on a relay, and the hand that opens or closes
+      it. Both from App, which owns the wire. */
+  relay?: RelayConfig | null;
+  onRelayChange?: (relay: RelayConfig | null) => void;
   /**
    * §83: the battle is the screen where this matters most - almost every
    * control is in a drawer covering the board it acts on, so the result of a
@@ -523,6 +532,8 @@ export function TableTab({
   const setPlans = onPlansChange ?? setLocalPlans;
   /* §92: the composer's own scratch, cleared on queue. */
   const [planKind, setPlanKind] = useState<IntentKind>('attack');
+  /* §95: the relay URL being typed, until Open the table commits it. */
+  const [relayUrl, setRelayUrl] = useState('');
   const [planTarget, setPlanTarget] = useState('');
   const [planNote, setPlanNote] = useState('');
   /** The optional rules this table has switched on. Off is the book. */
@@ -6386,6 +6397,68 @@ export function TableTab({
     );
   })();
 
+  /*
+    §95: the table, opened from the screen that hosts it. A room code is
+    minted unguessable, and each player's whole invitation - seat, room,
+    relay - is one link to hand across. Select-on-focus instead of a copy
+    button, because a copy button needs a clipboard permission and this
+    needs none. Closing the table drops the room; the fight is untouched.
+  */
+  const tablePanel = (() => {
+    if (!onRelayChange) return null;
+    return (
+      <Panel
+        title="The table"
+        subtitle="Phones join over a relay — a room that forwards and forgets. relay/README.md ships two you can run."
+      >
+        {!relay ? (
+          <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              className="detail"
+              aria-label="Relay URL"
+              placeholder="wss://forge-fate-relay.your-name.workers.dev"
+              style={{ flex: 1, minWidth: 220 }}
+              value={relayUrl}
+              onChange={(e) => setRelayUrl(e.target.value)}
+            />
+            <button
+              className="btn btn-sm btn-primary"
+              disabled={!relayUrl.trim()}
+              onClick={() => onRelayChange({ url: relayUrl.trim(), room: newRoomCode() })}
+            >
+              Open the table
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="hint" style={{ marginTop: 0 }}>
+              Room <b>{relay.room}</b>. Hand each player their link — it carries the
+              seat, the room and the relay in one.
+            </p>
+            {roster.entries.map((entry) => (
+              <p key={entry.id} className="zone-row">
+                <b>{entry.build.name || 'Unnamed'}</b>{' '}
+                <input
+                  type="text"
+                  className="detail"
+                  readOnly
+                  aria-label={`Seat link for ${entry.build.name || 'Unnamed'}`}
+                  style={{ width: '100%' }}
+                  value={seatUrl(entry.id, relay)}
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+              </p>
+            ))}
+            <button className="btn btn-sm" onClick={() => onRelayChange(null)}>
+              Close the table
+            </button>
+          </>
+        )}
+      </Panel>
+    );
+  })();
+
   const selectedPanel = !selected ? (
     <p className="muted">
       Pick somebody in the turn order to see what is left of them.
@@ -7146,7 +7219,7 @@ export function TableTab({
     { id: 'order', label: 'Order', hint: 'Initiative, hit points, conditions', content: fightPanel },
     /* §80: hints are visible text in the open drawer now, so each is worded
        to not echo a panel title it sits above. */
-    { id: 'plan', label: 'Prep', hint: 'The objective, the forecast, and the shelf of saved fights', content: <>{objectivePanel}{forecastPanel}{libraryPanel}</> },
+    { id: 'plan', label: 'Prep', hint: 'The objective, the forecast, and the shelf of saved fights', content: <>{objectivePanel}{tablePanel}{forecastPanel}{libraryPanel}</> },
     { id: 'after', label: 'After', hint: 'How it went, the payout, and the whole record', content: <>{midFightPanel}{debriefPanel}{fallenPanel}{logPanel}</> },
   ] as const;
   const openDrawer = drawers.find((d) => d.id === drawer);

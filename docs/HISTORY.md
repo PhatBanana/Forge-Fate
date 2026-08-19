@@ -6509,3 +6509,57 @@ phone, and Run it clearing both ends.
 
 **Gates.** 2367 tests / 114 files, tsc, oxlint, build in budget; run94
 both themes, with run78 through run93 and check87 green as the net.
+
+## 95. The relay
+
+The multiplayer arc closes: the table meets over an actual network. The
+§94 interface takes its second implementation - `relayWire`, JSON on a
+websocket - and the repo grows a `relay/` directory holding the server
+side twice over: a Node room for the laptop at the table and a Cloudflare
+Worker for the cloud, interchangeable because both are the same sentence -
+*forward every message to every other member of the room, store nothing*.
+A relay is a networked BroadcastChannel, so the §92-§94 protocol rides it
+without a line changing; the room code is the whole secret, minted
+unguessable from an alphabet with no 0/O or 1/I/L to squint at across a
+table.
+
+**Chosen over WebRTC, deliberately.** The §94 write-up left the transport
+open; the deciding argument was what phones do at a table - they lock,
+and a locked phone's WebRTC pairing is a QR dance to rebuild, per player,
+per drop. The relay's reconnect is invisible by construction: the socket
+reopens with a capped backoff, `onOpen` fires, a host re-says the truth
+and a seat re-says hello, and the room converges - behaviour §94 already
+shipped and tested. A message sent while the socket is down is dropped,
+not queued: state and plans are re-broadcast whole on reconnect, and a
+stale op replayed late is worse than one retyped.
+
+**The invitation is one link.** §93's fragment grew into
+`#seat=<id>&table=<room>&relay=<url>` - parsed as the query parameters it
+now is - so the DM's **Prep drawer → The table** mints the room and lists
+a per-character link that hands a phone its chair, its room and its door
+in one paste. Select-on-focus instead of a copy button, because a copy
+button needs a clipboard permission and this needs none. The config
+persists, so the phone that reloads bare and the DM who closed the lid
+both walk back into the same room; without a relay configured the wire
+stays §94's BroadcastChannel, zero-config as ever.
+
+**The state travels slim.** §94 recorded the whole-roster broadcast as
+this section's first job, and it was: `slimRoster` strips the §24.4
+portraits before the wire (a roster of five can carry a quarter-megabyte
+of faces, free as a structured clone, rude on every hit point typed), and
+`mergePortraits` lets a seat keep the faces it already knew - a device
+that never knew one shows none, exactly the share-link rule (§45).
+
+**Pinned.** Room codes (shape, no lookalikes, fifty distinct), slim and
+merge (the untouched entry stays reference-equal), both invitation
+fragments (both halves or nothing); and `run95.mjs`, the arc's strongest
+probe yet: a real `node relay/server.mjs` process, the DM in one browser
+context, the phone in a **separate** context with separate storage - a
+different device in every way the app can measure - joining by the
+pasted link, receiving the entire fight on hello, queueing "Attack
+Goblin — over the wire", and watching Run it clear both ends. (The probe
+also caught `npm install ws` pruning the ad-hoc playwright-core; both are
+honest devDependencies now.)
+
+**Gates.** 2371 tests / 114 files, tsc, oxlint, build in budget; run95
+both themes, with run78 through run94 and check87 green as the net.

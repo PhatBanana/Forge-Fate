@@ -24,13 +24,20 @@ import {
 import type { Roster } from './storage';
 import { loadBestiary, saveBestiary } from './bestiary';
 import type { Monster } from './data/monsters';
-import { decodeBuild, seatFromLocation, tokenFromLocation } from './share';
+import { decodeBuild, seatFromLocation, tableFromLocation, tokenFromLocation } from './share';
 import { canRedo, canUndo, forget, historyFor, record, redo, undo } from './undo';
 import { push } from './toast';
 import type { Intent, Seat } from './seats';
 import { queueIntent, withdrawIntent } from './seats';
-import { broadcastWire, hostApply, seatApply } from './sync';
-import type { TableWire } from './sync';
+import {
+  broadcastWire,
+  hostApply,
+  mergePortraits,
+  relayWire,
+  seatApply,
+  slimRoster,
+} from './sync';
+import type { RelayConfig, TableWire } from './sync';
 import type { Toast } from './toast';
 import { ToastHost } from './components/ToastHost';
 import {
@@ -291,11 +298,18 @@ export default function App() {
   );
   const [roster, setRoster] = useState<Roster>(loadRoster);
   /*
-    §94: the wire. One BroadcastChannel per tab of this browser; the tab
-    showing the battle is the host and broadcasts the truth, a tab showing
-    a seat sends operations and takes the truth back. Refs rather than
-    effect deps for the handler's reads, because the wire is opened once
-    and must always see the current render's world.
+    §94: the wire. The tab showing the battle is the host and broadcasts
+    the truth; a tab showing a seat sends operations and takes the truth
+    back. Refs rather than effect deps for the handler's reads, because a
+    wire outlives many renders and must always see the current world.
+
+    §95: which wire is a setting. With a relay configured - by the DM in
+    the Prep drawer, or carried in on a seat link's fragment - the table
+    meets over the network; without one it stays this browser's
+    BroadcastChannel, §94's zero-config shape. The relay reconnects itself
+    when a phone's screen comes back on, and `onOpen` is the rejoin: a
+    host re-says the truth, a seat re-says hello. State travels slim
+    (portraits stripped) and a seat keeps the faces it already knew.
   */
   const wireRef = useRef<TableWire | null>(null);
   const tabRef = useRef(tab);
@@ -304,8 +318,38 @@ export default function App() {
   rosterRef.current = roster;
   const plansRef = useRef(plans);
   plansRef.current = plans;
+  const [relay, setRelay] = useState<RelayConfig | null>(() => {
+    const fromLink = tableFromLocation();
+    if (fromLink) return fromLink;
+    try {
+      const raw = localStorage.getItem('dnd-forge:relay:v1');
+      return raw ? (JSON.parse(raw) as RelayConfig) : null;
+    } catch {
+      return null;
+    }
+  });
   useEffect(() => {
-    const wire = broadcastWire();
+    /* Persisted so the phone that reloads without its fragment - or the
+       DM who closed the lid - walks back into the same room. */
+    try {
+      if (relay) localStorage.setItem('dnd-forge:relay:v1', JSON.stringify(relay));
+      else localStorage.removeItem('dnd-forge:relay:v1');
+    } catch {
+      // Private browsing; the room simply is not remembered.
+    }
+  }, [relay]);
+  useEffect(() => {
+    const sayAgain = () => {
+      const wire = wireRef.current;
+      if (!wire) return;
+      if (tabRef.current === 'table') {
+        wire.send({ kind: 'state', roster: slimRoster(rosterRef.current) });
+        wire.send({ kind: 'plans', plans: plansRef.current });
+      } else {
+        wire.send({ kind: 'hello' });
+      }
+    };
+    const wire = relay ? relayWire(relay, sayAgain) : broadcastWire();
     wireRef.current = wire;
     if (!wire) return;
     const off = wire.onMessage((message) => {
@@ -315,7 +359,7 @@ export default function App() {
         if (applied.roster) setRoster(applied.roster);
         if (applied.plans) setPlans(applied.plans);
         if (message.kind === 'hello') {
-          wire.send({ kind: 'state', roster: rosterRef.current });
+          wire.send({ kind: 'state', roster: slimRoster(rosterRef.current) });
           wire.send({ kind: 'plans', plans: plansRef.current });
         }
       } else if (tabRef.current === 'seat') {
@@ -325,21 +369,24 @@ export default function App() {
           broadcasts land on top of its half-typed name.
         */
         const applied = seatApply(message);
-        if (applied.roster) setRoster(applied.roster);
+        if (applied.roster) {
+          setRoster(mergePortraits(applied.roster, rosterRef.current));
+        }
         if (applied.plans) setPlans(applied.plans);
       }
     });
-    wire.send({ kind: 'hello' });
+    if (!relay) wire.send({ kind: 'hello' }); // the relay's onOpen says it
     return () => {
       off();
       wire.close();
+      wireRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [relay]);
   /* The host says so whenever the truth changes - or the moment it becomes
      the host, which is the same broadcast. */
   useEffect(() => {
-    if (tab === 'table') wireRef.current?.send({ kind: 'state', roster });
+    if (tab === 'table') wireRef.current?.send({ kind: 'state', roster: slimRoster(roster) });
   }, [tab, roster]);
   useEffect(() => {
     if (tab === 'table') wireRef.current?.send({ kind: 'plans', plans });
@@ -976,6 +1023,8 @@ export default function App() {
             onPendingDungeonDone={() => setPendingDungeon(null)}
             plans={plans}
             onPlansChange={setPlans}
+            relay={relay}
+            onRelayChange={setRelay}
             aside={<ThemeToggle choice={themeChoice} onChange={chooseTheme} />}
           />
         )}

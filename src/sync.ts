@@ -148,3 +148,126 @@ export function seatApply(
       return {};
   }
 }
+
+/* ------------------------------------------------------------------ §95 -
+   The relay: the same wire over an actual network. A relay is a networked
+   BroadcastChannel - a websocket room that forwards each message to every
+   other member and stores nothing - so the protocol above rides it
+   unchanged. `relay/` in the repo holds two interchangeable rooms: a Node
+   one for the laptop at the table, a Cloudflare Worker for the cloud. */
+
+/** Where the table meets: the relay's address and the room's name. */
+export interface RelayConfig {
+  url: string;
+  room: string;
+}
+
+/**
+ * A room name nobody guesses: ~30 bits from an alphabet with no 0/O or
+ * 1/I/L to squint at over a table. The room name is the whole secret -
+ * the relay stores nothing and admits anyone who knows it - which is the
+ * bearer-token model every "join my game" code uses.
+ */
+const ROOM_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+export function newRoomCode(): string {
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((b) => ROOM_ALPHABET[b % ROOM_ALPHABET.length]).join('');
+}
+
+/**
+ * The roster without its faces. §24.4 raised the portrait ceiling and a
+ * roster of five can carry a quarter-megabyte of data URLs - free as an
+ * in-process structured clone, rude as a network broadcast sent on every
+ * hit point typed. The wire sends the slim form; a seat that already knew
+ * a face keeps it via `mergePortraits`, and one that never did shows none,
+ * exactly as a share link (§45) already behaves.
+ */
+export function slimRoster(roster: Roster): Roster {
+  return {
+    ...roster,
+    entries: roster.entries.map((entry) => {
+      if (!entry.build.details.portrait) return entry;
+      const { portrait: _face, ...details } = entry.build.details;
+      return { ...entry, build: { ...entry.build, details } };
+    }),
+  };
+}
+
+/** Keep the faces this device already knows on the state that arrives bare. */
+export function mergePortraits(incoming: Roster, known: Roster): Roster {
+  return {
+    ...incoming,
+    entries: incoming.entries.map((entry) => {
+      if (entry.build.details.portrait) return entry;
+      const face = known.entries.find((k) => k.id === entry.id)?.build.details.portrait;
+      if (!face) return entry;
+      return {
+        ...entry,
+        build: { ...entry.build, details: { ...entry.build.details, portrait: face } },
+      };
+    }),
+  };
+}
+
+/**
+ * The networked wire. JSON on a websocket, reconnecting forever with a
+ * capped backoff, because the phone at the table locks its screen and the
+ * whole §95 design rides on rejoining being invisible: the socket reopens,
+ * `onOpen` fires, the caller re-says `hello` (a seat) or re-broadcasts the
+ * truth (the host), and the room converges. `close()` is the only way out.
+ */
+export function relayWire(
+  config: RelayConfig,
+  onOpen?: () => void,
+): TableWire {
+  const handlers = new Set<(message: TableMessage) => void>();
+  let socket: WebSocket | null = null;
+  let closed = false;
+  let attempt = 0;
+
+  const connect = () => {
+    if (closed) return;
+    const joined = new URL(config.url);
+    joined.searchParams.set('room', config.room);
+    socket = new WebSocket(joined.toString());
+    socket.onopen = () => {
+      attempt = 0;
+      onOpen?.();
+    };
+    socket.onmessage = (event: MessageEvent) => {
+      try {
+        const message = JSON.parse(String(event.data)) as TableMessage;
+        for (const handler of handlers) handler(message);
+      } catch {
+        // A frame that does not parse is not a message; the room goes on.
+      }
+    };
+    socket.onclose = () => {
+      socket = null;
+      if (closed) return;
+      attempt += 1;
+      setTimeout(connect, Math.min(500 * 2 ** attempt, 8000));
+    };
+    socket.onerror = () => socket?.close();
+  };
+  connect();
+
+  return {
+    send: (message) => {
+      // A message while the socket is down is dropped, not queued: state
+      // and plans are re-broadcast whole on reconnect, hello is re-said by
+      // onOpen, and a stale op replayed late is worse than one retyped.
+      if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
+    },
+    onMessage: (handler) => {
+      handlers.add(handler);
+      return () => handlers.delete(handler);
+    },
+    close: () => {
+      closed = true;
+      socket?.close();
+    },
+  };
+}

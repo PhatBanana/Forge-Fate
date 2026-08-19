@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Build } from './types';
 import { emptyBuild } from './engine/character';
-import { decodeBuild, encodeBuild, seatFromLocation, shareUrl, tokenFromLocation } from './share';
+import { decodeBuild, encodeBuild, seatFromLocation, shareUrl, tableFromLocation, tokenFromLocation } from './share';
 
 function loaded(): Build {
   return {
@@ -174,5 +174,19 @@ describe('the seat fragment (§93)', () => {
     expect(seatFromLocation('')).toBeNull();
     // Encoded ids survive the address bar.
     expect(seatFromLocation('#seat=a%20b')).toBe('a b');
+  });
+});
+
+describe('the table fragment (§95)', () => {
+  it('reads the whole invitation, and the seat half still stands alone', () => {
+    const hash = '#seat=c0&table=X7Q2M4&relay=ws%3A%2F%2Flocalhost%3A4390';
+    expect(seatFromLocation(hash)).toBe('c0');
+    expect(tableFromLocation(hash)).toEqual({ url: 'ws://localhost:4390', room: 'X7Q2M4' });
+  });
+
+  it('takes both halves or nothing - a room with no relay has no door', () => {
+    expect(tableFromLocation('#seat=c0&table=X7Q2M4')).toBeNull();
+    expect(tableFromLocation('#seat=c0&relay=ws%3A%2F%2Fx')).toBeNull();
+    expect(tableFromLocation('#builder')).toBeNull();
   });
 });
