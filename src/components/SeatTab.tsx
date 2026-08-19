@@ -4,11 +4,12 @@ import { PlayCard } from './PlayCard';
 import { deriveBuild } from '../engine/character';
 import { currentCombatant, isRunning, sortCombatants } from '../encounter';
 import type { Combatant, MonsterCombatant } from '../encounter';
-import { activeEncounter, updatePlay } from '../storage';
+import { activeEncounter } from '../storage';
 import type { Roster } from '../storage';
-import { claimSeat, describeIntent, intentFor, queueIntent, withdrawIntent } from '../seats';
+import { claimSeat, describeIntent, intentFor } from '../seats';
 import type { Intent, IntentKind, Seat } from '../seats';
 import { keyOf } from '../terrain';
+import type { PlayState } from '../play';
 import type { Say } from '../toast';
 
 /**
@@ -31,9 +32,10 @@ import type { Say } from '../toast';
  */
 export function SeatTab({
   roster,
-  onChange,
   plans,
-  onPlansChange,
+  onQueue,
+  onWithdraw,
+  onPlay,
   seats,
   onSeatsChange,
   seatId,
@@ -41,9 +43,16 @@ export function SeatTab({
   say,
 }: {
   roster: Roster;
-  onChange: (roster: Roster) => void;
   plans: Intent[];
-  onPlansChange: (plans: Intent[]) => void;
+  /**
+   * §94: the seat speaks in operations, never in state - queue this,
+   * withdraw that, here is my own play. On one device App applies them
+   * directly; with the wire up they also travel to the host, and this
+   * component cannot tell the difference, which is the point.
+   */
+  onQueue: (intent: Omit<Intent, 'id' | 'at'>) => void;
+  onWithdraw: (combatantId: string) => void;
+  onPlay: (rosterId: string, play: PlayState) => void;
   seats: Seat[];
   onSeatsChange: (seats: Seat[]) => void;
   /** The roster entry this seat plays; null shows the picker. */
@@ -160,7 +169,7 @@ export function SeatTab({
                 )}{' '}
                 <button
                   className="btn btn-sm"
-                  onClick={() => onPlansChange(withdrawIntent(plans, me.id))}
+                  onClick={() => onWithdraw(me.id)}
                 >
                   Withdraw
                 </button>
@@ -206,14 +215,12 @@ export function SeatTab({
                 className="btn btn-sm btn-primary"
                 disabled={kind === 'attack' && !target}
                 onClick={() => {
-                  onPlansChange(
-                    queueIntent(plans, {
-                      combatantId: me.id,
-                      kind,
-                      ...(kind === 'attack' && target ? { targetId: target } : {}),
-                      ...(note.trim() ? { note: note.trim() } : {}),
-                    }),
-                  );
+                  onQueue({
+                    combatantId: me.id,
+                    kind,
+                    ...(kind === 'attack' && target ? { targetId: target } : {}),
+                    ...(note.trim() ? { note: note.trim() } : {}),
+                  });
                   setNote('');
                   say?.('Queued. The DM sees it when your turn comes.');
                 }}
@@ -244,7 +251,7 @@ export function SeatTab({
       <PlayCard
         ctx={ctx}
         play={entry.play}
-        onPlayChange={(next) => onChange(updatePlay(roster, entry.id, next))}
+        onPlayChange={(next) => onPlay(entry.id, next)}
       />
 
       <p className="hint seat-leave">

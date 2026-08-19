@@ -28,17 +28,20 @@ const runningRoster = (): Roster => {
 };
 
 function seat(over: Partial<Parameters<typeof SeatTab>[0]> = {}) {
-  /* The mocks stay concretely typed by living outside the spread. */
-  const onChange = vi.fn();
-  const onPlansChange = vi.fn();
+  /* The mocks stay concretely typed by living outside the spread. §94 made
+     the seat speak in operations, so these are the operations. */
+  const onQueue = vi.fn();
+  const onWithdraw = vi.fn();
+  const onPlay = vi.fn();
   const onSeatsChange = vi.fn();
   const onSeatChange = vi.fn();
   render(
     <SeatTab
       roster={rosterOf(fighter(), wizard())}
-      onChange={onChange}
       plans={[] as Intent[]}
-      onPlansChange={onPlansChange}
+      onQueue={onQueue}
+      onWithdraw={onWithdraw}
+      onPlay={onPlay}
       seats={[] as Seat[]}
       onSeatsChange={onSeatsChange}
       seatId={null}
@@ -46,7 +49,7 @@ function seat(over: Partial<Parameters<typeof SeatTab>[0]> = {}) {
       {...over}
     />,
   );
-  return { onChange, onPlansChange, onSeatsChange, onSeatChange };
+  return { onQueue, onWithdraw, onPlay, onSeatsChange, onSeatChange };
 }
 
 describe('taking a seat', () => {
@@ -88,9 +91,10 @@ describe('the fight from the chair', () => {
     await user.type(screen.getByLabelText('In your own words'), 'behind the pillar');
     await user.click(screen.getByRole('button', { name: 'Queue it' }));
 
-    const queued = props.onPlansChange.mock.calls[0][0] as Intent[];
-    expect(queued).toHaveLength(1);
-    expect(queued[0]).toMatchObject({ kind: 'dodge', note: 'behind the pillar' });
+    // §94: the seat speaks in operations - the queue op, not the queue.
+    expect(props.onQueue).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'dodge', note: 'behind the pillar' }),
+    );
   });
 
   it('on your turn, reads the plan back and offers no button to run it', () => {

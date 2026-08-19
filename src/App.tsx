@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flush } from './persist';
 import { originalsShown, setOriginalsShown } from './originals';
 import { RULESETS, RULESET_LABELS } from './types';
@@ -28,6 +28,9 @@ import { decodeBuild, seatFromLocation, tokenFromLocation } from './share';
 import { canRedo, canUndo, forget, historyFor, record, redo, undo } from './undo';
 import { push } from './toast';
 import type { Intent, Seat } from './seats';
+import { queueIntent, withdrawIntent } from './seats';
+import { broadcastWire, hostApply, seatApply } from './sync';
+import type { TableWire } from './sync';
 import type { Toast } from './toast';
 import { ToastHost } from './components/ToastHost';
 import {
@@ -279,6 +282,7 @@ export default function App() {
     Still ephemeral on purpose - in memory beside the stores, never in them.
   */
   const [plans, setPlans] = useState<Intent[]>([]);
+
   /* §77: a dungeon on its way to the battle screen - set by the Dungeons
      screen's "Use in a battle", consumed once by TableTab, then cleared.
      §90: the same door, marked when it is being entered as a delve. */
@@ -286,6 +290,60 @@ export default function App() {
     null,
   );
   const [roster, setRoster] = useState<Roster>(loadRoster);
+  /*
+    §94: the wire. One BroadcastChannel per tab of this browser; the tab
+    showing the battle is the host and broadcasts the truth, a tab showing
+    a seat sends operations and takes the truth back. Refs rather than
+    effect deps for the handler's reads, because the wire is opened once
+    and must always see the current render's world.
+  */
+  const wireRef = useRef<TableWire | null>(null);
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
+  const rosterRef = useRef(roster);
+  rosterRef.current = roster;
+  const plansRef = useRef(plans);
+  plansRef.current = plans;
+  useEffect(() => {
+    const wire = broadcastWire();
+    wireRef.current = wire;
+    if (!wire) return;
+    const off = wire.onMessage((message) => {
+      if (tabRef.current === 'table') {
+        // The host: apply the operation, answer the newcomer.
+        const applied = hostApply(message, rosterRef.current, plansRef.current);
+        if (applied.roster) setRoster(applied.roster);
+        if (applied.plans) setPlans(applied.plans);
+        if (message.kind === 'hello') {
+          wire.send({ kind: 'state', roster: rosterRef.current });
+          wire.send({ kind: 'plans', plans: plansRef.current });
+        }
+      } else if (tabRef.current === 'seat') {
+        /*
+          A seat takes the truth. Only while the seat screen is up: a tab
+          editing a character in the Builder must not have the host's
+          broadcasts land on top of its half-typed name.
+        */
+        const applied = seatApply(message);
+        if (applied.roster) setRoster(applied.roster);
+        if (applied.plans) setPlans(applied.plans);
+      }
+    });
+    wire.send({ kind: 'hello' });
+    return () => {
+      off();
+      wire.close();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  /* The host says so whenever the truth changes - or the moment it becomes
+     the host, which is the same broadcast. */
+  useEffect(() => {
+    if (tab === 'table') wireRef.current?.send({ kind: 'state', roster });
+  }, [tab, roster]);
+  useEffect(() => {
+    if (tab === 'table') wireRef.current?.send({ kind: 'plans', plans });
+  }, [tab, plans]);
   /*
     Monsters you made, kept in their own store rather than on the roster.
 
@@ -952,9 +1010,22 @@ export default function App() {
         {tab === 'seat' && (
           <SeatTab
             roster={roster}
-            onChange={setRoster}
             plans={plans}
-            onPlansChange={setPlans}
+            /* Ops travel to the host when a wire is up, and apply locally
+               either way - on one device the local apply IS the table, and
+               with a host its echo simply confirms what we already show. */
+            onQueue={(intent) => {
+              wireRef.current?.send({ kind: 'intent', op: 'queue', intent });
+              setPlans(queueIntent(plans, intent));
+            }}
+            onWithdraw={(combatantId) => {
+              wireRef.current?.send({ kind: 'intent', op: 'withdraw', combatantId });
+              setPlans(withdrawIntent(plans, combatantId));
+            }}
+            onPlay={(rosterId, play) => {
+              wireRef.current?.send({ kind: 'play', rosterId, play });
+              setRoster(updatePlay(roster, rosterId, play));
+            }}
             seats={seats}
             onSeatsChange={setSeats}
             seatId={seatId}

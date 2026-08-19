@@ -6456,3 +6456,56 @@ free of sideways scroll.
 **Gates.** 2362 tests / 113 files, tsc, oxlint, build in budget; run93
 both themes at 1360×900 plus the 380-wide pass, with run78 through run92
 and check87 green as the net.
+
+## 94. The wire
+
+The multiplayer arc's third section, and the one where two screens first
+talk: `src/sync.ts` puts a transport behind an interface - `send`,
+`onMessage`, `close`, nothing else - and ships exactly one real
+implementation, **BroadcastChannel**. Every tab of this browser, this
+origin. That is not a placeholder: it is a second screen at the table
+today - the DM's laptop hosting, a tab handed across as a player's seat -
+and it proves the entire protocol end to end with no server, no accounts,
+and no new way to fail. §95 swaps the implementation for a networked one
+and nothing above the interface changes: persist.ts (§24) played this
+exact trick on storage, and it held.
+
+**The protocol is the §92 authority rule with message names.** One host -
+the tab showing the battle - and everything flows through it. Down the
+wire go `state` (the whole roster, the encounter riding on it) and
+`plans`; up come *operations* - queue this intent, withdraw that one,
+here is my own play state - and `hello`, which a host answers with the
+truth. A seat never sends state, so there is never a merge; a host never
+takes dictation about state, so a second host or a §95 relay echo cannot
+overwrite the truth source; a seat never applies an operation it
+overhears on the broadcast bus. Those three sentences are `hostApply` and
+`seatApply`, pure functions the tests pin without a channel in sight -
+the React wiring in App is plumbing around them, reading the current
+world through refs because the wire opens once and outlives every render.
+
+**The seat now speaks only in operations.** §93's SeatTab handed back
+whole plan arrays and roster writes; §94 narrows its props to `onQueue`,
+`onWithdraw`, `onPlay` - and the component cannot tell whether App
+applies them locally (one device, no wire, exactly §93's behaviour) or
+also sends them to a host whose echo confirms what the optimistic local
+apply already showed. Convergence needs no cleverness because the host's
+broadcast is always the last word.
+
+**Two guards worth their comments.** A tab applies incoming state only
+while its *seat screen* is up - a tab editing a character in the Builder
+must not have the host's broadcasts land on a half-typed name. And
+`state` carries the whole roster, portraits and all, which structured
+clones make free in-process and a network will not - slimming it is
+recorded here as §95's first job, where §95 will trip over it.
+
+**Pinned.** Five `sync.test.ts` suites - the host applying ops and
+refusing dictation, the seat taking truth and ignoring overheard ops, the
+paired in-memory wires delivering without echo; SeatTab's tests reworked
+to the op-shaped props; and `run94.mjs`, the arc's first two-page probe:
+a 1360-wide DM tab and a 380-wide phone tab in one browser, the phone
+queueing "Attack Goblin — from the cheap seats", the plan flying on the
+DM's strip when the turn arrives, "You're up!" arriving back on the
+phone, and Run it clearing both ends.
+
+**Gates.** 2367 tests / 114 files, tsc, oxlint, build in budget; run94
+both themes, with run78 through run93 and check87 green as the net.
