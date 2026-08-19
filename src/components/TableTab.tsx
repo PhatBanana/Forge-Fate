@@ -98,6 +98,7 @@ import { heldResources, restoredKeys } from '../engine/resources';
 import { describeSpoils, spoilsFor } from '../engine/spoils';
 import {
   activeCampaign,
+  layToRest,
   loadCampaigns,
   remember,
   saveCampaigns,
@@ -4937,6 +4938,74 @@ export function TableTab({
   );
 
   /*
+    §91: the Fallen. The app notices who is at nought when the After drawer
+    opens - and, at three failed saves, that the dice themselves have ruled -
+    but it writes no memorial on its own: dropping to nought is not dying in
+    fifth edition, and even three failures leave the table a Revivify and a
+    ruling. The button is the DM's pen. Laying someone to rest edits no
+    character and touches no roster entry; it writes a name, a where (the
+    delve knows the room they fell in) and a date onto the campaign's roll,
+    which the Campaign screen keeps and the DM can inscribe there.
+  */
+  const fallenPanel = (() => {
+    if (!campaign) return null;
+    const down = encounter.combatants.filter(
+      (c) => c.kind === 'character' && hpOf(c) !== undefined && hpOf(c)!.now === 0,
+    );
+    if (!down.length) return null;
+    const onRoll = new Set((campaign.fallen ?? []).map((m) => m.name));
+    return (
+      <Panel
+        title="The fallen"
+        subtitle="Nobody dies by app. Laying someone to rest writes their name into the campaign — the character stays on the roster, and the ruling stays yours."
+      >
+        {down.map((c) => {
+          const name = nameOf(c);
+          const saves =
+            c.kind === 'character'
+              ? roster.entries.find((e) => e.id === c.rosterId)?.play.deathSaves
+              : undefined;
+          const fell = encounter.delve?.fallen.find((f) => f.name === name);
+          const where = encounter.delve
+            ? `${encounter.delve.name}${fell?.room !== undefined ? `, room ${fell.room}` : ''}`
+            : undefined;
+          return (
+            <p key={c.id} className="zone-row">
+              <b>{name}</b>
+              <span className="src">
+                {' '}
+                · at nought
+                {saves && saves.failures >= 3 ? ' · dead by the dice' : ''}
+                {where ? ` · ${where}` : ''}
+              </span>{' '}
+              {onRoll.has(name) ? (
+                <span className="src">· on the roll</span>
+              ) : (
+                <button
+                  className="btn btn-sm"
+                  aria-label={`Lay ${name} to rest`}
+                  title="Write their name into the campaign's roll of the Fallen"
+                  onClick={() => {
+                    setCampaigns(
+                      updateCampaign(campaigns, campaign.id, (one) =>
+                        layToRest(one, { name, ...(where ? { where } : {}) }),
+                      ),
+                    );
+                    setEncounter(appendLog(encounter, `${name} is laid to rest.`));
+                    say?.(`${name} joins the Fallen.`);
+                  }}
+                >
+                  Lay to rest
+                </button>
+              )}
+            </p>
+          );
+        })}
+      </Panel>
+    );
+  })();
+
+  /*
     §80: the After drawer while the fight is still on. The debrief rightly
     waits for the dust - but pressing After mid-fight used to open a frame
     holding twelve log lines and nothing else, which read as a broken
@@ -6865,7 +6934,7 @@ export function TableTab({
     /* §80: hints are visible text in the open drawer now, so each is worded
        to not echo a panel title it sits above. */
     { id: 'plan', label: 'Prep', hint: 'The objective, the forecast, and the shelf of saved fights', content: <>{objectivePanel}{forecastPanel}{libraryPanel}</> },
-    { id: 'after', label: 'After', hint: 'How it went, the payout, and the whole record', content: <>{midFightPanel}{debriefPanel}{logPanel}</> },
+    { id: 'after', label: 'After', hint: 'How it went, the payout, and the whole record', content: <>{midFightPanel}{debriefPanel}{fallenPanel}{logPanel}</> },
   ] as const;
   const openDrawer = drawers.find((d) => d.id === drawer);
 

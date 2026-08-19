@@ -52,6 +52,31 @@ export interface Chapter {
   delve?: string;
 }
 
+/**
+ * §91: one of the Fallen - a memorial, not a death certificate.
+ *
+ * Fire Emblem's permadeath *culture*, not its rule: what makes a loss land
+ * in that game is not the mechanic, it is the roll call afterwards. Nothing
+ * here kills anybody - dropping to nought is not dying in fifth edition,
+ * three failed saves is, and even then the table rules on what happens next
+ * (a Revivify, a bargain, a retirement). The app only *offers* the memorial
+ * when the facts suggest one, and the DM writes it by pressing the button.
+ * Laying someone to rest edits no character and touches no roster entry:
+ * a memorial is additive, and the name is copied onto it so the roll
+ * survives the roster forgetting them.
+ */
+export interface Memorial {
+  id: string;
+  /** Their name, copied - a memorial outlives the character record. */
+  name: string;
+  /** When they were laid to rest. */
+  at: number;
+  /** Where it happened, as the battle knew it - "The Sunken Vault, room 3". */
+  where?: string;
+  /** The DM's own words, written on the campaign screen. */
+  epitaph?: string;
+}
+
 export interface Campaign {
   id: string;
   name: string;
@@ -61,6 +86,8 @@ export interface Campaign {
   partyIds: string[];
   /** Newest first, the way the battle log reads. */
   chronicle: Chapter[];
+  /** §91: the roll of the Fallen, oldest first - a roll is read in order. */
+  fallen?: Memorial[];
   /** The DM's own, for everything the app has no field for. */
   notes: string;
 }
@@ -121,6 +148,17 @@ function hydrateCampaign(parsed: unknown): Campaign | null {
             !!c && typeof c === 'object' && typeof (c as Chapter).defeated === 'string',
         )
       : [],
+    ...(Array.isArray(raw.fallen)
+      ? {
+          fallen: raw.fallen.filter(
+            (m): m is Memorial =>
+              !!m &&
+              typeof m === 'object' &&
+              typeof (m as Memorial).name === 'string' &&
+              !!(m as Memorial).name.trim(),
+          ),
+        }
+      : {}),
     notes: typeof raw.notes === 'string' ? raw.notes : '',
   };
 }
@@ -184,3 +222,33 @@ export function remember(campaign: Campaign, chapter: Omit<Chapter, 'id' | 'at'>
 /** What the party has earned across the whole campaign. */
 export const totalEarned = (campaign: Campaign): number =>
   campaign.chronicle.reduce((sum, c) => sum + c.xp, 0);
+
+/**
+ * §91: write a name onto the roll. Oldest first and uncapped - the chronicle
+ * caps at fifty because fights are routine; deaths are not, and a roll of
+ * honor that forgets its oldest names is not one.
+ */
+export function layToRest(
+  campaign: Campaign,
+  memorial: Omit<Memorial, 'id' | 'at'>,
+): Campaign {
+  const entry: Memorial = { id: newId(), at: Date.now(), ...memorial };
+  return { ...campaign, fallen: [...(campaign.fallen ?? []), entry] };
+}
+
+/** The DM's words on one memorial, replaced whole. */
+export function writeEpitaph(campaign: Campaign, id: string, epitaph: string): Campaign {
+  return {
+    ...campaign,
+    fallen: (campaign.fallen ?? []).map((m) =>
+      m.id === id ? { ...m, ...(epitaph.trim() ? { epitaph } : { epitaph: undefined }) } : m,
+    ),
+  };
+}
+
+/** Take a name off the roll - the mistaken press, or the Revivify that
+    landed after all. Asked-for in the UI, like every deletion since §76. */
+export function strikeMemorial(campaign: Campaign, id: string): Campaign {
+  const fallen = (campaign.fallen ?? []).filter((m) => m.id !== id);
+  return { ...campaign, ...(fallen.length ? { fallen } : { fallen: undefined }) };
+}

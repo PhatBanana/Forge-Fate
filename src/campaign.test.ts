@@ -5,13 +5,16 @@ import {
   activeCampaign,
   addCampaign,
   emptyCampaigns,
+  layToRest,
   loadCampaigns,
   remember,
   removeCampaign,
   saveCampaigns,
+  strikeMemorial,
   toggleMember,
   totalEarned,
   updateCampaign,
+  writeEpitaph,
 } from './campaign';
 
 beforeEach(() => {
@@ -123,5 +126,46 @@ describe('closing one down', () => {
   it('leaves no dangling pointer when the last one goes', () => {
     const file = addCampaign(emptyCampaigns(), 'Only');
     expect(removeCampaign(file, file.activeId!)).toEqual({ campaigns: [] });
+  });
+});
+
+describe('the Fallen (§91)', () => {
+  const fresh = () => addCampaign(emptyCampaigns(), 'Ours').campaigns[0];
+
+  it('writes a name onto the roll, oldest first and uncapped', () => {
+    let campaign = layToRest(fresh(), { name: 'Sera', where: 'The Sunken Vault, room 3' });
+    campaign = layToRest(campaign, { name: 'Bram' });
+    expect(campaign.fallen?.map((m) => m.name)).toEqual(['Sera', 'Bram']);
+    expect(campaign.fallen?.[0].where).toBe('The Sunken Vault, room 3');
+    expect(campaign.fallen?.[0].id).toBeTruthy();
+    expect(campaign.fallen?.[0].at).toBeGreaterThan(0);
+  });
+
+  it('takes the DM\'s words, and takes them back', () => {
+    let campaign = layToRest(fresh(), { name: 'Sera' });
+    const id = campaign.fallen![0].id;
+    campaign = writeEpitaph(campaign, id, 'she held the door');
+    expect(campaign.fallen?.[0].epitaph).toBe('she held the door');
+    campaign = writeEpitaph(campaign, id, '  ');
+    expect(campaign.fallen?.[0].epitaph).toBeUndefined();
+  });
+
+  it('strikes a name - the mistaken press, or the Revivify that landed', () => {
+    let campaign = layToRest(layToRest(fresh(), { name: 'Sera' }), { name: 'Bram' });
+    campaign = strikeMemorial(campaign, campaign.fallen![0].id);
+    expect(campaign.fallen?.map((m) => m.name)).toEqual(['Bram']);
+    // The last name off the roll takes the empty roll with it.
+    campaign = strikeMemorial(campaign, campaign.fallen![0].id);
+    expect(campaign.fallen).toBeUndefined();
+  });
+
+  it('survives the round trip, and the hydrator drops only garbage', () => {
+    const file = addCampaign(emptyCampaigns(), 'Ours');
+    const id = file.campaigns[0].id;
+    saveCampaigns(updateCampaign(file, id, (c) => layToRest(c, { name: 'Sera' })));
+    const raw = JSON.parse(localStorage.getItem('dnd-forge:campaigns:v1')!);
+    raw.campaigns[0].fallen.push({ noName: true }, { name: '   ' });
+    localStorage.setItem('dnd-forge:campaigns:v1', JSON.stringify(raw));
+    expect(activeCampaign(loadCampaigns())?.fallen?.map((m) => m.name)).toEqual(['Sera']);
   });
 });

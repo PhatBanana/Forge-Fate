@@ -5348,3 +5348,72 @@ describe('the delve (§90)', () => {
     expect(chapter.delve).toMatch(/^The Sunken Vault — 1 of 2 rooms cleared$/);
   });
 });
+
+describe('laying to rest (§91)', () => {
+  const CAMPAIGNS = 'dnd-forge:campaigns:v1';
+  const playCampaign = () => {
+    localStorage.setItem(
+      CAMPAIGNS,
+      JSON.stringify({
+        activeId: 'camp1',
+        campaigns: [
+          { id: 'camp1', name: 'Saturdays', createdAt: 1, partyIds: [], chronicle: [], notes: '' },
+        ],
+      }),
+    );
+  };
+  afterEach(() => localStorage.removeItem(CAMPAIGNS));
+
+  const downTheFighter = async (
+    user: ReturnType<typeof userEvent.setup>,
+    view: ReturnType<typeof setup>,
+  ) => {
+    const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name }));
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+    await rowDamage(user, name, deriveBuild(view.roster.entries[0].build).hp.total);
+    return name;
+  };
+
+  it('offers the memorial for whoever is at nought, and the press writes the roll', async () => {
+    playCampaign();
+    const user = userEvent.setup();
+    const view = setup(party());
+    const name = await downTheFighter(user, view);
+
+    await open(user, 'After');
+    expect(screen.getByText('The fallen')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: `Lay ${name} to rest` }));
+
+    expect(loadCampaigns().campaigns[0].fallen?.map((m) => m.name)).toEqual([name]);
+    // Once on the roll, the offer stands down rather than doubling.
+    expect(screen.queryByRole('button', { name: `Lay ${name} to rest` })).toBeNull();
+    expect(screen.getByText(/on the roll/)).toBeInTheDocument();
+    expect(logOf(view)).toMatch(new RegExp(`${name} is laid to rest\\.`));
+    // A memorial edits nobody: the character is still whole on the roster.
+    expect(view.roster.entries[0].build.name).toBe(name);
+  });
+
+  it('notes when the dice themselves have ruled - three failures - but still writes nothing', async () => {
+    playCampaign();
+    const user = userEvent.setup();
+    const view = setup(party());
+    const name = await downTheFighter(user, view);
+    // Damage at nought is a failed save apiece; three is death by the book.
+    for (let hit = 0; hit < 3; hit += 1) await rowDamage(user, name, 1);
+
+    await open(user, 'After');
+    expect(screen.getByText(/dead by the dice/)).toBeInTheDocument();
+    // Noticing is not ruling: the roll is still empty until the DM presses.
+    expect(loadCampaigns().campaigns[0].fallen).toBeUndefined();
+  });
+
+  it('keeps the offer off the screen when no campaign is being played', async () => {
+    const user = userEvent.setup();
+    const view = setup(party());
+    await downTheFighter(user, view);
+    await open(user, 'After');
+    expect(screen.queryByText('The fallen')).toBeNull();
+  });
+});

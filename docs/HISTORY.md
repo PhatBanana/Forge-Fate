@@ -6298,3 +6298,51 @@ mid-run and come back mid-run.
 
 **Gates.** 2340 tests / 111 files, tsc, oxlint, build in budget; run90 both
 themes at 1360×900, with run78 through run89 and check87 green as the net.
+
+## 91. The Fallen
+
+The last name on the identity list, and the smallest: Fire Emblem's
+permadeath *culture* without its rule. What makes a loss land in that game
+is not the mechanic - it is the roll call afterwards, the space where a
+name used to be. This app already had every fact a memorial needs; what it
+lacked was the page.
+
+**Nobody dies by app.** The stance §89 and §90 sharpened gets its hardest
+test here and holds. Dropping to nought is not dying in fifth edition;
+three failed saves is, and even then the table holds a Revivify, a bargain,
+a retirement. So the battle's After drawer *notices* - whoever is at
+nought is listed, with "dead by the dice" appended when the failures say
+so, and the room they fell in when the delve knows it - but the app writes
+no memorial on its own. The button is the DM's pen: "Lay to rest" copies
+the name, the where and the date onto the campaign's roll, says so in the
+log and the toast, and then stands down ("on the roll") so a second press
+cannot double a grave. A component test pins the hardest half: three
+failures on the dice and the roll still empty, because noticing is not
+ruling.
+
+**A memorial edits nobody.** Laying someone to rest touches no roster
+entry and no combatant - the name is *copied* onto the memorial precisely
+so the roll survives the roster forgetting them, the same reasoning that
+keeps a deleted character's id in the party list. The Campaign screen
+carries the roll, oldest first the way a roll is read, each name with its
+where and its date, an **epitaph** field for the DM's own words (typing
+coalesces under §84's recorder, like the notes), and a **Strike** behind
+§76's confirm - for the mistaken press, or the Revivify that landed after
+all. Striking the last name takes the empty graveyard with it: a campaign
+with nobody dead does not carry one around.
+
+**Uncapped, unlike the chronicle.** Fights are routine and their record
+caps at fifty; deaths are not, and a roll of honor that forgets its oldest
+names is not one.
+
+**Pinned.** Four store tests (the roll in order, the words written and
+taken back, the strike and the empty roll, hydration dropping only
+garbage); three battle tests (the offer and the press, dead-by-the-dice
+noticed but never written, no campaign no offer); three campaign-screen
+tests (no empty graveyard, the roll with its where and epitaph, the
+two-press strike); `run91.mjs` in both themes - a campaign started, a
+fighter dropped in a real fight, the memorial offered and pressed, the
+epitaph typed on the Campaign screen and still there after a reload.
+
+**Gates.** 2350 tests / 111 files, tsc, oxlint, build in budget; run91 both
+themes at 1360×900, with run78 through run90 and check87 green as the net.

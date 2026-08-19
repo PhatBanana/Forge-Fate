@@ -4,7 +4,15 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CampaignTab } from './CampaignTab';
 import { fighter, rosterOf, wizard } from '../test/factories';
-import { activeCampaign, addCampaign, emptyCampaigns, loadCampaigns, saveCampaigns } from '../campaign';
+import {
+  activeCampaign,
+  addCampaign,
+  emptyCampaigns,
+  layToRest,
+  loadCampaigns,
+  saveCampaigns,
+  updateCampaign,
+} from '../campaign';
 
 /**
  * The campaign workshop.
@@ -194,5 +202,46 @@ describe('undo', () => {
 
     await user.click(screen.getByRole('button', { name: /↶ Undo/ }));
     expect(activeCampaign(loadCampaigns())?.notes).toBe('');
+  });
+});
+
+describe('the Fallen (§91)', () => {
+  const withFallen = () => {
+    let file = addCampaign(emptyCampaigns(), 'Ours');
+    file = updateCampaign(file, file.campaigns[0].id, (c) =>
+      layToRest(c, { name: 'Sera', where: 'The Sunken Vault, room 3' }),
+    );
+    saveCampaigns(file);
+  };
+
+  it('keeps the graveyard off a campaign with nobody dead', async () => {
+    const user = userEvent.setup();
+    render(<CampaignTab roster={roster()} />);
+    await user.type(screen.getByLabelText(/name this campaign/i), 'Quiet');
+    await user.click(screen.getByRole('button', { name: /start one/i }));
+    expect(screen.queryByText('The fallen')).toBeNull();
+  });
+
+  it('reads the roll with the where, and takes the DM\'s words', async () => {
+    withFallen();
+    const user = userEvent.setup();
+    render(<CampaignTab roster={roster()} />);
+    expect(screen.getByText('The fallen')).toBeInTheDocument();
+    expect(screen.getByText(/The Sunken Vault, room 3/)).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/epitaph for Sera/i), 'she held the door');
+    expect(activeCampaign(loadCampaigns())?.fallen?.[0].epitaph).toBe('she held the door');
+  });
+
+  it('strikes a name only when asked twice, like every deletion since §76', async () => {
+    withFallen();
+    const user = userEvent.setup();
+    render(<CampaignTab roster={roster()} />);
+    await user.click(screen.getByRole('button', { name: /strike sera from the roll/i }));
+    // Still there - the first press only arms the confirm.
+    expect(activeCampaign(loadCampaigns())?.fallen).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: /really strike/i }));
+    expect(activeCampaign(loadCampaigns())?.fallen).toBeUndefined();
+    expect(screen.queryByText('The fallen')).toBeNull();
   });
 });

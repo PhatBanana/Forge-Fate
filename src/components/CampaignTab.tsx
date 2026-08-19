@@ -6,9 +6,11 @@ import {
   loadCampaigns,
   removeCampaign,
   saveCampaigns,
+  strikeMemorial,
   toggleMember,
   totalEarned,
   updateCampaign,
+  writeEpitaph,
 } from '../campaign';
 import type { CampaignFile } from '../campaign';
 import type { Roster } from '../storage';
@@ -274,6 +276,56 @@ export function CampaignTab({
               table's call — the advancement table is not data this app ships.
             </p>
           )}
+        </Panel>
+      )}
+
+      {/*
+        §91: the roll of the Fallen. Written from the battle's After drawer -
+        the app offers, the DM presses - and inscribed here: the epitaph is
+        the DM's own words, and striking a name (the mistaken press, or the
+        Revivify that landed after all) is asked-for like every deletion.
+        The panel appears only once somebody is on the roll: a campaign with
+        nobody dead should not carry an empty graveyard around.
+      */}
+      {campaign && (campaign.fallen ?? []).length > 0 && (
+        <Panel
+          title="The fallen"
+          subtitle="Read in order, the way a roll is. The characters themselves stay on the roster."
+        >
+          {(campaign.fallen ?? []).map((memorial) => (
+            <div key={memorial.id} className="zone-row memorial">
+              <p style={{ margin: 0 }}>
+                <b>{memorial.name}</b>
+                <span className="src">
+                  {memorial.where ? ` · ${memorial.where}` : ''}
+                  {` · ${new Date(memorial.at).toLocaleDateString()}`}
+                </span>{' '}
+                <ConfirmButton
+                  label="Strike"
+                  confirmLabel="Really strike"
+                  ariaLabel={`Strike ${memorial.name} from the roll`}
+                  onConfirm={() => change((c) => strikeMemorial(c, memorial.id))}
+                />
+              </p>
+              <input
+                type="text"
+                className="detail"
+                aria-label={`Epitaph for ${memorial.name}`}
+                placeholder="they held the door"
+                style={{ width: '100%', marginTop: 4 }}
+                value={memorial.epitaph ?? ''}
+                onChange={(e) => {
+                  const words = e.target.value;
+                  // Typing, so the coalescing recorder - same as the notes.
+                  typeIntoFile(
+                    updateCampaign(file, campaign.id, (c) =>
+                      writeEpitaph(c, memorial.id, words),
+                    ),
+                  );
+                }}
+              />
+            </div>
+          ))}
         </Panel>
       )}
 
