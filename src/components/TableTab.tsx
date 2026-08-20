@@ -116,6 +116,7 @@ import type { HouseRules } from '../houseRules';
 import { SURFACE_KINDS } from '../zones';
 import type { SurfaceKind } from '../zones';
 import { deriveBuild } from '../engine/character';
+import { QrSvg } from './QrSvg';
 import { forecast } from '../engine/forecast';
 import { concentrationDc, damage, dash, emptyPlay, heal, hpNow, moveBy, movementLeft, awardXp, longRest, newTurn, setPlayConditionSource, setTurnSlot, shortRest, startOfEncounter, tickConditions, toggleCondition, spendAmmo, applyDeathSaveRoll } from '../play';
 import { defaultRng, expectedTotal, parseNotation, rollD20, rollDamage, rollNotation } from '../engine/dice';
@@ -540,6 +541,8 @@ export function TableTab({
   const [planTarget, setPlanTarget] = useState('');
   const [planSpell, setPlanSpell] = useState('');
   const [planNote, setPlanNote] = useState('');
+  /* §101: which seat's invitation is showing as a QR, one at a time. */
+  const [qrSeat, setQrSeat] = useState<string | null>(null);
   /** The optional rules this table has switched on. Off is the book. */
   /*
     Which drawer is open over the map, or none.
@@ -6496,20 +6499,62 @@ export function TableTab({
               Players join with the code from Take a seat, or by link — it carries
               the seat, the room and the relay in one.
             </p>
-            {roster.entries.map((entry) => (
-              <p key={entry.id} className="zone-row">
-                <b>{entry.build.name || 'Unnamed'}</b>{' '}
-                <input
-                  type="text"
-                  className="detail"
-                  readOnly
-                  aria-label={`Seat link for ${entry.build.name || 'Unnamed'}`}
-                  style={{ width: '100%' }}
-                  value={seatUrl(entry.id, relay)}
-                  onFocus={(e) => e.currentTarget.select()}
-                />
-              </p>
-            ))}
+            {roster.entries.map((entry) => {
+              const name = entry.build.name || 'Unnamed';
+              const link = seatUrl(entry.id, relay);
+              return (
+                <div key={entry.id} className="zone-row seat-invite">
+                  <p className="row" style={{ gap: 6, alignItems: 'center', margin: 0 }}>
+                    <b>{name}</b>{' '}
+                    <input
+                      type="text"
+                      className="detail"
+                      readOnly
+                      aria-label={`Seat link for ${name}`}
+                      style={{ flex: 1, minWidth: 120 }}
+                      value={link}
+                      onFocus={(e) => e.currentTarget.select()}
+                    />
+                    {/* §101: the share sheet, where the platform has one -
+                        texting a link to the player who stayed home. */}
+                    {typeof navigator !== 'undefined' && !!navigator.share && (
+                      <button
+                        className="btn btn-sm"
+                        onClick={() => {
+                          navigator
+                            .share({ title: `${name}'s seat at the table`, url: link })
+                            .catch(() => {
+                              // Cancelled is not an error anyone needs told about.
+                            });
+                        }}
+                      >
+                        Share
+                      </button>
+                    )}
+                    {/* §101: the QR, which needs no platform at all - the
+                        phone across the table points its camera at this
+                        screen. Third-party QR services were never an
+                        option: the link carries the room code, and the
+                        room code is the whole secret (§95). */}
+                    <button
+                      className="btn btn-sm"
+                      aria-pressed={qrSeat === entry.id}
+                      onClick={() => setQrSeat(qrSeat === entry.id ? null : entry.id)}
+                    >
+                      QR
+                    </button>
+                  </p>
+                  {qrSeat === entry.id && (
+                    <div className="seat-qr">
+                      <QrSvg text={link} label={`QR code of ${name}'s seat link`} />
+                      <p className="hint">
+                        {name}'s whole invitation — scan it with the phone's camera.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             <button className="btn btn-sm" onClick={() => onRelayChange(null)}>
               Close the table
             </button>

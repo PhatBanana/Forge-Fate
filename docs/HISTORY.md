@@ -6765,3 +6765,44 @@ table; the wire dropping an oversized frame, a misshapen state, an
 unknown kind, then speaking the protocol unbothered.
 
 **Gates.** 2384 tests / 114 files, tsc, oxlint, build in budget.
+
+## 101. The invitation in the hand and under the camera
+
+A seat link was a readonly input you select and carry yourself. The ask:
+share it the way phones share things, with a QR when that fails. Built
+the other way up, because at a physical table the QR is not the
+fallback - the DM's screen faces the players, and pointing a camera at
+it IS the handout. The share sheet is for the player who stayed home.
+
+**The QR encoder is hand-rolled** (`engine/qr.ts`), §66's reasoning
+again: the alternative was a dependency, and the first alternative
+anyone reaches for is a QR image API - which would ship the room code,
+the whole secret of §95, to a third party to make a picture of it. Byte
+mode, level M, versions 1-10 picked by fit (a seat link is ~140 bytes;
+version 10 holds 213), Reed-Solomon over GF(256), the eight masks
+scored by the standard's four penalty rules, the BCH format and version
+words. Too long throws rather than lying with a picture.
+
+**Proven by a decoder it has never met.** `jsqr` (dev-only) rasterises
+and decodes every matrix in `qr.test.ts` - a real seat link and one
+text per version band, byte for byte - because a structural self-test
+only proves the code agrees with itself. The proof was earned: the
+first build failed everywhere, and a differential against a second
+independent encoder (borrowed for one session, then removed) pinned
+both bugs in minutes after an hour of staring at correct-looking
+arithmetic - a Reed-Solomon generator built in reverse, and the format
+word's fifteen bits laid out in a convention half-remembered from a
+different library. The differential harness is the lesson worth
+keeping: when a hand-rolled codec fails against its decoder, diff it
+cell-by-cell against a known-good peer before re-deriving math.
+
+**On the screen**: each seat row in the Table panel grew a Share button
+- `navigator.share`, rendered only where the platform has a sheet - and
+a QR toggle that always works, drawing dark-on-white whatever the theme
+because a camera is not a theme's audience. Verified in the running app
+against the deployed relay: the Prep drawer, a real room, the QR
+carrying seat, room and relay in one frame.
+
+**Gates.** 2389 tests / 116 files, tsc, oxlint, build in budget; the QR
+cost the TableTab chunk ~5 kB of its 312 kB budget. Verified live in the
+preview browser against the deployed relay.

@@ -6489,6 +6489,28 @@ input.pcard-amount {
   text-align: center;
 }
 
+/* §101: a seat's invitation as a QR - white always, because the audience
+   is a camera, and sized to be scanned across a physical table. */
+.seat-qr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.seat-qr .qr {
+  width: 168px;
+  height: 168px;
+  flex: none;
+}
+
+@media print {
+  .seat-qr .qr {
+    width: 220px;
+    height: 220px;
+  }
+}
+
 /* §97: the line to the table, when it is down. A strip, not a modal - the
    sheet stays usable because the marks are kept and re-said. */
 .seat-offline {
