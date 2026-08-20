@@ -6563,3 +6563,54 @@ honest devDependencies now.)
 
 **Gates.** 2371 tests / 114 files, tsc, oxlint, build in budget; run95
 both themes, with run78 through run94 and check87 green as the net.
+
+## 96. The Jackbox join, and the roster that stays yours
+
+Two asks from the table, one section. **Joining should feel like Jackbox**:
+a code on the DM's screen big enough to shout, typed on a phone, and an
+honor system of friends picking their own chairs. And **a player's changes
+should live on their phone** - which turned out to be half feature, half
+bug fix.
+
+**The bug first, because it was real.** §95 applied incoming state through
+the ordinary roster write, which persisted the host's roster straight over
+the joining device's own. Harmless on the fresh phones the §95 probe used;
+data loss on a phone that had characters of its own. The fix is the
+feature: **the table's roster is its own store on a seat device**
+(`dnd-forge:table-roster:v1`) - the synced fight lands there, survives a
+reload and a dead relay (the player's hit points and slots are on their
+phone, as asked), and never touches the characters they built for
+themselves. On the same-browser broadcast wire the tabs already share one
+roster and keep sharing it; the split exists exactly where two devices
+exist.
+
+**The join is a code.** The seat screen grew the Jackbox door: a six-fat-
+character room code field, the relay URL remembered from the last table
+this device sat at (typed once, or never - a seat link still carries it),
+and a name for the lobby. The DM's table panel now leads with the room
+code set like a title card - readable across a physical table - and lists
+who sat down: the protocol grew `sit` up and `seats` down, so every lobby
+shows "Basher — Alex". **An honor system on purpose**: a taken chair still
+sits, because rejoining IS re-sitting; the label is the whole lock, which
+is exactly how a table of friends actually works.
+
+**The seat survives everything a phone does.** The chair is persisted
+beside the room, and a device that held both boots straight back into its
+sheet - a mid-session reload (or the browser evicting the tab) lands the
+player where they were, with the table roster already local and their
+queued plan restored by the host's echo on hello.
+
+**Pinned.** hostApply takes `sit` and refuses `seats` dictation; the seat
+takes `seats` truth and ignores overheard sits; six SeatTab tests cover
+the door, the waiting lobby, the taken-by labels and the name on the sit
+op. `run96.mjs` runs the whole story across two isolated contexts and a
+real relay: the code read off the DM's Prep drawer and typed on the
+phone, the lobby naming Alex on both screens, the plan queued and then -
+the phone reloading cold - seat, table, fight and plan all walking back
+in, with the phone's own roster verified byte-identical through
+IndexedDB (where §24 actually keeps it; the probe's first draft read
+localStorage and asserted on two empty strings - a false PASS in dbg and
+a false FAIL in the run, both from the same wrong key).
+
+**Gates.** 2374 tests / 114 files, tsc, oxlint, build in budget; run96
+both themes, with run78 through run95 and check87 green as the net.

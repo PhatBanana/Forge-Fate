@@ -6,10 +6,12 @@ import { currentCombatant, isRunning, sortCombatants } from '../encounter';
 import type { Combatant, MonsterCombatant } from '../encounter';
 import { activeEncounter } from '../storage';
 import type { Roster } from '../storage';
-import { claimSeat, describeIntent, intentFor } from '../seats';
+import { describeIntent, intentFor } from '../seats';
 import type { Intent, IntentKind, Seat } from '../seats';
 import { keyOf } from '../terrain';
 import type { PlayState } from '../play';
+import { lastRelayUrl } from '../sync';
+import type { RelayConfig } from '../sync';
 import type { Say } from '../toast';
 
 /**
@@ -37,7 +39,9 @@ export function SeatTab({
   onWithdraw,
   onPlay,
   seats,
-  onSeatsChange,
+  onSit,
+  relay,
+  onRelayChange,
   seatId,
   onSeatChange,
   say,
@@ -54,7 +58,12 @@ export function SeatTab({
   onWithdraw: (combatantId: string) => void;
   onPlay: (rosterId: string, play: PlayState) => void;
   seats: Seat[];
-  onSeatsChange: (seats: Seat[]) => void;
+  /** §96: take a chair, name attached - claimed here, announced up the
+      wire by App, shown in every lobby. An honor system: it informs. */
+  onSit: (rosterId: string, playerName?: string) => void;
+  /** §96: the table this device is at, and the hand that joins or leaves. */
+  relay?: RelayConfig | null;
+  onRelayChange?: (relay: RelayConfig | null) => void;
   /** The roster entry this seat plays; null shows the picker. */
   seatId: string | null;
   onSeatChange: (id: string | null) => void;
@@ -63,35 +72,112 @@ export function SeatTab({
   const [kind, setKind] = useState<IntentKind>('attack');
   const [target, setTarget] = useState('');
   const [note, setNote] = useState('');
+  /* §96: the join block's scratch. The relay URL is remembered from the
+     last table this device sat at; the code is what friends shout. */
+  const [joinCode, setJoinCode] = useState('');
+  const [joinUrl, setJoinUrl] = useState(lastRelayUrl);
+  const [playerName, setPlayerName] = useState('');
 
   const entry = roster.entries.find((e) => e.id === seatId);
   const ctx = useMemo(() => (entry ? deriveBuild(entry.build) : null), [entry]);
 
   if (!entry || !ctx) {
+    /*
+      §96: the Jackbox door. No table yet: a code big enough to shout, the
+      relay remembered from last time, and a name so the lobby knows who
+      sat down. At a table with nothing arrived yet: the lobby is loading -
+      the host answers hello with the whole fight. Then the chairs, each
+      one saying who already took it. An honor system on purpose: a taken
+      chair still sits (rejoining IS re-sitting), the label is the lock.
+    */
     return (
       <div className="stack seat">
+        {onRelayChange && !relay && (
+          <Panel
+            title="Join a table"
+            subtitle="The DM's screen shows the room code. The relay is remembered after the first time."
+          >
+            <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                className="detail seat-code"
+                aria-label="Room code"
+                placeholder="ROOM CODE"
+                maxLength={6}
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+              />
+              <input
+                type="text"
+                className="detail"
+                aria-label="Relay URL"
+                placeholder="wss://forge-fate-relay.your-name.workers.dev"
+                style={{ flex: 1, minWidth: 200 }}
+                value={joinUrl}
+                onChange={(e) => setJoinUrl(e.target.value)}
+              />
+              <button
+                className="btn btn-sm btn-primary"
+                disabled={!joinCode.trim() || !joinUrl.trim()}
+                onClick={() =>
+                  onRelayChange({ url: joinUrl.trim(), room: joinCode.trim().toUpperCase() })
+                }
+              >
+                Join
+              </button>
+            </div>
+          </Panel>
+        )}
         <Panel
-          title="Take a seat"
+          title={relay ? `At table ${relay.room}` : 'Take a seat'}
           subtitle="A player's view: your sheet, the fight as it stands, and your next move — queued while the others take their turns."
         >
-          {roster.entries.length === 0 ? (
+          {relay && roster.entries.length === 0 ? (
+            <p className="muted">
+              Connected to room {relay.room} — waiting for the DM's table to answer…
+            </p>
+          ) : roster.entries.length === 0 ? (
             <p className="muted">No characters built yet. The Builder is where one starts.</p>
           ) : (
-            roster.entries.map((one) => (
-              <p key={one.id} className="zone-row">
-                <button
-                  className="btn btn-sm"
-                  aria-label={`Sit as ${one.build.name || 'Unnamed'}`}
-                  onClick={() => {
-                    onSeatsChange(claimSeat(seats, one.id));
-                    onSeatChange(one.id);
-                  }}
-                >
-                  Sit here
-                </button>{' '}
-                <b>{one.build.name || 'Unnamed'}</b>
-              </p>
-            ))
+            <>
+              <input
+                type="text"
+                className="detail"
+                aria-label="Your name"
+                placeholder="your name, for the lobby"
+                style={{ width: '100%', marginBottom: 8 }}
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+              />
+              {roster.entries.map((one) => {
+                const taken = seats.find((seat) => seat.rosterId === one.id);
+                return (
+                  <p key={one.id} className="zone-row">
+                    <button
+                      className="btn btn-sm"
+                      aria-label={`Sit as ${one.build.name || 'Unnamed'}`}
+                      onClick={() => onSit(one.id, playerName.trim() || undefined)}
+                    >
+                      Sit here
+                    </button>{' '}
+                    <b>{one.build.name || 'Unnamed'}</b>
+                    {taken && (
+                      <span className="src">
+                        {' '}
+                        · taken{taken.playerName ? ` by ${taken.playerName}` : ''}
+                      </span>
+                    )}
+                  </p>
+                );
+              })}
+            </>
+          )}
+          {relay && onRelayChange && (
+            <p className="hint" style={{ marginBottom: 0 }}>
+              <button className="btn btn-sm" onClick={() => onRelayChange(null)}>
+                Leave the table
+              </button>
+            </p>
           )}
         </Panel>
       </div>

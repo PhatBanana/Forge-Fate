@@ -28,12 +28,13 @@ import { decodeBuild, seatFromLocation, tableFromLocation, tokenFromLocation } f
 import { canRedo, canUndo, forget, historyFor, record, redo, undo } from './undo';
 import { push } from './toast';
 import type { Intent, Seat } from './seats';
-import { queueIntent, withdrawIntent } from './seats';
+import { claimSeat, queueIntent, withdrawIntent } from './seats';
 import {
   broadcastWire,
   hostApply,
   mergePortraits,
   relayWire,
+  rememberRelayUrl,
   seatApply,
   slimRoster,
 } from './sync';
@@ -276,13 +277,69 @@ export default function App() {
     they came to look at a character, and a menu between them and it is a
     question the link already answered.
   */
-  const [tab, setTab] = useState<Tab>(() =>
-    seatFromLocation() !== null ? 'seat' : tokenFromLocation() ? 'builder' : 'title',
-  );
+  const [tab, setTab] = useState<Tab>(() => {
+    if (seatFromLocation() !== null) return 'seat';
+    if (tokenFromLocation()) return 'builder';
+    /* §96: a phone that held a seat at a table boots back into it - a
+       reload mid-session (or the browser evicting the tab) must land the
+       player on their sheet, not the menu. Leave the seat to leave. */
+    try {
+      if (localStorage.getItem('dnd-forge:seat:v1') && localStorage.getItem('dnd-forge:relay:v1')) {
+        return 'seat';
+      }
+    } catch {
+      // Private browsing; the menu it is.
+    }
+    return 'title';
+  });
   /* §93: which roster character this device's seat plays. `''` from a bare
-     `#seat` fragment lands on the picker; null means no seat taken. */
-  const [seatId, setSeatId] = useState<string | null>(() => seatFromLocation() || null);
+     `#seat` fragment lands on the picker; null means no seat taken.
+     §96: persisted, so the phone reload walks back to its own sheet. */
+  const [seatId, setSeatId] = useState<string | null>(() => {
+    const fromLink = seatFromLocation();
+    if (fromLink) return fromLink;
+    try {
+      return localStorage.getItem('dnd-forge:seat:v1');
+    } catch {
+      return null;
+    }
+  });
+  useEffect(() => {
+    try {
+      if (seatId) localStorage.setItem('dnd-forge:seat:v1', seatId);
+      else localStorage.removeItem('dnd-forge:seat:v1');
+    } catch {
+      // Private browsing; the chair is re-picked.
+    }
+  }, [seatId]);
   const [seats, setSeats] = useState<Seat[]>([]);
+  /*
+    §96: the table's roster, on a seat device. §95 persisted incoming state
+    straight over this device's own roster - harmless on a fresh phone and
+    a data-loss bug on one that had characters of its own. The synced fight
+    now lives in its own store: it survives a reload and a dead relay (the
+    player's own hit points and slots are on their phone, as asked), and it
+    never touches the characters they built for themselves.
+  */
+  const [tableRoster, setTableRoster] = useState<Roster | null>(() => {
+    try {
+      const raw = localStorage.getItem('dnd-forge:table-roster:v1');
+      return raw ? (JSON.parse(raw) as Roster) : null;
+    } catch {
+      return null;
+    }
+  });
+  useEffect(() => {
+    try {
+      if (tableRoster) {
+        localStorage.setItem('dnd-forge:table-roster:v1', JSON.stringify(tableRoster));
+      } else {
+        localStorage.removeItem('dnd-forge:table-roster:v1');
+      }
+    } catch {
+      // Private browsing; the table is re-fetched on the next hello.
+    }
+  }, [tableRoster]);
   /*
     §92's plan queue, lifted: the battle cockpit and the player seat write
     the same one, and a plan survives the DM stepping out to another screen.
@@ -318,6 +375,11 @@ export default function App() {
   rosterRef.current = roster;
   const plansRef = useRef(plans);
   plansRef.current = plans;
+  const seatsRef = useRef(seats);
+  seatsRef.current = seats;
+  const tableRosterRef = useRef(tableRoster);
+  tableRosterRef.current = tableRoster;
+  const relayRef = useRef<RelayConfig | null>(null);
   const [relay, setRelay] = useState<RelayConfig | null>(() => {
     const fromLink = tableFromLocation();
     if (fromLink) return fromLink;
@@ -328,12 +390,18 @@ export default function App() {
       return null;
     }
   });
+  relayRef.current = relay;
   useEffect(() => {
     /* Persisted so the phone that reloads without its fragment - or the
-       DM who closed the lid - walks back into the same room. */
+       DM who closed the lid - walks back into the same room. §96 also
+       remembers the URL alone, so the next join asks only for a code. */
     try {
-      if (relay) localStorage.setItem('dnd-forge:relay:v1', JSON.stringify(relay));
-      else localStorage.removeItem('dnd-forge:relay:v1');
+      if (relay) {
+        localStorage.setItem('dnd-forge:relay:v1', JSON.stringify(relay));
+        rememberRelayUrl(relay.url);
+      } else {
+        localStorage.removeItem('dnd-forge:relay:v1');
+      }
     } catch {
       // Private browsing; the room simply is not remembered.
     }
@@ -355,12 +423,14 @@ export default function App() {
     const off = wire.onMessage((message) => {
       if (tabRef.current === 'table') {
         // The host: apply the operation, answer the newcomer.
-        const applied = hostApply(message, rosterRef.current, plansRef.current);
+        const applied = hostApply(message, rosterRef.current, plansRef.current, seatsRef.current);
         if (applied.roster) setRoster(applied.roster);
         if (applied.plans) setPlans(applied.plans);
+        if (applied.seats) setSeats(applied.seats);
         if (message.kind === 'hello') {
           wire.send({ kind: 'state', roster: slimRoster(rosterRef.current) });
           wire.send({ kind: 'plans', plans: plansRef.current });
+          wire.send({ kind: 'seats', seats: seatsRef.current });
         }
       } else if (tabRef.current === 'seat') {
         /*
@@ -370,9 +440,21 @@ export default function App() {
         */
         const applied = seatApply(message);
         if (applied.roster) {
-          setRoster(mergePortraits(applied.roster, rosterRef.current));
+          /*
+            §96: over a relay the truth lands in the table roster, never on
+            this device's own characters; on the same-browser broadcast the
+            tabs already share one roster and keep sharing it.
+          */
+          if (relayRef.current) {
+            setTableRoster(
+              mergePortraits(applied.roster, tableRosterRef.current ?? rosterRef.current),
+            );
+          } else {
+            setRoster(mergePortraits(applied.roster, rosterRef.current));
+          }
         }
         if (applied.plans) setPlans(applied.plans);
+        if (applied.seats) setSeats(applied.seats);
       }
     });
     if (!relay) wire.send({ kind: 'hello' }); // the relay's onOpen says it
@@ -391,6 +473,9 @@ export default function App() {
   useEffect(() => {
     if (tab === 'table') wireRef.current?.send({ kind: 'plans', plans });
   }, [tab, plans]);
+  useEffect(() => {
+    if (tab === 'table') wireRef.current?.send({ kind: 'seats', seats });
+  }, [tab, seats]);
   /*
     Monsters you made, kept in their own store rather than on the roster.
 
@@ -1025,6 +1110,7 @@ export default function App() {
             onPlansChange={setPlans}
             relay={relay}
             onRelayChange={setRelay}
+            seats={seats}
             aside={<ThemeToggle choice={themeChoice} onChange={chooseTheme} />}
           />
         )}
@@ -1058,7 +1144,9 @@ export default function App() {
         {tab === 'campaign' && <CampaignTab roster={roster} say={say} />}
         {tab === 'seat' && (
           <SeatTab
-            roster={roster}
+            /* §96: at a relayed table the seat reads and writes the synced
+               copy; on one device it is still this device's own roster. */
+            roster={relay ? (tableRoster ?? { entries: [], activeId: '' }) : roster}
             plans={plans}
             /* Ops travel to the host when a wire is up, and apply locally
                either way - on one device the local apply IS the table, and
@@ -1073,10 +1161,24 @@ export default function App() {
             }}
             onPlay={(rosterId, play) => {
               wireRef.current?.send({ kind: 'play', rosterId, play });
-              setRoster(updatePlay(roster, rosterId, play));
+              if (relay && tableRoster) {
+                setTableRoster(updatePlay(tableRoster, rosterId, play));
+              } else {
+                setRoster(updatePlay(roster, rosterId, play));
+              }
             }}
             seats={seats}
-            onSeatsChange={setSeats}
+            /* §96: sitting claims the chair here and announces it up the
+               wire, so every lobby shows who took what. */
+            onSit={(rosterId, playerName) => {
+              const next = claimSeat(seats, rosterId, playerName);
+              setSeats(next);
+              const seat = next.find((one) => one.rosterId === rosterId);
+              if (seat) wireRef.current?.send({ kind: 'sit', seat });
+              setSeatId(rosterId);
+            }}
+            relay={relay}
+            onRelayChange={setRelay}
             seatId={seatId}
             onSeatChange={setSeatId}
             say={say}

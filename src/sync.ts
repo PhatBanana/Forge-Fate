@@ -2,7 +2,7 @@ import type { Roster } from './storage';
 import { updatePlay } from './storage';
 import type { PlayState } from './play';
 import { queueIntent, withdrawIntent } from './seats';
-import type { Intent } from './seats';
+import type { Intent, Seat } from './seats';
 
 /**
  * §94: the wire between the table and its seats.
@@ -47,7 +47,16 @@ export type TableMessage =
   | { kind: 'intent'; op: 'withdraw'; combatantId: string }
   /** Seat → host: their own bookkeeping - a player owns their play state. */
   | { kind: 'play'; rosterId: string; play: PlayState }
-  /** Seat → host: just joined; answer with state and plans. */
+  /**
+   * §96: seat → host - a player took a chair, name and all. An honor
+   * system, deliberately: the claim informs, it never locks. Friends at a
+   * table pick their own character correctly, and the one enforcement
+   * worth having is everyone *seeing* who sat where.
+   */
+  | { kind: 'sit'; seat: Seat }
+  /** §96: host → seats - who is sitting where, for the lobby. */
+  | { kind: 'seats'; seats: Seat[] }
+  /** Seat → host: just joined; answer with state, plans and seats. */
   | { kind: 'hello' };
 
 export interface TableWire {
@@ -110,7 +119,8 @@ export function hostApply(
   message: TableMessage,
   roster: Roster,
   plans: Intent[],
-): { roster?: Roster; plans?: Intent[] } {
+  seats: Seat[] = [],
+): { roster?: Roster; plans?: Intent[]; seats?: Seat[] } {
   switch (message.kind) {
     case 'intent':
       return {
@@ -123,10 +133,17 @@ export function hostApply(
       // The one slice a seat owns. Everything else about the roster stays
       // the host's; a seat cannot rename a character over this wire.
       return { roster: updatePlay(roster, message.rosterId, message.play) };
-    // `state` and `plans` are the host's own words: hearing them back (a
-    // second host, a §95 relay echo) must never overwrite the truth source.
+    case 'sit':
+      // One chair per character, §92's rule: sitting again is rejoining.
+      return {
+        seats: [...seats.filter((s) => s.rosterId !== message.seat.rosterId), message.seat],
+      };
+    // `state`, `plans` and `seats` are the host's own words: hearing them
+    // back (a second host, a §95 relay echo) must never overwrite the
+    // truth source.
     case 'state':
     case 'plans':
+    case 'seats':
     case 'hello':
       return {};
   }
@@ -136,14 +153,17 @@ export function hostApply(
     those are the host's to apply, even when overheard on a broadcast bus. */
 export function seatApply(
   message: TableMessage,
-): { roster?: Roster; plans?: Intent[] } {
+): { roster?: Roster; plans?: Intent[]; seats?: Seat[] } {
   switch (message.kind) {
     case 'state':
       return { roster: message.roster };
     case 'plans':
       return { plans: message.plans };
+    case 'seats':
+      return { seats: message.seats };
     case 'intent':
     case 'play':
+    case 'sit':
     case 'hello':
       return {};
   }
@@ -169,6 +189,31 @@ export interface RelayConfig {
  * bearer-token model every "join my game" code uses.
  */
 const ROOM_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+/**
+ * §96: the Jackbox half of joining. A room code is what friends shout
+ * across a table; the relay URL is plumbing nobody should type twice. So
+ * the last relay this device used is remembered on its own, and the join
+ * screen asks for the code big and the URL only once - or never, when the
+ * player arrived by a seat link that carried it.
+ */
+const RELAY_URL_KEY = 'dnd-forge:relay-url:v1';
+
+export function rememberRelayUrl(url: string): void {
+  try {
+    localStorage.setItem(RELAY_URL_KEY, url);
+  } catch {
+    // Private browsing; it is retyped, not lost.
+  }
+}
+
+export function lastRelayUrl(): string {
+  try {
+    return localStorage.getItem(RELAY_URL_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
 
 export function newRoomCode(): string {
   const bytes = new Uint8Array(6);

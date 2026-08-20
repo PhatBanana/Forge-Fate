@@ -8765,3 +8765,26 @@ input.pcard-amount {
     clip-path: none !important;
   }
 }
+
+/*
+  §96: the Jackbox pieces. The room code is read across a physical table,
+  so it is set like a title card; the join field takes six fat characters
+  under a thumb.
+*/
+.room-code {
+  font-family: var(--mono);
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  text-align: center;
+  padding: 8px 0 12px;
+  color: var(--accent);
+}
+
+.seat-code {
+  width: 130px;
+  font-family: var(--mono);
+  font-size: 18px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}

@@ -109,7 +109,7 @@ import { describeIntent, intentFor, queueIntent, withdrawIntent } from '../seats
 import { newRoomCode } from '../sync';
 import type { RelayConfig } from '../sync';
 import { seatUrl } from '../share';
-import type { Intent, IntentKind } from '../seats';
+import type { Intent, IntentKind, Seat } from '../seats';
 import type { Defences } from '../engine/defences';
 import { HOUSE_RULE_INFO, highGroundBonus, loadHouseRules, saveHouseRules } from '../houseRules';
 import type { HouseRules } from '../houseRules';
@@ -254,6 +254,7 @@ export function TableTab({
   onPlansChange,
   relay,
   onRelayChange,
+  seats = [],
   say,
   aside,
 }: {
@@ -308,6 +309,8 @@ export function TableTab({
       it. Both from App, which owns the wire. */
   relay?: RelayConfig | null;
   onRelayChange?: (relay: RelayConfig | null) => void;
+  /** §96: who sat where, for the lobby under the room code. */
+  seats?: Seat[];
   /**
    * §83: the battle is the screen where this matters most - almost every
    * control is in a drawer covering the board it acts on, so the result of a
@@ -6432,9 +6435,27 @@ export function TableTab({
           </div>
         ) : (
           <>
+            {/* §96: the Jackbox screen - a code big enough to read across
+                the table. Phones join with it from Take a seat; the links
+                below still carry everything for the ones far away. */}
+            <div className="room-code" aria-label="Room code">
+              {relay.room}
+            </div>
+            {seats.length > 0 && (
+              <p className="hint" style={{ marginTop: 0 }}>
+                Seated:{' '}
+                {seats
+                  .map((seat) => {
+                    const who = roster.entries.find((e) => e.id === seat.rosterId);
+                    const name = who?.build.name || 'Unnamed';
+                    return seat.playerName ? `${name} — ${seat.playerName}` : name;
+                  })
+                  .join(' · ')}
+              </p>
+            )}
             <p className="hint" style={{ marginTop: 0 }}>
-              Room <b>{relay.room}</b>. Hand each player their link — it carries the
-              seat, the room and the relay in one.
+              Players join with the code from Take a seat, or by link — it carries
+              the seat, the room and the relay in one.
             </p>
             {roster.entries.map((entry) => (
               <p key={entry.id} className="zone-row">

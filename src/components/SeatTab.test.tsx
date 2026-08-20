@@ -33,8 +33,9 @@ function seat(over: Partial<Parameters<typeof SeatTab>[0]> = {}) {
   const onQueue = vi.fn();
   const onWithdraw = vi.fn();
   const onPlay = vi.fn();
-  const onSeatsChange = vi.fn();
+  const onSit = vi.fn();
   const onSeatChange = vi.fn();
+  const onRelayChange = vi.fn();
   render(
     <SeatTab
       roster={rosterOf(fighter(), wizard())}
@@ -43,24 +44,58 @@ function seat(over: Partial<Parameters<typeof SeatTab>[0]> = {}) {
       onWithdraw={onWithdraw}
       onPlay={onPlay}
       seats={[] as Seat[]}
-      onSeatsChange={onSeatsChange}
+      onSit={onSit}
+      relay={null}
+      onRelayChange={onRelayChange}
       seatId={null}
       onSeatChange={onSeatChange}
       {...over}
     />,
   );
-  return { onQueue, onWithdraw, onPlay, onSeatsChange, onSeatChange };
+  return { onQueue, onWithdraw, onPlay, onSit, onSeatChange, onRelayChange };
 }
 
 describe('taking a seat', () => {
-  it('offers every roster character and claims the chair picked', async () => {
+  it('offers every chair, takes a name for the lobby, and sits by operation', async () => {
     const user = userEvent.setup();
     const props = seat();
+    await user.type(screen.getByLabelText('Your name'), 'Alex');
     await user.click(screen.getByRole('button', { name: 'Sit as Basher' }));
-    expect(props.onSeatChange).toHaveBeenCalledWith('c0');
-    expect(props.onSeatsChange).toHaveBeenCalled();
-    const claimed = props.onSeatsChange.mock.calls[0][0] as Seat[];
-    expect(claimed.map((s) => s.rosterId)).toEqual(['c0']);
+    // §96: sitting is an operation App claims and announces - the honor
+    // system's whole enforcement is the name on the chair.
+    expect(props.onSit).toHaveBeenCalledWith('c0', 'Alex');
+  });
+
+  it('says who already took a chair, and still lets it be sat in', async () => {
+    const user = userEvent.setup();
+    const props = seat({
+      seats: [{ id: 's1', rosterId: 'c0', playerName: 'Alex', claimedAt: 1 }] as Seat[],
+    });
+    expect(screen.getByText(/taken by Alex/)).toBeInTheDocument();
+    // Rejoining IS re-sitting; the label informs, it never locks.
+    await user.click(screen.getByRole('button', { name: 'Sit as Basher' }));
+    expect(props.onSit).toHaveBeenCalled();
+  });
+
+  it('joins a table Jackbox-style: a code to shout, a relay remembered', async () => {
+    const user = userEvent.setup();
+    const props = seat();
+    await user.type(screen.getByLabelText('Room code'), 'x7q2m4');
+    await user.type(screen.getByLabelText('Relay URL'), 'ws://localhost:4390');
+    await user.click(screen.getByRole('button', { name: 'Join' }));
+    expect(props.onRelayChange).toHaveBeenCalledWith({
+      url: 'ws://localhost:4390',
+      room: 'X7Q2M4',
+    });
+  });
+
+  it('at a table with nothing arrived yet, the lobby says it is waiting', () => {
+    seat({
+      relay: { url: 'ws://x', room: 'X7Q2M4' },
+      roster: { entries: [], activeId: '' },
+    });
+    expect(screen.getByText(/waiting for the DM/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Leave the table' })).toBeInTheDocument();
   });
 
   it('shows the seated character with their sheet, and tells the truth about the fight', () => {
