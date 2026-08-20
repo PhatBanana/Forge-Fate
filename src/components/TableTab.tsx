@@ -109,7 +109,7 @@ import { describeIntent, intentFor, queueIntent, withdrawIntent } from '../seats
 import { newRoomCode } from '../sync';
 import type { RelayConfig } from '../sync';
 import { seatUrl } from '../share';
-import type { Intent, IntentKind, Seat } from '../seats';
+import type { Intent, Seat } from '../seats';
 import type { Defences } from '../engine/defences';
 import { HOUSE_RULE_INFO, highGroundBonus, loadHouseRules, saveHouseRules } from '../houseRules';
 import type { HouseRules } from '../houseRules';
@@ -117,6 +117,8 @@ import { SURFACE_KINDS } from '../zones';
 import type { SurfaceKind } from '../zones';
 import { deriveBuild } from '../engine/character';
 import { QrSvg } from './QrSvg';
+import type { MapCoreProps } from './mapContract';
+import { PlanComposer } from './PlanComposer';
 import { forecast } from '../engine/forecast';
 import { concentrationDc, damage, dash, emptyPlay, heal, hpNow, moveBy, movementLeft, awardXp, longRest, newTurn, setPlayConditionSource, setTurnSlot, shortRest, startOfEncounter, tickConditions, toggleCondition, spendAmmo, applyDeathSaveRoll } from '../play';
 import { defaultRng, expectedTotal, parseNotation, rollD20, rollDamage, rollNotation } from '../engine/dice';
@@ -535,12 +537,8 @@ export function TableTab({
   const plans = plansProp ?? localPlans;
   const setPlans = onPlansChange ?? setLocalPlans;
   /* §92: the composer's own scratch, cleared on queue. */
-  const [planKind, setPlanKind] = useState<IntentKind>('attack');
   /* §95: the relay URL being typed, until Open the table commits it. */
   const [relayUrl, setRelayUrl] = useState('');
-  const [planTarget, setPlanTarget] = useState('');
-  const [planSpell, setPlanSpell] = useState('');
-  const [planNote, setPlanNote] = useState('');
   /* §101: which seat's invitation is showing as a QR, one at a time. */
   const [qrSeat, setQrSeat] = useState<string | null>(null);
   /** The optional rules this table has switched on. Off is the book. */
@@ -5199,8 +5197,11 @@ export function TableTab({
         {(() => {
           /* One props object, two cameras: the flat map that prints and
              paints, and the tactical view through FFT's lens. Same tokens,
-             same washes, same handlers - only the projection differs. */
-          const mapProps = {
+             same washes, same handlers - only the projection differs.
+             §104: typed against the shared contract, because a JSX spread
+             from an untyped literal deletes props without a word - which
+             is how sprung traps went invisible in the Tactical view. */
+          const mapProps: MapCoreProps = {
             dungeon,
             /* §81: sprung traps are drawn for everyone - that is what being
                sprung means. Armed ones are not, and `authoring` stays off:
@@ -6334,111 +6335,23 @@ export function TableTab({
     /* §98: what this character can cast, for the plan that casts it. */
     const castable = derived.get(selected.rosterId)?.ctx.spellcasting.castable ?? [];
     return (
-      <div className="plan-block">
-        <b>Queue for {nameOf(selected)}’s turn</b>
-        {plan && (
-          <span className="plan-line">
-            Queued: {describeIntent(plan, planTargetName(plan))}{' '}
-            <button
-              className="btn btn-sm"
-              onClick={() => setPlans(withdrawIntent(plans, selected.id))}
-            >
-              Withdraw
-            </button>
-          </span>
-        )}
-        <span className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
-          <select
-            aria-label="What they plan to do"
-            value={planKind}
-            onChange={(e) => setPlanKind(e.target.value as IntentKind)}
-          >
-            <option value="attack">Attack</option>
-            {castable.length > 0 && <option value="cast">Cast a spell</option>}
-            <option value="move">Move</option>
-            <option value="dash">Dash</option>
-            <option value="dodge">Dodge</option>
-            <option value="disengage">Disengage</option>
-            <option value="help">Help</option>
-            <option value="hide">Hide</option>
-            <option value="other">Something else</option>
-          </select>
-          {planKind === 'attack' && (
-            <select
-              aria-label="Who they plan to attack"
-              value={planTarget}
-              onChange={(e) => setPlanTarget(e.target.value)}
-            >
-              <option value="">— pick a target —</option>
-              {targets.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {nameOf(t)}
-                </option>
-              ))}
-            </select>
-          )}
-          {planKind === 'cast' && (
-            <>
-              <select
-                aria-label="What they plan to cast"
-                value={planSpell}
-                onChange={(e) => setPlanSpell(e.target.value)}
-              >
-                <option value="">— pick a spell —</option>
-                {[...castable]
-                  .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}{s.level ? ` — level ${s.level}` : ' — cantrip'}
-                    </option>
-                  ))}
-              </select>
-              <select
-                aria-label="Who it lands on"
-                value={planTarget}
-                onChange={(e) => setPlanTarget(e.target.value)}
-              >
-                <option value="">— nobody in particular —</option>
-                {targets.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {nameOf(t)}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
-          <input
-            type="text"
-            aria-label="In their own words"
-            placeholder="in their own words"
-            value={planNote}
-            onChange={(e) => setPlanNote(e.target.value)}
-          />
-          <button
-            className="btn btn-sm btn-primary"
-            disabled={(planKind === 'attack' && !planTarget) || (planKind === 'cast' && !planSpell)}
-            onClick={() => {
-              const chosen =
-                planKind === 'cast' ? castable.find((s) => s.id === planSpell) : undefined;
-              setPlans(
-                queueIntent(plans, {
-                  combatantId: selected.id,
-                  kind: planKind,
-                  ...((planKind === 'attack' || planKind === 'cast') && planTarget
-                    ? { targetId: planTarget }
-                    : {}),
-                  ...(chosen ? { spellId: chosen.id, spellName: chosen.name } : {}),
-                  ...(planNote.trim() ? { note: planNote.trim() } : {}),
-                }),
-              );
-              setPlanNote('');
-              say?.(`${nameOf(selected)}'s plan is queued.`);
-            }}
-          >
-            Queue it
-          </button>
-        </span>
-      </div>
+      /* §105: the shared composer, in the cockpit's voice. The target
+         veil above stays this screen's policy - live sight, not the
+         seat's fog-memory (§93, recorded) - and the commit lands in the
+         lifted queue directly, since this IS the host. */
+      <PlanComposer
+        title={`Queue for ${nameOf(selected)}’s turn`}
+        perspective="cockpit"
+        combatantId={selected.id}
+        targets={targets.map((t) => ({ id: t.id, label: nameOf(t) }))}
+        castable={castable}
+        plan={plan}
+        onQueue={(intent) => {
+          setPlans(queueIntent(plans, intent));
+          say?.(`${nameOf(selected)}'s plan is queued.`);
+        }}
+        onWithdraw={(combatantId) => setPlans(withdrawIntent(plans, combatantId))}
+      />
     );
   })();
 

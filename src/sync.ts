@@ -364,8 +364,9 @@ export function isTableMessage(value: unknown): value is TableMessage {
  * The networked wire. JSON on a websocket, reconnecting forever with a
  * capped backoff, because the phone at the table locks its screen and the
  * whole §95 design rides on rejoining being invisible: the socket reopens,
- * `onOpen` fires, the caller re-says `hello` (a seat) or re-broadcasts the
- * truth (the host), and the room converges. `close()` is the only way out.
+ * `onOpen` fires, and the session above re-says `hello` (a seat) or
+ * re-broadcasts the truth (the host), and the room converges. `close()`
+ * is the only way out.
  *
  * §97 added the two things a dead spot needs: `onStatus` says whether the
  * line is up, so a screen can stop pretending, and the unsaid pocket
@@ -436,6 +437,154 @@ export function relayWire(
     close: () => {
       closed = true;
       socket?.close();
+    },
+  };
+}
+
+/* ----------------------------------------------------------------- §103 -
+   The session: the whole protocol policy, behind one seam.
+
+   hostApply and seatApply carry the message algebra and always did; what
+   they never carried was the *policy* around them - who answers a hello
+   and with what, what a rejoin re-says, which roster incoming truth is
+   allowed to touch. All of that lived inline in App's wire effect,
+   threaded through eight refs, and every bug this arc has had (§96's
+   data loss, §97's dead spot) lived exactly there, tested by nothing.
+   The session moves the policy behind an interface small enough to hold:
+   a role, a way to say an operation, a way to announce changed truth,
+   and close. App keeps only the React binding - state setters on one
+   side, current-value readers on the other.
+
+   The wire is the session's seam, and it is injectable because three
+   adapters really cross it: broadcastWire in a browser, relayWire over
+   the network, and pairedWires in the tests - which is what finally
+   lets two whole sessions converse in a test with no browser at all. */
+
+export type SessionRole = 'host' | 'seat' | 'off';
+
+/** What the session reads of the caller's world - current values, every
+    time, because a wire outlives many renders. */
+export interface SessionWorld {
+  roster(): Roster;
+  plans(): Intent[];
+  seats(): Seat[];
+  seatId(): string | null;
+  tableRoster(): Roster | null;
+}
+
+/** What the session tells the caller. `home` carries §96's quarantine
+    verdict: over a relay, truth lands in the table roster and never on
+    the device's own characters; on the same-browser broadcast the tabs
+    already share one roster and keep sharing it. */
+export interface SessionEvents {
+  onRoster(roster: Roster, home: 'own' | 'table'): void;
+  onPlans(plans: Intent[]): void;
+  onSeats(seats: Seat[]): void;
+  onStatus?(up: boolean): void;
+}
+
+export interface TableSession {
+  /** The §92 rule as a switch: the battle screen is the host, a seat
+      screen is a seat, and every other screen is off - a tab editing a
+      character must not have broadcasts land on its half-typed name. */
+  setRole(role: SessionRole): void;
+  /** An operation from this device, host echo and dead-spot pocket
+      included - the wire's business, not the caller's. */
+  say(message: TableMessage): void;
+  /** The host's truth changed; a non-host announcing is a no-op, which
+      is the protocol rule kept where the protocol lives. */
+  announce(kind: 'state' | 'plans' | 'seats'): void;
+  close(): void;
+}
+
+/**
+ * Open the table's session. Returns null where there is no wire to be
+ * had (no relay configured and no BroadcastChannel) - the app then
+ * simply has no second screen. Pass `wire` to stand at the seam
+ * yourself; the tests hand in one half of `pairedWires()`.
+ */
+export function tableSession(
+  relay: RelayConfig | null,
+  world: SessionWorld,
+  events: SessionEvents,
+  wire?: TableWire | null,
+): TableSession | null {
+  let role: SessionRole = 'off';
+
+  /* The rejoin, §95/§97: a reopened socket converges the room. The host
+     re-says the truth whole; a seat re-says hello and its own chair -
+     rejoining IS re-sitting (§96), said as well as meant, because a host
+     that reloaded while this phone was away has an empty lobby until the
+     chairs speak up. The wire re-says dead-spot marks by itself. */
+  const sayAgain = () => {
+    if (role === 'host') {
+      announce('state');
+      announce('plans');
+    } else {
+      line?.send({ kind: 'hello' });
+      const seatId = world.seatId();
+      const chair = seatId ? world.seats().find((s) => s.rosterId === seatId) : undefined;
+      if (chair) line?.send({ kind: 'sit', seat: chair });
+    }
+  };
+
+  const line =
+    wire !== undefined
+      ? wire
+      : relay
+        ? relayWire(relay, sayAgain, (up) => events.onStatus?.(up))
+        : broadcastWire();
+  if (!line) return null;
+
+  const announce = (kind: 'state' | 'plans' | 'seats') => {
+    if (role !== 'host') return;
+    if (kind === 'state') line.send({ kind: 'state', roster: slimRoster(world.roster()) });
+    if (kind === 'plans') line.send({ kind: 'plans', plans: world.plans() });
+    if (kind === 'seats') line.send({ kind: 'seats', seats: world.seats() });
+  };
+
+  const off = line.onMessage((message) => {
+    if (role === 'host') {
+      const applied = hostApply(message, world.roster(), world.plans(), world.seats());
+      if (applied.roster) events.onRoster(applied.roster, 'own');
+      if (applied.plans) events.onPlans(applied.plans);
+      if (applied.seats) events.onSeats(applied.seats);
+      if (message.kind === 'hello') {
+        // The newcomer's answer: the whole truth, in three messages.
+        line.send({ kind: 'state', roster: slimRoster(world.roster()) });
+        line.send({ kind: 'plans', plans: world.plans() });
+        line.send({ kind: 'seats', seats: world.seats() });
+      }
+    } else if (role === 'seat') {
+      const applied = seatApply(message);
+      if (applied.roster) {
+        if (relay) {
+          events.onRoster(
+            mergePortraits(applied.roster, world.tableRoster() ?? world.roster()),
+            'table',
+          );
+        } else {
+          events.onRoster(mergePortraits(applied.roster, world.roster()), 'own');
+        }
+      }
+      if (applied.plans) events.onPlans(applied.plans);
+      if (applied.seats) events.onSeats(applied.seats);
+    }
+  });
+
+  // A broadcast wire is up the moment it exists, so hello is said here;
+  // a relay's hello is said by sayAgain when the socket actually opens.
+  if (!relay) line.send({ kind: 'hello' });
+
+  return {
+    setRole: (next) => {
+      role = next;
+    },
+    say: (message) => line.send(message),
+    announce,
+    close: () => {
+      off();
+      line.close();
     },
   };
 }

@@ -125,3 +125,32 @@ export function arcLines(
   }
   return new Float32Array(out);
 }
+
+/**
+ * §104: sprung traps, in the same over-everything ink as the ruler. An X
+ * across the square's face and a small diamond around it - the top-down
+ * map's circle-and-cross marker, restated in strokes. Only the sprung
+ * ones: a trap the party can see on the shared board is not a trap.
+ */
+export function trapLines(
+  traps: { x: number; y: number; note?: string }[],
+  sprung: string[],
+  proj: IsoProjection,
+  palette: Palette,
+): Float32Array {
+  const out: number[] = [];
+  for (const trap of traps) {
+    if (!sprung.includes(`${trap.x},${trap.y}`)) continue;
+    const c = proj.centreOf({ x: trap.x, y: trap.y });
+    const rx = HW * 0.32;
+    const ry = HH * 0.32;
+    segment(out, { x: c.x - rx * 0.7, y: c.y - ry * 0.7 }, { x: c.x + rx * 0.7, y: c.y + ry * 0.7 }, palette.ruler);
+    segment(out, { x: c.x + rx * 0.7, y: c.y - ry * 0.7 }, { x: c.x - rx * 0.7, y: c.y + ry * 0.7 }, palette.ruler);
+    // The diamond: the face's own shape, shrunk to a badge.
+    segment(out, { x: c.x, y: c.y - ry }, { x: c.x + rx, y: c.y }, palette.ruler);
+    segment(out, { x: c.x + rx, y: c.y }, { x: c.x, y: c.y + ry }, palette.ruler);
+    segment(out, { x: c.x, y: c.y + ry }, { x: c.x - rx, y: c.y }, palette.ruler);
+    segment(out, { x: c.x - rx, y: c.y }, { x: c.x, y: c.y - ry }, palette.ruler);
+  }
+  return new Float32Array(out);
+}

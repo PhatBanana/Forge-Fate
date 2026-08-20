@@ -19,7 +19,7 @@ import {
   reachWash,
   zoneWash,
 } from '../engine/gl/overlays';
-import { arcLines, intentLines, rulerLine, sightLines } from '../engine/gl/lines';
+import { arcLines, intentLines, rulerLine, sightLines, trapLines } from '../engine/gl/lines';
 import {
   glyphSprites,
   noteText,
@@ -82,6 +82,7 @@ function GlSurface({
   orientation = 0,
   fog = null,
   gloom,
+  sprung = [],
   onMove,
   onPaint,
   onHover,
@@ -293,7 +294,11 @@ function GlSurface({
       cursor: cursorWash(cursor, proj, palette),
       sight: sightLines(sight, proj, palette),
       intents: intentLines(intents, proj, palette),
-      rulerArc: mergeLines(rulerLine(ruler, proj, palette), arcLines(arc, proj, palette)),
+      rulerArc: mergeLines(
+        mergeLines(rulerLine(ruler, proj, palette), arcLines(arc, proj, palette)),
+        // §104: sprung traps ride the over-everything pass, ruler ink.
+        trapLines(dungeon.traps, sprung, proj, palette),
+      ),
       sprites: [...glyphSprites(terrain, proj), ...sprites],
       tokenTexts: texts,
       zoneTexts: zoneLabels(zones, proj),

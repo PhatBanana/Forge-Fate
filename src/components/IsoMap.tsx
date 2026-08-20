@@ -2,12 +2,9 @@ import { useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { toUserSpace, viewBoxAttr } from '../engine/letterbox';
 import type { ViewBox } from '../engine/letterbox';
-import type { Dungeon } from '../engine/dungeon';
 import type { Square } from '../encounter';
 import { keyOf } from '../terrain';
-import type { ElevationMap, TerrainMap } from '../terrain';
-import type { Token } from './DungeonMap';
-import type { Camera } from '../engine/camera';
+import type { MapCoreProps, IsoExtraProps, MapZone } from './mapContract';
 import { useMapCamera } from './useMapCamera';
 import { BASE_H, HH, HW, LIP, PAWN_H, PAWN_W, ZH, groundCells, isoProjection } from '../engine/iso';
 
@@ -50,53 +47,18 @@ import { BASE_H, HH, HW, LIP, PAWN_H, PAWN_W, ZH, groundCells, isoProjection } f
   banner; shorter looks like a sign.
 */
 
-export interface IsoZone {
-  id: string;
-  label: string;
-  tint: number;
-  origin: Square;
-  squares: Square[];
-  ghost?: boolean;
-}
-
 /**
- * The tactical view's whole contract, as a named type since §66: two
- * renderers answer it - this SVG one and `GlIsoMap` - and a shared type is
- * what keeps a prop added to one from silently never reaching the other.
+ * The tactical view's contract, named since §66 and shared with the whole
+ * renderer family since §104: the core lives in `mapContract.ts`, this
+ * type adds the isometric extras. Two renderers answer it - this SVG one
+ * and `GlIsoMap` - and the shared type is what keeps a prop added to one
+ * from silently never reaching the other.
  */
-export interface IsoMapProps {
-  dungeon: Dungeon;
-  tokens?: Token[];
-  terrain?: TerrainMap;
-  elevation?: ElevationMap;
-  sight?: { from: Square; to: Square; visible: boolean }[];
-  /** §88: telegraphed enemy turns - the walk dashed, the strike solid. */
-  intents?: { from: Square; to: Square; walk?: boolean }[];
-  zones?: IsoZone[];
-  reach?: { at: Square; dash?: boolean }[];
-  cursor?: Square | null;
-  note?: string;
-  noteAt?: Square | null;
-  ruler?: { points: Square[] } | null;
-  arc?: { from: Square; to: Square } | null;
-  /** Which way the camera faces: 0-3, a quarter turn each - FFT's L1/R1. */
-  orientation?: number;
-  /** Fog of war, same contract as the flat map: dark, dim, or clear. */
-  fog?: { visible: Set<string>; explored: Set<string> } | null;
-  /** How dark each square is, by key - only the ones that are not bright. */
-  gloom?: Record<string, 'dim' | 'dark' | 'magical-dark'>;
-  onMove?: (id: string, to: Square) => void;
-  onPaint?: (at: Square) => void;
-  onHover?: (at: Square | null) => void;
-  onTokenClick?: (id: string) => void;
-  onTokenOpen?: (id: string) => void;
-  /** Where the camera is looking. Omitted means the whole map. */
-  camera?: Camera;
-  /** Present to make the map pannable and zoomable. See `useMapCamera`. */
-  onCamera?: (next: Camera) => void;
-  /** A square to keep in sight - whoever's turn it is. */
-  focus?: Square | null;
-}
+export type IsoMapProps = MapCoreProps & IsoExtraProps;
+
+/** §104: the zone shape moved to the shared contract; the old name stays
+    for the callers that learned it. */
+export type IsoZone = MapZone;
 
 export function IsoMap({
   dungeon,
@@ -115,6 +77,7 @@ export function IsoMap({
   orientation = 0,
   fog = null,
   gloom,
+  sprung = [],
   onMove,
   onPaint,
   onHover,
@@ -337,6 +300,28 @@ export function IsoMap({
           dash ? 'Reachable with a Dash' : 'Reachable this turn',
         ),
       )}
+
+      {/*
+        §104: sprung traps, at last - §81 drew them on the top-down map and
+        the tactical view never learned the word, which is exactly the drift
+        the shared contract now forbids. Same rule as the flat map: only the
+        sprung ones, because a trap the party can see is not a trap.
+      */}
+      {dungeon.traps
+        .filter((trap) => sprung.includes(`${trap.x},${trap.y}`))
+        .map((trap) => {
+          const at = { x: trap.x, y: trap.y };
+          const c = centre(at);
+          const r = HW * 0.32;
+          return (
+            <g key={`t${trap.x},${trap.y}`} className="dmap-trap is-sprung">
+              <circle cx={c.x} cy={c.y} r={r} />
+              <line x1={c.x - r * 0.56} y1={c.y - r * 0.56} x2={c.x + r * 0.56} y2={c.y + r * 0.56} />
+              <line x1={c.x + r * 0.56} y1={c.y - r * 0.56} x2={c.x - r * 0.56} y2={c.y + r * 0.56} />
+              <title>{`Sprung trap${trap.note ? ` — ${trap.note}` : ''}`}</title>
+            </g>
+          );
+        })}
 
       {zones.map((zone) => (
         <g key={zone.id} className={`dmap-zone tint-${zone.tint % 4} ${zone.ghost ? 'is-ghost' : ''}`}>

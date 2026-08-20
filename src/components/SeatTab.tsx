@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
 import { Panel } from './shared';
 import { PlayCard } from './PlayCard';
+import { PlanComposer } from './PlanComposer';
 import { deriveBuild } from '../engine/character';
 import { currentCombatant, isRunning, sortCombatants } from '../encounter';
 import type { Combatant, MonsterCombatant } from '../encounter';
 import { activeEncounter } from '../storage';
 import type { Roster } from '../storage';
 import { describeIntent, intentFor } from '../seats';
-import type { Intent, IntentKind, Seat } from '../seats';
+import type { Intent, Seat } from '../seats';
 import { keyOf } from '../terrain';
 import type { PlayState } from '../play';
 import { lastRelayUrl } from '../sync';
@@ -73,10 +74,6 @@ export function SeatTab({
   linkUp?: boolean;
   say?: Say;
 }) {
-  const [kind, setKind] = useState<IntentKind>('attack');
-  const [target, setTarget] = useState('');
-  const [spell, setSpell] = useState('');
-  const [note, setNote] = useState('');
   /* §96: the join block's scratch. The relay URL is remembered from the
      last table this device sat at; the code is what friends shout. */
   const [joinCode, setJoinCode] = useState('');
@@ -261,123 +258,24 @@ export function SeatTab({
           </p>
         )}
 
-        {/* §92's queue, from the chair it was built for. */}
+        {/* §92's queue, from the chair it was built for - §105's shared
+            composer, in the seat's voice. The target list stays this
+            screen's own policy (§93, recorded): the fog's memory, a shade
+            more generous than the cockpit's live sight. */}
         {me && running && away !== 0 && (
-          <div className="plan-block">
-            <b>When your turn comes</b>
-            {plan && (
-              <span className="plan-line">
-                Queued: {describeIntent(
-                  plan,
-                  plan.targetId
-                    ? targets.find((t) => t.id === plan.targetId)?.label
-                    : undefined,
-                )}{' '}
-                <button
-                  className="btn btn-sm"
-                  onClick={() => onWithdraw(me.id)}
-                >
-                  Withdraw
-                </button>
-              </span>
-            )}
-            <span className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
-              <select
-                aria-label="What you plan to do"
-                value={kind}
-                onChange={(e) => setKind(e.target.value as IntentKind)}
-              >
-                <option value="attack">Attack</option>
-                {/* §98: only a caster is offered the word. */}
-                {ctx.spellcasting.castable.length > 0 && (
-                  <option value="cast">Cast a spell</option>
-                )}
-                <option value="move">Move</option>
-                <option value="dash">Dash</option>
-                <option value="dodge">Dodge</option>
-                <option value="disengage">Disengage</option>
-                <option value="help">Help</option>
-                <option value="hide">Hide</option>
-                <option value="other">Something else</option>
-              </select>
-              {kind === 'attack' && (
-                <select
-                  aria-label="Who you plan to attack"
-                  value={target}
-                  onChange={(e) => setTarget(e.target.value)}
-                >
-                  <option value="">— pick a target —</option>
-                  {targets.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {kind === 'cast' && (
-                <>
-                  {/* §98: the spell by name, from this character's own
-                      castable list - the same list the sheet prints. The
-                      slot it comes from, and any upcast, ride the note:
-                      that is a table conversation, not a field. */}
-                  <select
-                    aria-label="What you plan to cast"
-                    value={spell}
-                    onChange={(e) => setSpell(e.target.value)}
-                  >
-                    <option value="">— pick a spell —</option>
-                    {[...ctx.spellcasting.castable]
-                      .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))
-                      .map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}{s.level ? ` — level ${s.level}` : ' — cantrip'}
-                        </option>
-                      ))}
-                  </select>
-                  <select
-                    aria-label="Who it lands on"
-                    value={target}
-                    onChange={(e) => setTarget(e.target.value)}
-                  >
-                    <option value="">— nobody in particular —</option>
-                    {targets.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.label}
-                      </option>
-                    ))}
-                  </select>
-                </>
-              )}
-              <input
-                type="text"
-                aria-label="In your own words"
-                placeholder="in your own words"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-              />
-              <button
-                className="btn btn-sm btn-primary"
-                disabled={(kind === 'attack' && !target) || (kind === 'cast' && !spell)}
-                onClick={() => {
-                  const chosen =
-                    kind === 'cast'
-                      ? ctx.spellcasting.castable.find((s) => s.id === spell)
-                      : undefined;
-                  onQueue({
-                    combatantId: me.id,
-                    kind,
-                    ...((kind === 'attack' || kind === 'cast') && target ? { targetId: target } : {}),
-                    ...(chosen ? { spellId: chosen.id, spellName: chosen.name } : {}),
-                    ...(note.trim() ? { note: note.trim() } : {}),
-                  });
-                  setNote('');
-                  say?.('Queued. The DM sees it when your turn comes.');
-                }}
-              >
-                Queue it
-              </button>
-            </span>
-          </div>
+          <PlanComposer
+            title="When your turn comes"
+            perspective="seat"
+            combatantId={me.id}
+            targets={targets.map((t) => ({ id: t.id, label: t.label }))}
+            castable={ctx.spellcasting.castable}
+            plan={plan}
+            onQueue={(intent) => {
+              onQueue(intent);
+              say?.('Queued. The DM sees it when your turn comes.');
+            }}
+            onWithdraw={onWithdraw}
+          />
         )}
         {me && running && away === 0 && plan && (
           <div className="plan-block is-up">

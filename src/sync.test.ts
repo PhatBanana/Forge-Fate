@@ -11,8 +11,10 @@ import {
   resay,
   seatApply,
   slimRoster,
+  tableSession,
 } from './sync';
-import type { TableMessage } from './sync';
+import type { SessionEvents, SessionWorld, TableMessage } from './sync';
+import type { Roster } from './storage';
 import { fighter, rosterOf, wizard } from './test/factories';
 import { hpNow } from './play';
 import { deriveBuild } from './engine/character';
@@ -320,6 +322,36 @@ describe('the relay wire through a dead spot (§97)', () => {
     wire.close();
   });
 
+  it('§103: the session rejoins per role - a seat re-says hello and its chair', () => {
+    const chair = { id: 's1', rosterId: 'c0', playerName: 'Alex', claimedAt: 1 };
+    const session = tableSession(
+      { url: 'wss://relay.example', room: 'ABCDEF' },
+      {
+        roster: () => rosterOf(fighter()),
+        plans: () => [],
+        seats: () => [chair],
+        seatId: () => 'c0',
+        tableRoster: () => null,
+      },
+      { onRoster: () => {}, onPlans: () => {}, onSeats: () => {} },
+    )!;
+    session.setRole('seat');
+    const socket = FakeSocket.instances[0];
+    socket.open();
+    // Rejoining IS re-sitting (§96), said as well as meant.
+    expect(saidBy(socket)).toEqual([{ kind: 'hello' }, { kind: 'sit', seat: chair }]);
+
+    // The host's rejoin is the truth, whole.
+    session.setRole('host');
+    socket.drop();
+    vi.advanceTimersByTime(1000);
+    const second = FakeSocket.instances[1];
+    second.open();
+    const kinds = saidBy(second).map((m) => m.kind);
+    expect(kinds).toEqual(['state', 'plans']);
+    session.close();
+  });
+
   it('closed is closed - no reconnect, no status noise', () => {
     const status: boolean[] = [];
     const wire = relayWire(
@@ -332,5 +364,157 @@ describe('the relay wire through a dead spot (§97)', () => {
     vi.advanceTimersByTime(10000);
     expect(FakeSocket.instances).toHaveLength(1);
     expect(status).toEqual([true]);
+  });
+});
+
+/**
+ * §103. The session: the protocol policy that used to live inline in App,
+ * finally conversing in a test - two whole sessions over paired wires,
+ * no browser, no component, no refs.
+ */
+describe('the table session (§103)', () => {
+  const worldOf = (over: Partial<SessionWorld> = {}): SessionWorld => ({
+    roster: () => rosterOf(fighter()),
+    plans: () => [],
+    seats: () => [],
+    seatId: () => null,
+    tableRoster: () => null,
+    ...over,
+  });
+
+  const recorder = () => {
+    const got: {
+      rosters: { roster: Roster; home: 'own' | 'table' }[];
+      plans: unknown[];
+      seats: unknown[];
+    } = { rosters: [], plans: [], seats: [] };
+    const events: SessionEvents = {
+      onRoster: (roster, home) => got.rosters.push({ roster, home }),
+      onPlans: (plans) => got.plans.push(plans),
+      onSeats: (seats) => got.seats.push(seats),
+    };
+    return { got, events };
+  };
+
+  const room = { url: 'wss://relay.example', room: 'ABCDEF' };
+
+  it('answers a hello with the whole truth, slim, landing in the table home', () => {
+    const [hostWire, seatWire] = pairedWires();
+    const roster = rosterOf(fighter(), wizard());
+    const withFace: Roster = {
+      ...roster,
+      entries: roster.entries.map((entry, i) =>
+        i === 0
+          ? {
+              ...entry,
+              build: {
+                ...entry.build,
+                details: { ...entry.build.details, portrait: 'data:image/png;base64,xyz' },
+              },
+            }
+          : entry,
+      ),
+    };
+    const host = tableSession(null, worldOf({ roster: () => withFace }), recorder().events, hostWire)!;
+    host.setRole('host');
+
+    // A relayed seat: its hello is said by the socket opening in life;
+    // here the wire is the test's, so the seat says it itself.
+    const seat = recorder();
+    const seatSession = tableSession(room, worldOf(), seat.events, seatWire)!;
+    seatSession.setRole('seat');
+    seatSession.say({ kind: 'hello' });
+
+    // The answer: state, plans, seats - and the state travelled slim,
+    // landing in the table home (§96), never on the device's own roster.
+    expect(seat.got.rosters).toHaveLength(1);
+    expect(seat.got.rosters[0].home).toBe('table');
+    expect(seat.got.rosters[0].roster.entries[0].build.details.portrait).toBeUndefined();
+    expect(seat.got.plans).toHaveLength(1);
+    expect(seat.got.seats).toHaveLength(1);
+  });
+
+  it('on the same-browser broadcast, truth lands in the own home and hello says itself', () => {
+    const [hostWire, seatWire] = pairedWires();
+    const host = tableSession(null, worldOf(), recorder().events, hostWire)!;
+    host.setRole('host');
+
+    const seat = recorder();
+    const seatSession = tableSession(null, worldOf(), seat.events, seatWire)!;
+    seatSession.setRole('seat');
+    // No relay: the constructor already said hello... but it said it
+    // before setRole, with the session off - so nothing landed. Say it
+    // as the App's role effect would trigger a fresh exchange.
+    seatSession.say({ kind: 'hello' });
+
+    expect(seat.got.rosters.at(-1)?.home).toBe('own');
+  });
+
+  it('a seat keeps the faces its table roster already knew', () => {
+    const [hostWire, seatWire] = pairedWires();
+    const bare = rosterOf(fighter());
+    const known: Roster = {
+      ...bare,
+      entries: bare.entries.map((entry) => ({
+        ...entry,
+        build: {
+          ...entry.build,
+          details: { ...entry.build.details, portrait: 'data:image/png;base64,known' },
+        },
+      })),
+    };
+    const host = tableSession(null, worldOf({ roster: () => known }), recorder().events, hostWire)!;
+    host.setRole('host');
+
+    const seat = recorder();
+    const seatSession = tableSession(
+      room,
+      worldOf({ tableRoster: () => known }),
+      seat.events,
+      seatWire,
+    )!;
+    seatSession.setRole('seat');
+    seatSession.say({ kind: 'hello' });
+
+    expect(seat.got.rosters[0].roster.entries[0].build.details.portrait).toBe(
+      'data:image/png;base64,known',
+    );
+  });
+
+  it('carries an operation up and the truth back down', () => {
+    const [hostWire, seatWire] = pairedWires();
+    const hostGot = recorder();
+    const host = tableSession(null, worldOf(), hostGot.events, hostWire)!;
+    host.setRole('host');
+
+    const seatGot = recorder();
+    const seat = tableSession(room, worldOf(), seatGot.events, seatWire)!;
+    seat.setRole('seat');
+
+    seat.say({ kind: 'intent', op: 'queue', intent: { combatantId: 'cbt1', kind: 'cast' } });
+    expect(hostGot.got.plans).toHaveLength(1);
+
+    // The host's App would set state and announce; the session's word is
+    // enough here - and world.plans() is what it reads, current values.
+    host.announce('plans');
+    expect(seatGot.got.plans).toHaveLength(1);
+  });
+
+  it('a non-host announcing is a no-op, and off ignores the truth', () => {
+    const [aWire, bWire] = pairedWires();
+    const b = recorder();
+    const bSession = tableSession(room, worldOf(), b.events, bWire)!;
+    bSession.setRole('seat');
+
+    const a = recorder();
+    const aSession = tableSession(room, worldOf(), a.events, aWire)!;
+    aSession.setRole('seat');
+    aSession.announce('state'); // a seat has no truth to announce
+    expect(b.got.rosters).toHaveLength(0);
+
+    bSession.setRole('off');
+    aSession.setRole('host');
+    aSession.announce('state');
+    expect(b.got.rosters).toHaveLength(0); // off is off - the Builder tab rule
   });
 });

@@ -14,7 +14,7 @@ from the books" is an honest provenance and a weaker one than "verified against
 the SRD" — the audits exist because the difference turned out to matter
 fourteen times over. See **Provenance** below.
 
-The shipped history — one hundred and two sections with their reasoning — lives in
+The shipped history — one hundred and five sections with their reasoning — lives in
 **`docs/HISTORY.md`** so this file can be a plan.
 
 ---
@@ -436,7 +436,7 @@ forgery, and it is the parked §9.
 
 ## History
 
-One hundred and two shipped sections, with the reasoning intact, live in
+One hundred and five shipped sections, with the reasoning intact, live in
 **`docs/HISTORY.md`**. Forty-four of them were split out of this file on
 2026-08-09 — forty-four numbered sections had made a *plan* unreadable, and
 a roadmap should say what is left rather than what was done. §45 was

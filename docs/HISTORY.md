@@ -6834,3 +6834,88 @@ which is exactly the point - appending this section is what makes it
 say §102.
 
 **Gates.** 2390 tests / 116 files, tsc, oxlint, build in budget.
+
+## 103. The session: protocol policy behind one seam
+
+An architecture review asked where the multiplayer arc's complexity
+actually lives, and the answer was embarrassing in a specific way:
+sync.ts held the tested message algebra, and the entire protocol
+*policy* - who answers a hello and with what, what a rejoin re-says,
+which roster incoming truth may touch - lived inline in App's wire
+effect, threaded through eight refs, with a suppressed lint and not one
+test. Every bug this arc has had (§96's data loss, §97's dead spot)
+lived exactly there.
+
+**`tableSession` moves the policy behind an interface small enough to
+hold**: a role (`host`/`seat`/`off` - the §92 rule as a switch), `say`
+for operations, `announce` for changed truth (a non-host announcing is
+a no-op, the protocol rule kept where the protocol lives), and `close`.
+The caller hands in a `world` of current-value readers and takes events
+back; §96's quarantine verdict rides the event as `home: 'own' |
+'table'`. App keeps only the React binding - the refs survive, but as
+the world adapter behind one construction site rather than logic
+threaded through a handler.
+
+**The wire is the session's seam, and it is injectable because three
+adapters really cross it**: broadcastWire in a browser, relayWire over
+the network, and pairedWires in the tests - which is what finally lets
+two whole sessions converse in a test, no browser, no component. Six
+new tests do exactly that: the hello answered with the whole truth
+slim, the quarantine landing truth in the right home, faces kept from
+the table roster, an operation up and the truth back down, off being
+off, and the rejoin re-saying hello-then-chair through a fake socket.
+
+`CONTEXT.md` arrived alongside - the multiplayer domain's glossary in
+one page, so "session", "chair", "truth" and "dead spot" read the same
+in code, HISTORY and reviews.
+
+## 104. The map contract, and the trap the spread ate
+
+The same review found a bug wearing an architecture costume. §66 named
+`IsoMapProps` precisely so "a prop added to one renderer can't silently
+never reach the other" - and then the top-down map's props stayed an
+anonymous inline type, and the battle screen spread one *untyped*
+literal into all three renderers. A JSX spread from a variable gets no
+excess-property check, so when §81 gave the flat map `sprung`, nothing
+said the tactical view never learned the word: **sprung traps were
+invisible through FFT's lens**, and had been since §81 shipped.
+
+**The fix is a seam, not a patch.** `mapContract.ts` holds the one
+named interface all three renderers answer - `MapCoreProps`, with
+`sprung` where it always belonged - plus each projection's declared
+extras (`orientation` for the iso pair; `authoring` and `onPaintEnd`
+for the top-down map). The caller's literal is typed against the core,
+so the next dropped prop is a compile error, not a quiet absence. And
+the traps draw: the SVG iso view restates §81's circle-and-cross at the
+face centre, the GL view rides the over-everything pass in ruler ink,
+and both obey the §81 rule - only the sprung ones, because a trap the
+party can see is not a trap. Pinned from both ends: a render test
+through the GL component's SVG fallback, and a geometry test on the
+line buffer.
+
+## 105. One composer, two chairs
+
+§92's plan composer existed twice - ~115 lines in the seat, ~115 in the
+cockpit's pass-the-tablet block - and §98's cast feature was propagated
+into both by hand, which is the empirical proof the copies wanted to be
+one module. Ten rows of drift had already opened between them, most
+accidental (one checked `c.hp`, the other `hpOf()`; one labelled
+targets `t.label`, the other `nameOf(t)`).
+
+**`PlanComposer` is the one module**: the kind menu, the cast picker
+with its sort and its cantrip labels, the target picker, the note, the
+disabled rule and the intent construction. A `perspective` picks the
+voice - the seat speaks *to* the player, the cockpit *about* them - so
+every aria-label the tests knew survives verbatim.
+
+**What deliberately stays the chair's own**, because the drift there
+was recorded, not accidental: the target list (§93's decision - the
+seat sees through the fog's memory, the cockpit through live sight - so
+the list is an input, and the rule does not live in the module), the
+castable derivation, and the commit with its announcement - the seat's
+travels a wire, the cockpit's lands straight in the lifted queue.
+All 224 existing tests across both screens pass unchanged, which is
+the extraction saying it changed nothing but the number of copies.
+
+**Gates.** 2398 tests / 116 files, tsc, oxlint, build in budget - and
+the TableTab chunk got smaller, which is what deleting a copy does.

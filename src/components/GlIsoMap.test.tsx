@@ -36,6 +36,20 @@ afterEach(() => {
   vi.mocked(createRenderer).mockReturnValue(null);
 });
 
+describe('the shared contract (§104)', () => {
+  it('draws sprung traps through FFT\'s lens too - the prop §81 gave only the flat map', () => {
+    const trapped = { ...dungeon, traps: [{ x: 2, y: 2, note: 'pit' }] };
+    const { container, rerender } = render(
+      <GlIsoMap dungeon={trapped} sprung={['2,2']} />,
+    );
+    // The SVG fallback is the real IsoMap; the marker is §81's, restated iso.
+    expect(container.querySelector('.dmap-trap.is-sprung')).not.toBeNull();
+    // An armed trap on the shared board is not a trap: nothing drawn.
+    rerender(<GlIsoMap dungeon={trapped} sprung={[]} />);
+    expect(container.querySelector('.dmap-trap')).toBeNull();
+  });
+});
+
 describe('which renderer answers', () => {
   it('falls back to the SVG in an environment without WebGL - the jsdom default', () => {
     setWebGlProbeForTests(null);

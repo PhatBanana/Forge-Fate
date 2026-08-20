@@ -1,14 +1,14 @@
 import { useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { corridorSquares } from '../engine/dungeon';
-import type { Dungeon } from '../engine/dungeon';
 import type { Square } from '../encounter';
 import { toUserSpace, viewBoxAttr } from '../engine/letterbox';
 import type { ViewBox } from '../engine/letterbox';
-import type { Camera, Frame } from '../engine/camera';
+import type { Frame } from '../engine/camera';
+import type { MapCoreProps, TopDownExtraProps } from './mapContract';
 import { useMapCamera } from './useMapCamera';
 import { squareOf } from '../terrain';
-import type { ElevationMap, TerrainKind, TerrainMap } from '../terrain';
+import type { TerrainKind } from '../terrain';
 
 /**
  * A dungeon, drawn.
@@ -197,91 +197,13 @@ export function DungeonMap({
   focus = null,
   authoring = false,
   sprung = [],
-}: {
-  dungeon: Dungeon;
-  /**
-   * §81: the DM's own view of the furniture. In the editor a hidden room is
-   * drawn dashed and every trap is marked, because that is the screen where
-   * they are authored. At the table it is false, and the map draws only what
-   * the table can see - a hidden room is already absent from the dungeon it
-   * was handed (see `engine/furniture.ts`), and a trap shows once it is
-   * sprung and not before.
-   */
-  authoring?: boolean;
-  /** §81: traps already set off, by square key, drawn for everyone. */
-  sprung?: string[];
-  tokens?: Token[];
-  /** What the DM painted onto squares. See `terrain.ts`. */
-  terrain?: TerrainMap;
-  /** Z per square, in steps. Level 0 is the floor and is not stored. */
-  elevation?: ElevationMap;
-  /** Sight lines from the selected combatant, drawn over everything. */
-  sight?: { from: Square; to: Square; visible: boolean }[];
-  /** §88: telegraphed enemy turns - the walk dashed, the strike solid. */
-  intents?: { from: Square; to: Square; walk?: boolean }[];
-  /** Areas of effect, squares precomputed so the map stays a drawing. */
-  zones?: {
-    id: string;
-    label: string;
-    tint: number;
-    origin: Square;
-    squares: Square[];
-    /** A footprint being previewed, not a zone that exists. */
-    ghost?: boolean;
-  }[];
-  /** Squares the selected combatant can still reach, washed under the tokens.
-      The dash tier is what a Dash would add, drawn apart. */
-  reach?: { at: Square; dash?: boolean }[];
-  /** The hovered square, outlined while a tool is armed. */
-  cursor?: Square | null;
-  /** One short line - the ruler, mostly. Rides `noteAt` when given. */
-  note?: string;
-  /** Where the note floats: over this square, clamped inside the drawing.
-      Without it the note sits in the top-left corner. */
-  noteAt?: Square | null;
-  /** The measurement being read: the walked route, origin to cursor. */
-  ruler?: { points: Square[] } | null;
-  /** The lob being aimed: caster to cursor, drawn as X-COM draws a grenade. */
-  arc?: { from: Square; to: Square } | null;
-  /** Fog of war: what the party sees now, and what it has seen before.
-      Squares in neither set are dark; explored-but-unseen are dim. */
-  fog?: { visible: Set<string>; explored: Set<string> } | null;
-  /**
-   * How dark each square is, by key - only the ones that are not bright, so
-   * a fully lit map hands over an empty object and draws nothing.
-   *
-   * Under the fog rather than over it: the fog is what the party *knows*
-   * and the gloom is what is *there*, so an unexplored square reads as
-   * unexplored rather than as unlit. Both layers ignore the pointer.
-   */
-  gloom?: Record<string, 'dim' | 'dark' | 'magical-dark'>;
-  onMove?: (id: string, to: Square) => void;
-  /**
-   * Present while a terrain brush is selected. Clicking or dragging across
-   * squares calls it once per square entered; the caller decides what the
-   * brush does. Token drags still win - a pointer that went down on a token is
-   * moving the token, not painting under it.
-   */
-  onPaint?: (at: Square) => void;
-  /** §73: a paint stroke ended (pointer up or gone). Lets a rectangle tool
-      commit on release rather than guessing from per-square calls. */
-  onPaintEnd?: () => void;
-  /** The hovered square changed. Fired once per square, null on leaving. */
-  onHover?: (at: Square | null) => void;
-  /** A token was clicked without being dragged. Targeting, mostly. */
-  onTokenClick?: (id: string) => void;
-  /** A token was double-clicked: open the full thing. */
-  onTokenOpen?: (id: string) => void;
-  /** Where the camera is looking. Omitted means the whole map, which is what
-      the Dungeons editor wants and what every existing test assumes. */
-  camera?: Camera;
-  /** Present to make the map pannable and zoomable. Without it there are no
-      gestures at all - no wheel listener, no suppressed context menu. */
-  onCamera?: (next: Camera) => void;
-  /** A square to keep in sight - whoever's turn it is. The camera moves only
-      when it has gone off screen; see `useMapCamera`. */
-  focus?: Square | null;
-}) {
+}: /*
+  §104: the props are the shared map contract plus the top-down extras -
+  one named interface for all three renderers, so a prop added to one
+  cannot silently never reach another. Per-prop docs live with the
+  contract in `mapContract.ts`.
+*/
+MapCoreProps & TopDownExtraProps) {
   const w = dungeon.width * CELL;
   const h = dungeon.height * CELL;
 

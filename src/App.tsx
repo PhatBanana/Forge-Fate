@@ -29,16 +29,8 @@ import { canRedo, canUndo, forget, historyFor, record, redo, undo } from './undo
 import { push } from './toast';
 import type { Intent, Seat } from './seats';
 import { claimSeat, queueIntent, withdrawIntent } from './seats';
-import {
-  broadcastWire,
-  hostApply,
-  mergePortraits,
-  relayWire,
-  rememberRelayUrl,
-  seatApply,
-  slimRoster,
-} from './sync';
-import type { RelayConfig, TableWire } from './sync';
+import { rememberRelayUrl, tableSession } from './sync';
+import type { RelayConfig, SessionRole, TableSession } from './sync';
 import type { Toast } from './toast';
 import { ToastHost } from './components/ToastHost';
 import {
@@ -173,6 +165,12 @@ const TAB_LABELS: Record<Tab, string> = {
   seat: 'Player seat',
   table: 'Battle',
 };
+
+/* §103: the §92 rule as a function - the screen showing decides the
+   session's role. Everything that is not the table or a seat is off, so a
+   tab editing a character never has broadcasts land on its half-typed name. */
+const roleOf = (tab: Tab): SessionRole =>
+  tab === 'table' ? 'host' : tab === 'seat' ? 'seat' : 'off';
 
 /** "Wood Elf Ranger 11 / Rogue 3, 2014 rules" - enough to decide on. */
 function describeShared(build: Build): string {
@@ -355,20 +353,13 @@ export default function App() {
   );
   const [roster, setRoster] = useState<Roster>(loadRoster);
   /*
-    §94: the wire. The tab showing the battle is the host and broadcasts
-    the truth; a tab showing a seat sends operations and takes the truth
-    back. Refs rather than effect deps for the handler's reads, because a
-    wire outlives many renders and must always see the current world.
-
-    §95: which wire is a setting. With a relay configured - by the DM in
-    the Prep drawer, or carried in on a seat link's fragment - the table
-    meets over the network; without one it stays this browser's
-    BroadcastChannel, §94's zero-config shape. The relay reconnects itself
-    when a phone's screen comes back on, and `onOpen` is the rejoin: a
-    host re-says the truth, a seat re-says hello. State travels slim
-    (portraits stripped) and a seat keeps the faces it already knew.
+    §94/§103: the table's session. The protocol - roles, handshakes, the
+    §96 quarantine, the §97 rejoin - lives in sync.ts behind tableSession;
+    what stays here is the binding. The refs below are the session's
+    `world`: current-value readers, because a session outlives many
+    renders and must always see the current world.
   */
-  const wireRef = useRef<TableWire | null>(null);
+  const sessionRef = useRef<TableSession | null>(null);
   const tabRef = useRef(tab);
   tabRef.current = tab;
   const rosterRef = useRef(roster);
@@ -385,7 +376,6 @@ export default function App() {
   const [linkUp, setLinkUp] = useState(true);
   const tableRosterRef = useRef(tableRoster);
   tableRosterRef.current = tableRoster;
-  const relayRef = useRef<RelayConfig | null>(null);
   const [relay, setRelay] = useState<RelayConfig | null>(() => {
     const fromLink = tableFromLocation();
     if (fromLink) return fromLink;
@@ -396,7 +386,6 @@ export default function App() {
       return null;
     }
   });
-  relayRef.current = relay;
   useEffect(() => {
     /* Persisted so the phone that reloads without its fragment - or the
        DM who closed the lid - walks back into the same room. §96 also
@@ -413,84 +402,53 @@ export default function App() {
     }
   }, [relay]);
   useEffect(() => {
-    const sayAgain = () => {
-      const wire = wireRef.current;
-      if (!wire) return;
-      if (tabRef.current === 'table') {
-        wire.send({ kind: 'state', roster: slimRoster(rosterRef.current) });
-        wire.send({ kind: 'plans', plans: plansRef.current });
-      } else {
-        wire.send({ kind: 'hello' });
-        /* §97: rejoining IS re-sitting (§96's rule), said as well as
-           meant - a host that reloaded while this phone was in a dead
-           spot has an empty lobby until the chairs speak up. The wire
-           re-says any marks made in the dead spot by itself. */
-        const chair = seatIdRef.current
-          ? seatsRef.current.find((s) => s.rosterId === seatIdRef.current)
-          : undefined;
-        if (chair) wire.send({ kind: 'sit', seat: chair });
-      }
-    };
-    const wire = relay ? relayWire(relay, sayAgain, setLinkUp) : broadcastWire();
-    wireRef.current = wire;
+    /*
+      §103: the protocol policy - who answers a hello, what a rejoin
+      re-says, which roster incoming truth may touch - lives behind the
+      session's seam in sync.ts, where the tests reach it. This effect is
+      only the React binding: current-value readers in, state setters out.
+    */
+    const session = tableSession(
+      relay,
+      {
+        roster: () => rosterRef.current,
+        plans: () => plansRef.current,
+        seats: () => seatsRef.current,
+        seatId: () => seatIdRef.current,
+        tableRoster: () => tableRosterRef.current,
+      },
+      {
+        onRoster: (incoming, home) =>
+          home === 'table' ? setTableRoster(incoming) : setRoster(incoming),
+        onPlans: setPlans,
+        onSeats: setSeats,
+        onStatus: setLinkUp,
+      },
+    );
+    sessionRef.current = session;
     setLinkUp(!relay); // a relay starts down and says when it is not
-
-    if (!wire) return;
-    const off = wire.onMessage((message) => {
-      if (tabRef.current === 'table') {
-        // The host: apply the operation, answer the newcomer.
-        const applied = hostApply(message, rosterRef.current, plansRef.current, seatsRef.current);
-        if (applied.roster) setRoster(applied.roster);
-        if (applied.plans) setPlans(applied.plans);
-        if (applied.seats) setSeats(applied.seats);
-        if (message.kind === 'hello') {
-          wire.send({ kind: 'state', roster: slimRoster(rosterRef.current) });
-          wire.send({ kind: 'plans', plans: plansRef.current });
-          wire.send({ kind: 'seats', seats: seatsRef.current });
-        }
-      } else if (tabRef.current === 'seat') {
-        /*
-          A seat takes the truth. Only while the seat screen is up: a tab
-          editing a character in the Builder must not have the host's
-          broadcasts land on top of its half-typed name.
-        */
-        const applied = seatApply(message);
-        if (applied.roster) {
-          /*
-            §96: over a relay the truth lands in the table roster, never on
-            this device's own characters; on the same-browser broadcast the
-            tabs already share one roster and keep sharing it.
-          */
-          if (relayRef.current) {
-            setTableRoster(
-              mergePortraits(applied.roster, tableRosterRef.current ?? rosterRef.current),
-            );
-          } else {
-            setRoster(mergePortraits(applied.roster, rosterRef.current));
-          }
-        }
-        if (applied.plans) setPlans(applied.plans);
-        if (applied.seats) setSeats(applied.seats);
-      }
-    });
-    if (!relay) wire.send({ kind: 'hello' }); // the relay's onOpen says it
+    session?.setRole(roleOf(tabRef.current));
     return () => {
-      off();
-      wire.close();
-      wireRef.current = null;
+      session?.close();
+      sessionRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [relay]);
-  /* The host says so whenever the truth changes - or the moment it becomes
-     the host, which is the same broadcast. */
+  /* The §92 rule as a switch: the screen showing decides the role. */
   useEffect(() => {
-    if (tab === 'table') wireRef.current?.send({ kind: 'state', roster: slimRoster(roster) });
+    sessionRef.current?.setRole(roleOf(tab));
+  }, [tab]);
+  /* The host says so whenever the truth changes - or the moment it becomes
+     the host, which is the same announce. A non-host announcing is a no-op,
+     which is the protocol rule kept where the protocol lives. */
+  useEffect(() => {
+    sessionRef.current?.announce('state');
   }, [tab, roster]);
   useEffect(() => {
-    if (tab === 'table') wireRef.current?.send({ kind: 'plans', plans });
+    sessionRef.current?.announce('plans');
   }, [tab, plans]);
   useEffect(() => {
-    if (tab === 'table') wireRef.current?.send({ kind: 'seats', seats });
+    sessionRef.current?.announce('seats');
   }, [tab, seats]);
   /*
     Monsters you made, kept in their own store rather than on the roster.
@@ -1168,15 +1126,15 @@ export default function App() {
                either way - on one device the local apply IS the table, and
                with a host its echo simply confirms what we already show. */
             onQueue={(intent) => {
-              wireRef.current?.send({ kind: 'intent', op: 'queue', intent });
+              sessionRef.current?.say({ kind: 'intent', op: 'queue', intent });
               setPlans(queueIntent(plans, intent));
             }}
             onWithdraw={(combatantId) => {
-              wireRef.current?.send({ kind: 'intent', op: 'withdraw', combatantId });
+              sessionRef.current?.say({ kind: 'intent', op: 'withdraw', combatantId });
               setPlans(withdrawIntent(plans, combatantId));
             }}
             onPlay={(rosterId, play) => {
-              wireRef.current?.send({ kind: 'play', rosterId, play });
+              sessionRef.current?.say({ kind: 'play', rosterId, play });
               if (relay && tableRoster) {
                 setTableRoster(updatePlay(tableRoster, rosterId, play));
               } else {
@@ -1190,7 +1148,7 @@ export default function App() {
               const next = claimSeat(seats, rosterId, playerName);
               setSeats(next);
               const seat = next.find((one) => one.rosterId === rosterId);
-              if (seat) wireRef.current?.send({ kind: 'sit', seat });
+              if (seat) sessionRef.current?.say({ kind: 'sit', seat });
               setSeatId(rosterId);
             }}
             relay={relay}

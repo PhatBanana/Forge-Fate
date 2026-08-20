@@ -5,7 +5,7 @@ import { BASE_H, HH, PAWN_H, PAWN_W } from '../iso';
 import { LIGHT, DARK, cellJitter } from './palette';
 import { PRISM_INDICES, PRISM_VERTICES, buildTerrain, depthRange } from './scene';
 import { fogWash, gloomWash, reachWash, zoneWash } from './overlays';
-import { ARC_SEGMENTS, IMPACT_SEGMENTS, LINE_FLOATS, arcLines, sightLines } from './lines';
+import { ARC_SEGMENTS, IMPACT_SEGMENTS, LINE_FLOATS, arcLines, sightLines, trapLines } from './lines';
 import { glyphSprites, tokenSprites, zoneLabels } from './sprites';
 import type { Token } from '../../components/DungeonMap';
 import { VERTEX_FLOATS } from './types';
@@ -160,6 +160,17 @@ describe('the washes', () => {
 });
 
 describe('the lines', () => {
+  it('§104: a sprung trap is an X and a diamond; an armed one is nothing', () => {
+    const dungeon = generateDungeon('x', { rooms: 0, width: 6, height: 5 });
+    const proj = isoProjection(dungeon, {}, {}, 0);
+    const traps = [{ x: 2, y: 2 }, { x: 3, y: 3 }];
+    // Only 2,2 is sprung: 2 cross segments + 4 diamond edges = 6 segments.
+    const drawn = trapLines(traps, ['2,2'], proj, LIGHT);
+    expect(drawn.length).toBe(6 * 2 * LINE_FLOATS);
+    expect(trapLines(traps, [], proj, LIGHT).length).toBe(0);
+  });
+
+
   const proj = projOf(6, 6);
 
   it('colors a blocked sight line differently', () => {
