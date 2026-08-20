@@ -1,10 +1,45 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import { readFileSync } from 'node:fs'
+import { execSync } from 'node:child_process'
+
+/*
+  §102: the version the title screen shows, derived rather than typed.
+  This project's real version is its shipped-section number - the §s the
+  code comments cite - so the newest `## N.` heading in HISTORY.md IS the
+  version, and the short commit ties a screenshot of the screen to the
+  build it came from. package.json stays 0.0.0: a second number to bump
+  by hand is a second number that drifts.
+*/
+const version = (() => {
+  const section = (() => {
+    try {
+      const history = readFileSync(new URL('./docs/HISTORY.md', import.meta.url), 'utf8')
+      return [...history.matchAll(/^## (\d+)\./gm)].reduce((max, m) => Math.max(max, Number(m[1])), 0)
+    } catch {
+      return 0
+    }
+  })()
+  const commit = (() => {
+    try {
+      return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+        .toString()
+        .trim()
+    } catch {
+      return '' // a tarball without .git still builds, just unstamped
+    }
+  })()
+  if (!section) return ''
+  return `§${section}${commit ? ` · ${commit}` : ''}`
+})()
 
 // https://vite.dev/config/
 export default defineConfig({
   base: './',
   plugins: [react()],
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+  },
   build: {
     /*
       Rollup applies one warning limit to every chunk, which stopped saying

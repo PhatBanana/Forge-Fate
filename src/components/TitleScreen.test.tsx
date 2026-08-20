@@ -56,6 +56,12 @@ describe('what the menu says', () => {
     expect(screen.getByText(/nothing loaded yet/i)).toBeInTheDocument();
   });
 
+  it('§102: names the build in the footer - the newest section, derived', () => {
+    draw();
+    // Stamped by vite.config.ts from HISTORY.md's headings, never typed.
+    expect(screen.getByText(/^§\d+/)).toBeInTheDocument();
+  });
+
   it('gives every item its own line about what the place is for', () => {
     draw();
     expect(screen.getByText('The map, the initiative, the dice')).toBeInTheDocument();

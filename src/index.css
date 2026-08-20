@@ -8576,6 +8576,14 @@ input.pcard-amount {
   color: var(--text-faint);
 }
 
+/* §102: the build, named. Mono like every other number this app shows. */
+.title-version {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
 /*
   The first-run questions, in the title screen's voice: centred wordmark, the
   question underneath. It used to wear the masthead, which no longer exists

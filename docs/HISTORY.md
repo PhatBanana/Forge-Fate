@@ -6806,3 +6806,31 @@ carrying seat, room and relay in one frame.
 **Gates.** 2389 tests / 116 files, tsc, oxlint, build in budget; the QR
 cost the TableTab chunk ~5 kB of its 312 kB budget. Verified live in the
 preview browser against the deployed relay.
+
+## 102. The build, named on the door
+
+A small ask - a version in a footer - with one real decision inside it:
+what is this app's version? Not package.json's 0.0.0, which is a
+placeholder nobody bumps, and not a semver invented for the occasion,
+which would be a second number to forget. This project's real version
+has been on every commit and in every code comment for a hundred
+sections: the § number. So the title screen's footer now says which
+build it is - `§102 · <commit>` - and both halves are **derived at
+build time**, never typed: vite.config.ts reads the newest `## N.`
+heading out of HISTORY.md and asks git for the short hash, so shipping
+a section IS bumping the version. A build with no git (a tarball)
+shows nothing rather than a guess.
+
+Why the title screen: it is the hub (§35), in front of everyone at
+boot, and a bug report that starts with what this line says has
+already answered "which version are you on". The line sits under the
+privacy note, mono like every other number the app shows, dim enough
+to be furniture.
+
+**Pinned.** The footer test asserts a `§<number>` renders - through the
+same define the build uses, so the test fails if the derivation breaks.
+Checked in the running app: `§101 · 5339f8b` before this entry existed,
+which is exactly the point - appending this section is what makes it
+say §102.
+
+**Gates.** 2390 tests / 116 files, tsc, oxlint, build in budget.

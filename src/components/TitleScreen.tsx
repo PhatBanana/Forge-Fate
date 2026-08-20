@@ -108,6 +108,10 @@ export function TitleScreen({
 
         <p className="title-foot">
           Everything is kept in this browser. Nothing is uploaded anywhere.
+          {/* §102: which build this is - the newest shipped section and the
+              commit, stamped at build time. A bug report that starts with
+              what this line says has already answered the first question. */}
+          {__APP_VERSION__ && <span className="title-version">{__APP_VERSION__}</span>}
         </p>
       </div>
     </div>
