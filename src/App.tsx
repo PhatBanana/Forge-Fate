@@ -377,6 +377,12 @@ export default function App() {
   plansRef.current = plans;
   const seatsRef = useRef(seats);
   seatsRef.current = seats;
+  const seatIdRef = useRef(seatId);
+  seatIdRef.current = seatId;
+  /* §97: whether the line to the table is up. Always true on the
+     same-browser broadcast; a relay says so itself, and the seat screen
+     stops pretending when it says no. */
+  const [linkUp, setLinkUp] = useState(true);
   const tableRosterRef = useRef(tableRoster);
   tableRosterRef.current = tableRoster;
   const relayRef = useRef<RelayConfig | null>(null);
@@ -415,10 +421,20 @@ export default function App() {
         wire.send({ kind: 'plans', plans: plansRef.current });
       } else {
         wire.send({ kind: 'hello' });
+        /* §97: rejoining IS re-sitting (§96's rule), said as well as
+           meant - a host that reloaded while this phone was in a dead
+           spot has an empty lobby until the chairs speak up. The wire
+           re-says any marks made in the dead spot by itself. */
+        const chair = seatIdRef.current
+          ? seatsRef.current.find((s) => s.rosterId === seatIdRef.current)
+          : undefined;
+        if (chair) wire.send({ kind: 'sit', seat: chair });
       }
     };
-    const wire = relay ? relayWire(relay, sayAgain) : broadcastWire();
+    const wire = relay ? relayWire(relay, sayAgain, setLinkUp) : broadcastWire();
     wireRef.current = wire;
+    setLinkUp(!relay); // a relay starts down and says when it is not
+
     if (!wire) return;
     const off = wire.onMessage((message) => {
       if (tabRef.current === 'table') {
@@ -1181,6 +1197,7 @@ export default function App() {
             onRelayChange={setRelay}
             seatId={seatId}
             onSeatChange={setSeatId}
+            linkUp={linkUp}
             say={say}
           />
         )}

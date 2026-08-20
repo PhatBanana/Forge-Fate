@@ -31,10 +31,10 @@ import type { Intent, Seat } from './seats';
  * `seatApply` everything a seat does. The React wiring in App is only
  * plumbing around them.
  *
- * Known cost, accepted for now: `state` carries the whole roster, and a
+ * Known cost, accepted here: `state` carries the whole roster, and a
  * roster with §24.4 portraits is not small. In-process structured clones
- * make that free here; §95's network transport will want to slim it, and
- * that is a §95 problem recorded where §95 will trip over it.
+ * make that free on this wire; the network sends it slim - `slimRoster`,
+ * below, which was §95's first job.
  */
 
 export type TableMessage =
@@ -256,21 +256,71 @@ export function mergePortraits(incoming: Roster, known: Roster): Roster {
   };
 }
 
+/* ------------------------------------------------------------------ §97 -
+   What the wire could not say, kept to say again.
+
+   The §95 decision stands: an *operation* sent into a dead socket is
+   dropped, because a stale op replayed late is worse than one retyped -
+   the turn it planned for may already have run. But `sit` and `play` are
+   not operations. Each carries this device's own current truth (§92: a
+   player owns their hit points and their chair), so the latest one is
+   idempotent to re-say and wrong to lose - a player who marks damage in a
+   dead spot must not watch the host's rejoin broadcast undo it. The
+   pocket keeps only the latest per character, and hands it back after
+   the reconnect's hello. */
+
+export interface Unsaid {
+  sit?: Seat;
+  play: Record<string, PlayState>;
+}
+
+export const nothingUnsaid = (): Unsaid => ({ play: {} });
+
+/** Fold a message the wire failed to carry into the pocket - or refuse
+    it, which is how the drop-not-queue rule stays a rule. */
+export function noteUnsaid(unsaid: Unsaid, message: TableMessage): Unsaid {
+  switch (message.kind) {
+    case 'sit':
+      return { ...unsaid, sit: message.seat };
+    case 'play':
+      return { ...unsaid, play: { ...unsaid.play, [message.rosterId]: message.play } };
+    default:
+      return unsaid;
+  }
+}
+
+/** The pocket as messages, sit before marks - a chair before its owner
+    speaks. */
+export function resay(unsaid: Unsaid): TableMessage[] {
+  return [
+    ...(unsaid.sit ? [{ kind: 'sit', seat: unsaid.sit } satisfies TableMessage] : []),
+    ...Object.entries(unsaid.play).map(
+      ([rosterId, play]) => ({ kind: 'play', rosterId, play }) satisfies TableMessage,
+    ),
+  ];
+}
+
 /**
  * The networked wire. JSON on a websocket, reconnecting forever with a
  * capped backoff, because the phone at the table locks its screen and the
  * whole §95 design rides on rejoining being invisible: the socket reopens,
  * `onOpen` fires, the caller re-says `hello` (a seat) or re-broadcasts the
  * truth (the host), and the room converges. `close()` is the only way out.
+ *
+ * §97 added the two things a dead spot needs: `onStatus` says whether the
+ * line is up, so a screen can stop pretending, and the unsaid pocket
+ * re-says a player's own marks after the reconnect's hello.
  */
 export function relayWire(
   config: RelayConfig,
   onOpen?: () => void,
+  onStatus?: (up: boolean) => void,
 ): TableWire {
   const handlers = new Set<(message: TableMessage) => void>();
   let socket: WebSocket | null = null;
   let closed = false;
   let attempt = 0;
+  let unsaid = nothingUnsaid();
 
   const connect = () => {
     if (closed) return;
@@ -279,7 +329,12 @@ export function relayWire(
     socket = new WebSocket(joined.toString());
     socket.onopen = () => {
       attempt = 0;
+      onStatus?.(true);
       onOpen?.();
+      // After onOpen, so a seat's hello lands before its re-said marks.
+      const held = resay(unsaid);
+      unsaid = nothingUnsaid();
+      for (const message of held) socket?.send(JSON.stringify(message));
     };
     socket.onmessage = (event: MessageEvent) => {
       try {
@@ -292,6 +347,7 @@ export function relayWire(
     socket.onclose = () => {
       socket = null;
       if (closed) return;
+      onStatus?.(false);
       attempt += 1;
       setTimeout(connect, Math.min(500 * 2 ** attempt, 8000));
     };
@@ -301,10 +357,14 @@ export function relayWire(
 
   return {
     send: (message) => {
-      // A message while the socket is down is dropped, not queued: state
-      // and plans are re-broadcast whole on reconnect, hello is re-said by
-      // onOpen, and a stale op replayed late is worse than one retyped.
-      if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
+      // A message while the socket is down: ops are dropped (state and
+      // plans are re-broadcast whole on reconnect, hello is re-said by
+      // onOpen), and the device's own sit and marks go in the pocket.
+      if (socket?.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(message));
+      } else {
+        unsaid = noteUnsaid(unsaid, message);
+      }
     },
     onMessage: (handler) => {
       handlers.add(handler);

@@ -24,8 +24,10 @@
  */
 import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ASSETS = new URL('../dist/assets/', import.meta.url).pathname;
+// fileURLToPath, not `.pathname` - see the note in build-sw.mjs.
+const ASSETS = fileURLToPath(new URL('../dist/assets/', import.meta.url));
 
 /**
  * Budgets in bytes, keyed by the chunk name Vite puts before the hash.

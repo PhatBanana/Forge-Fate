@@ -538,6 +538,7 @@ export function TableTab({
   /* §95: the relay URL being typed, until Open the table commits it. */
   const [relayUrl, setRelayUrl] = useState('');
   const [planTarget, setPlanTarget] = useState('');
+  const [planSpell, setPlanSpell] = useState('');
   const [planNote, setPlanNote] = useState('');
   /** The optional rules this table has switched on. Off is the book. */
   /*
@@ -6327,6 +6328,8 @@ export function TableTab({
         (hpOf(c)?.now ?? 0) > 0 &&
         !(partyVisible && (!c.at || !partyVisible.has(keyOf(c.at)) || c.hidden)),
     );
+    /* §98: what this character can cast, for the plan that casts it. */
+    const castable = derived.get(selected.rosterId)?.ctx.spellcasting.castable ?? [];
     return (
       <div className="plan-block">
         <b>Queue for {nameOf(selected)}’s turn</b>
@@ -6348,6 +6351,7 @@ export function TableTab({
             onChange={(e) => setPlanKind(e.target.value as IntentKind)}
           >
             <option value="attack">Attack</option>
+            {castable.length > 0 && <option value="cast">Cast a spell</option>}
             <option value="move">Move</option>
             <option value="dash">Dash</option>
             <option value="dodge">Dodge</option>
@@ -6370,6 +6374,36 @@ export function TableTab({
               ))}
             </select>
           )}
+          {planKind === 'cast' && (
+            <>
+              <select
+                aria-label="What they plan to cast"
+                value={planSpell}
+                onChange={(e) => setPlanSpell(e.target.value)}
+              >
+                <option value="">— pick a spell —</option>
+                {[...castable]
+                  .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}{s.level ? ` — level ${s.level}` : ' — cantrip'}
+                    </option>
+                  ))}
+              </select>
+              <select
+                aria-label="Who it lands on"
+                value={planTarget}
+                onChange={(e) => setPlanTarget(e.target.value)}
+              >
+                <option value="">— nobody in particular —</option>
+                {targets.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {nameOf(t)}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <input
             type="text"
             aria-label="In their own words"
@@ -6379,13 +6413,18 @@ export function TableTab({
           />
           <button
             className="btn btn-sm btn-primary"
-            disabled={planKind === 'attack' && !planTarget}
+            disabled={(planKind === 'attack' && !planTarget) || (planKind === 'cast' && !planSpell)}
             onClick={() => {
+              const chosen =
+                planKind === 'cast' ? castable.find((s) => s.id === planSpell) : undefined;
               setPlans(
                 queueIntent(plans, {
                   combatantId: selected.id,
                   kind: planKind,
-                  ...(planKind === 'attack' && planTarget ? { targetId: planTarget } : {}),
+                  ...((planKind === 'attack' || planKind === 'cast') && planTarget
+                    ? { targetId: planTarget }
+                    : {}),
+                  ...(chosen ? { spellId: chosen.id, spellName: chosen.name } : {}),
                   ...(planNote.trim() ? { note: planNote.trim() } : {}),
                 }),
               );

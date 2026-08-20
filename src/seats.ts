@@ -52,6 +52,7 @@ export function releaseSeat(seats: Seat[], rosterId: string): Seat[] {
  */
 export type IntentKind =
   | 'attack'
+  | 'cast'
   | 'move'
   | 'dash'
   | 'dodge'
@@ -67,6 +68,15 @@ export interface Intent {
   kind: IntentKind;
   /** Who to hit, when the plan swings. */
   targetId?: string;
+  /**
+   * §98: which spell, when the plan casts - picked from the caster's own
+   * castable list, so "I cast a spell" stops arriving as free text the DM
+   * retypes. The name rides along so every screen can say it without a
+   * lookup; upcasting and the slot it comes from ride the note, because
+   * that is a table conversation, not a field.
+   */
+  spellId?: string;
+  spellName?: string;
   /** The player's own words - the half of every plan no enum holds. */
   note?: string;
   at: number;
@@ -101,6 +111,8 @@ export function describeIntent(
     switch (intent.kind) {
       case 'attack':
         return `Attack${targetName ? ` ${targetName}` : ''}`;
+      case 'cast':
+        return `Cast ${intent.spellName ?? 'a spell'}${targetName ? ` at ${targetName}` : ''}`;
       case 'move':
         return 'Move';
       case 'dash':

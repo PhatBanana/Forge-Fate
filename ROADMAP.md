@@ -14,7 +14,7 @@ from the books" is an honest provenance and a weaker one than "verified against
 the SRD" — the audits exist because the difference turned out to matter
 fourteen times over. See **Provenance** below.
 
-The shipped history — sixty-six sections with their reasoning — lives in
+The shipped history — ninety-nine sections with their reasoning — lives in
 **`docs/HISTORY.md`** so this file can be a plan.
 
 ---
@@ -26,8 +26,10 @@ stack - proficiencies, features, equipment, damage per round, spellcasting,
 roster, share links, play tracking, a 1:1 printable sheet; the DM half - SRD
 monsters, the encounter tracker, the forecast, the dungeon generator; a
 battle screen that *enforces* the rules it draws rather than mentioning
-them; and a UI built as a full-screen game, with hub-and-spoke navigation, a
-full-bleed board and a pan/zoom/rotate camera.
+them; a UI built as a full-screen game, with hub-and-spoke navigation, a
+full-bleed board and a pan/zoom/rotate camera; and, since §92-§98, a
+networked table - seats on phones over a relay, joined Jackbox-style by a
+room code, with the DM's device holding all authority.
 
 **The state.** Tests, lint, types and the build are clean, deployed from
 `main` to GitHub Pages. The data tables are diffed against the SRD 5.1 and
@@ -277,6 +279,44 @@ both halves.
   §66.1 pin that reproduced the quirk by name was replaced, as it asked to
   be, with tests of the correct behavior.
 
+### 6. The networked table — `[~]` **the spine is built; what is open is what makes it a product**
+
+§92-§96 built the whole spine in five sections: seats and intents (the
+DM's device *is* the table; a player proposes, never writes), the
+phone-sized seat screen, the transport interface with BroadcastChannel
+proving the protocol, the relay (a Node room for the laptop at the table,
+a Cloudflare Worker for the cloud), and the Jackbox join with the table's
+roster in its own store so a synced fight never touches the characters a
+phone built for itself. Open, each sized:
+
+- `[x]` **The dead spot** — done in §97. The wire keeps a player's own
+  `sit` and `play` marks when the socket is down and re-says them after
+  the reconnect's hello, so the host's rejoin broadcast cannot undo what
+  a player marked; the seat shows the line's status instead of silently
+  eating taps. Ops stay dropped - §95's decision, kept on purpose - and
+  the strip says to queue the plan again.
+- `[x]` **A spell is not `other`** — done in §98. `cast` is an
+  IntentKind; the plan names the spell from the caster's own castable
+  list, target optional, in both composers, and only casters are offered
+  it. "Run it" deliberately does *not* run a cast: a cast is a resource
+  choice the plan does not carry (which slot, upcast, pact or grid), and
+  §92's rule is that a plan can never do what a click could not — there
+  is no one click that casts. The slot rides the note; the DM runs it
+  with the pips beside the plan.
+- `[ ]` **A relay to point at** — **S**. The Worker exists and nothing
+  runs it: no deployed instance, no URL that answers, `wrangler deploy`
+  by hand with no CI. Either deploy the free-tier Worker once and put its
+  URL where the join screen and README can say it, or record that every
+  table hosts its own - both are decisions, and today it is neither.
+
+### 7. Housekeeping a fresh clone found — `[x]` **done in §99**
+
+- `[x]` A `.gitattributes` — `* text=auto eol=lf`, ending the phantom
+  snapshot modification every Windows clone woke up to.
+- `[x]` The scratchpad probes documented in `docs/development.md`,
+  per-machine Chromium path and all; and "Which screens" updated - it
+  still called phones out of scope, which §93's seat made untrue.
+
 ### Parked
 
 - `[!]` **Non-SRD subclasses** (~108) - no licensed source; inventing them
@@ -395,7 +435,7 @@ forgery, and it is the parked §9.
 
 ## History
 
-Fifty-two shipped sections, with the reasoning intact, live in
+Ninety-nine shipped sections, with the reasoning intact, live in
 **`docs/HISTORY.md`**. Forty-four of them were split out of this file on
 2026-08-09 — forty-four numbered sections had made a *plan* unreadable, and
 a roadmap should say what is left rather than what was done. §45 was

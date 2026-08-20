@@ -44,6 +44,7 @@ export function SeatTab({
   onRelayChange,
   seatId,
   onSeatChange,
+  linkUp = true,
   say,
 }: {
   roster: Roster;
@@ -67,10 +68,14 @@ export function SeatTab({
   /** The roster entry this seat plays; null shows the picker. */
   seatId: string | null;
   onSeatChange: (id: string | null) => void;
+  /** §97: whether the line to the table is up. The relay says; the
+      same-browser broadcast never goes down. */
+  linkUp?: boolean;
   say?: Say;
 }) {
   const [kind, setKind] = useState<IntentKind>('attack');
   const [target, setTarget] = useState('');
+  const [spell, setSpell] = useState('');
   const [note, setNote] = useState('');
   /* §96: the join block's scratch. The relay URL is remembered from the
      last table this device sat at; the code is what friends shout. */
@@ -80,6 +85,19 @@ export function SeatTab({
 
   const entry = roster.entries.find((e) => e.id === seatId);
   const ctx = useMemo(() => (entry ? deriveBuild(entry.build) : null), [entry]);
+
+  /* §97: the truth about the line, where the player can see it. A strip,
+     not a lock - the sheet stays usable, because marks made now are kept
+     by the wire and re-said when the line returns. A plan is the one
+     thing that is not: an op is never replayed (§95's rule), so it says
+     to queue it again. */
+  const offline = relay && !linkUp && (
+    <div className="seat-offline" role="status">
+      The line to the table is down — reconnecting. Marks you make here are
+      kept and said again when it returns; a plan queued now does not
+      travel, so queue it again when the line is back.
+    </div>
+  );
 
   if (!entry || !ctx) {
     /*
@@ -92,6 +110,7 @@ export function SeatTab({
     */
     return (
       <div className="stack seat">
+        {offline}
         {onRelayChange && !relay && (
           <Panel
             title="Join a table"
@@ -233,6 +252,7 @@ export function SeatTab({
 
   return (
     <div className="stack seat">
+      {offline}
       <Panel title={name} subtitle="Your seat at the table. The board stays with the DM; this screen is your hand.">
         <p className={`seat-status${away === 0 ? ' is-up' : ''}`}>{status}</p>
         {running && encounter.round > 0 && (
@@ -268,6 +288,10 @@ export function SeatTab({
                 onChange={(e) => setKind(e.target.value as IntentKind)}
               >
                 <option value="attack">Attack</option>
+                {/* §98: only a caster is offered the word. */}
+                {ctx.spellcasting.castable.length > 0 && (
+                  <option value="cast">Cast a spell</option>
+                )}
                 <option value="move">Move</option>
                 <option value="dash">Dash</option>
                 <option value="dodge">Dodge</option>
@@ -290,6 +314,40 @@ export function SeatTab({
                   ))}
                 </select>
               )}
+              {kind === 'cast' && (
+                <>
+                  {/* §98: the spell by name, from this character's own
+                      castable list - the same list the sheet prints. The
+                      slot it comes from, and any upcast, ride the note:
+                      that is a table conversation, not a field. */}
+                  <select
+                    aria-label="What you plan to cast"
+                    value={spell}
+                    onChange={(e) => setSpell(e.target.value)}
+                  >
+                    <option value="">— pick a spell —</option>
+                    {[...ctx.spellcasting.castable]
+                      .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}{s.level ? ` — level ${s.level}` : ' — cantrip'}
+                        </option>
+                      ))}
+                  </select>
+                  <select
+                    aria-label="Who it lands on"
+                    value={target}
+                    onChange={(e) => setTarget(e.target.value)}
+                  >
+                    <option value="">— nobody in particular —</option>
+                    {targets.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
               <input
                 type="text"
                 aria-label="In your own words"
@@ -299,12 +357,17 @@ export function SeatTab({
               />
               <button
                 className="btn btn-sm btn-primary"
-                disabled={kind === 'attack' && !target}
+                disabled={(kind === 'attack' && !target) || (kind === 'cast' && !spell)}
                 onClick={() => {
+                  const chosen =
+                    kind === 'cast'
+                      ? ctx.spellcasting.castable.find((s) => s.id === spell)
+                      : undefined;
                   onQueue({
                     combatantId: me.id,
                     kind,
-                    ...(kind === 'attack' && target ? { targetId: target } : {}),
+                    ...((kind === 'attack' || kind === 'cast') && target ? { targetId: target } : {}),
+                    ...(chosen ? { spellId: chosen.id, spellName: chosen.name } : {}),
                     ...(note.trim() ? { note: note.trim() } : {}),
                   });
                   setNote('');

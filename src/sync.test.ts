@@ -1,5 +1,16 @@
-import { describe, expect, it } from 'vitest';
-import { hostApply, mergePortraits, newRoomCode, pairedWires, seatApply, slimRoster } from './sync';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  hostApply,
+  mergePortraits,
+  newRoomCode,
+  nothingUnsaid,
+  noteUnsaid,
+  pairedWires,
+  relayWire,
+  resay,
+  seatApply,
+  slimRoster,
+} from './sync';
 import type { TableMessage } from './sync';
 import { fighter, rosterOf, wizard } from './test/factories';
 import { hpNow } from './play';
@@ -127,5 +138,154 @@ describe('the relay trimmings (§95)', () => {
     const merged = mergePortraits(slim, withFace);
     expect(merged.entries[0].build.details.portrait).toBe('data:image/png;base64,xyz');
     expect(mergePortraits(slim, roster).entries[0].build.details.portrait).toBeUndefined();
+  });
+});
+
+/**
+ * §97. The dead spot: what a wire may keep to say again, and what it must
+ * still drop. The pocket holds a device's own truth - its chair, its
+ * marks, latest per character - and refuses every operation, which is how
+ * §95's drop-not-queue decision survives the feature that softens it.
+ */
+describe('the unsaid pocket (§97)', () => {
+  const chair = { id: 's1', rosterId: 'c0', playerName: 'Alex', claimedAt: 1 };
+  const rested = rosterOf(fighter()).entries[0].play;
+  const marks = { ...rested, currentHp: 3 };
+
+  it('keeps the latest sit and the latest marks per character', () => {
+    let unsaid = nothingUnsaid();
+    unsaid = noteUnsaid(unsaid, { kind: 'sit', seat: { ...chair, playerName: 'Al' } });
+    unsaid = noteUnsaid(unsaid, { kind: 'sit', seat: chair });
+    unsaid = noteUnsaid(unsaid, { kind: 'play', rosterId: 'c0', play: rested });
+    unsaid = noteUnsaid(unsaid, { kind: 'play', rosterId: 'c0', play: marks });
+    unsaid = noteUnsaid(unsaid, { kind: 'play', rosterId: 'c1', play: marks });
+
+    const said = resay(unsaid);
+    expect(said).toEqual([
+      { kind: 'sit', seat: chair },
+      { kind: 'play', rosterId: 'c0', play: marks },
+      { kind: 'play', rosterId: 'c1', play: marks },
+    ]);
+  });
+
+  it('refuses operations and the host\'s own words', () => {
+    let unsaid = nothingUnsaid();
+    unsaid = noteUnsaid(unsaid, {
+      kind: 'intent',
+      op: 'queue',
+      intent: { combatantId: 'cbt1', kind: 'dodge' },
+    });
+    unsaid = noteUnsaid(unsaid, { kind: 'state', roster: rosterOf(fighter()) });
+    unsaid = noteUnsaid(unsaid, { kind: 'plans', plans: [plan()] });
+    unsaid = noteUnsaid(unsaid, { kind: 'hello' });
+    expect(resay(unsaid)).toEqual([]);
+  });
+});
+
+/**
+ * The relay wire itself, over a socket the test owns: the line goes down,
+ * the screen is told, the pocket fills, and the reconnect says hello
+ * before it says anything held.
+ */
+describe('the relay wire through a dead spot (§97)', () => {
+  class FakeSocket {
+    static OPEN = 1;
+    static instances: FakeSocket[] = [];
+    url: string;
+    readyState = 0;
+    sent: string[] = [];
+    onopen: (() => void) | null = null;
+    onmessage: ((event: { data: string }) => void) | null = null;
+    onclose: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    constructor(url: string) {
+      this.url = url;
+      FakeSocket.instances.push(this);
+    }
+    send(data: string) {
+      this.sent.push(data);
+    }
+    close() {
+      this.readyState = 3;
+      this.onclose?.();
+    }
+    open() {
+      this.readyState = FakeSocket.OPEN;
+      this.onopen?.();
+    }
+    drop() {
+      this.readyState = 3;
+      this.onclose?.();
+    }
+  }
+
+  beforeEach(() => {
+    FakeSocket.instances = [];
+    vi.stubGlobal('WebSocket', FakeSocket);
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  const saidBy = (socket: FakeSocket): TableMessage[] =>
+    socket.sent.map((frame) => JSON.parse(frame) as TableMessage);
+
+  it('reports the line, pockets marks in the dead spot, and re-says them after hello', () => {
+    const status: boolean[] = [];
+    const wire = relayWire(
+      { url: 'wss://relay.example', room: 'ABCDEF' },
+      () => wire.send({ kind: 'hello' }),
+      (up) => status.push(up),
+    );
+    const first = FakeSocket.instances[0];
+    first.open();
+    expect(status).toEqual([true]);
+    expect(saidBy(first)).toEqual([{ kind: 'hello' }]);
+
+    first.drop();
+    expect(status).toEqual([true, false]);
+
+    // In the dead spot: marks and the chair go in the pocket, an op does not.
+    const marks = { ...rosterOf(fighter()).entries[0].play, currentHp: 3 };
+    const chair = { id: 's1', rosterId: 'c0', claimedAt: 1 };
+    wire.send({ kind: 'play', rosterId: 'c0', play: marks });
+    wire.send({ kind: 'sit', seat: chair });
+    wire.send({ kind: 'intent', op: 'withdraw', combatantId: 'cbt1' });
+
+    vi.advanceTimersByTime(1000);
+    const second = FakeSocket.instances[1];
+    expect(second).toBeDefined();
+    second.open();
+
+    // Hello first (onOpen), then the pocket - the op stays dropped.
+    expect(saidBy(second)).toEqual([
+      { kind: 'hello' },
+      { kind: 'sit', seat: chair },
+      { kind: 'play', rosterId: 'c0', play: marks },
+    ]);
+    expect(status).toEqual([true, false, true]);
+
+    // Said is said: a second drop re-says nothing stale.
+    second.drop();
+    vi.advanceTimersByTime(2000);
+    const third = FakeSocket.instances[2];
+    third.open();
+    expect(saidBy(third)).toEqual([{ kind: 'hello' }]);
+  });
+
+  it('closed is closed - no reconnect, no status noise', () => {
+    const status: boolean[] = [];
+    const wire = relayWire(
+      { url: 'wss://relay.example', room: 'ABCDEF' },
+      undefined,
+      (up) => status.push(up),
+    );
+    FakeSocket.instances[0].open();
+    wire.close();
+    vi.advanceTimersByTime(10000);
+    expect(FakeSocket.instances).toHaveLength(1);
+    expect(status).toEqual([true]);
   });
 });

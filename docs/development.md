@@ -104,13 +104,29 @@ Three of the suites are less obvious and worth knowing about:
   README and in this file against the tables, because prose cannot be tested but
   numbers can, and numbers are what go out of date.
 
+## The scratchpad probes
+
+`scratchpad/` holds one `runNN.mjs` per shipped section — a Playwright script
+that drives the built app in a real Chromium and screenshots what the section
+built, in both themes and at the width that matters (the desk wide, the seat
+at phone width). The PNGs beside each probe are the record: `docs/HISTORY.md`
+"Gates" lines cite them, and re-running an old probe is how a later change
+proves it kept an earlier section's screen.
+
+They are a developer tool, not CI. Each expects the built app served on the
+port named at the top of the file (`npx vite preview --port 4180`), some spawn
+`relay/server.mjs` themselves, and the Chromium executable path at the top is
+per-machine — point `EXE` at a local Chromium before running one.
+
 ## Which screens
 
-**Tablets and desktops.** The floor is a tablet in portrait, about 768px, so
-browser passes run at 1360, 1024 and 768. Phones are out of scope by decision
-rather than by neglect: a turn order, a map and a character's numbers all want
-to be on screen at once, and a 380px column holds one of the three. See
-ROADMAP §6.
+**Tablets and desktops for the desk; a phone for the seat.** The two-handed
+screens — the battle board, the dungeon workshop — keep a tablet floor of
+about 768px, so browser passes run at 1360, 1024 and 768: a turn order, a map
+and a character's numbers all want to be on screen at once, and a 380px
+column holds one of the three (§86 says so on the screen itself). The
+player's seat (§93) is the deliberate exception, designed *at* 380px,
+because a phone in a player's hand is the whole point of it.
 
 ## Where the reasoning lives
 

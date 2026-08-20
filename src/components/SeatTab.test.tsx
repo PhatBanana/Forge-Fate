@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SeatTab } from './SeatTab';
 import { fighter, rosterOf, wizard } from '../test/factories';
@@ -114,6 +114,18 @@ describe('taking a seat', () => {
     seat({ roster: updateEncounter(roster, enc), seatId: 'c0' });
     expect(screen.getByText(/The fight has not started/)).toBeInTheDocument();
   });
+
+  it('§97: says when the line is down, and only at a relayed table', () => {
+    seat({ relay: { url: 'ws://x', room: 'X7Q2M4' }, seatId: 'c0', linkUp: false });
+    // The strip informs, the sheet stays: the marks are kept and re-said.
+    expect(screen.getByRole('status')).toHaveTextContent(/line to the table is down/);
+    expect(screen.getByText(/hit points/i)).toBeInTheDocument();
+  });
+
+  it('§97: on one device there is no line to lose', () => {
+    seat({ seatId: 'c0', linkUp: false });
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
 });
 
 describe('the fight from the chair', () => {
@@ -130,6 +142,31 @@ describe('the fight from the chair', () => {
     expect(props.onQueue).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'dodge', note: 'behind the pillar' }),
     );
+  });
+
+  it('§98: a caster composes a cast by name, from their own list', async () => {
+    const user = userEvent.setup();
+    const props = seat({ roster: runningRoster(), seatId: 'c1' });
+
+    await user.selectOptions(screen.getByLabelText('What you plan to do'), 'cast');
+    await user.selectOptions(screen.getByLabelText('What you plan to cast'), 'fireball');
+    await user.click(screen.getByRole('button', { name: 'Queue it' }));
+
+    expect(props.onQueue).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'cast', spellId: 'fireball', spellName: 'Fireball' }),
+    );
+  });
+
+  it('§98: a character with nothing to cast is never offered the word', () => {
+    // The wizard up first this time, so the fighter is the one composing.
+    const roster = rosterOf(fighter(), wizard());
+    let enc = emptyEncounter();
+    enc = addCharacter(enc, 'c0', { initiative: 10 });
+    enc = addCharacter(enc, 'c1', { initiative: 20 });
+    enc = nextTurn(enc).encounter;
+    seat({ roster: updateEncounter(roster, enc), seatId: 'c0' });
+    const composer = screen.getByLabelText('What you plan to do');
+    expect(within(composer).queryByRole('option', { name: 'Cast a spell' })).toBeNull();
   });
 
   it('on your turn, reads the plan back and offers no button to run it', () => {

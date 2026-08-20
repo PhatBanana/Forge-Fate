@@ -35,8 +35,11 @@
 import { createHash } from 'node:crypto';
 import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const DIST = new URL('../dist/', import.meta.url).pathname;
+// fileURLToPath, not `.pathname`: the latter is `/C:/...` on Windows, which
+// fs cannot open, and the failure reads as "no dist/" on a dist that exists.
+const DIST = fileURLToPath(new URL('../dist/', import.meta.url));
 
 /** Every emitted file, as a path relative to `dist/`. */
 async function walk(dir, prefix = '') {

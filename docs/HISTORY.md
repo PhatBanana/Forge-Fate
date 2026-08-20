@@ -6614,3 +6614,117 @@ a false FAIL in the run, both from the same wrong key).
 
 **Gates.** 2374 tests / 114 files, tsc, oxlint, build in budget; run96
 both themes, with run78 through run95 and check87 green as the net.
+
+## 97. The dead spot: kept marks and an honest line
+
+§95 wrote the rule and §95 wrote the cost, in the same comment: a message
+sent into a dead socket is dropped, not queued, because a stale op
+replayed late is worse than one retyped. For operations that call stands -
+the turn a plan was queued for may already have run by the time the line
+returns. But the drop was eating two things that are not operations: a
+player's `play` marks and their `sit`. Each carries the sending device's
+own current truth (§92's rule - a player owns their hit points and their
+chair), and the reconnect made losing them worse than silent: the host,
+answering the rejoin hello, broadcast its own stale copy of the fight, and
+the player watched the damage they had marked in the dead spot get undone
+by the screen in front of them.
+
+**The pocket.** The wire itself now keeps what it could not say -
+`noteUnsaid` folds a failed send into an `Unsaid` record, latest per
+character, and its default case is where §95's decision survives the
+feature that softens it: an intent, a `state`, a `hello` offered to the
+pocket comes back refused. On reconnect the held messages go out *after*
+`onOpen` - hello first, so the host knows someone is back before their
+marks arrive - and said is said: the pocket empties on the way out, so a
+second drop re-says nothing stale. Two pure functions, tested with no
+socket in sight, same as `hostApply` before them; the wire test walks a
+fake WebSocket through the whole dead spot - drop, pocket, reconnect,
+hello-then-marks, op still gone.
+
+**Rejoining is re-sitting, said as well as meant.** §96 made the claim;
+§97 makes the seat's `sayAgain` send its own chair after every hello. The
+case it heals is the host reloading while a phone was in the dead spot:
+the lobby comes back empty and stays empty until the chairs speak up,
+which they now do without being asked.
+
+**The honest line.** `relayWire` grew `onStatus`, App keeps `linkUp`, and
+the seat shows a strip when the answer is no: the line is down, the marks
+you make are kept and re-said, and the one thing that does not travel - a
+plan - is named, with what to do about it. A strip, not a lock: the sheet
+stays usable because the pocket makes it safe to use. The same-browser
+broadcast never shows it, having no line to lose, and the wire closing on
+purpose says nothing - a status callback firing into an unmounting
+component was the one new failure mode this could have shipped.
+
+**Found on the way.** `npm run build` had never worked on Windows: both
+post-build scripts resolved `dist/` through `new URL(...).pathname`, which
+on Windows is `/C:/...` - a path fs cannot open - so build-sw reported "No
+dist/" over a dist that existed. CI never saw it because Linux pathnames
+survive the idiom. Both now use `fileURLToPath`, the form
+`scripts/audit/refresh.mjs` already had.
+
+**Gates.** 2380 tests / 114 files, tsc, oxlint, build in budget.
+
+## 98. A spell is not `other`
+
+The seat §92 built speaks the command menu's vocabulary - attack, move,
+dash, dodge, disengage, help, hide - and half of every party casts for a
+living. Their whole turn arrived as `other` plus free text, which the DM
+read, interpreted and retyped: exactly the round trip the plan queue
+exists to remove.
+
+**`cast` is an IntentKind now**, and the plan names the spell: picked
+from the caster's own castable list - `spellcasting.castable`, the same
+list the sheet prints, granted spells included - never typed. The name
+rides the intent beside the id, so every screen can say "Cast Fireball
+at Goblin A" without a lookup, and a plan that lost its name (an old
+save, a foreign wire) still reads as "Cast a spell" rather than
+crashing into the gap. The target is optional, because Fireball lands
+on a square as often as a person; whoever it is for, the composer's
+"nobody in particular" is a real answer. Both composers grew the same
+control - the phone's seat and the cockpit's pass-the-tablet block -
+and only a caster is offered the word: a fighter's menu is exactly as
+long as it was.
+
+**Run it does not run a cast, and that is a decision, not a gap.** §92's
+rule is that a plan can never do what a click could not, with `maySwingAt`
+as the shared guard - and the Table has no single click that casts a
+spell. A cast is a resource choice the plan does not carry: which slot,
+upcast or at level, pact magic or the ordinary grid for the Warlock who
+has both. Automating it would mean inventing answers the player never
+gave. So the slot and any upcast ride the note - a table conversation,
+not a field - and the DM runs the cast with the ordinary controls that
+sit beside the plan: the action pip, the slot pip, Done. The §92 comment
+already said it: everything a plan cannot automate stays a stated
+intention the DM performs.
+
+**Pinned.** describeIntent's cast lines, name-and-all and nameless; the
+wizard composing Fireball by name from her seat; the fighter never
+offered the option.
+
+## 99. Housekeeping a fresh clone found
+
+Three small things §97's fresh clone tripped over, fixed in one pass
+rather than re-found in three.
+
+**A `.gitattributes`.** The repo had none, so autocrlf on Windows checked
+files out with CRLF and the regression snapshot showed as modified with
+an empty diff on every clean clone - dirt that never washes. `* text=auto
+eol=lf` ends it, `*.png binary` says what the screenshots are, and the
+tree was renormalized under the new rules (a no-op for content - every
+file was already stored with LF).
+
+**The scratchpad probes, documented.** `scratchpad/` is one `runNN.mjs`
+per shipped section - Playwright driving the built app, screenshotting
+what the section built, PNGs kept as the record the Gates lines cite -
+and development.md said not one word about it. Now it does, including
+the honest operational note: the Chromium path at the top of each probe
+is per-machine, and each expects the preview server on the port it names.
+
+**"Which screens", untrue since §93.** development.md still said phones
+were out of scope by decision. The two-handed screens keep their tablet
+floor and §86's gate says so on screen - but the player's seat is
+*designed at* 380px, and the doc now says both halves instead of the one
+that stopped being the whole story.
+
+**Gates.** 2382 tests / 114 files, tsc, oxlint, build in budget.

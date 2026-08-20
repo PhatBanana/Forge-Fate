@@ -1,0 +1,5 @@
+# One line ending everywhere. Without this, autocrlf on Windows checks the
+# repo out with CRLF and every fresh clone shows modified files with empty
+# diffs - the snapshot file was the one that kept "changing".
+* text=auto eol=lf
+*.png binary

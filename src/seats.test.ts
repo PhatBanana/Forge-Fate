@@ -64,5 +64,14 @@ describe('intents', () => {
       'shove him off the ledge',
     );
     expect(describeIntent(plan({ kind: 'other' }))).toBe('Something else');
+    // §98: a cast names its spell; the slot and any upcast ride the note.
+    expect(
+      describeIntent(plan({ kind: 'cast', spellId: 'fireball', spellName: 'Fireball', targetId: 'm1' }), 'Goblin A'),
+    ).toBe('Cast Fireball at Goblin A');
+    expect(
+      describeIntent(plan({ kind: 'cast', spellId: 'shield', spellName: 'Shield', note: 'third-level slot' })),
+    ).toBe('Cast Shield — “third-level slot”');
+    // A cast that lost its name (an old plan, a foreign wire) still reads.
+    expect(describeIntent(plan({ kind: 'cast' }))).toBe('Cast a spell');
   });
 });

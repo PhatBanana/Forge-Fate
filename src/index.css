@@ -6489,6 +6489,16 @@ input.pcard-amount {
   text-align: center;
 }
 
+/* §97: the line to the table, when it is down. A strip, not a modal - the
+   sheet stays usable because the marks are kept and re-said. */
+.seat-offline {
+  border: 1px solid var(--tint-red);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--red);
+}
+
 @media (max-width: 480px) {
   .seat .plan-block .row {
     flex-direction: column;
