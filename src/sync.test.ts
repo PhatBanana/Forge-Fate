@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   hostApply,
+  isTableMessage,
   mergePortraits,
   newRoomCode,
   nothingUnsaid,
@@ -168,6 +169,30 @@ describe('the unsaid pocket (§97)', () => {
     ]);
   });
 
+  it('§100: the boundary guard accepts the protocol and nothing else', () => {
+    const roster = rosterOf(fighter());
+    // Every word the protocol speaks.
+    expect(isTableMessage({ kind: 'hello' })).toBe(true);
+    expect(isTableMessage({ kind: 'state', roster })).toBe(true);
+    expect(isTableMessage({ kind: 'plans', plans: [] })).toBe(true);
+    expect(isTableMessage({ kind: 'seats', seats: [] })).toBe(true);
+    expect(isTableMessage({ kind: 'sit', seat: chair })).toBe(true);
+    expect(isTableMessage({ kind: 'play', rosterId: 'c0', play: marks })).toBe(true);
+    expect(
+      isTableMessage({ kind: 'intent', op: 'queue', intent: { combatantId: 'x', kind: 'cast' } }),
+    ).toBe(true);
+    expect(isTableMessage({ kind: 'intent', op: 'withdraw', combatantId: 'x' })).toBe(true);
+    // And none of a stranger's.
+    expect(isTableMessage(null)).toBe(false);
+    expect(isTableMessage('hello')).toBe(false);
+    expect(isTableMessage({ kind: 'pwn' })).toBe(false);
+    expect(isTableMessage({ kind: 'state', roster: [] })).toBe(false);
+    expect(isTableMessage({ kind: 'play', play: marks })).toBe(false);
+    expect(
+      isTableMessage({ kind: 'intent', op: 'queue', intent: { combatantId: 'x', kind: 'pwn' } }),
+    ).toBe(false);
+  });
+
   it('refuses operations and the host\'s own words', () => {
     let unsaid = nothingUnsaid();
     unsaid = noteUnsaid(unsaid, {
@@ -273,6 +298,26 @@ describe('the relay wire through a dead spot (§97)', () => {
     const third = FakeSocket.instances[2];
     third.open();
     expect(saidBy(third)).toEqual([{ kind: 'hello' }]);
+  });
+
+  it('§100: a hostile frame is not a message - oversized, misshapen or untyped', () => {
+    const heard: TableMessage[] = [];
+    const wire = relayWire({ url: 'wss://relay.example', room: 'ABCDEF' });
+    wire.onMessage((m) => heard.push(m));
+    const socket = FakeSocket.instances[0];
+    socket.open();
+
+    // The room admits whoever holds the code; what they SEND is typed.
+    socket.onmessage?.({ data: JSON.stringify({ kind: 'pwn', payload: 'x' }) });
+    socket.onmessage?.({ data: JSON.stringify({ kind: 'state', roster: 'not a roster' }) });
+    socket.onmessage?.({ data: JSON.stringify({ kind: 'play', play: {} }) }); // no rosterId
+    socket.onmessage?.({ data: `{"kind":"hello","pad":"${'x'.repeat(1_000_001)}"}` });
+    expect(heard).toEqual([]);
+
+    // The real protocol still speaks.
+    socket.onmessage?.({ data: JSON.stringify({ kind: 'hello' }) });
+    expect(heard).toEqual([{ kind: 'hello' }]);
+    wire.close();
   });
 
   it('closed is closed - no reconnect, no status noise', () => {

@@ -6,6 +6,9 @@ compatibility_date = "2024-09-01"
 name = "ROOMS"
 class_name = "Room"
 
+# SQLite-backed, not `new_classes`: the free plan only admits Durable
+# Objects with the SQLite storage backend, and this room stores nothing
+# anyway - the class is a fan-out point, not a database.
 [[migrations]]
 tag = "v1"
-new_classes = ["Room"]
+new_sqlite_classes = ["Room"]

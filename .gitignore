@@ -22,6 +22,9 @@ dist-ssr
 /subclass_*.json
 /subclass_features_new.ts
 
+# Local notes-to-self (the relay wizard records the deployed URL here)
+.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

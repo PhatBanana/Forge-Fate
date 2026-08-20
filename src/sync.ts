@@ -300,6 +300,66 @@ export function resay(unsaid: Unsaid): TableMessage[] {
   ];
 }
 
+/* ----------------------------------------------------------------- §100 -
+   The network boundary types its input. The room code admits whoever
+   holds it - that is the Jackbox model, chosen on purpose - so what a
+   member can *send* is the surface worth guarding. Two rules, both at
+   the wire and only at the network wire (the same-browser broadcast is
+   this browser talking to itself):
+
+   - A frame bigger than the worker's own per-message ceiling is not a
+     message. Nothing this protocol says legitimately approaches it, and
+     a phone should not be made to parse a megabyte because a stranger
+     found the room.
+   - A frame that parses but is not shaped like a TableMessage is not a
+     message either. The check is shallow by design - the deep defense is
+     that hostile data has nowhere to go (React escapes what it renders,
+     §96 quarantines synced state from the device's own roster) - but a
+     typed boundary means hostApply and seatApply never see a `kind` they
+     did not declare. */
+
+const MAX_FRAME = 1_000_000;
+
+const INTENT_KINDS = new Set([
+  'attack', 'cast', 'move', 'dash', 'dodge', 'disengage', 'help', 'hide', 'other',
+]);
+
+export function isTableMessage(value: unknown): value is TableMessage {
+  if (typeof value !== 'object' || value === null) return false;
+  const m = value as Record<string, unknown>;
+  switch (m.kind) {
+    case 'state': {
+      const roster = m.roster as { entries?: unknown } | null;
+      return typeof roster === 'object' && roster !== null && Array.isArray(roster.entries);
+    }
+    case 'plans':
+      return Array.isArray(m.plans);
+    case 'seats':
+      return Array.isArray(m.seats);
+    case 'intent': {
+      if (m.op === 'withdraw') return typeof m.combatantId === 'string';
+      if (m.op !== 'queue') return false;
+      const intent = m.intent as Record<string, unknown> | null;
+      return (
+        typeof intent === 'object' &&
+        intent !== null &&
+        typeof intent.combatantId === 'string' &&
+        INTENT_KINDS.has(intent.kind as string)
+      );
+    }
+    case 'play':
+      return typeof m.rosterId === 'string' && typeof m.play === 'object' && m.play !== null;
+    case 'sit': {
+      const seat = m.seat as Record<string, unknown> | null;
+      return typeof seat === 'object' && seat !== null && typeof seat.rosterId === 'string';
+    }
+    case 'hello':
+      return true;
+    default:
+      return false;
+  }
+}
+
 /**
  * The networked wire. JSON on a websocket, reconnecting forever with a
  * capped backoff, because the phone at the table locks its screen and the
@@ -309,7 +369,8 @@ export function resay(unsaid: Unsaid): TableMessage[] {
  *
  * §97 added the two things a dead spot needs: `onStatus` says whether the
  * line is up, so a screen can stop pretending, and the unsaid pocket
- * re-says a player's own marks after the reconnect's hello.
+ * re-says a player's own marks after the reconnect's hello. §100 added
+ * the boundary checks above.
  */
 export function relayWire(
   config: RelayConfig,
@@ -337,8 +398,10 @@ export function relayWire(
       for (const message of held) socket?.send(JSON.stringify(message));
     };
     socket.onmessage = (event: MessageEvent) => {
+      if (typeof event.data !== 'string' || event.data.length > MAX_FRAME) return;
       try {
-        const message = JSON.parse(String(event.data)) as TableMessage;
+        const message: unknown = JSON.parse(event.data);
+        if (!isTableMessage(message)) return;
         for (const handler of handlers) handler(message);
       } catch {
         // A frame that does not parse is not a message; the room goes on.

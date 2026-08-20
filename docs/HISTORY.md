@@ -6728,3 +6728,40 @@ floor and §86's gate says so on screen - but the player's seat is
 that stopped being the whole story.
 
 **Gates.** 2382 tests / 114 files, tsc, oxlint, build in budget.
+
+## 100. The wire types its input
+
+Asked directly before the relay went to the cloud: can a stranger who
+reaches this pwn the phones at the table? The audit's answer was no - no
+HTML sinks anywhere in src, React escapes what it renders, §96
+quarantines synced state away from a device's own roster, and the worker
+stores nothing - but it also named the two cheapest places the answer
+relied on luck rather than a check. Both are now checks.
+
+**A frame bigger than a message is not a message.** One megabyte - the
+worker platform's own per-message ceiling - and the wire drops it before
+JSON.parse, so a stranger who found the room cannot make a phone chew a
+frame no honest sender would produce.
+
+**A frame not shaped like the protocol is not a message.** `isTableMessage`
+gates the network wire: every kind the protocol speaks, checked shallowly
+- the discriminant, the fields each kind stands on, intent kinds against
+the real enum - and everything else dropped before hostApply or seatApply
+see it. Shallow on purpose: the deep defense is that hostile data has
+nowhere to go, and a schema pretending otherwise would be a second place
+to keep the types. Only the network wire pays the toll - the same-browser
+broadcast is this browser talking to itself.
+
+What the boundary deliberately does not try to fix, recorded where it was
+decided: the room code admits whoever holds it. That is the Jackbox
+model, chosen in §95 - a stranger with the code can grief the fight
+(spoof state at seats, rewrite hit points at the host) until the DM
+closes the table, and the defense is the same as Jackbox's: don't post
+the code, close the room when the session ends. The host still refuses
+state dictation and every device's own roster stays its own.
+
+**Pinned.** The guard's accept table - all eight kinds - and its refuse
+table; the wire dropping an oversized frame, a misshapen state, an
+unknown kind, then speaking the protocol unbothered.
+
+**Gates.** 2384 tests / 114 files, tsc, oxlint, build in budget.
