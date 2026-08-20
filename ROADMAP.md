@@ -303,11 +303,12 @@ phone built for itself. Open, each sized:
   §92's rule is that a plan can never do what a click could not — there
   is no one click that casts. The slot rides the note; the DM runs it
   with the pips beside the plan.
-- `[ ]` **A relay to point at** — **S**. The Worker exists and nothing
-  runs it: no deployed instance, no URL that answers, `wrangler deploy`
-  by hand with no CI. Either deploy the free-tier Worker once and put its
-  URL where the join screen and README can say it, or record that every
-  table hosts its own - both are decisions, and today it is neither.
+- `[x]` **A relay to point at** — deployed 2026-08-20, and verified: the
+  worker answers 426 to a plain request, which is a websocket room saying
+  hello. `wss://forge-fate-relay.phatbanana.workers.dev`, pinned in
+  relay/README.md, free tier (hard caps, no billing), deployed by
+  `scratchpad/setup-relay.sh`'s path. Redeploys stay `wrangler deploy` by
+  hand - a 45-line worker that changes once a year does not need CI.
 
 ### 7. Housekeeping a fresh clone found — `[x]` **done in §99**
 

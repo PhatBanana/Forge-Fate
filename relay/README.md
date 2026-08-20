@@ -20,12 +20,23 @@ TLS proxy in front of it. The cloud worker below avoids all of that.
 
 ## In the cloud (Cloudflare Workers, free tier)
 
-    npm install -g wrangler
     cd relay
-    wrangler deploy
+    npx -y wrangler@4 deploy
 
 Point the app's relay URL at `wss://forge-fate-relay.<your-subdomain>.workers.dev`.
-Durable Objects on the free plan cover a table's worth of traffic easily.
+Durable Objects on the free plan cover a table's worth of traffic easily —
+they must be the SQLite-backed kind (`new_sqlite_classes` in wrangler.toml;
+the free plan admits no other, and this room stores nothing anyway).
+
+**This project's instance** is deployed and live:
+
+    wss://forge-fate-relay.phatbanana.workers.dev
+
+Anyone running the app from GitHub Pages can use it as the relay URL. It
+forwards and forgets like every other room; being on the free plan, if it
+ever goes over quota it stops until the day rolls over rather than costing
+anyone anything. `scratchpad/setup-relay.sh` is the wizard that walks a
+human through deploying their own.
 
 ## In the app
 
