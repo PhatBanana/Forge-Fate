@@ -14,7 +14,7 @@ from the books" is an honest provenance and a weaker one than "verified against
 the SRD" — the audits exist because the difference turned out to matter
 fourteen times over. See **Provenance** below.
 
-The shipped history — one hundred and ten sections with their reasoning — lives in
+The shipped history — one hundred and eleven sections with their reasoning — lives in
 **`docs/HISTORY.md`** so this file can be a plan.
 
 ---
@@ -400,9 +400,9 @@ above it, so no step needs a temporary shim:
    questions, `FightView` proven: the encounter, the roster, a monster
    lookup and a build lookup. Every existing test passed unedited, and
    the twelve names stayed in the screen as closures.
-2. `[ ]` **Sight and light** — **M**. `eyesOf`, `partyVisible`, `litAt`,
-   `gloom`, `lights`, `canSeeFrom`, `lightSees`, `silencedAt`. Needs
-   step 1 plus `engine/senses.ts`, which already exists.
+2. `[x]` **Sight and light** — done in §111. `fightSight.ts`, all eight.
+   The caching stayed in the component on purpose: the module hands back
+   a lookup rather than holding a cache that would outlive its fight.
 3. `[ ]` **Movement and pathing** — **M**. `walkerOf`, `speedOf`,
    `movementLeftFor`, `standUpCostFor`, `walkBudget`, `walk`, `walkSafe`,
    `reach`, `routeChoice`, `partyApproach`. Needs step 1. Fixes a
@@ -572,7 +572,7 @@ forgery, and it is the parked §9.
 
 ## History
 
-One hundred and ten shipped sections, with the reasoning intact, live in
+One hundred and eleven shipped sections, with the reasoning intact, live in
 **`docs/HISTORY.md`**. Forty-four of them were split out of this file on
 2026-08-09 — forty-four numbered sections had made a *plan* unreadable, and
 a roadmap should say what is left rather than what was done. §45 was

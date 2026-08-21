@@ -7119,3 +7119,43 @@ the honest fallbacks when a stat block is missing entirely.
 
 **Gates.** 2414 tests / 118 files, tsc, oxlint, build in budget;
 TableTab 6,988 lines, under seven thousand for the first time since §66.
+
+## 111. What the fight can see (§9, step 2)
+
+Two questions that are really one, which is why they were tangled
+together in the battle screen and are lifted together here. **Light is a
+fact about a square; sight is a fact about a pair of eyes** - and since
+§40 every square is asked both, because the whole point of darkvision is
+that the dwarf sees the unlit corridor and the human beside him does
+not.
+
+`fightSight.ts` takes the eight: the lights with carried ones stood
+where their bearer stands, the ambient level, the per-square lookup, the
+gloom map the cameras draw, a creature's eyes, the party's field of
+view, whether a watcher's eyes reach a square, whether their line to
+somebody is clear, and whether a square sits under Silence.
+
+**What deliberately did not move is the caching.** `litAt` is asked once
+per square per pair of eyes and again per drawn square - a party of five
+on a 40x30 map is thousands of calls - so the memo that makes it cheap
+belongs to the render that owns it. The module hands back a *lookup* for
+the caller to hold rather than keeping a cache of its own that would
+outlive the fight it described. Same reasoning as §110's `buildOf`: the
+expensive thing stays where the invalidation is understood.
+
+Found on the way, and worth the two minutes: extracting `lightsInPlay`
+as a function of the whole encounter made the linter point out that its
+memo's dependency list had gone imprecise - the callback now read
+`encounter` where the deps still named `encounter.lights` and
+`encounter.combatants`. Taking the two lists as arguments instead keeps
+the memo exactly as narrow as it was. A refactor that quietly widens a
+dependency is a performance regression nobody would ever bisect to.
+
+Nine tests, none of which need a browser: the lit map that hands the
+cameras an empty object, the dark one that names every square, a torch
+standing where its bearer stands, the fog off and on, and the rule that
+matters most - **a character at nought has their eyes shut**, so a party
+wipe goes dark rather than omniscient.
+
+**Gates.** 2423 tests / 119 files, tsc, oxlint, build in budget;
+TableTab 6,951 lines.

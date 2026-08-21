@@ -136,6 +136,17 @@ import {
   stanceOf as factStanceOf,
 } from '../fightFacts';
 import type { FightView } from '../fightFacts';
+import {
+  ambientOf,
+  canSeeFrom as sightCanSeeFrom,
+  eyesOf as sightEyesOf,
+  gloomMap,
+  lightSees as sightLightSees,
+  lightsInPlay,
+  litLookup,
+  partyVisible as sightPartyVisible,
+  silencedAt as sightSilencedAt,
+} from '../fightSight';
 import { PlanComposer } from './PlanComposer';
 import { forecast } from '../engine/forecast';
 import { concentrationDc, damage, dash, emptyPlay, heal, hpNow, moveBy, movementLeft, awardXp, longRest, newTurn, setPlayConditionSource, setTurnSlot, shortRest, startOfEncounter, tickConditions, toggleCondition, spendAmmo, applyDeathSaveRoll } from '../play';
@@ -144,20 +155,15 @@ import { CONDITIONS, CONDITIONS_BY_ID, conditionTextFor } from '../data/conditio
 import { damageDice } from '../data/weapons';
 import { hitChance } from '../engine/dpr';
 import { flanked, heightAdvantage } from '../engine/tactics';
-import { visibleFrom } from '../engine/fog';
 import { COVER_AC } from '../engine/sight';
 import type { Cover } from '../engine/sight';
 import { surprisedAtStart } from '../engine/surprise';
 import {
   LIGHT_KINDS,
-  canSeeInto,
-  lightAt,
   perceptionPenalty,
-  placeLights,
   seenAs,
 } from '../engine/light';
-import type { Eyes, LightLevel } from '../engine/light';
-import { sensesFor, sensesForMonster } from '../engine/senses';
+import type { LightLevel } from '../engine/light';
 import { ConfirmButton, DamageField, Panel } from './shared';
 import { ShortcutsHelp } from './ShortcutsHelp';
 import { MonsterCard } from './MonsterCard';
@@ -1296,16 +1302,12 @@ export function TableTab({
     its bearer on every render rather than written down and kept in step.
   */
   const lights = useMemo(
-    () =>
-      placeLights(
-        encounter.lights ?? [],
-        (id) => encounter.combatants.find((c) => c.id === id)?.at ?? undefined,
-      ),
+    () => lightsInPlay(encounter.lights ?? [], encounter.combatants),
     [encounter.lights, encounter.combatants],
   );
 
   /** How bright the map is where no light reaches. Bright unless said. */
-  const ambient: LightLevel = encounter.ambientLight ?? 'bright';
+  const ambient: LightLevel = ambientOf(encounter);
 
   /**
    * How bright one square is, memoised across a render.
@@ -1314,17 +1316,7 @@ export function TableTab({
    * once per drawn square, so a party of five on a 40x30 map is six thousand
    * calls to a loop over the lights. The cache turns that into twelve hundred.
    */
-  const litAt = useMemo(() => {
-    const cache = new Map<string, LightLevel>();
-    return (at: Square): LightLevel => {
-      const key = keyOf(at);
-      const seen = cache.get(key);
-      if (seen) return seen;
-      const level = lightAt(lights, at, ambient);
-      cache.set(key, level);
-      return level;
-    };
-  }, [lights, ambient]);
+  const litAt = useMemo(() => litLookup(lights, ambient), [lights, ambient]);
 
   /**
    * The dark, as the map draws it: every square that is not bright, by key.
@@ -1334,17 +1326,10 @@ export function TableTab({
    * before §40 is, and what a table that never touches the light control
    * stays.
    */
-  const gloom = useMemo(() => {
-    if (ambient === 'bright' && !lights.length) return {};
-    const out: Record<string, 'dim' | 'dark' | 'magical-dark'> = {};
-    for (let y = 0; y < dungeon.height; y++) {
-      for (let x = 0; x < dungeon.width; x++) {
-        const level = litAt({ x, y });
-        if (level !== 'bright') out[keyOf({ x, y })] = level;
-      }
-    }
-    return out;
-  }, [litAt, ambient, lights.length, dungeon.width, dungeon.height]);
+  const gloom = useMemo(
+    () => gloomMap(litAt, ambient, lights.length, dungeon.width, dungeon.height),
+    [litAt, ambient, lights.length, dungeon.width, dungeon.height],
+  );
 
   /**
    * What a creature's eyes are worth: where they are, and what they can see
@@ -1359,14 +1344,7 @@ export function TableTab({
    * know about nothing else, so a Twilight Cleric, a Gloom Stalker and a
    * Warlock with Devil's Sight were all as blind as a human.
    */
-  const eyesOf = (c: Combatant): Eyes | null => {
-    if (!c.at) return null;
-    if (c.kind === 'monster') {
-      return { at: c.at, ...sensesForMonster(byId.get(c.monsterId)?.senses) };
-    }
-    const ctx = derived.get(c.rosterId)?.ctx;
-    return { at: c.at, ...(ctx ? sensesFor(ctx) : {}) };
-  };
+  const eyesOf = (c: Combatant) => sightEyesOf(fight, c);
 
   /*
     Fog of war: what the party can see right now, from their eyes, by the
@@ -1378,16 +1356,11 @@ export function TableTab({
     whole point of darkvision: the dwarf sees the unlit corridor and the human
     beside him does not.
   */
-  const partyVisible = useMemo(() => {
-    if (!encounter.fog) return null;
-    const eyes = encounter.combatants
-      .filter((c) => c.kind === 'character' && c.at && (hpOf(c)?.now ?? 0) > 0)
-      .map((c) => eyesOf(c))
-      .filter((e): e is Eyes => !!e);
-    return visibleFrom(sightContext, eyes, dungeon.width, dungeon.height, litAt);
-    // hpOf and eyesOf derive from exactly these stores.
+  const partyVisible = useMemo(
+    () => sightPartyVisible(fight, sightContext, dungeon, litAt),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [encounter.fog, encounter.combatants, sightContext, dungeon.width, dungeon.height, roster.entries, litAt]);
+    [encounter.fog, encounter.combatants, sightContext, dungeon.width, dungeon.height, roster.entries, litAt],
+  );
 
   /*
     The fog's bookkeeping lives in ONE effect below (memory, activation,
@@ -2658,19 +2631,12 @@ export function TableTab({
    * changes what a caster may *choose* rather than what happens to them - and
    * it is asked of a square rather than of a turn.
    */
-  const silencedAt = (at: Square): boolean =>
-    (encounter.zones ?? []).some((zone) => zone.effect?.silences && inZone(zone, at));
+  const silencedAt = (at: Square) => sightSilencedAt(encounter, at);
 
-  const lightSees = (watcher: Combatant, at: Square): boolean => {
-    const eyes = eyesOf(watcher);
-    return eyes ? canSeeInto(eyes, at, litAt(at)) : true;
-  };
+  const lightSees = (watcher: Combatant, at: Square) =>
+    sightLightSees(fight, watcher, at, litAt);
 
-  const canSeeFrom = (watcher: Combatant) => (id: string): boolean => {
-    const other = encounter.combatants.find((c) => c.id === id);
-    if (!watcher.at || !other?.at) return false;
-    return lineOfSight(sightContext, watcher.at, other.at).visible;
-  };
+  const canSeeFrom = (watcher: Combatant) => sightCanSeeFrom(fight, sightContext, watcher);
 
   /**
    * A shove, a trip or a grapple: one contested roll, and whatever follows.
