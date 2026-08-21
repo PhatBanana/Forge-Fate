@@ -338,6 +338,108 @@ screen. What was worth doing, and what was not:
   resolution regions. Cutting there moves complexity rather than
   concentrating it.
 
+### 9. The fight, lifted out of the component — `[ ]` **L, in six steps**
+
+The battle screen is 7,081 lines and **half of it is not a screen**. After
+§106-§108 peeled the panels, what is left before the first panel is 3,620
+lines and 113 local helpers that are the *rules of the fight*: sight and
+light, the movement budget, pathing, strike resolution, grapple and shove,
+zones, hiding, opportunity attacks, defences.
+
+**Why the obvious cut is the wrong one.** Splitting that into more
+components fails, and §108 already recorded the shape of the failure:
+`strikesInto` is 290 lines and reads **13 sibling helpers** to resolve one
+swing — hit points, name, defences, conditions, exhaustion, ruleset,
+stance, whether the attacker can see, whether light reaches, the sight
+context, the monster table, the build derivations, and the write path. A
+5e attack genuinely depends on all of that. Extracted as a component it
+becomes a 13-prop interface: one fused region traded for a shallow one.
+
+**What is actually true**, measured with comments stripped: **73 of the
+113 helpers are already pure** — no `setState`, no `onChange`, no toast.
+They look like component code only because they close over `encounter`,
+`roster`, `derived` and `byId` instead of taking them. That is exactly the
+shape `hpOf`/`applyHp` were in before §106, and §106 is the proof the
+pattern works.
+
+#### The shape
+
+One read-side value threaded through every module, so a call site learns
+one thing rather than four:
+
+```ts
+export interface FightView {
+  encounter: EncounterState;
+  roster: Roster;
+  monsterById(id: string): Monster | undefined;
+  buildOf(rosterId: string): BuildContext | undefined;  // memoised by the caller
+}
+```
+
+Write-side helpers **return what happened; they do not do it.** The
+resolvers currently fire five animation channels (`flashes`, `lunges`,
+`walks`, `floats`, `banner`) and toasts from inside the rules, which is
+the one thing that would keep them in React. So:
+
+```ts
+export interface Resolution {
+  roster: Roster;            // the new truth, encounter folded in (§106)
+  events: FightEvent[];      // lunge, walk, float, flash, banner, say, log
+}
+```
+
+The component drains `events` into its setters. That is the seam that
+lets a whole attack be tested without a DOM.
+
+#### The order, and it is not negotiable
+
+Taken from the dependency graph — each step depends only on the ones
+above it, so no step needs a temporary shim:
+
+1. `[ ]` **Combatant facts** — **M**. `conditionsOf`, `sourcesOf`,
+   `sizeOf`, `grapplerOf`, `heldBy`, `exhaustionOf`, `rulesetOf`,
+   `defencesOf`, `stanceOf`, `reactionSpentOf`, `skillBonusFor`,
+   `passivePerceptionOf`. **Depends on no sibling at all** — only
+   `encounter`, `derived` and `byId`. The foundation, and the cheapest
+   proof the `FightView` shape is right.
+2. `[ ]` **Sight and light** — **M**. `eyesOf`, `partyVisible`, `litAt`,
+   `gloom`, `lights`, `canSeeFrom`, `lightSees`, `silencedAt`. Needs
+   step 1 plus `engine/senses.ts`, which already exists.
+3. `[ ]` **Movement and pathing** — **M**. `walkerOf`, `speedOf`,
+   `movementLeftFor`, `standUpCostFor`, `walkBudget`, `walk`, `walkSafe`,
+   `reach`, `routeChoice`, `partyApproach`. Needs step 1. Fixes a
+   standing complaint on its own: speed is currently spread across five
+   modules, and `TableTab` carries a comment reconciling them.
+4. `[ ]` **Zones** — **S**. `biteZone`, `healFromZone`, `dropZone`.
+   Needs step 1. The first write-side module, so it is where
+   `Resolution` gets proven on something small.
+5. `[ ]` **Grapple, shove, hide** — **M**. `resolveGrab`, `knockProne`,
+   `setHeld`, `holdOn`, `letGo`, `escapeGrapple`, `standUpFrom`,
+   `releaseGrapple`, `rollHide`. Needs 1, 3 and 4.
+6. `[ ]` **Strike resolution** — **L**, and last. `strikesInto`,
+   `resolveStrikes`, `strikesFor`, `allStrikesFor`, `opportunitySwing`,
+   `resolveAim`, `runPlan`. Needs everything above. The biggest, and the
+   one where a mistake breaks the fight rather than a panel.
+
+#### How to do it safely
+
+- **Keep the call sites.** Every step leaves the local name in place as a
+  closure over this render's `FightView`, exactly as §106 left `hpOf`,
+  `nameOf` and `applyHp`. All ~2,400 tests must pass untouched at every
+  step; a step that needs a test edited has changed behaviour and should
+  be re-read rather than re-run.
+- **Move, never re-type.** §107 caught `balanceWord` being rewritten from
+  memory with different bands. Cut and paste; let the compiler complain.
+- **One step per commit**, each with its own § and its own gates.
+- **Stop when the payoff stops.** Steps 1-4 are worth doing on their own
+  merits. Steps 5 and 6 are worth doing when the next fight feature makes
+  you open that region anyway — not as a refactor sprint.
+
+**Expected shape at the end:** `TableTab` around 3,500 lines of screen,
+six rules modules with direct tests, and the fight testable without a
+DOM. **Not expected:** any change to what the app does. If a step
+produces a user-visible difference, it is a bug in the step.
+
 ### 7. Housekeeping a fresh clone found — `[x]` **done in §99**
 
 - `[x]` A `.gitattributes` — `* text=auto eol=lf`, ending the phantom

@@ -41,3 +41,15 @@ same in code, comments, HISTORY and reviews. Deeper reasoning lives in
   answer (`mapContract.ts`, §104): shared core plus each projection's
   declared extras, typed at the caller so a dropped prop is a compile
   error.
+
+## The fight
+
+- **Fight view** — the read-side of a fight, bundled so a rules module
+  learns one thing rather than four: the encounter, the roster, the
+  monster table and the build derivations (planned, ROADMAP §9).
+- **Resolution** — what a write-side rule returns: the new roster, and
+  the events (lunge, walk, float, banner, toast, log) the screen plays.
+  Rules say what happened; they do not do it.
+- **Combatant facts** — what is true of one combatant right now:
+  conditions, size, exhaustion, ruleset, defences, stance, who holds
+  them. Reads from whichever store owns each one (§106).
