@@ -14,7 +14,7 @@ from the books" is an honest provenance and a weaker one than "verified against
 the SRD" — the audits exist because the difference turned out to matter
 fourteen times over. See **Provenance** below.
 
-The shipped history — one hundred and nine sections with their reasoning — lives in
+The shipped history — one hundred and ten sections with their reasoning — lives in
 **`docs/HISTORY.md`** so this file can be a plan.
 
 ---
@@ -396,12 +396,10 @@ lets a whole attack be tested without a DOM.
 Taken from the dependency graph — each step depends only on the ones
 above it, so no step needs a temporary shim:
 
-1. `[ ]` **Combatant facts** — **M**. `conditionsOf`, `sourcesOf`,
-   `sizeOf`, `grapplerOf`, `heldBy`, `exhaustionOf`, `rulesetOf`,
-   `defencesOf`, `stanceOf`, `reactionSpentOf`, `skillBonusFor`,
-   `passivePerceptionOf`. **Depends on no sibling at all** — only
-   `encounter`, `derived` and `byId`. The foundation, and the cheapest
-   proof the `FightView` shape is right.
+1. `[x]` **Combatant facts** — done in §110. `fightFacts.ts`, twelve
+   questions, `FightView` proven: the encounter, the roster, a monster
+   lookup and a build lookup. Every existing test passed unedited, and
+   the twelve names stayed in the screen as closures.
 2. `[ ]` **Sight and light** — **M**. `eyesOf`, `partyVisible`, `litAt`,
    `gloom`, `lights`, `canSeeFrom`, `lightSees`, `silencedAt`. Needs
    step 1 plus `engine/senses.ts`, which already exists.
@@ -574,7 +572,7 @@ forgery, and it is the parked §9.
 
 ## History
 
-One hundred and nine shipped sections, with the reasoning intact, live in
+One hundred and ten shipped sections, with the reasoning intact, live in
 **`docs/HISTORY.md`**. Forty-four of them were split out of this file on
 2026-08-09 — forty-four numbered sections had made a *plan* unreadable, and
 a roadmap should say what is left rather than what was done. §45 was

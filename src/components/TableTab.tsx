@@ -108,7 +108,6 @@ import type { CampaignFile } from '../campaign';
 import { describeIntent, intentFor, queueIntent, withdrawIntent } from '../seats';
 import type { RelayConfig } from '../sync';
 import type { Intent, Seat } from '../seats';
-import type { Defences } from '../engine/defences';
 import { HOUSE_RULE_INFO, highGroundBonus, loadHouseRules, saveHouseRules } from '../houseRules';
 import type { HouseRules } from '../houseRules';
 import { SURFACE_KINDS } from '../zones';
@@ -122,6 +121,21 @@ import { GroupSaves } from './GroupSaves';
 import { FallenPanel } from './FallenPanel';
 import type { SaveCall } from './GroupSaves';
 import { applyHitPoints, combatantName, hitPointsOf } from '../hitPoints';
+import {
+  conditionsOf as factConditionsOf,
+  defencesOf as factDefencesOf,
+  exhaustionOf as factExhaustionOf,
+  grapplerOf as factGrapplerOf,
+  heldBy as factHeldBy,
+  passivePerceptionOf as factPassivePerceptionOf,
+  reactionSpentOf as factReactionSpentOf,
+  rulesetOf as factRulesetOf,
+  sizeOf as factSizeOf,
+  skillBonusFor as factSkillBonusFor,
+  sourcesOf as factSourcesOf,
+  stanceOf as factStanceOf,
+} from '../fightFacts';
+import type { FightView } from '../fightFacts';
 import { PlanComposer } from './PlanComposer';
 import { forecast } from '../engine/forecast';
 import { concentrationDc, damage, dash, emptyPlay, heal, hpNow, moveBy, movementLeft, awardXp, longRest, newTurn, setPlayConditionSource, setTurnSlot, shortRest, startOfEncounter, tickConditions, toggleCondition, spendAmmo, applyDeathSaveRoll } from '../play';
@@ -1237,6 +1251,34 @@ export function TableTab({
   const applyHp = (combatant: Combatant, amount: number) =>
     onChange(applyHitPoints(roster, encounter, combatant, amount, maxHpOf));
 
+  /*
+    §110: what is true of one combatant, from whichever store owns the
+    fact - the twelve questions the fight asks constantly. They live in
+    `fightFacts.ts` now, where they are reachable without mounting a
+    battle screen; what stays here is one view of this render's fight and
+    the names every call site already knew. First step of ROADMAP §9.
+  */
+  const fight: FightView = {
+    encounter,
+    roster,
+    monsterById: (id) => byId.get(id),
+    buildOf: (rosterId) => derived.get(rosterId)?.ctx,
+    ruleset,
+  };
+  const conditionsOf = (c: Combatant) => factConditionsOf(fight, c);
+  const sourcesOf = (c: Combatant) => factSourcesOf(fight, c);
+  const sizeOf = (c: Combatant) => factSizeOf(fight, c);
+  const grapplerOf = (c: Combatant) => factGrapplerOf(fight, c);
+  const heldBy = (c: Combatant) => factHeldBy(fight, c);
+  const passivePerceptionOf = (c: Combatant) => factPassivePerceptionOf(fight, c);
+  const exhaustionOf = (c: Combatant) => factExhaustionOf(fight, c);
+  const rulesetOf = (c: Combatant) => factRulesetOf(fight, c);
+  const stanceOf = (c: Combatant) => factStanceOf(fight, c);
+  const reactionSpentOf = (c: Combatant) => factReactionSpentOf(fight, c);
+  const defencesOf = (c: Combatant) => factDefencesOf(fight, c);
+  const skillBonusFor = (c: Combatant, skill: string, fallback: 'str' | 'dex') =>
+    factSkillBonusFor(fight, c, skill, fallback);
+
   const sightContext = useMemo(
     () => ({
       dungeon,
@@ -1502,90 +1544,6 @@ export function TableTab({
     declared further down the component would still be in its temporal dead
     zone when the memo ran.
   */
-
-  /** The conditions on somebody, from whichever store holds them. */
-  const conditionsOf = (c: Combatant): string[] =>
-    c.kind === 'monster'
-      ? c.conditions
-      : (roster.entries.find((e) => e.id === c.rosterId)?.play.conditions ?? []);
-
-  /** And who caused them, for the conditions that turn on it. */
-  const sourcesOf = (c: Combatant): Record<string, string> =>
-    (c.kind === 'monster'
-      ? c.conditionSources
-      : roster.entries.find((e) => e.id === c.rosterId)?.play.conditionSources) ?? {};
-
-  /**
-   * A creature's size, for the rules that compare two of them. A character's
-   * comes off their species - a halfling is Small, and Small cannot grapple
-   * Large - rather than a flat 'Medium' that made every party mid-sized.
-   */
-  const sizeOf = (c: Combatant): string =>
-    c.kind === 'monster'
-      ? (byId.get(c.monsterId)?.size ?? 'Medium')
-      : (derived.get(c.rosterId)?.ctx.race.size ?? 'Medium');
-
-  /**
-   * The two ends of a grapple, read off the condition and its source.
-   *
-   * No new store: a hold IS the grappled condition plus the source field
-   * conditions grew in §27.2. That is what makes it survive a refresh, an
-   * undo and a save without a line of migration.
-   */
-  const grapplerOf = (c: Combatant): Combatant | undefined => {
-    if (!conditionsOf(c).includes(GRAPPLED)) return undefined;
-    const by = sourcesOf(c)[GRAPPLED];
-    return by ? encounter.combatants.find((x) => x.id === by) : undefined;
-  };
-
-  /** Whoever this one has hold of, if anybody. */
-  const heldBy = (c: Combatant): Combatant | undefined =>
-    encounter.combatants.find(
-      (x) => x.id !== c.id && conditionsOf(x).includes(GRAPPLED) && sourcesOf(x)[GRAPPLED] === c.id,
-    );
-
-  /**
-   * What somebody notices without looking, from whichever side owns it.
-   *
-   * The stat block states it; a character's is derived. Ten is the floor for
-   * a monster with neither, which is a plain unmodified passive - the honest
-   * default rather than a zero that would make every ambush work.
-   */
-  const passivePerceptionOf = (c: Combatant): number => {
-    if (c.kind === 'monster') {
-      const monster = byId.get(c.monsterId);
-      return monster?.passivePerception ?? (monster ? 10 + monsterMod(monster.scores.wis) : 10);
-    }
-    return derived.get(c.rosterId)?.ctx.proficiencies.passivePerception ?? 10;
-  };
-
-  /** Exhaustion, which only a character carries - a stat block has no track
-      for it, so a monster reads as rested. */
-  const exhaustionOf = (c: Combatant): number =>
-    c.kind === 'character'
-      ? (roster.entries.find((e) => e.id === c.rosterId)?.play.exhaustion ?? 0)
-      : 0;
-
-  /*
-    Which edition this combatant is played under. Exhaustion is the first rule
-    where the two disagree *in play* rather than at build time - 2014 halves
-    speed at rung two and hands out disadvantage at three, 2024 takes five feet
-    and two off the roll per level - so the fight has to ask.
-
-    §60 changed what a *monster* answers. It used to be a flat `'2014'`, on the
-    reasoning that a monster has no edition of its own - true, and the wrong
-    conclusion. A table runs one edition; the DM who built a 2024 party is
-    running 2024, and their monsters were reading the 2014 exhaustion ladder.
-    That is the same defect this section came here to fix, one layer down, and
-    it was mechanical rather than cosmetic.
-
-    So a monster reads the table's edition, which is the loaded character's.
-    Falling back to 2014 only when there is no table at all.
-  */
-  const rulesetOf = (c: Combatant): Ruleset =>
-    (c.kind === 'character'
-      ? roster.entries.find((e) => e.id === c.rosterId)?.build.ruleset
-      : ruleset) ?? '2014';
 
   /**
    * What the ground costs *this* combatant, as the pathfinder wants it.
@@ -2643,41 +2601,6 @@ export function TableTab({
     onChange(updated);
   };
 
-  /** A skill's real bonus from whichever side owns it, monster or sheet. */
-  const skillBonusFor = (c: Combatant, skill: string, fallback: 'str' | 'dex'): number => {
-    if (c.kind === 'monster') {
-      const monster = byId.get(c.monsterId);
-      if (!monster) return 0;
-      return monster.skills?.[skill] ?? monsterMod(monster.scores[fallback]);
-    }
-    const info = derived.get(c.rosterId);
-    if (!info) return 0;
-    return (
-      info.ctx.proficiencies.skills.find((s) => s.skill === skill)?.modifier ??
-      info.ctx.mods[fallback]
-    );
-  };
-
-  /**
-   * Disengage or Dodge, from whichever store holds it.
-   *
-   * Both trays have offered both actions since the command menu existed and
-   * neither ever wrote anything down, which made Disengage an action spent on
-   * a rule nothing enforced. The two halves live in different places for the
-   * same reason every other fact does - a character's turn is on their sheet,
-   * a monster's is on the combatant - so this is the one place that asks.
-   */
-  const stanceOf = (c: Combatant): 'disengage' | 'dodge' | undefined =>
-    c.kind === 'monster'
-      ? c.stance
-      : roster.entries.find((e) => e.id === c.rosterId)?.play.turn.stance;
-
-  /** Whether their one reaction is already gone. */
-  const reactionSpentOf = (c: Combatant): boolean =>
-    c.kind === 'monster'
-      ? !!c.reactionSpent
-      : !!roster.entries.find((e) => e.id === c.rosterId)?.play.turn.reaction;
-
   /** Spend it, composed onto the given roster rather than written. */
   const spendReactionOf = (target: Roster, c: Combatant): Roster => {
     if (c.kind === 'monster') {
@@ -2747,22 +2670,6 @@ export function TableTab({
     const other = encounter.combatants.find((c) => c.id === id);
     if (!watcher.at || !other?.at) return false;
     return lineOfSight(sightContext, watcher.at, other.at).visible;
-  };
-
-  /**
-   * What a creature resists, is immune to, or is vulnerable to.
-   *
-   * Monsters carry all three on the stat block; characters carry none - the
-   * build model has an AC/HP `Defenses` and no damage-type resistances at all,
-   * so a raging Barbarian or a Dragonborn's ancestry is still the DM's to
-   * apply by hand. Named here so the gap is visible rather than implied.
-   */
-  const defencesOf = (c: Combatant): Defences => {
-    if (c.kind !== 'monster') return {};
-    const monster = byId.get(c.monsterId);
-    return monster
-      ? { resist: monster.resist, immune: monster.immune, vulnerable: monster.vulnerable }
-      : {};
   };
 
   /**

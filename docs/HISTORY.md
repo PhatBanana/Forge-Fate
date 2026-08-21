@@ -7080,3 +7080,42 @@ the churn came from.
 
 **Gates.** 2406 tests / 117 files, tsc, oxlint, build in budget; the
 deploy green on the new actions, with no deprecation warnings.
+
+## 110. The fight's facts, lifted (§9, step 1)
+
+The first step of the plan ROADMAP §9 lays out, and the one chosen to go
+first because the dependency graph said it depends on nothing: twelve
+questions the fight asks constantly, none of which needed a single
+sibling helper.
+
+What conditions are on somebody and who put them there; how big they
+are; who has hold of them and who they are holding; what they notice
+without looking; how exhausted they are; which edition they are played
+under; what they resist; whether they are dodging; whether their
+reaction is gone; what a skill is worth to them. Every one answers from
+**whichever store owns the fact** - §106's two-store rule again, applied
+to eleven more questions than hit points.
+
+**`FightView` is the shape the rest of §9 rides on**, and this step
+exists to prove it carries: the encounter, the roster, a monster lookup
+and a build lookup, bundled so a rules module learns one thing rather
+than four. `buildOf` is a *function* rather than a map because deriving
+a character is expensive and the screen already memoises it per render -
+the module never asks twice, and the caching stays where it belongs.
+
+**Nothing at the call sites moved.** All twelve names remain in the
+battle screen as one-line closures over this render's view, exactly as
+§106 left `hpOf` and `nameOf`, so the ~180 uses across the file are
+untouched. The proof the step changed nothing is that **every existing
+test passed without an edit** - the plan's own rule is that a step
+needing a test rewritten has changed behaviour and should be re-read
+rather than re-run.
+
+Eight new tests ask the twelve questions directly: both stores for
+conditions, size off a species versus a stat block, exhaustion that only
+characters carry, §60's rule that a monster is played under the table's
+edition, a grapple named from both ends with no store of its own, and
+the honest fallbacks when a stat block is missing entirely.
+
+**Gates.** 2414 tests / 118 files, tsc, oxlint, build in budget;
+TableTab 6,988 lines, under seven thousand for the first time since §66.
