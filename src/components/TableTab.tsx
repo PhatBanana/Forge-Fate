@@ -2,21 +2,17 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { Monster } from '../data/monsters';
 import type { Ruleset } from '../types';
-import { exhaustionEffect, speedAfterExhaustion } from '../engine/exhaustion';
+import { exhaustionEffect } from '../engine/exhaustion';
 import { formatCr, legendaryCost, monsterMod, monsterSummary, parseUsage, searchMonsters } from '../data/monsters';
 import { isCustom, mergeBestiary } from '../bestiary';
 import { useMonsters } from './useMonsters';
 import { TERRAIN_BY_KIND, elevationAt, keyOf } from '../terrain';
 import { lineOfSight, walkable } from '../engine/sight';
 import { routeTo, walkMap } from '../engine/path';
-import type { Walker } from '../engine/path';
-import { movementFor, standUpCost } from '../engine/movement';
-import type { Walk } from '../engine/path';
 import {
   ZONE_PRESETS,
   ZONE_SHAPES,
   bitesOnEndTurn,
-  bitesOnEnter,
   combatantsIn,
   grantsUnder,
   hazardsCrossed,
@@ -25,7 +21,6 @@ import {
   sideOf,
   tickZones,
   zoneReaches,
-  zoneSquareKeys,
   zoneSquares,
 } from '../zones';
 import type { Zone, ZoneEffect, ZoneShape } from '../zones';
@@ -80,7 +75,6 @@ import {
   END_REASON,
   GRAPPLED,
   canGrapple,
-  dragSpeed,
   escapeContest,
   grappleEnds,
 } from '../engine/grapple';
@@ -91,7 +85,6 @@ import {
   mayApproach,
   mayAttack,
   oddsFor,
-  speedUnderConditions,
 } from '../engine/advantage';
 import { ammunitionCarried } from '../engine/inventory';
 import { heldResources, restoredKeys } from '../engine/resources';
@@ -147,9 +140,21 @@ import {
   partyVisible as sightPartyVisible,
   silencedAt as sightSilencedAt,
 } from '../fightSight';
+import {
+  movementLeftFor as moveMovementLeftFor,
+  partyApproach as movePartyApproach,
+  routeChoice as moveRouteChoice,
+  safeWalkFor as moveSafeWalkFor,
+  speedOf as moveSpeedOf,
+  standUpCostFor as moveStandUpCostFor,
+  walkBudget as moveWalkBudget,
+  walkFor as moveWalkFor,
+  walkerOf as moveWalkerOf,
+  zoneOverlays as moveZoneOverlays,
+} from '../fightMovement';
 import { PlanComposer } from './PlanComposer';
 import { forecast } from '../engine/forecast';
-import { concentrationDc, damage, dash, emptyPlay, heal, hpNow, moveBy, movementLeft, awardXp, longRest, newTurn, setPlayConditionSource, setTurnSlot, shortRest, startOfEncounter, tickConditions, toggleCondition, spendAmmo, applyDeathSaveRoll } from '../play';
+import { concentrationDc, damage, dash,  heal, hpNow, moveBy,  awardXp, longRest, newTurn, setPlayConditionSource, setTurnSlot, shortRest, startOfEncounter, tickConditions, toggleCondition, spendAmmo, applyDeathSaveRoll } from '../play';
 import { defaultRng, expectedTotal, parseNotation, rollD20, rollDamage, rollNotation } from '../engine/dice';
 import { CONDITIONS, CONDITIONS_BY_ID, conditionTextFor } from '../data/conditions';
 import { damageDice } from '../data/weapons';
@@ -1531,68 +1536,17 @@ export function TableTab({
    * puts them; a character's come from `engine/movement.ts`, which gathered
    * them off five kinds of record.
    */
-  const walkerOf = (combatant: Combatant): Walker => {
-    const prone = conditionsOf(combatant).includes('prone');
-    if (combatant.kind === 'monster') {
-      const speed = byId.get(combatant.monsterId)?.speed ?? {};
-      return { climbFree: (speed.climb ?? 0) > 0, swimFree: (speed.swim ?? 0) > 0, prone };
-    }
-    const ctx = derived.get(combatant.rosterId)?.ctx;
-    if (!ctx) return { prone };
-    const profile = movementFor(ctx);
-    return { climbFree: profile.climbFree, swimFree: profile.swimFree, prone };
-  };
+  const walkerOf = (c: Combatant) => moveWalkerOf(fight, c);
 
-  /** A combatant's speed in feet, from whichever side owns it. */
-  const speedOf = (combatant: Combatant): number => {
-    const base =
-      combatant.kind === 'monster'
-        ? (byId.get(combatant.monsterId)?.speed.walk ?? 30)
-        : (derived.get(combatant.rosterId)?.ctx.speed.total ?? 30);
-    /*
-      Nought, if any of the six conditions that say so is on them. Grappled and
-      restrained say "speed 0" outright; stunned, paralysed, petrified and
-      unconscious say "can't move", which is the same sentence. Every one of
-      them was decorative until §39 - the app tracked all six and would still
-      walk a stunned creature across the map.
-    */
-    /*
-      Ambushed: "you can't move or take an action on your first turn". The
-      action and the bonus are spent when the turn begins; the movement is
-      refused here, because this is the one function the walk, the wash and
-      the ruler all price themselves from.
-    */
-    if (combatant.surprised) return 0;
-    const stopped = speedUnderConditions(base, conditionsOf(combatant));
-    // Exhaustion halves it from level two and stops it at five - the two
-    // levels that are a movement question rather than a roll.
-    const walking = speedAfterExhaustion(stopped, exhaustionOf(combatant), rulesetOf(combatant));
-    // Hauling somebody costs half your pace, unless they are two or more
-    // sizes smaller, in which case they weigh nothing worth counting.
-    const dragging = heldBy(combatant);
-    return dragging ? dragSpeed(walking, sizeOf(combatant), sizeOf(dragging)) : walking;
-  };
+  const speedOf = (c: Combatant) => moveSpeedOf(fight, c);
 
-  /** What is left of somebody's movement this turn, from whichever side owns it. */
-  const movementLeftFor = (c: Combatant): number => {
-    const speed = speedOf(c);
-    if (c.kind === 'monster') return Math.max(0, speed - (c.moved ?? 0));
-    const play = roster.entries.find((e) => e.id === c.rosterId)?.play ?? emptyPlay();
-    return movementLeft(play, speed);
-  };
+  const movementLeftFor = (c: Combatant) => moveMovementLeftFor(fight, c);
 
   /**
    * What standing up costs this combatant: half their speed, or five feet for
    * somebody carrying the grant that says so.
    */
-  const standUpCostFor = (c: Combatant): number => {
-    const speed = speedOf(c);
-    if (c.kind === 'character') {
-      const ctx = derived.get(c.rosterId)?.ctx;
-      if (ctx) return standUpCost(speed, movementFor(ctx).quickStand);
-    }
-    return standUpCost(speed);
-  };
+  const standUpCostFor = (c: Combatant) => moveStandUpCostFor(fight, c);
 
   /*
     Where the selected combatant can still get to.
@@ -1617,59 +1571,24 @@ export function TableTab({
     a glance. The walk itself runs the whole map, so the ruler can measure a
     route to anywhere the feet could ever go, bends included.
   */
-  const walkBudget = useMemo(() => {
-    if (!selected) return { base: 0, dash: 0 };
-    const speed = speedOf(selected);
-    if (selected.kind === 'character') {
-      const left = movementLeft(
-        roster.entries.find((e) => e.id === selected.rosterId)?.play ?? emptyPlay(),
-        speed,
-      );
-      // A Dash adds the full speed to the budget, whatever is left of it.
-      return { base: left, dash: left + speed };
-    }
-    // Monsters spend the same resource: what's walked this turn is on the
-    // combatant, and a Dash offers one more speed's worth on top.
-    const spent = selected.moved ?? 0;
-    return {
-      base: Math.max(0, speed - spent),
-      dash: Math.max(0, speed * 2 - spent),
-    };
+  const walkBudget = useMemo(
+    () => moveWalkBudget(fight, selected),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, roster.entries]);
+    [selected, roster.entries],
+  );
 
   /*
     What the standing zones do to the ground, as key sets the pathfinder
     eats: a wall of force is a wall, a web is deep ground, a wall of fire is
     somewhere a route would rather not go.
   */
-  const zoneOverlays = useMemo(
-    () => ({
-      blocked: zoneSquareKeys(encounter.zones, (z) => Boolean(z.effect?.blocks)),
-      difficult: zoneSquareKeys(encounter.zones, (z) => Boolean(z.effect?.difficult)),
-      // The same ground, filtered to the side it actually slows - Spirit
-      // Guardians is deep going for the goblins and open floor for the party.
-      difficultFor: (side: 'party' | 'monsters') =>
-        zoneSquareKeys(
-          encounter.zones,
-          (z) => Boolean(z.effect?.difficult) && zoneReaches(z, side),
-        ),
-      hazard: zoneSquareKeys(encounter.zones, bitesOnEnter),
-    }),
-    [encounter.zones],
-  );
+  const zoneOverlays = useMemo(() => moveZoneOverlays(encounter.zones), [encounter.zones]);
 
-  const walk = useMemo(() => {
-    if (!selected?.at) return null;
-    const hp = hpOf(selected);
-    if (!hp || hp.now === 0) return null;
-    // Uncapped, so the ruler can measure the long way round the whole map.
-    return walkMap(sightContext, selected.at, Infinity, {
-      blocked: zoneOverlays.blocked,
-      difficult: zoneOverlays.difficultFor(sideOf(selected.kind)),
-    }, walkerOf(selected));
+  const walk = useMemo(
+    () => moveWalkFor(fight, sightContext, selected, zoneOverlays),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, encounter.combatants, roster.entries, sightContext, zoneOverlays]);
+    [selected, encounter.combatants, roster.entries, sightContext, zoneOverlays],
+  );
 
   /*
     The same walk with the hazards off the table entirely - the route a sane
@@ -1677,15 +1596,11 @@ export function TableTab({
     "pathing avoids the fire when movement allows" means; when only the
     burning shortcut fits, the ordinary map answers and the fire bites.
   */
-  const walkSafe = useMemo(() => {
-    if (!walk || !selected?.at || zoneOverlays.hazard.size === 0) return walk;
-    return walkMap(sightContext, selected.at, Infinity, {
-      blocked: zoneOverlays.blocked,
-      difficult: zoneOverlays.difficultFor(sideOf(selected.kind)),
-      avoid: zoneOverlays.hazard,
-    }, walkerOf(selected));
+  const walkSafe = useMemo(
+    () => moveSafeWalkFor(fight, sightContext, selected, zoneOverlays, walk),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walk, selected, sightContext, zoneOverlays]);
+    [walk, selected, sightContext, zoneOverlays],
+  );
 
   /**
    * How far every square is from the party, by walking.
@@ -1702,30 +1617,15 @@ export function TableTab({
    * "which way should I step". The step itself is still priced by
    * `routeChoice`, which does prefer the unburned route.
    */
-  const partyApproach = useMemo(() => {
-    const sources = encounter.combatants
-      .filter((c) => c.kind === 'character' && c.at && (hpOf(c)?.now ?? 0) > 0)
-      .map((c) => c.at!);
-    if (!sources.length) return null;
-    return walkMap(sightContext, sources, Infinity, {
-      blocked: zoneOverlays.blocked,
-      // Seeded from the party but walked by a monster, so the ground is
-      // priced the way the monster will experience it.
-      difficult: zoneOverlays.difficultFor('monsters'),
-    });
+  const partyApproach = useMemo(
+    () => movePartyApproach(fight, sightContext, zoneOverlays),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [encounter.combatants, roster.entries, sightContext, zoneOverlays]);
+    [encounter.combatants, roster.entries, sightContext, zoneOverlays],
+  );
 
   /** The price to a square - the unburned route when the budget allows it,
       the short one otherwise - and which walk that price came from. */
-  const routeChoice = (key: string): { cost: number; via: Walk } | null => {
-    if (!walk || !walkSafe) return null;
-    const safe = walkSafe.cost.get(key);
-    if (safe !== undefined && safe <= walkBudget.dash) return { cost: safe, via: walkSafe };
-    const through = walk.cost.get(key);
-    if (through === undefined) return null;
-    return { cost: through, via: walk };
-  };
+  const routeChoice = (key: string) => moveRouteChoice(key, walk, walkSafe, walkBudget);
 
   const reach = useMemo((): { at: Square; dash?: boolean }[] => {
     // The glow is the armed tool's readout: lit tiles mean "clicking walks".

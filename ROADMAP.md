@@ -14,7 +14,7 @@ from the books" is an honest provenance and a weaker one than "verified against
 the SRD" — the audits exist because the difference turned out to matter
 fourteen times over. See **Provenance** below.
 
-The shipped history — one hundred and eleven sections with their reasoning — lives in
+The shipped history — one hundred and twelve sections with their reasoning — lives in
 **`docs/HISTORY.md`** so this file can be a plan.
 
 ---
@@ -403,11 +403,10 @@ above it, so no step needs a temporary shim:
 2. `[x]` **Sight and light** — done in §111. `fightSight.ts`, all eight.
    The caching stayed in the component on purpose: the module hands back
    a lookup rather than holding a cache that would outlive its fight.
-3. `[ ]` **Movement and pathing** — **M**. `walkerOf`, `speedOf`,
-   `movementLeftFor`, `standUpCostFor`, `walkBudget`, `walk`, `walkSafe`,
-   `reach`, `routeChoice`, `partyApproach`. Needs step 1. Fixes a
-   standing complaint on its own: speed is currently spread across five
-   modules, and `TableTab` carries a comment reconciling them.
+3. `[x]` **Movement and pathing** — done in §112. `fightMovement.ts`
+   holds ten of the eleven and states the order the speed rules apply
+   in, which was the thing spread across five modules. `reach` stayed:
+   it is the armed tool's readout, not a fact about the fight.
 4. `[ ]` **Zones** — **S**. `biteZone`, `healFromZone`, `dropZone`.
    Needs step 1. The first write-side module, so it is where
    `Resolution` gets proven on something small.
@@ -572,7 +571,7 @@ forgery, and it is the parked §9.
 
 ## History
 
-One hundred and eleven shipped sections, with the reasoning intact, live in
+One hundred and twelve shipped sections, with the reasoning intact, live in
 **`docs/HISTORY.md`**. Forty-four of them were split out of this file on
 2026-08-09 — forty-four numbered sections had made a *plan* unreadable, and
 a roadmap should say what is left rather than what was done. §45 was

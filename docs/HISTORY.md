@@ -7159,3 +7159,36 @@ wipe goes dark rather than omniscient.
 
 **Gates.** 2423 tests / 119 files, tsc, oxlint, build in budget;
 TableTab 6,951 lines.
+
+## 112. How far somebody can get (§9, step 3)
+
+Speed had been spread across five places - the play state's budget, the
+exhaustion ladder, the advantage engine's condition rule,
+`engine/movement`'s grants, and the battle screen's own reconciliation
+of all four, which carried a comment apologising for it. The survey
+flagged that on its own merits, before the §9 plan existed; this step
+pays it off.
+
+`fightMovement.ts` holds the ten: the body the pathfinder walks, the
+speed, what is left of a turn, what standing up costs, the two-tier
+budget a Dash extends, what standing zones do to the ground, the three
+walks (the one that measures, the one that avoids fire, and the one
+seeded from the whole party), and the route choice between them.
+
+**The order the rules apply in is itself the rule**, and it is now
+stated once rather than rediscovered: surprised is nought before
+anything else is asked; six conditions say nought outright; exhaustion
+halves from rung two and stops at five; hauling somebody costs half of
+whatever is left, unless they are two sizes smaller and weigh nothing
+worth counting. Eleven tests walk that ladder rung by rung, including
+the one nobody would think to check by hand - that a grappler is halved
+and the grappled has no speed at all, from the same single condition.
+
+**What stayed behind, deliberately:** the wash of reachable tiles.
+It looks like movement and is not - it asks whether a tool is armed and
+whose turn it is, which is the screen's business, and §27.2's frightened
+refusal is drawn there too. A rule module that knew about armed tools
+would be a screen with extra steps.
+
+**Gates.** 2434 tests / 120 files, tsc, oxlint, build in budget;
+TableTab 6,854 lines, down 700 from where the review found it.
