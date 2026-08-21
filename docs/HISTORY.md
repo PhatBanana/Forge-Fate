@@ -6919,3 +6919,78 @@ the extraction saying it changed nothing but the number of copies.
 
 **Gates.** 2398 tests / 116 files, tsc, oxlint, build in budget - and
 the TableTab chunk got smaller, which is what deleting a copy does.
+
+## 106. Hit points get one home, and it is a module
+
+The review's fifth candidate, and the one whose absence was loudest: the
+multiplayer design's deepest rule - **a character in the fight is not a
+copy of them** - was implemented as two closures in the middle of a
+7,500-line component. A monster's hit points ride the combatant because
+a goblin exists only for this fight; a character's live in their
+`PlayState` because they outlive it and the player owns them (§92).
+Reconciling those is what `hpOf` and `applyHp` did, and the only way to
+test either was to mount a whole battle screen. `TableTab.test.tsx`
+literally has a `describe('hit points have one home')` doing exactly
+that.
+
+**`hitPoints.ts` is three pure functions.** `hitPointsOf` reads from
+whichever store owns the number, `combatantName` from whichever store
+owns the name, and `applyHitPoints` writes - returning **the new
+roster** rather than calling a setter, because the encounter folds into
+the roster (`updateEncounter`) and the battle screen's own
+`setEncounter` was doing that one layer down anyway. So both stores
+travel home as one value, one write, one undo step. The one thing the
+module cannot know is a character's maximum, which comes from deriving
+their build, so it is injected as `maxOf` and the caller - which
+already memoises those derivations per render - hands one in.
+
+The bookkeeping came with it, because it is part of the rule rather
+than part of the screen: the tally records the hit capped at what was
+actually there to take, marks the blow that downed them, and **pain is
+an alarm clock** - damage wakes a dormant monster and says so in the
+log.
+
+**The call sites did not move.** `hpOf`, `nameOf` and `applyHp` remain
+as three-line closures over this render's roster and derivations, so
+all 117 uses across the battle screen are untouched. The knowledge
+left; the local names stayed. Eight new tests exercise the rule
+directly - both stores, the tally cap, the alarm clock, and the stale
+token whose character has left the roster, which returns the roster
+unchanged rather than throwing and taking the fight down with it.
+
+## 107. The forecast, peeled
+
+The first cut along the drawer registry, taking the region that touches
+least: "what will this fight do" is one question with three answers -
+the damage model's expectation, a fixed-seed 200-run balance dial, and
+a thousand-run distribution on request - and nothing else on the battle
+screen reads any of them.
+
+**The simulation state went with it**, which is what makes this a
+module rather than a moved block. `sim` and the effect that clears it
+when the sides change now live inside `ForecastPanel`, so the screen
+above hands in three facts and learns nothing about how a simulation is
+run or when its answer expires.
+
+Found on the way, and worth recording because it nearly shipped: the
+first draft of the extracted `balanceWord` was **rewritten from memory**
+rather than moved, and it invented different bands - a 0.6 boundary
+where the real one is 0.55, and "grim"/"a slaughter" where the real one
+says "desperate"/"a likely wipe". Nothing would have failed; the app
+would just have started describing fights differently. Moved verbatim
+instead. The lesson is the one this project keeps relearning about
+provenance: a thing that is being *moved* must be moved, not recalled.
+
+**Not done, and why.** The same review proposed folding six
+"mutually-exclusive tool booleans" into one union. Read in the code
+rather than in the summary, they are not mutually exclusive: the Escape
+handler is a deliberate **priority stack** - aim, then grab, then the
+light, then the mark, then the move, then the placement - so a DM
+holding a placement *and* an aim drops the aim and keeps the placement.
+A union makes that unrepresentable. Converting them would be a
+behaviour change wearing a refactor's clothes, and it needs a decision
+about whether one tool at a time is the rule, not a mechanical edit.
+Recorded here so the next review stops finding it.
+
+**Gates.** 2406 tests / 117 files, tsc, oxlint, build in budget;
+TableTab down from 7,554 lines to 7,325.

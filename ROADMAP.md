@@ -14,7 +14,7 @@ from the books" is an honest provenance and a weaker one than "verified against
 the SRD" — the audits exist because the difference turned out to matter
 fourteen times over. See **Provenance** below.
 
-The shipped history — one hundred and five sections with their reasoning — lives in
+The shipped history — one hundred and seven sections with their reasoning — lives in
 **`docs/HISTORY.md`** so this file can be a plan.
 
 ---
@@ -310,6 +310,33 @@ phone built for itself. Open, each sized:
   `scratchpad/setup-relay.sh`'s path. Redeploys stay `wrangler deploy` by
   hand - a 45-line worker that changes once a year does not need CI.
 
+### 8. The battle screen's shape — `[~]` **two cuts made, the core left fused**
+
+An architecture review (2026-08-20) surveyed the 7,500-line battle
+screen. What was worth doing, and what was not:
+
+- `[x]` **Hit points, promoted to a module** — §106. The two-store rule
+  is `hitPoints.ts` now, three pure functions with the write side
+  returning a roster rather than calling a setter. The call sites kept
+  their names as closures, so all 117 uses were untouched.
+- `[x]` **The forecast, peeled** — §107. Expectation, balance dial and
+  distribution, with the simulation state and its expiry rule, behind
+  three props.
+- `[ ]` **The other four peels** — **S** each: the encounter library,
+  the table/relay panel, group saves, and debrief/fallen. Each reads
+  ≤5 pieces of state used nowhere else on the screen. Same shape as
+  §107; no design decisions left in them.
+- `[–]` **Folding the tool states into one union** — *decided against,
+  see §107.* They are not mutually exclusive: Escape is a priority
+  stack, and holding a placement under an aim is a real state. A union
+  makes it unrepresentable, so it is a behaviour change rather than a
+  refactor. Reopen only with a decision that one tool at a time is the
+  rule.
+- `[–]` **Splitting the entangled core** (map stage, cockpit, field) —
+  each reads 8+ pieces of state and writes handlers defined in the
+  resolution regions. Cutting there moves complexity rather than
+  concentrating it.
+
 ### 7. Housekeeping a fresh clone found — `[x]` **done in §99**
 
 - `[x]` A `.gitattributes` — `* text=auto eol=lf`, ending the phantom
@@ -436,7 +463,7 @@ forgery, and it is the parked §9.
 
 ## History
 
-One hundred and five shipped sections, with the reasoning intact, live in
+One hundred and seven shipped sections, with the reasoning intact, live in
 **`docs/HISTORY.md`**. Forty-four of them were split out of this file on
 2026-08-09 — forty-four numbered sections had made a *plan* unreadable, and
 a roadmap should say what is left rather than what was done. §45 was

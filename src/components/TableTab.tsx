@@ -118,6 +118,8 @@ import type { SurfaceKind } from '../zones';
 import { deriveBuild } from '../engine/character';
 import { QrSvg } from './QrSvg';
 import type { MapCoreProps } from './mapContract';
+import { ForecastPanel } from './ForecastPanel';
+import { applyHitPoints, combatantName, hitPointsOf } from '../hitPoints';
 import { PlanComposer } from './PlanComposer';
 import { forecast } from '../engine/forecast';
 import { concentrationDc, damage, dash, emptyPlay, heal, hpNow, moveBy, movementLeft, awardXp, longRest, newTurn, setPlayConditionSource, setTurnSlot, shortRest, startOfEncounter, tickConditions, toggleCondition, spendAmmo, applyDeathSaveRoll } from '../play';
@@ -228,17 +230,6 @@ import { CharacterSheet } from './CharacterSheet';
  * had already finished. The hit points on the row keep working either way,
  * because a monster's live in the encounter rather than in the stat block.
  */
-/** The win rate in a DM's words. Bands, not precision - it is 200 runs. */
-const balanceWord = (winRate: number): string =>
-  winRate >= 0.95
-    ? 'a walkover'
-    : winRate >= 0.8
-      ? 'comfortable'
-      : winRate >= 0.55
-        ? 'a real fight'
-        : winRate >= 0.3
-          ? 'desperate'
-          : 'a likely wipe';
 
 const missingBlock = (loading: boolean) =>
   loading ? 'Stat block still loading…' : 'No stat block — deleted from your bestiary?';
@@ -1205,8 +1196,6 @@ export function TableTab({
     since. Cleared whenever the sides change, so a stale distribution can never
     sit beside fresh combatants.
   */
-  const [sim, setSim] = useState<ReturnType<typeof simulate>>(null);
-  useEffect(() => setSim(null), [sides]);
 
   /*
     The prep-time dial: a quick 200-run estimate that updates as monsters are
@@ -1237,46 +1226,18 @@ export function TableTab({
     [monsters],
   );
 
-  /** Hit points for a row, from whichever place owns them. */
-  const hpOf = (combatant: Combatant): { now: number; max: number } | null => {
-    if (combatant.kind === 'monster') return { now: combatant.hp, max: combatant.maxHp };
-    const entry = roster.entries.find((e) => e.id === combatant.rosterId);
-    const max = derived.get(combatant.rosterId)?.ctx.hp.total ?? 0;
-    return entry ? { now: hpNow(entry.play, max), max } : null;
-  };
-
-  const nameOf = (combatant: Combatant): string =>
-    combatant.kind === 'monster'
-      ? combatant.label
-      : derived.get(combatant.rosterId)?.name ?? 'Unknown';
-
-  /** Damage or heal, into whichever store owns the number - and damage from
-      the rail's own buttons still lands on the tally, dealer unknown. */
-  const applyHp = (combatant: Combatant, amount: number) => {
-    const hpBefore = hpOf(combatant)?.now ?? 0;
-    const tallied =
-      amount > 0 && isRunning(encounter)
-        ? recordDamage(encounter, {
-            to: combatant.id,
-            amount: Math.min(amount, hpBefore),
-            downed: hpBefore > 0 && hpBefore - amount <= 0,
-          })
-        : encounter;
-    if (combatant.kind === 'monster') {
-      // Pain is an alarm clock: damage wakes a dormant monster.
-      const woken =
-        amount > 0 && combatant.dormant
-          ? appendLog(setDormant(tallied, combatant.id, false), `${combatant.label} activates!`)
-          : tallied;
-      setEncounter(damageMonster(woken, combatant.id, amount));
-      return;
-    }
-    const entry = roster.entries.find((e) => e.id === combatant.rosterId);
-    if (!entry) return;
-    const max = derived.get(combatant.rosterId)?.ctx.hp.total ?? 0;
-    const play = amount >= 0 ? damage(entry.play, amount, max) : heal(entry.play, -amount, max);
-    onChange(updatePlay(updateEncounter(roster, tallied), entry.id, play));
-  };
+  /*
+    §106: the two stores hit points live in, reconciled - and the rule
+    lives in `hitPoints.ts` now, where it can be tested without mounting
+    a battle screen. What stays here is the closure the call sites
+    already knew: this render's roster, and the maximum that comes from
+    this render's memoised build derivations.
+  */
+  const maxHpOf = (rosterId: string) => derived.get(rosterId)?.ctx.hp.total ?? 0;
+  const hpOf = (combatant: Combatant) => hitPointsOf(combatant, roster, maxHpOf);
+  const nameOf = (combatant: Combatant) => combatantName(combatant, roster);
+  const applyHp = (combatant: Combatant, amount: number) =>
+    onChange(applyHitPoints(roster, encounter, combatant, amount, maxHpOf));
 
   const sightContext = useMemo(
     () => ({
@@ -4189,112 +4150,9 @@ export function TableTab({
       </Panel>
   );
 
-  const forecastPanel = (
-    <>
-      {outlook && (
-        <Panel
-          title="What this fight will do"
-          subtitle="From this app's own damage model, against these characters and these monsters — not an XP budget."
-        >
-          <p className="forecast-verdict">{outlook.verdict}</p>
-          <div className="forecast-grid">
-            <div>
-              <span className="k">Your party</span>
-              <b>{outlook.partyDpr}</b> damage a round at AC {outlook.monsterAc}
-              <span className="src">
-                {outlook.partyHp} hit points between them · AC {outlook.partyAc} average
-              </span>
-            </div>
-            <div>
-              <span className="k">Against you</span>
-              <b>{outlook.monsterDpr}</b> damage a round at AC {outlook.partyAc}
-              <span className="src">
-                {outlook.monsterHp} hit points left · AC {outlook.monsterAc} average
-              </span>
-            </div>
-            <div>
-              <span className="k">Rounds</span>
-              <b>{outlook.roundsToClear ?? '—'}</b> to clear ·{' '}
-              <b>{outlook.roundsToDrop ?? '—'}</b> before the party is out
-              <span className="src">{outlook.xp.toLocaleString()} XP from the stat blocks</span>
-            </div>
-          </div>
-          {/*
-            What was left out, by name. A model that quietly skipped a dragon's
-            breath weapon would read as precise and be wrong; one that named
-            what it skipped lets a DM weigh it by eye.
-          */}
-          {outlook.notes.length > 0 && (
-            <ul className="reasons" style={{ marginTop: 8 }}>
-              {outlook.notes.map((note, i) => (
-                <li key={i}>
-                  <span className="delta zero">·</span>
-                  <span>{note}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="muted" style={{ marginTop: 8 }}>
-            Expected damage with no variance, nobody moving and nobody using the thing that
-            would actually decide it. A projection, not a promise.
-          </p>
-
-          {/*
-            The prep dial: a fixed-seed 200-run estimate that moves as monsters
-            are added. Not the DMG's XP thresholds - this app does not carry
-            them - but its own simulation, which knows these characters.
-          */}
-          {quick && (
-            <p className="forecast-verdict" style={{ marginTop: 10 }}>
-              Balance: the party wins <b>{Math.round(quick.winRate * 100)}%</b> of 200 quick
-              runs — {balanceWord(quick.winRate)}.
-            </p>
-          )}
-
-          {/*
-            The distribution, on request. The expectation above says how the
-            averages go; this says how often it goes wrong, which is the
-            question a close fight actually poses.
-          */}
-          <div style={{ marginTop: 12 }}>
-            <button
-              className="btn btn-sm btn-primary"
-              onClick={() => setSim(simulate(sides, { trials: 1000 }))}
-            >
-              Run it 1,000 times
-            </button>
-          </div>
-
-          {sim && (
-            <div className="sim-result" style={{ marginTop: 10 }}>
-              <p className="forecast-verdict">
-                The party wins <b>{Math.round(sim.winRate * 100)}%</b> of the time, a typical
-                fight lasting <b>{sim.medianRounds}</b> round{sim.medianRounds === 1 ? '' : 's'}
-                {sim.winRate > 0 && <> with <b>{sim.meanHpLeftOnWin}</b> hit points left between them</>}
-                .
-              </p>
-              <ul className="reasons">
-                {sim.downRate.map((entry) => (
-                  <li key={entry.name}>
-                    <span
-                      className={`delta ${entry.rate > 0.5 ? 'neg' : entry.rate > 0.15 ? 'zero' : 'pos'}`}
-                    >
-                      {Math.round(entry.rate * 100)}%
-                    </span>
-                    <span>
-                      {entry.name} hits the floor at some point in {Math.round(entry.rate * 100)}% of
-                      fights.
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <p className="muted" style={{ marginTop: 6 }}>{sim.caveat}</p>
-            </div>
-          )}
-        </Panel>
-      )}
-    </>
-  );
+  /* §107: the forecast, its simulation state and its expiry rule now live
+     in ForecastPanel - this screen hands in three facts. */
+  const forecastPanel = <ForecastPanel sides={sides} outlook={outlook} quick={quick} />;
 
   const partyPanel = (
       <Panel title="Your party" subtitle="Every character on the roster. Their hit points here are the ones on their sheet.">
