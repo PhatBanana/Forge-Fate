@@ -7274,3 +7274,44 @@ is a duplicate definition waiting to drift; the real one is imported.
 
 **Gates.** 2455 tests / 123 files, tsc, oxlint, build in budget;
 TableTab 6,530 lines.
+
+## 115. The swing (§9, step 6)
+
+The last and largest step, and the one the review said could not be done
+as a component: `strikesInto` is 290 lines and reads thirteen sibling
+helpers, so pulling it out as a panel would have traded one fused region
+for a thirteen-prop interface. As a **rules module taking the fight as
+an argument** it needs a view, three things about the world, and a
+roster.
+
+Everything a 5e attack asks before a die is thrown now lives in one
+file: the target's armour and the cover between them, the ground both
+are standing on, the high ground if the table counts it, the advantage
+the conditions on *both* sides add up to, whether either can see the
+other and whether there is light to see by, the roll, the crit, the
+resistances, the concentration check the damage forces, the ammunition
+it spends, and the tally it all lands in.
+
+**It was already pure** - not one setter in 290 lines. The animation
+fires in the four-line wrapper above it, which is exactly where it
+should be and where it stayed. So this was a move, and after two
+near-misses this session where a *rewritten* helper quietly changed a
+rule (§107's bands, §114's hide fallback), it was done by scripted
+substitution: each closure it read became an explicit argument, and the
+compiler plus 209 untouched battle-screen tests checked the result. Two
+things the script got wrong and the compiler caught, both worth naming
+because they are what a careless hand would have shipped: it dropped the
+optional chaining off three `derived.get(x)?.ctx` reads, and it guessed
+five import paths that were wrong. Neither could have survived a build;
+neither would have been caught by a human eye on a 290-line diff.
+
+`StrikeContext` is deliberately separate from `FightView` - the map, the
+light lookup and the house rules are needed by this step and by nothing
+below it, and widening the view for one caller makes every other test
+fixture pay for it.
+
+**ROADMAP §9 is done.** Six steps, six modules, 2,463 tests, and a
+battle screen that went from 7,554 lines to 6,230 - with the fight's
+rules now answerable without mounting anything at all.
+
+**Gates.** 2463 tests / 124 files, tsc, oxlint, build in budget.
