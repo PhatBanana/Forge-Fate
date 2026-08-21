@@ -165,3 +165,25 @@ export function defencesOf(view: FightView, c: Combatant): Defences {
     ? { resist: monster.resist, immune: monster.immune, vulnerable: monster.vulnerable }
     : {};
 }
+
+/**
+ * What they add to a saving throw, from whichever side owns it - the
+ * stat block's number, or proficiency and items off the derived build.
+ * Null where the record is missing entirely, which the callers read as
+ * "this one does not roll" rather than as a zero.
+ */
+export function saveBonusFor(
+  view: FightView,
+  c: Combatant,
+  ability: 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha',
+): number | null {
+  if (c.kind === 'monster') {
+    const monster = view.monsterById(c.monsterId);
+    if (!monster) return null;
+    return monster.saves[ability] ?? monsterMod(monster.scores[ability]);
+  }
+  const ctx = view.buildOf(c.rosterId);
+  if (!ctx) return null;
+  const proficient = new Set(ctx.slices[0]?.klass.saves ?? []).has(ability);
+  return ctx.mods[ability] + (proficient ? ctx.proficiency : 0) + ctx.itemEffects.saves;
+}

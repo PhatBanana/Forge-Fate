@@ -69,7 +69,6 @@ import {
   tickMonsterConditions,
 } from '../encounter';
 import type { EncounterState, Square } from '../encounter';
-import { placeZone } from '../surfaces';
 import { canShove, fallDamage, fallFeet, pushedTo, shoveContest } from '../engine/shove';
 import {
   END_REASON,
@@ -123,6 +122,7 @@ import {
   passivePerceptionOf as factPassivePerceptionOf,
   reactionSpentOf as factReactionSpentOf,
   rulesetOf as factRulesetOf,
+  saveBonusFor as factSaveBonusFor,
   sizeOf as factSizeOf,
   skillBonusFor as factSkillBonusFor,
   sourcesOf as factSourcesOf,
@@ -152,10 +152,15 @@ import {
   walkerOf as moveWalkerOf,
   zoneOverlays as moveZoneOverlays,
 } from '../fightMovement';
+import {
+  biteZone as zoneBite,
+  dropZone as zoneDrop,
+  healFromZone as zoneHeal,
+} from '../fightZones';
 import { PlanComposer } from './PlanComposer';
 import { forecast } from '../engine/forecast';
-import { concentrationDc, damage, dash,  heal, hpNow, moveBy,  awardXp, longRest, newTurn, setPlayConditionSource, setTurnSlot, shortRest, startOfEncounter, tickConditions, toggleCondition, spendAmmo, applyDeathSaveRoll } from '../play';
-import { defaultRng, expectedTotal, parseNotation, rollD20, rollDamage, rollNotation } from '../engine/dice';
+import { concentrationDc, damage, dash,   hpNow, moveBy,  awardXp, longRest, newTurn, setPlayConditionSource, setTurnSlot, shortRest, startOfEncounter, tickConditions, toggleCondition, spendAmmo, applyDeathSaveRoll } from '../play';
+import { defaultRng, expectedTotal, parseNotation, rollD20, rollDamage } from '../engine/dice';
 import { CONDITIONS, CONDITIONS_BY_ID, conditionTextFor } from '../data/conditions';
 import { damageDice } from '../data/weapons';
 import { hitChance } from '../engine/dpr';
@@ -2332,116 +2337,16 @@ export function TableTab({
     updated: Roster,
     combatantId: string,
     zone: Zone,
-    // "is caught by" is section 26's: a surface reacting under somebody's feet
-    // is a third way to be bitten, and it costs exactly like the other two.
     how: 'walks into' | 'ends their turn in' | 'is caught by',
-  ): Roster => {
-    const effect = zone.effect;
-    if (!effect?.damage) return updated;
-    const encNow = activeEncounter(updated);
-    const combatant = encNow.combatants.find((c) => c.id === combatantId);
-    if (!combatant) return updated;
-    const parsed = parseNotation(effect.damage.dice);
-    if (!parsed) return updated;
-    const rolled = rollNotation(parsed, defaultRng).total;
-
-    // A fire elemental standing in a wall of fire is the case this fixes.
-    const through = applyDefences(
-      rolled,
-      { type: effect.damage.type.toLowerCase() },
-      defencesOf(combatant),
-    );
-    let dealt = through.dealt;
-    let saveNote = through.notes.length ? ` (${through.notes.join('; ')})` : '';
-    if (effect.save) {
-      const bonus =
-        (saveBonusFor(combatant, effect.save.ability as 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha') ??
-          0) + grantsUnder(encNow.zones, combatant.at, sideOf(combatant.kind)).saves;
-      const total = rollD20(bonus, 'normal', defaultRng).total;
-      const pass = total >= effect.save.dc;
-      // Halving the post-defence figure, not the raw roll: resistance and a
-      // successful save both apply, and each halves what is left.
-      if (pass) dealt = effect.save.half ? Math.floor(dealt / 2) : 0;
-      saveNote += ` — ${effect.save.ability.toUpperCase()} save ${total} vs DC ${effect.save.dc}: ${pass ? 'pass' : 'FAIL'}`;
-    }
-
-    const name = nameOf(combatant);
-    let enc = appendLog(
-      encNow,
-      `${name} ${how} ${zone.label}${saveNote}${dealt > 0 ? `, ${dealt} ${effect.damage.type}.` : ', no damage.'}`,
-    );
-    if (dealt <= 0) return updateEncounter(updated, enc);
-
-    const hpBefore = hpOf(combatant)?.now ?? 0;
-    // The zone's damage scores in the debrief too - no hand behind it, so no
-    // dealer, but every point taken and every knockdown counts.
-    enc = recordDamage(enc, {
-      to: combatant.id,
-      amount: Math.min(dealt, hpBefore),
-      downed: hpBefore > 0 && hpBefore - dealt <= 0,
-    });
-    if (combatant.kind === 'monster') {
-      if (combatant.dormant) {
-        enc = appendLog(setDormant(enc, combatant.id, false), `${combatant.label} activates!`);
-      }
-      return updateEncounter(updated, damageMonster(enc, combatant.id, dealt));
-    }
-    let out = updateEncounter(updated, enc);
-    const entry = out.entries.find((e) => e.id === combatant.rosterId);
-    const max = derived.get(combatant.rosterId)?.ctx.hp.total ?? 0;
-    if (entry) {
-      /*
-        The same roll the strike path makes. Ground that hurts breaks
-        concentration exactly like a sword does, and having one door roll it
-        and the other only mention it would be the worse kind of inconsistency.
-      */
-      let play = damage(entry.play, dealt, max);
-      if (entry.play.concentratingOn) {
-        const dc = concentrationDc(dealt);
-        const roll = rollD20(saveBonusFor(combatant, 'con') ?? 0, 'normal', defaultRng).total;
-        const held = roll >= dc;
-        out = updateEncounter(
-          out,
-          appendLog(
-            activeEncounter(out),
-            `${name} — CON save ${roll} vs DC ${dc} to hold ${entry.play.concentratingOn}: ${
-              held ? 'holds' : 'LOST'
-            }.`,
-          ),
-        );
-        if (!held) play = { ...play, concentratingOn: undefined };
-      }
-      out = updatePlay(out, entry.id, play);
-    }
-    return out;
-  };
+  ) => zoneBite(fight, updated, combatantId, zone, how);
 
   /**
    * Ground that mends rather than bites: rolled and applied like a bite, with
    * the sign turned round. Returns the roster so it composes with everything
    * else a turn's end settles.
    */
-  const healFromZone = (updated: Roster, combatantId: string, dice: string): Roster => {
-    const encNow = activeEncounter(updated);
-    const c = encNow.combatants.find((x) => x.id === combatantId);
-    const parsed = parseNotation(dice);
-    if (!c || !parsed) return updated;
-    const hp = hpOf(c);
-    // Nothing to mend on somebody at full, and nothing at all for the dead:
-    // healing the dropped is a ruling, and a loud one, not a side effect of
-    // standing somewhere.
-    if (!hp || hp.now <= 0 || hp.now >= hp.max) return updated;
-    const rolled = rollNotation(parsed, defaultRng).total;
-    const enc = appendLog(encNow, `${nameOf(c)} ends their turn on healing ground — ${rolled} back.`);
-    // Negative damage, which is how the rail's own +5 button already heals a
-    // monster - `damageMonster` clamps at both ends.
-    if (c.kind === 'monster') return updateEncounter(updated, damageMonster(enc, c.id, -rolled));
-    let out = updateEncounter(updated, enc);
-    const entry = out.entries.find((e) => e.id === c.rosterId);
-    const max = derived.get(c.rosterId)?.ctx.hp.total ?? 0;
-    if (entry) out = updatePlay(out, entry.id, heal(entry.play, rolled, max));
-    return out;
-  };
+  const healFromZone = (updated: Roster, combatantId: string, dice: string) =>
+    zoneHeal(fight, updated, combatantId, dice);
 
   /**
    * Put an area down, and let the ground answer.
@@ -2456,23 +2361,7 @@ export function TableTab({
    * across three `onChange` calls would have two of them build from a roster
    * that no longer existed, and the last one would win.
    */
-  const dropZone = (incoming: Zone) => {
-    const { zones, log, jolts } = placeZone(encounter.zones ?? [], incoming);
-
-    let enc: EncounterState = { ...encounter, zones, nextSeq: encounter.nextSeq + 1 };
-    for (const line of log) enc = appendLog(enc, line);
-    let updated = updateEncounter(roster, enc);
-
-    // A jolt is a zone that bites once: everyone standing in it pays, through
-    // the same dice, saves and stores a wall of fire already uses.
-    for (const jolt of jolts) {
-      for (const victim of combatantsIn(jolt, activeEncounter(updated).combatants)) {
-        if ((hpOf(victim)?.now ?? 0) <= 0) continue;
-        updated = biteZone(updated, victim.id, jolt, 'is caught by');
-      }
-    }
-    onChange(updated);
-  };
+  const dropZone = (incoming: Zone) => onChange(zoneDrop(fight, roster, incoming));
 
   /** Spend it, composed onto the given roster rather than written. */
   const spendReactionOf = (target: Roster, c: Combatant): Roster => {
@@ -3099,22 +2988,8 @@ export function TableTab({
    * players are not in the room, which is most of what balancing prep is.
    */
   /** A combatant's real saving-throw bonus - the stat block's or the sheet's. */
-  const saveBonusFor = (
-    c: Combatant,
-    ability: 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha',
-  ): number | null => {
-    if (c.kind === 'monster') {
-      const monster = byId.get(c.monsterId);
-      if (!monster) return null;
-      return monster.saves[ability] ?? monsterMod(monster.scores[ability]);
-    }
-    const info = derived.get(c.rosterId);
-    if (!info) return null;
-    const proficient = new Set(info.ctx.slices[0]?.klass.saves ?? []).has(ability);
-    return (
-      info.ctx.mods[ability] + (proficient ? info.ctx.proficiency : 0) + info.ctx.itemEffects.saves
-    );
-  };
+  const saveBonusFor = (c: Combatant, ability: 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha') =>
+    factSaveBonusFor(fight, c, ability);
 
   const rollGroupSaves = (saveForm: SaveCall) => {
     const ability = saveForm.ability as 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';

@@ -14,7 +14,7 @@ from the books" is an honest provenance and a weaker one than "verified against
 the SRD" — the audits exist because the difference turned out to matter
 fourteen times over. See **Provenance** below.
 
-The shipped history — one hundred and twelve sections with their reasoning — lives in
+The shipped history — one hundred and thirteen sections with their reasoning — lives in
 **`docs/HISTORY.md`** so this file can be a plan.
 
 ---
@@ -407,9 +407,10 @@ above it, so no step needs a temporary shim:
    holds ten of the eleven and states the order the speed rules apply
    in, which was the thing spread across five modules. `reach` stayed:
    it is the armed tool's readout, not a fact about the fight.
-4. `[ ]` **Zones** — **S**. `biteZone`, `healFromZone`, `dropZone`.
-   Needs step 1. The first write-side module, so it is where
-   `Resolution` gets proven on something small.
+4. `[x]` **Zones** — done in §113. `fightZones.ts`, and the dice became
+   a parameter, which is what finally made ground that bites testable.
+   The `Resolution` shape was not needed after all: these already
+   threaded a roster through and handed one back, so they kept that.
 5. `[ ]` **Grapple, shove, hide** — **M**. `resolveGrab`, `knockProne`,
    `setHeld`, `holdOn`, `letGo`, `escapeGrapple`, `standUpFrom`,
    `releaseGrapple`, `rollHide`. Needs 1, 3 and 4.
@@ -571,7 +572,7 @@ forgery, and it is the parked §9.
 
 ## History
 
-One hundred and twelve shipped sections, with the reasoning intact, live in
+One hundred and thirteen shipped sections, with the reasoning intact, live in
 **`docs/HISTORY.md`**. Forty-four of them were split out of this file on
 2026-08-09 — forty-four numbered sections had made a *plan* unreadable, and
 a roadmap should say what is left rather than what was done. §45 was

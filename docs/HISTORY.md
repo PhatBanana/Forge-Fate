@@ -7192,3 +7192,43 @@ would be a screen with extra steps.
 
 **Gates.** 2434 tests / 120 files, tsc, oxlint, build in budget;
 TableTab 6,854 lines, down 700 from where the review found it.
+
+## 113. Ground that bites, ground that mends (§9, step 4)
+
+The first **write-side** step, chosen small on purpose: three functions,
+so the shape gets proven somewhere a mistake is cheap rather than on the
+strike resolver.
+
+`fightZones.ts` takes the bite - rolled, defended, saved against, logged
+and landed in whichever store owns the hit points, with the
+concentration check ground owes exactly as a sword does - the heal that
+is the same thing with its sign turned round, and the drop that lets a
+new area react with the ones already standing.
+
+**The dice became a parameter, and that is the whole reason this step
+has tests.** They were `defaultRng` reached for inline: a bite that
+rolls its own damage cannot be asserted on, which is why none of this
+was covered before. `defaultRng` is still the default, so not one caller
+changed - and eight tests now pin the things that were only ever checked
+by eye: two dice of six landing as twelve, a passed save halving the
+*post-defence* figure rather than the raw roll, the same save without
+its half rider taking nothing at all, overkill tallying only what was
+there to take, a dormant monster woken by ground, and a caster losing
+Bless to a failed check.
+
+**Something deliberately not tidied**, and this is the more useful half
+of the section. This path records damage into the tally *without* asking
+whether the fight is running, where §106's `applyHitPoints` gates on
+exactly that. The two look like duplicates and are not: folding one into
+the other would change what a zone does to the debrief outside a running
+fight. That is a behaviour change wearing a cleanup's clothes, and the
+plan's rule is that a step which needs a test rewritten has changed
+behaviour. So it is written down in the module, where the next person to
+notice the resemblance will find the answer before they act on it.
+
+**Gates.** 2442 tests / 121 files, tsc, oxlint, build in budget;
+TableTab 6,729 lines.
+
+`saveBonusFor` moved to `fightFacts` on the way - step 1 had missed it,
+and it is a fact about a combatant rather than anything to do with
+zones.
