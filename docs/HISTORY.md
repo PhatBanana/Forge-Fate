@@ -7315,3 +7315,43 @@ battle screen that went from 7,554 lines to 6,230 - with the fight's
 rules now answerable without mounting anything at all.
 
 **Gates.** 2463 tests / 124 files, tsc, oxlint, build in budget.
+
+## 116. What the move got wrong
+
+§115 said the scripted substitution was safer than a rewrite because the
+compiler would check it. That was half right, and this section is the
+other half: **the compiler cannot see a scope change.**
+
+Asked to look again for anything left to fix, the audit found five
+places where the move had quietly swapped which roster a hit point is
+read from. `hpOf` in the battle screen closed over *this render's*
+roster; the substitution replaced it with the roster **threaded into**
+the function. Those are the same value almost always - and different in
+exactly the composed multi-write paths these modules exist to support: a
+monster that walks through a wall of fire and then swings in one write,
+or a `dropZone` jolt that kills somebody before the next jolt checks
+whether they are standing. The tally cap and the downed flag would have
+moved, and no test noticed, because nothing covers those paths.
+
+All five restored to the original scope. **Not "fixed" to the
+consistent one**, which is the point worth writing down: the original
+reads combatants off the threaded roster six lines above reading hit
+points off the render's, and that inconsistency may well be a latent
+bug - but a move is not the place to decide, and a refactor that
+silently corrects a rule is indistinguishable from one that breaks it.
+It is noted in `fightStrike.ts` where the next reader will find it.
+
+The regression test pinning it was **wrong twice before it was right**,
+which is its own small lesson: the first draft struck a monster, whose
+hit points ride the combatant so the roster argument never reaches them
+- it proved nothing and passed. The second read `play.currentHp`
+directly, which is undefined on a fresh sheet because undefined *means*
+full. Only the third, striking a character and asking `hitPointsOf` for
+the number, actually fails against the old behaviour.
+
+Three smaller things swept up while looking: `maxHpOf` was written out
+as the same lambda in five modules and now lives once beside the view
+that answers it; `holdOn` was exported to nobody; and `fightZones`
+re-exported a type it had no business re-exporting.
+
+**Gates.** 2464 tests / 124 files, tsc, oxlint, build in budget.

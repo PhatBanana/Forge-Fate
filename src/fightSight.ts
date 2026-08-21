@@ -8,6 +8,7 @@ import { inZone } from './zones';
 import { keyOf } from './terrain';
 import type { Square, Combatant, EncounterState } from './encounter';
 import { hitPointsOf } from './hitPoints';
+import { maxHpOf } from './fightFacts';
 import type { FightView } from './fightFacts';
 
 /**
@@ -119,10 +120,9 @@ export function partyVisible(
   litAt: (at: Square) => LightLevel,
 ): Set<string> | null {
   if (!view.encounter.fog) return null;
-  const maxOf = (rosterId: string) => view.buildOf(rosterId)?.hp.total ?? 0;
   const eyes = view.encounter.combatants
     .filter(
-      (c) => c.kind === 'character' && c.at && (hitPointsOf(c, view.roster, maxOf)?.now ?? 0) > 0,
+      (c) => c.kind === 'character' && c.at && (hitPointsOf(c, view.roster, maxHpOf(view))?.now ?? 0) > 0,
     )
     .map((c) => eyesOf(view, c))
     .filter((e): e is Eyes => !!e);

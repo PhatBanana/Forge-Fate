@@ -5,6 +5,7 @@ import type { Combatant, EncounterState } from './encounter';
 import type { Roster } from './storage';
 import type { BuildContext } from './engine/character';
 import type { Defences } from './engine/defences';
+import type { MaxHpOf } from './hitPoints';
 import type { Ruleset } from './types';
 
 /**
@@ -187,3 +188,11 @@ export function saveBonusFor(
   const proficient = new Set(ctx.slices[0]?.klass.saves ?? []).has(ability);
   return ctx.mods[ability] + (proficient ? ctx.proficiency : 0) + ctx.itemEffects.saves;
 }
+
+/**
+ * A character's hit point maximum, in the shape `hitPointsOf` wants it.
+ * Five modules were each writing this lambda out; it belongs beside the
+ * view that answers it.
+ */
+export const maxHpOf = (view: FightView): MaxHpOf => (rosterId) =>
+  view.buildOf(rosterId)?.hp.total ?? 0;

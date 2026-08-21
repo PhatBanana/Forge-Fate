@@ -14,7 +14,7 @@ from the books" is an honest provenance and a weaker one than "verified against
 the SRD" — the audits exist because the difference turned out to matter
 fourteen times over. See **Provenance** below.
 
-The shipped history — one hundred and fifteen sections with their reasoning — lives in
+The shipped history — one hundred and sixteen sections with their reasoning — lives in
 **`docs/HISTORY.md`** so this file can be a plan.
 
 ---
@@ -338,7 +338,7 @@ screen. What was worth doing, and what was not:
   resolution regions. Cutting there moves complexity rather than
   concentrating it.
 
-### 9. The fight, lifted out of the component — `[x]` **done, §110-§115**
+### 9. The fight, lifted out of the component — `[x]` **done, §110-§116**
 
 The battle screen is 7,081 lines and **half of it is not a screen**. After
 §106-§108 peeled the panels, what is left before the first panel is 3,620
@@ -573,7 +573,7 @@ forgery, and it is the parked §9.
 
 ## History
 
-One hundred and fifteen shipped sections, with the reasoning intact, live in
+One hundred and sixteen shipped sections, with the reasoning intact, live in
 **`docs/HISTORY.md`**. Forty-four of them were split out of this file on
 2026-08-09 — forty-four numbered sections had made a *plan* unreadable, and
 a roadmap should say what is left rather than what was done. §45 was

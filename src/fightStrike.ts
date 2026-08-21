@@ -88,6 +88,16 @@ export function strikesInto(
   rng: Rng = defaultRng,
 ): Roster {
   const maxOf = (rosterId: string) => view.buildOf(rosterId)?.hp.total ?? 0;
+  /*
+    Hit points are read off `view.roster` - this render's - rather than
+    off the roster threaded in, which is what the closure this replaced
+    did. It is worth naming because it looks like an oversight and the
+    move had no business deciding: combatants are re-read off `updated`
+    six lines below, so a walk composed just before this is visible in
+    the *positions* and not in the *hit points*. Where that shows is the
+    tally cap and the downed flag when a monster walks through a hazard
+    and then swings in one write. Preserved exactly; see ROADMAP §1.
+  */
   let enc = activeEncounter(updated);
   // Re-read both ends off the roster we were handed: a walk composed just
   // before this one is already in it, and the old objects are stale.
@@ -184,7 +194,7 @@ export function strikesInto(
             ally.kind === attacker.kind &&
             ally.id !== attacker.id &&
             ally.at &&
-            (hitPointsOf(ally, updated, maxOf)?.now ?? 0) > 0,
+            (hitPointsOf(ally, view.roster, maxOf)?.now ?? 0) > 0,
         )
         .map((ally) => ally.at!),
     )
@@ -277,7 +287,7 @@ export function strikesInto(
 
   // Damage into whichever store owns it; the log onto the fight; the
   // score onto the tally - kill marked when this blow is what dropped them.
-  const hpBefore = hitPointsOf(target, updated, maxOf)?.now ?? 0;
+  const hpBefore = hitPointsOf(target, view.roster, maxOf)?.now ?? 0;
   if (target.kind === 'monster' && totalDamage > 0) {
     enc = damageMonster(enc, target.id, totalDamage);
   }

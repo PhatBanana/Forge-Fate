@@ -7,6 +7,8 @@ import { deriveBuild } from './engine/character';
 import { generateDungeon } from './engine/dungeon';
 import { DEFAULT_HOUSE_RULES } from './houseRules';
 import { spendReactionOf, strikesInto } from './fightStrike';
+import { hitPointsOf } from './hitPoints';
+import { maxHpOf } from './fightFacts';
 import type { StrikeContext } from './fightStrike';
 import { reactionSpentOf } from './fightFacts';
 import type { FightView } from './fightFacts';
@@ -211,5 +213,44 @@ describe('the reaction', () => {
     // A monster's rides the combatant instead, and works the same way.
     const gobSpent = spendReactionOf(roster, monsterOf(v));
     expect(reactionSpentOf(viewOf(gobSpent), monsterOf(viewOf(gobSpent)))).toBe(true);
+  });
+});
+
+describe('the roster it reads from, which is not the one it writes to', () => {
+  /*
+    The scope a scripted move got wrong once, and which the compiler
+    could not catch: a *character's* hit points are read off the
+    render's roster, while combatants are re-read off the threaded one.
+    (A monster's ride the combatant itself, so the roster argument never
+    reaches them - which is why the first draft of this test proved
+    nothing.) It looks like an oversight and may well be one; a move is
+    not the place to decide, so it is pinned and a change has to be
+    deliberate.
+  */
+  it("caps a character's tally from the render's roster, not the threaded one", () => {
+    const roster = table();
+    const v = viewOf(roster);
+    const gob = monsterOf(v);
+    // Fresh play state leaves currentHp undefined, meaning full - so ask.
+    const full = hitPointsOf(charOf(v, 'c1'), roster, maxHpOf(v))!.now;
+
+    // The wizard is already at 1hp in the roster threaded in - the sort of
+    // thing a walk through a wall of fire composes just before a swing.
+    const wounded = updatePlay(roster, 'c1', { ...roster.entries[1].play, currentHp: 1 });
+
+    const after = strikesInto(
+      v,
+      ctx(),
+      wounded,
+      { name: 'Goblin', id: gob.id },
+      [{ label: 'Maul', toHit: 20, damage: [{ dice: '4d6', type: 'bludgeoning' }] } as Strike],
+      charOf(v, 'c1'),
+      undefined,
+      alwaysHigh,
+    );
+    const taken = activeEncounter(after).tally?.[charOf(v, 'c1').id]?.taken ?? 0;
+    // Capped against the render's hit points (full), not the threaded 1.
+    expect(full).toBeGreaterThan(1);
+    expect(taken).toBeGreaterThan(1);
   });
 });

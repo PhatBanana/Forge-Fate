@@ -85,7 +85,7 @@ export function setHeld(roster: Roster, id: string, byWhom: string | undefined):
   return updatePlay(roster, entry.id, setPlayConditionSource(play, GRAPPLED, byWhom));
 }
 
-export const holdOn = (roster: Roster, id: string, byWhom: string): Roster =>
+const holdOn = (roster: Roster, id: string, byWhom: string): Roster =>
   setHeld(roster, id, byWhom);
 
 /** Let go: the condition off and the source cleared, so nothing is left

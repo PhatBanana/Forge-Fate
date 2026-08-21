@@ -9,7 +9,7 @@ import { bitesOnEnter, sideOf, zoneReaches, zoneSquareKeys } from './zones';
 import type { Zone } from './zones';
 import { emptyPlay, movementLeft } from './play';
 import { hitPointsOf } from './hitPoints';
-import { conditionsOf, exhaustionOf, heldBy, rulesetOf, sizeOf } from './fightFacts';
+import { conditionsOf, exhaustionOf, heldBy, maxHpOf, rulesetOf, sizeOf } from './fightFacts';
 import type { FightView } from './fightFacts';
 import type { Combatant } from './encounter';
 
@@ -158,8 +158,7 @@ export function walkFor(
   overlays: ZoneOverlays,
 ): Walk | null {
   if (!c?.at) return null;
-  const maxOf = (rosterId: string) => view.buildOf(rosterId)?.hp.total ?? 0;
-  const hp = hitPointsOf(c, view.roster, maxOf);
+  const hp = hitPointsOf(c, view.roster, maxHpOf(view));
   if (!hp || hp.now === 0) return null;
   return walkMap(
     sight,
@@ -219,10 +218,9 @@ export function partyApproach(
   sight: SightContext,
   overlays: ZoneOverlays,
 ): Walk | null {
-  const maxOf = (rosterId: string) => view.buildOf(rosterId)?.hp.total ?? 0;
   const sources = view.encounter.combatants
     .filter(
-      (c) => c.kind === 'character' && c.at && (hitPointsOf(c, view.roster, maxOf)?.now ?? 0) > 0,
+      (c) => c.kind === 'character' && c.at && (hitPointsOf(c, view.roster, maxHpOf(view))?.now ?? 0) > 0,
     )
     .map((c) => c.at!);
   if (!sources.length) return null;
