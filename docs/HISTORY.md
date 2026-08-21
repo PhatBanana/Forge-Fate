@@ -7037,3 +7037,46 @@ changed nothing but where the code lives - and the battle screen is
 7,081 lines, down 473 from where the review found it.
 
 **Gates.** 2406 tests / 117 files, tsc, oxlint, build in budget.
+
+## 109. The housekeeping, finished
+
+Three loose ends, none of them features, all of them the kind of thing
+that is never the most urgent item and is therefore never done.
+
+**The deploy came off a deprecated runtime.** GitHub had been forcing
+`checkout`, `setup-node` and `upload-artifact` onto Node 24 and warning
+about it on every single run - the sort of warning that teaches everyone
+to skim past warnings. All four actions bumped to current majors, with
+the versions **queried rather than guessed**: the latest turned out to
+be checkout v7 and setup-node v5, well past the v5/v6 a good guess would
+have written. Release notes read for breaking changes to this workflow's
+usage (there are none; checkout takes no inputs and setup-node takes a
+version and a cache key). The run after was green and the annotation is
+gone.
+
+**The README had not noticed the last thirty sections.** It opened by
+describing a character builder, said "four tabs" - a navigation §35
+deleted - and contained not one word about campaigns or about the whole
+§92-§108 multiplayer arc: no room code, no seats, no relay, no QR. It
+says all of it now, in the app's own voice rather than a feature list.
+One caveat was worse than stale and worth naming: *"the turn tracker
+counts, it does not rule"* was written when it was true and has been
+close to the opposite for dozens of sections - the fight runs the action
+economy, the movement budget, opportunity attacks, cover, concentration
+and components. It now says what is enforced and what is still the
+table's call, which is a real distinction rather than a modest one.
+`readmeCounts.test.ts` guarded the numbers through the rewrite, exactly
+as it was built to.
+
+**The screenshots, weighed rather than solved.** `scratchpad/` is 92
+PNGs, about half this repository's history by bytes, growing by roughly
+a megabyte a section. Both cures cost more than the disease: Git LFS
+puts a setup step in front of every clone, and dropping the screenshots
+destroys the record the "Gates" lines cite. At 27 MB this is years from
+mattering, so it is a **recorded decision** rather than a task. What was
+worth doing is the cheap half - `development.md` now says not to commit
+a re-run whose only difference is anti-aliasing, which is where most of
+the churn came from.
+
+**Gates.** 2406 tests / 117 files, tsc, oxlint, build in budget; the
+deploy green on the new actions, with no deprecation warnings.

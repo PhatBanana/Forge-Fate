@@ -14,7 +14,7 @@ from the books" is an honest provenance and a weaker one than "verified against
 the SRD" — the audits exist because the difference turned out to matter
 fourteen times over. See **Provenance** below.
 
-The shipped history — one hundred and eight sections with their reasoning — lives in
+The shipped history — one hundred and nine sections with their reasoning — lives in
 **`docs/HISTORY.md`** so this file can be a plan.
 
 ---
@@ -360,6 +360,14 @@ Things deliberately not done, kept here so they stay decisions rather than
 drifting back into "todo". Each was argued once; the full reasoning is in
 `docs/HISTORY.md` under the section named.
 
+- **Git LFS, or dropping the probe screenshots** - the 92 PNGs in
+  `scratchpad/` are about half this repository's history by bytes, and
+  they grow by roughly a megabyte a section. Neither cure is worth it:
+  LFS puts a setup step in front of every clone, and dropping them
+  destroys the visual record the "Gates" lines cite. At 27 MB this is
+  years from mattering. What *was* worth doing is the cheap half -
+  `docs/development.md` now says not to commit a re-run whose only
+  difference is anti-aliasing. (§109)
 - **Mounted combat, underwater combat, chase rules** - out of scope for a
   tabletop aid at this table's scale. The DM rules them.
 - **Massive damage** - a table call, unmodelled with a comment in the code
@@ -464,7 +472,7 @@ forgery, and it is the parked §9.
 
 ## History
 
-One hundred and eight shipped sections, with the reasoning intact, live in
+One hundred and nine shipped sections, with the reasoning intact, live in
 **`docs/HISTORY.md`**. Forty-four of them were split out of this file on
 2026-08-09 — forty-four numbered sections had made a *plan* unreadable, and
 a roadmap should say what is left rather than what was done. §45 was

@@ -118,6 +118,14 @@ port named at the top of the file (`npx vite preview --port 4180`), some spawn
 `relay/server.mjs` themselves, and the Chromium executable path at the top is
 per-machine — point `EXE` at a local Chromium before running one.
 
+**Re-running an old probe regenerates its PNGs, and most of that is noise.**
+Running run80 to check a change did not break §80 is the point of keeping it;
+committing the regenerated screenshot when the only difference is a few
+anti-aliased pixels is not. Every commit of a PNG is a new blob kept forever —
+the screenshots are already about half this repository's history by bytes. So:
+commit a regenerated screenshot when what it *shows* changed, and `git
+checkout` it when it did not.
+
 ## Which screens
 
 **Tablets and desktops for the desk; a phone for the seat.** The two-handed

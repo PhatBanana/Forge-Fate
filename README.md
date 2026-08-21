@@ -2,10 +2,13 @@
 
 **[Open the app →](https://phatbanana.github.io/Forge-Fate/)**
 
-A D&D 5e character builder that tells you *why*. It rates every species against
-every class, recommends your next feat or ability score improvement with the
-reasoning spelled out, plans every ability score improvement to level 20, prints
-a real character sheet, and imports characters from D&D Beyond.
+A D&D 5e character builder that tells you *why*, and a screen to run the fight
+on. It rates every species against every class, recommends your next feat or
+ability score improvement with the reasoning spelled out, plans every ability
+score improvement to level 20, prints a real character sheet, and imports
+characters from D&D Beyond. Then it runs the game: a tactical battle screen
+that enforces the rules it draws, dungeons from a seed, a campaign that
+remembers, and players joining from their phones.
 
 Nothing to install and no account. Your characters stay in your browser, and
 sharing one puts it in the link rather than on anyone's server.
@@ -20,7 +23,10 @@ and whether to start from a blank sheet or a worked example. The example is a
 level 5 Battle Master with every panel full, so you can see what the rankings do
 before choosing anything.
 
-Four tabs: **Builder**, **Character sheet**, **Species × Class**, **Characters**.
+Everything is one press from the menu — the Builder, the character sheet,
+Species × Class, your characters, the dungeon workshop, the campaign and the
+battle screen. There is no tab strip: the menu is the only navigation, the way
+a tactics game's main menu is, and it says what is loaded before you press.
 The Builder is one page — Identity, Abilities, Equipment, Skills & options,
 Feats — with a rail of anchors down the top carrying a count of the choices each
 is still waiting on, so "what have I not finished?" is answered without
@@ -299,6 +305,29 @@ outside the list can be written in by name.
 thing that helps you choose — and a **Full description** underneath with the
 SRD's own words for the 319 spells and 361 items it covers.
 
+**Players at the table, on their own phones.** Open a table on the battle
+screen and it mints a room code the size of a title card. A player joins the way
+they would join a party game: type the code, or point a camera at the QR beside
+their name, and their seat opens on their phone — their sheet, where the fight
+stands, and a composer for what they will do when their turn comes. Plans are
+*proposals*: only the DM's screen runs anything, which is the whole authority
+rule and the reason nobody can move a token from the sofa. Hit points a player
+marks are theirs and survive a dead spot; a phone that locks its screen rejoins
+without anyone noticing.
+
+The room forwards messages and stores nothing. There is one deployed for this
+project — the DM's screen shows the address — or you can run your own from
+`relay/`, a Node server for the laptop at the table or a free Cloudflare Worker.
+The characters on a player's phone stay theirs: a table's fight lands in its own
+store and never touches them.
+
+**A campaign that remembers.** Sessions, the party's takings, and a chronicle
+line for each fight written from what actually happened — the objective, the
+delve, who did the most. When somebody hits nought and the table decides it was
+final, laying them to rest writes their name into the roll of the Fallen.
+**Nobody dies by app**: the character stays on the roster and the ruling stays
+yours.
+
 ## Which ruleset
 
 **Both**, and you can switch at any time. The two are genuinely different shapes,
@@ -400,9 +429,13 @@ is written from the books, and the app says which is which.
   are printed rather than tracked. Anything from a supplement — piety, renown —
   can be added as a counter of your own, which is the honest answer where
   reproducing the table is not something this project can do.
-- **The turn tracker counts, it does not rule.** It knows you have an action and
-  will not tell you whether what you did needed one; it is a tally you keep, not
-  a referee.
+- **The fight enforces what it can measure, and rules on nothing else.** The
+  action economy, the movement budget, opportunity attacks, cover, the
+  conditions that stop you moving, concentration checks and spell components
+  are run rather than mentioned — the screen will not let you spend an action
+  twice. What it will not do is judge a *description*: whether what you just
+  narrated needed an action, or a bonus action, or nothing at all, is the
+  table's call and stays one.
 - **Thrown ranges are shown, not enforced.**
 
 **And three limits of scope.**
@@ -434,6 +467,8 @@ This project is not affiliated with or endorsed by Wizards of the Coast.
 
 - **[docs/development.md](docs/development.md)** — running it, the layout, the
   test suites, deploying.
+- **[CONTEXT.md](CONTEXT.md)** — the domain glossary: what a table, a seat, a
+  chair, truth and a dead spot mean here.
 - **[docs/engine.md](docs/engine.md)** — how the recommendations are computed.
 - **[ROADMAP.md](ROADMAP.md)** — what is left, what is blocked and by what.
 - **[docs/HISTORY.md](docs/HISTORY.md)** — every shipped section with its
