@@ -6994,3 +6994,46 @@ Recorded here so the next review stops finding it.
 
 **Gates.** 2406 tests / 117 files, tsc, oxlint, build in budget;
 TableTab down from 7,554 lines to 7,325.
+
+## 108. Four more peels, and the one that stayed
+
+§107 cut the first region off the battle screen; this takes the four the
+review said were next, each on the same test: does anything else on that
+screen read this state?
+
+- **The encounter library.** The shelf, the name being typed, and three
+  verbs. `prepName` went with it - the screen above never had a use for
+  a half-typed label. Loading is handed back up, because reseating a
+  saved fight against *today's* roster is the fight's knowledge, not the
+  shelf's.
+- **The table.** The room, the chairs and the invitations (§95, §96,
+  §101), with two pieces of typing state: the relay URL being entered
+  before a table exists, and which seat's QR is open. It takes a named
+  guest list rather than the roster, so the panel never learns what a
+  character is.
+- **Group saves.** A fireball in three clicks. The *call* - which save,
+  what DC, how much, half on a pass - is the panel's own state; the
+  fight math stays where the fight is, because applying damage walks
+  every combatant and lands in two different stores. So the handlers
+  take the call as an argument instead of reading it out of a closure,
+  which is the seam that made the split possible at all.
+- **The fallen** (§91). **Nobody dies by app**: the panel lists who is
+  at nought and offers one button, and that button writes a name into
+  the campaign rather than killing anybody. Who is down and where they
+  fell are resolved above; what is left is the roll, the list, and the
+  one button.
+
+**The fifth stayed, and the survey was wrong about it.** The debrief was
+grouped with the fallen as "campaigns-only" work. It is not: it reads
+the objective's chronicle line, the delve's progress, the ward, the
+round count and the tally - six derived values from the middle of the
+fight. Peeling it would mean handing all six down, which is a prop list
+as wide as the panel is tall: the shallow trade this whole exercise
+exists to avoid. It stays fused, recorded here so the next survey does
+not find it again.
+
+**All 2,406 tests pass untouched**, which is the peels saying they
+changed nothing but where the code lives - and the battle screen is
+7,081 lines, down 473 from where the review found it.
+
+**Gates.** 2406 tests / 117 files, tsc, oxlint, build in budget.

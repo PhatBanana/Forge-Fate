@@ -33,7 +33,7 @@ import { simulate } from '../engine/simulate';
 import { makeRng } from '../engine/dungeon';
 import { planDeployment } from '../engine/deploy';
 import { applyDungeon, beginDelve, loadDungeons } from '../dungeons';
-import { loadEncounters, loadIntoPlay, putEncounter, removeEncounter, saveEncounters } from '../encounters';
+import { loadEncounters, loadIntoPlay, saveEncounters } from '../encounters';
 import type { Roster } from '../storage';
 import { activeEncounter, updateEncounter, updatePlay } from '../storage';
 import type { Combatant } from '../encounter';
@@ -106,9 +106,7 @@ import {
 } from '../campaign';
 import type { CampaignFile } from '../campaign';
 import { describeIntent, intentFor, queueIntent, withdrawIntent } from '../seats';
-import { newRoomCode } from '../sync';
 import type { RelayConfig } from '../sync';
-import { seatUrl } from '../share';
 import type { Intent, Seat } from '../seats';
 import type { Defences } from '../engine/defences';
 import { HOUSE_RULE_INFO, highGroundBonus, loadHouseRules, saveHouseRules } from '../houseRules';
@@ -116,9 +114,13 @@ import type { HouseRules } from '../houseRules';
 import { SURFACE_KINDS } from '../zones';
 import type { SurfaceKind } from '../zones';
 import { deriveBuild } from '../engine/character';
-import { QrSvg } from './QrSvg';
 import type { MapCoreProps } from './mapContract';
 import { ForecastPanel } from './ForecastPanel';
+import { EncounterLibrary } from './EncounterLibrary';
+import { TablePanel } from './TablePanel';
+import { GroupSaves } from './GroupSaves';
+import { FallenPanel } from './FallenPanel';
+import type { SaveCall } from './GroupSaves';
 import { applyHitPoints, combatantName, hitPointsOf } from '../hitPoints';
 import { PlanComposer } from './PlanComposer';
 import { forecast } from '../engine/forecast';
@@ -529,9 +531,7 @@ export function TableTab({
   const setPlans = onPlansChange ?? setLocalPlans;
   /* §92: the composer's own scratch, cleared on queue. */
   /* §95: the relay URL being typed, until Open the table commits it. */
-  const [relayUrl, setRelayUrl] = useState('');
   /* §101: which seat's invitation is showing as a QR, one at a time. */
-  const [qrSeat, setQrSeat] = useState<string | null>(null);
   /** The optional rules this table has switched on. Off is the book. */
   /*
     Which drawer is open over the map, or none.
@@ -629,7 +629,6 @@ export function TableTab({
   /** The FFT phase card: "Goblin A's turn", flashed over the map on advance. */
   const [banner, setBanner] = useState<{ seq: number; text: string } | null>(null);
 
-  const [saveForm, setSaveForm] = useState({ ability: 'dex', dc: 15, damage: '', half: true });
   /** Rounds typed beside the rail-monster condition select. */
   const [monsterRounds, setMonsterRounds] = useState('');
 
@@ -640,7 +639,6 @@ export function TableTab({
   */
   const [library, setLibrary] = useState(loadEncounters);
   useEffect(() => saveEncounters(library), [library]);
-  const [prepName, setPrepName] = useState('');
 
   /*
     The dungeon drawer, read-only from Play: the Dungeons tab writes it, the
@@ -3345,7 +3343,7 @@ export function TableTab({
     );
   };
 
-  const rollGroupSaves = () => {
+  const rollGroupSaves = (saveForm: SaveCall) => {
     const ability = saveForm.ability as 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
     const results = encounter.combatants
       .map((c) => {
@@ -3375,7 +3373,7 @@ export function TableTab({
   };
 
   /** Full to the failed, half to the passed - a fireball, in one write. */
-  const applySaveDamage = () => {
+  const applySaveDamage = (saveForm: SaveCall) => {
     const amount = Math.max(0, Math.round(Number(saveForm.damage) || 0));
     if (!amount || !saveResults) return;
 
@@ -4440,151 +4438,30 @@ export function TableTab({
     return level === 0 ? '0 ft' : `${level > 0 ? '+' : '-'}${Math.abs(level)} · ${Math.abs(level) * 5} ft`;
   })();
 
+  /* §108: the call is GroupSaves' own state; the fight math stays here,
+     taking the call as an argument rather than reading a closure. */
   const savesPanel = (
-    <Panel
-      title="Saving throws"
-      subtitle="The call, the answers, the damage — a fireball in three clicks. Everyone rolls with their real bonus."
-    >
-      <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-        <label className="field field-sm">
-          <span>Save</span>
-          <select
-            value={saveForm.ability}
-            onChange={(e) => setSaveForm({ ...saveForm, ability: e.target.value })}
-          >
-            {(['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).map((a) => (
-              <option key={a} value={a}>
-                {a.toUpperCase()}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field field-sm">
-          <span>DC</span>
-          <input
-            type="number"
-            className="qty"
-            value={saveForm.dc}
-            onChange={(e) => setSaveForm({ ...saveForm, dc: Number(e.target.value) || 0 })}
-          />
-        </label>
-        <label className="field field-sm">
-          <span>Damage</span>
-          <input
-            type="number"
-            className="qty"
-            placeholder="—"
-            value={saveForm.damage}
-            onChange={(e) => setSaveForm({ ...saveForm, damage: e.target.value })}
-          />
-        </label>
-        <label className="checkbox" style={{ alignSelf: 'center' }}>
-          <input
-            type="checkbox"
-            checked={saveForm.half}
-            onChange={(e) => setSaveForm({ ...saveForm, half: e.target.checked })}
-          />
-          <span>Half on a pass</span>
-        </label>
-        <button
-          className="btn btn-sm btn-primary"
-          style={{ alignSelf: 'center' }}
-          disabled={!encounter.combatants.length}
-          onClick={rollGroupSaves}
-        >
-          Roll the room
-        </button>
-      </div>
-
-      {saveResults && (
-        <>
-          <ul className="reasons">
-            {saveResults.map((result) => (
-              <li key={result.id}>
-                <span className={`delta ${result.pass ? 'pos' : 'neg'}`}>
-                  {result.pass ? 'pass' : 'FAIL'}
-                </span>
-                <span>
-                  {result.name} rolled <b>{result.total}</b> ({result.bonus >= 0 ? '+' : ''}
-                  {result.bonus})
-                </span>
-              </li>
-            ))}
-          </ul>
-          <div className="btn-row" style={{ marginTop: 8 }}>
-            <button
-              className="btn btn-sm btn-primary"
-              disabled={!Number(saveForm.damage)}
-              onClick={applySaveDamage}
-            >
-              Apply {saveForm.damage || '—'} damage
-            </button>
-            <button className="btn btn-sm" onClick={() => setSaveResults(null)}>
-              Discard
-            </button>
-          </div>
-        </>
-      )}
-    </Panel>
+    <GroupSaves
+      canRoll={encounter.combatants.length > 0}
+      results={saveResults}
+      onRoll={rollGroupSaves}
+      onApply={applySaveDamage}
+      onDiscard={() => setSaveResults(null)}
+    />
   );
 
+  /* §108: the shelf, its typing state and its three verbs live in
+     EncounterLibrary; reseating a loaded fight stays here, because who
+     is on the roster today is this screen's knowledge. */
   const libraryPanel = (
-    <Panel
-      title="Encounter library"
-      subtitle="Prep the other three fights for Saturday. A saved fight keeps its monsters, map, terrain and effects; loading one starts it fresh against today's roster."
-    >
-      <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-        <input
-          type="text"
-          placeholder="The kennel, level B2…"
-          aria-label="Name to save this fight under"
-          value={prepName}
-          onChange={(e) => setPrepName(e.target.value)}
-        />
-        <button
-          className="btn btn-sm btn-primary"
-          disabled={!prepName.trim() || !encounter.combatants.length}
-          onClick={() => {
-            setLibrary(putEncounter(library, prepName.trim(), encounter));
-            setPrepName('');
-          }}
-        >
-          Save this fight
-        </button>
-      </div>
-
-      {library.length === 0 && (
-        <p className="muted">Nothing prepped yet. Build a fight and save it under a name.</p>
-      )}
-      {library.map((saved) => (
-        <p key={saved.id} className="zone-row">
-          <button
-            className="btn btn-sm"
-            aria-label={`Load ${saved.name}`}
-            onClick={() =>
-              setEncounter(
-                loadIntoPlay(saved, new Set(roster.entries.map((e) => e.id))),
-              )
-            }
-          >
-            Load
-          </button>{' '}
-          <button
-            className="btn btn-sm"
-            aria-label={`Delete ${saved.name}`}
-            onClick={() => setLibrary(removeEncounter(library, saved.id))}
-          >
-            Delete
-          </button>{' '}
-          <b>{saved.name}</b>
-          <span className="src">
-            {' '}
-            · {saved.encounter.combatants.filter((c) => c.kind === 'monster').length} monsters
-            {saved.encounter.mapSeed ? ` · ${saved.encounter.mapSeed}` : ''}
-          </span>
-        </p>
-      ))}
-    </Panel>
+    <EncounterLibrary
+      library={library}
+      encounter={encounter}
+      onLibraryChange={setLibrary}
+      onLoad={(saved) =>
+        setEncounter(loadIntoPlay(saved, new Set(roster.entries.map((e) => e.id))))
+      }
+    />
   );
 
   /*
@@ -4860,61 +4737,44 @@ export function TableTab({
     delve knows the room they fell in) and a date onto the campaign's roll,
     which the Campaign screen keeps and the DM can inscribe there.
   */
+  /* §108: who is down and where they fell is this screen's knowledge;
+     the roll, the list and the one button are FallenPanel's. */
   const fallenPanel = (() => {
     if (!campaign) return null;
-    const down = encounter.combatants.filter(
-      (c) => c.kind === 'character' && hpOf(c) !== undefined && hpOf(c)!.now === 0,
-    );
-    if (!down.length) return null;
     const onRoll = new Set((campaign.fallen ?? []).map((m) => m.name));
-    return (
-      <Panel
-        title="The fallen"
-        subtitle="Nobody dies by app. Laying someone to rest writes their name into the campaign — the character stays on the roster, and the ruling stays yours."
-      >
-        {down.map((c) => {
-          const name = nameOf(c);
-          const saves =
-            c.kind === 'character'
-              ? roster.entries.find((e) => e.id === c.rosterId)?.play.deathSaves
-              : undefined;
-          const fell = encounter.delve?.fallen.find((f) => f.name === name);
-          const where = encounter.delve
-            ? `${encounter.delve.name}${fell?.room !== undefined ? `, room ${fell.room}` : ''}`
+    const down = encounter.combatants
+      .filter((c) => c.kind === 'character' && hpOf(c)?.now === 0)
+      .map((c) => {
+        const name = nameOf(c);
+        const saves =
+          c.kind === 'character'
+            ? roster.entries.find((e) => e.id === c.rosterId)?.play.deathSaves
             : undefined;
-          return (
-            <p key={c.id} className="zone-row">
-              <b>{name}</b>
-              <span className="src">
-                {' '}
-                · at nought
-                {saves && saves.failures >= 3 ? ' · dead by the dice' : ''}
-                {where ? ` · ${where}` : ''}
-              </span>{' '}
-              {onRoll.has(name) ? (
-                <span className="src">· on the roll</span>
-              ) : (
-                <button
-                  className="btn btn-sm"
-                  aria-label={`Lay ${name} to rest`}
-                  title="Write their name into the campaign's roll of the Fallen"
-                  onClick={() => {
-                    setCampaigns(
-                      updateCampaign(campaigns, campaign.id, (one) =>
-                        layToRest(one, { name, ...(where ? { where } : {}) }),
-                      ),
-                    );
-                    setEncounter(appendLog(encounter, `${name} is laid to rest.`));
-                    say?.(`${name} joins the Fallen.`);
-                  }}
-                >
-                  Lay to rest
-                </button>
-              )}
-            </p>
+        const fell = encounter.delve?.fallen.find((f) => f.name === name);
+        const where = encounter.delve
+          ? `${encounter.delve.name}${fell?.room !== undefined ? `, room ${fell.room}` : ''}`
+          : undefined;
+        return {
+          id: c.id,
+          name,
+          deadByDice: !!saves && saves.failures >= 3,
+          ...(where ? { where } : {}),
+          onRoll: onRoll.has(name),
+        };
+      });
+    return (
+      <FallenPanel
+        down={down}
+        say={say}
+        onLay={(soul) => {
+          setCampaigns(
+            updateCampaign(campaigns, campaign.id, (one) =>
+              layToRest(one, { name: soul.name, ...(soul.where ? { where: soul.where } : {}) }),
+            ),
           );
-        })}
-      </Panel>
+          setEncounter(appendLog(encounter, `${soul.name} is laid to rest.`));
+        }}
+      />
     );
   })();
 
@@ -6220,120 +6080,16 @@ export function TableTab({
     button, because a copy button needs a clipboard permission and this
     needs none. Closing the table drops the room; the fight is untouched.
   */
-  const tablePanel = (() => {
-    if (!onRelayChange) return null;
-    return (
-      <Panel
-        title="The table"
-        subtitle="Phones join over a relay — a room that forwards and forgets. relay/README.md ships two you can run."
-      >
-        {!relay ? (
-          <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
-            <input
-              type="text"
-              className="detail"
-              aria-label="Relay URL"
-              placeholder="wss://forge-fate-relay.your-name.workers.dev"
-              style={{ flex: 1, minWidth: 220 }}
-              value={relayUrl}
-              onChange={(e) => setRelayUrl(e.target.value)}
-            />
-            <button
-              className="btn btn-sm btn-primary"
-              disabled={!relayUrl.trim()}
-              onClick={() => onRelayChange({ url: relayUrl.trim(), room: newRoomCode() })}
-            >
-              Open the table
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* §96: the Jackbox screen - a code big enough to read across
-                the table. Phones join with it from Take a seat; the links
-                below still carry everything for the ones far away. */}
-            <div className="room-code" aria-label="Room code">
-              {relay.room}
-            </div>
-            {seats.length > 0 && (
-              <p className="hint" style={{ marginTop: 0 }}>
-                Seated:{' '}
-                {seats
-                  .map((seat) => {
-                    const who = roster.entries.find((e) => e.id === seat.rosterId);
-                    const name = who?.build.name || 'Unnamed';
-                    return seat.playerName ? `${name} — ${seat.playerName}` : name;
-                  })
-                  .join(' · ')}
-              </p>
-            )}
-            <p className="hint" style={{ marginTop: 0 }}>
-              Players join with the code from Take a seat, or by link — it carries
-              the seat, the room and the relay in one.
-            </p>
-            {roster.entries.map((entry) => {
-              const name = entry.build.name || 'Unnamed';
-              const link = seatUrl(entry.id, relay);
-              return (
-                <div key={entry.id} className="zone-row seat-invite">
-                  <p className="row" style={{ gap: 6, alignItems: 'center', margin: 0 }}>
-                    <b>{name}</b>{' '}
-                    <input
-                      type="text"
-                      className="detail"
-                      readOnly
-                      aria-label={`Seat link for ${name}`}
-                      style={{ flex: 1, minWidth: 120 }}
-                      value={link}
-                      onFocus={(e) => e.currentTarget.select()}
-                    />
-                    {/* §101: the share sheet, where the platform has one -
-                        texting a link to the player who stayed home. */}
-                    {typeof navigator !== 'undefined' && !!navigator.share && (
-                      <button
-                        className="btn btn-sm"
-                        onClick={() => {
-                          navigator
-                            .share({ title: `${name}'s seat at the table`, url: link })
-                            .catch(() => {
-                              // Cancelled is not an error anyone needs told about.
-                            });
-                        }}
-                      >
-                        Share
-                      </button>
-                    )}
-                    {/* §101: the QR, which needs no platform at all - the
-                        phone across the table points its camera at this
-                        screen. Third-party QR services were never an
-                        option: the link carries the room code, and the
-                        room code is the whole secret (§95). */}
-                    <button
-                      className="btn btn-sm"
-                      aria-pressed={qrSeat === entry.id}
-                      onClick={() => setQrSeat(qrSeat === entry.id ? null : entry.id)}
-                    >
-                      QR
-                    </button>
-                  </p>
-                  {qrSeat === entry.id && (
-                    <div className="seat-qr">
-                      <QrSvg text={link} label={`QR code of ${name}'s seat link`} />
-                      <p className="hint">
-                        {name}'s whole invitation — scan it with the phone's camera.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            <button className="btn btn-sm" onClick={() => onRelayChange(null)}>
-              Close the table
-            </button>
-          </>
-        )}
-      </Panel>
-    );
-  })();
+  /* §108: the room, the chairs and the invitations live in TablePanel;
+     it renders only where there is a hand to open or close a table. */
+  const tablePanel = onRelayChange ? (
+    <TablePanel
+      relay={relay ?? null}
+      onRelayChange={onRelayChange}
+      seats={seats}
+      entries={roster.entries.map((e) => ({ id: e.id, name: e.build.name || 'Unnamed' }))}
+    />
+  ) : null;
 
   const selectedPanel = !selected ? (
     <p className="muted">
