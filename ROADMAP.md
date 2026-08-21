@@ -14,7 +14,7 @@ from the books" is an honest provenance and a weaker one than "verified against
 the SRD" — the audits exist because the difference turned out to matter
 fourteen times over. See **Provenance** below.
 
-The shipped history — one hundred and thirteen sections with their reasoning — lives in
+The shipped history — one hundred and fourteen sections with their reasoning — lives in
 **`docs/HISTORY.md`** so this file can be a plan.
 
 ---
@@ -411,9 +411,9 @@ above it, so no step needs a temporary shim:
    a parameter, which is what finally made ground that bites testable.
    The `Resolution` shape was not needed after all: these already
    threaded a roster through and handed one back, so they kept that.
-5. `[ ]` **Grapple, shove, hide** — **M**. `resolveGrab`, `knockProne`,
-   `setHeld`, `holdOn`, `letGo`, `escapeGrapple`, `standUpFrom`,
-   `releaseGrapple`, `rollHide`. Needs 1, 3 and 4.
+5. `[x]` **Grapple, shove, hide** — done in §114. `fightGrapple.ts`, and
+   `fightEvents.ts` with it: the `Resolution` shape earns its keep where
+   a shove has to announce a slide as well as write a position.
 6. `[ ]` **Strike resolution** — **L**, and last. `strikesInto`,
    `resolveStrikes`, `strikesFor`, `allStrikesFor`, `opportunitySwing`,
    `resolveAim`, `runPlan`. Needs everything above. The biggest, and the
@@ -572,7 +572,7 @@ forgery, and it is the parked §9.
 
 ## History
 
-One hundred and thirteen shipped sections, with the reasoning intact, live in
+One hundred and fourteen shipped sections, with the reasoning intact, live in
 **`docs/HISTORY.md`**. Forty-four of them were split out of this file on
 2026-08-09 — forty-four numbered sections had made a *plan* unreadable, and
 a roadmap should say what is left rather than what was done. §45 was

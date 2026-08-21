@@ -7232,3 +7232,45 @@ TableTab 6,729 lines.
 `saveBonusFor` moved to `fightFacts` on the way - step 1 had missed it,
 and it is a fact about a combatant rather than anything to do with
 zones.
+
+## 114. Hands on somebody (§9, step 5)
+
+The grapple, the shove, the trip, the escape, getting up off the floor
+and hiding - and the step the plan's write-side shape was designed for,
+because a shove that pushes somebody off a ledge has to *say* so as well
+as write it: the sprite slides.
+
+**`Resolution` earns its keep here.** `fightEvents.ts` holds the union -
+walk, lunge, float, flash, banner, say - and the rules return the new
+truth plus a list of what happened. The screen plays the list in one
+place, `playFightEvents`. That split exists for a concrete reason rather
+than a tidy one: a module that called `setLunges` could never be tested
+without React, which is the whole point of moving it. The union carries
+only what the moved rules actually raise, and is meant to grow a member
+at a time - an event nobody raises is an event nobody has to play.
+
+The chain a ledge sets off is the thing worth having a test for, and now
+has one: the contest is won, the body is placed five feet back, the slide
+is announced, the fall is priced from the elevation difference, the drop
+bites through the same zone machinery a wall of fire uses, and **they
+land prone** - the part everyone forgets, which is exactly the kind of
+thing a tool should remember. Thirteen tests, none of which mount
+anything.
+
+**A rewrite caught in the act.** The first draft of `rollHide` reached
+for `skillBonusFor`, which looks like the same question and is not: that
+one falls back to the raw ability modifier where hide's own lookup falls
+back to nothing. Swapping them would have quietly given every
+non-proficient character their DEX on a hide - defensible as a rule, and
+not a thing a *move* gets to decide. Restored verbatim, with the
+reasoning left in the code so the next reader does not re-make it. That
+is twice now (§107's `balanceWord` was the first), which is enough to
+call it the failure mode of this kind of work rather than an accident.
+
+Also caught by the compiler rather than by review: the first draft
+declared its own `GrabMode` with a `shove` member, where the real one in
+`engine/grapple` says `push`. An invented type that shadows a real one
+is a duplicate definition waiting to drift; the real one is imported.
+
+**Gates.** 2455 tests / 123 files, tsc, oxlint, build in budget;
+TableTab 6,530 lines.

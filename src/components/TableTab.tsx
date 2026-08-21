@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 import type { Monster } from '../data/monsters';
 import type { Ruleset } from '../types';
 import { exhaustionEffect } from '../engine/exhaustion';
-import { formatCr, legendaryCost, monsterMod, monsterSummary, parseUsage, searchMonsters } from '../data/monsters';
+import { formatCr, legendaryCost, monsterSummary, parseUsage, searchMonsters } from '../data/monsters';
 import { isCustom, mergeBestiary } from '../bestiary';
 import { useMonsters } from './useMonsters';
 import { TERRAIN_BY_KIND, elevationAt, keyOf } from '../terrain';
@@ -69,12 +69,9 @@ import {
   tickMonsterConditions,
 } from '../encounter';
 import type { EncounterState, Square } from '../encounter';
-import { canShove, fallDamage, fallFeet, pushedTo, shoveContest } from '../engine/shove';
 import {
   END_REASON,
   GRAPPLED,
-  canGrapple,
-  escapeContest,
   grappleEnds,
 } from '../engine/grapple';
 import type { GrabMode } from '../engine/grapple';
@@ -123,8 +120,6 @@ import {
   reactionSpentOf as factReactionSpentOf,
   rulesetOf as factRulesetOf,
   saveBonusFor as factSaveBonusFor,
-  sizeOf as factSizeOf,
-  skillBonusFor as factSkillBonusFor,
   sourcesOf as factSourcesOf,
   stanceOf as factStanceOf,
 } from '../fightFacts';
@@ -157,9 +152,18 @@ import {
   dropZone as zoneDrop,
   healFromZone as zoneHeal,
 } from '../fightZones';
+import {
+  escapeGrapple as grappleEscape,
+  letGo as grappleLetGo,
+  releaseGrapple as grappleRelease,
+  resolveGrab as grappleResolve,
+  rollHide as grappleRollHide,
+  standUpFrom as grappleStandUp,
+} from '../fightGrapple';
+import type { FightEvent } from '../fightEvents';
 import { PlanComposer } from './PlanComposer';
 import { forecast } from '../engine/forecast';
-import { concentrationDc, damage, dash,   hpNow, moveBy,  awardXp, longRest, newTurn, setPlayConditionSource, setTurnSlot, shortRest, startOfEncounter, tickConditions, toggleCondition, spendAmmo, applyDeathSaveRoll } from '../play';
+import { concentrationDc, damage, dash,   hpNow, moveBy,  awardXp, longRest, newTurn,  setTurnSlot, shortRest, startOfEncounter, tickConditions,  spendAmmo, applyDeathSaveRoll } from '../play';
 import { defaultRng, expectedTotal, parseNotation, rollD20, rollDamage } from '../engine/dice';
 import { CONDITIONS, CONDITIONS_BY_ID, conditionTextFor } from '../data/conditions';
 import { damageDice } from '../data/weapons';
@@ -644,6 +648,44 @@ export function TableTab({
   const [walks, setWalks] = useState<
     Record<string, { seq: number; route: Square[]; slide?: boolean }>
   >({});
+  /*
+    §114: what a rule said happened, played. The rules modules return
+    events rather than firing them, because a module that called
+    `setLunges` could never be tested without React - so this is the one
+    place that turns a Resolution's list back into animation and noise.
+  */
+  const playFightEvents = (events: FightEvent[]) => {
+    for (const event of events) {
+      switch (event.kind) {
+        case 'walk':
+          noteWalk(event.id, event.route, event.slide);
+          break;
+        case 'lunge':
+          noteLunge(event.id, event.toward);
+          break;
+        case 'flash':
+          setFlashes((prev) => ({ ...prev, [event.id]: (prev[event.id] ?? 0) + 1 }));
+          break;
+        case 'float':
+          setFloats((prev) => ({
+            ...prev,
+            [event.id]: {
+              seq: (prev[event.id]?.seq ?? 0) + 1,
+              text: event.text,
+              ...(event.heal ? { heal: true } : {}),
+            },
+          }));
+          break;
+        case 'banner':
+          setBanner((prev) => ({ seq: (prev?.seq ?? 0) + 1, text: event.text }));
+          break;
+        case 'say':
+          say?.(event.text);
+          break;
+      }
+    }
+  };
+
   const noteWalk = (moverId: string | undefined, route: Square[], slide?: boolean) => {
     if (!moverId || route.length < 2) return;
     setWalks((prev) => ({
@@ -1283,7 +1325,6 @@ export function TableTab({
   };
   const conditionsOf = (c: Combatant) => factConditionsOf(fight, c);
   const sourcesOf = (c: Combatant) => factSourcesOf(fight, c);
-  const sizeOf = (c: Combatant) => factSizeOf(fight, c);
   const grapplerOf = (c: Combatant) => factGrapplerOf(fight, c);
   const heldBy = (c: Combatant) => factHeldBy(fight, c);
   const passivePerceptionOf = (c: Combatant) => factPassivePerceptionOf(fight, c);
@@ -1292,8 +1333,6 @@ export function TableTab({
   const stanceOf = (c: Combatant) => factStanceOf(fight, c);
   const reactionSpentOf = (c: Combatant) => factReactionSpentOf(fight, c);
   const defencesOf = (c: Combatant) => factDefencesOf(fight, c);
-  const skillBonusFor = (c: Combatant, skill: string, fallback: 'str' | 'dex') =>
-    factSkillBonusFor(fight, c, skill, fallback);
 
   const sightContext = useMemo(
     () => ({
@@ -2449,191 +2488,26 @@ export function TableTab({
   const resolveGrab = (targetId: string) => {
     if (!grab) return;
     const mode = grab.mode;
-    const shover = encounter.combatants.find((c) => c.id === grab.byId);
-    const target = encounter.combatants.find((c) => c.id === targetId);
     setGrab(null);
-    if (!shover?.at || !target?.at || shover.id === target.id) return;
-
-    const name = nameOf(shover);
-    const them = nameOf(target);
-    /** What the attempt is called, for the lines that have to name it. */
-    const verb = mode === 'grapple' ? 'grapple' : 'shove';
-
-    /*
-      Every ending goes through here, because the attempt costs the same
-      whether it worked: it replaces one attack of the Attack action, so the
-      pip is spent on the try. Composed into the same write as everything else,
-      since a second onChange would build from a roster this one replaced.
-    */
-    const finish = (enc: EncounterState, then?: (r: Roster) => Roster) => {
-      let updated = updateEncounter(roster, enc);
-      if (then) updated = then(updated);
-      if (shover.kind === 'character') {
-        const entry = updated.entries.find((e) => e.id === shover.rosterId);
-        if (entry) updated = updatePlay(updated, entry.id, setTurnSlot(entry.play, 'action', true));
-      }
-      onChange(updated);
-    };
-
-    if (Math.max(Math.abs(shover.at.x - target.at.x), Math.abs(shover.at.y - target.at.y)) > 1) {
-      // Nothing was attempted, so nothing is spent: this is a mis-click.
-      setEncounter(appendLog(encounter, `${name} is not close enough to ${verb} ${them}.`));
-      return;
-    }
-    // One size rule, applied to both: the SRD states it once.
-    if (!(mode === 'grapple' ? canGrapple : canShove)(sizeOf(shover), sizeOf(target))) {
-      setEncounter(
-        appendLog(encounter, `${them} is too big for ${name} to ${verb} — more than one size larger.`),
-      );
-      return;
-    }
-    // Two hands, one hold: somebody already holding a creature has to let go
-    // before grabbing another, which is the honest reading of a rule that
-    // costs a free hand.
-    const already = mode === 'grapple' ? heldBy(shover) : undefined;
-    if (already) {
-      setEncounter(
-        appendLog(encounter, `${name} already has hold of ${nameOf(already)} — let go first.`),
-      );
-      return;
-    }
-
-    const contest = shoveContest(
-      skillBonusFor(shover, 'athletics', 'str'),
-      skillBonusFor(target, 'athletics', 'str'),
-      skillBonusFor(target, 'acrobatics', 'dex'),
-      defaultRng,
+    const { roster: next, events } = grappleResolve(
+      fight,
+      roster,
+      grab.byId,
+      targetId,
+      mode,
+      sightContext,
     );
-    const roll = `Athletics ${contest.shoverRoll} vs ${contest.targetUsed} ${contest.targetRoll}`;
-
-    if (!contest.success) {
-      finish(
-        appendLog(
-          encounter,
-          mode === 'grapple'
-            ? `${name} grabs at ${them} — ${roll}: they twist away.`
-            : `${name} shoves ${them} — ${roll}: holds firm.`,
-        ),
-      );
-      return;
-    }
-
-    if (mode === 'grapple') {
-      finish(
-        appendLog(encounter, `${name} has hold of ${them} — ${roll}: grappled, speed 0.`),
-        (r) => holdOn(r, target.id, shover.id),
-      );
-      return;
-    }
-
-    if (mode === 'prone') {
-      finish(appendLog(encounter, `${name} trips ${them} — ${roll}: down they go.`), (r) =>
-        knockProne(r, target.id),
-      );
-      return;
-    }
-
-    // Pushed five feet directly away. Somewhere solid to land, or they simply
-    // stay where they are - a shove into a wall is a shove that went nowhere.
-    const to = pushedTo(shover.at, target.at);
-    const blocked =
-      !walkable(sightContext, to) ||
-      encounter.combatants.some((c) => c.id !== target.id && c.at && c.at.x === to.x && c.at.y === to.y);
-    if (blocked) {
-      finish(appendLog(encounter, `${name} shoves ${them} — ${roll}: nowhere to go, they stay put.`));
-      return;
-    }
-
-    const drop = fallFeet(
-      elevationAt(encounter.elevation ?? {}, target.at),
-      elevationAt(encounter.elevation ?? {}, to),
-    );
-    let enc = placeCombatant(encounter, target.id, to);
-    enc = appendLog(enc, `${name} shoves ${them} five feet back — ${roll}.`);
-    // §69: shoved bodies slide - forced movement glides flat, no walking hop.
-    if (target.at) noteWalk(target.id, [target.at, to], true);
-
-    /*
-      The drop, if there was one. The feet are said out loud because
-      `terrain.ts` keeps height in abstract steps on purpose - a table that
-      calls a step five feet rather than ten can halve this, and can only do
-      that if it can see the number.
-    */
-    const dice = fallDamage(drop);
-    finish(enc, (r) => {
-      if (!dice) return r;
-      let out = biteZone(
-        r,
-        target.id,
-        {
-          id: `fall-${target.id}`,
-          label: `the ${drop} ft drop`,
-          shape: 'sphere',
-          at: to,
-          feet: 5,
-          angle: 0,
-          tint: 0,
-          effect: { damage: { dice, type: 'bludgeoning' } },
-        },
-        'is caught by',
-      );
-      // The SRD lands a falling creature prone, and it is the part everyone
-      // forgets - which is exactly the kind of thing a tool should remember.
-      out = knockProne(out, target.id);
-      return out;
-    });
+    if (next === roster && !events.length) return;
+    playFightEvents(events);
+    onChange(next);
   };
 
-  /** Prone, added rather than toggled: shoving somebody already down must not
-      stand them back up. */
-  const knockProne = (updated: Roster, id: string): Roster => {
-    const encNow = activeEncounter(updated);
-    const c = encNow.combatants.find((x) => x.id === id);
-    if (!c) return updated;
-    if (c.kind === 'monster') {
-      if (c.conditions.includes('prone')) return updated;
-      return updateEncounter(updated, toggleMonsterCondition(encNow, id, 'prone'));
-    }
-    const entry = updated.entries.find((e) => e.id === c.rosterId);
-    if (!entry || entry.play.conditions.includes('prone')) return updated;
-    return updatePlay(updated, entry.id, toggleCondition(entry.play, 'prone'));
-  };
 
-  /**
-   * The hold applied, and the hold released - one writer for both, since
-   * they are the same four moves with the direction flipped.
-   *
-   * Both write the condition AND the source, in one composed roster, because
-   * a `grappled` with nobody named on it is a condition nothing can ever end -
-   * the escape has no-one to roll against and the sweep has no-one to check.
-   * The two halves live in different stores for the usual reason: a
-   * character's state is on their sheet, a monster's is on the combatant.
-   */
-  const setHeld = (updated: Roster, id: string, byWhom: string | undefined): Roster => {
-    const want = byWhom !== undefined;
-    const encNow = activeEncounter(updated);
-    const c = encNow.combatants.find((x) => x.id === id);
-    if (!c) return updated;
-    if (c.kind === 'monster') {
-      const enc = c.conditions.includes(GRAPPLED) === want
-        ? encNow
-        : toggleMonsterCondition(encNow, id, GRAPPLED);
-      return updateEncounter(updated, setConditionSource(enc, id, GRAPPLED, byWhom));
-    }
-    const entry = updated.entries.find((e) => e.id === c.rosterId);
-    if (!entry) return updated;
-    const play = entry.play.conditions.includes(GRAPPLED) === want
-      ? entry.play
-      : toggleCondition(entry.play, GRAPPLED);
-    return updatePlay(updated, entry.id, setPlayConditionSource(play, GRAPPLED, byWhom));
-  };
 
-  const holdOn = (updated: Roster, id: string, byWhom: string): Roster =>
-    setHeld(updated, id, byWhom);
 
   /** Let go: the condition off and the source cleared, so nothing is left
       pointing at a grappler who is no longer holding anybody. */
-  const letGo = (updated: Roster, id: string): Roster => setHeld(updated, id, undefined);
+  const letGo = (updated: Roster, id: string) => grappleLetGo(updated, id);
 
   /**
    * The Escape action: their better of Athletics and Acrobatics against the
@@ -2643,30 +2517,8 @@ export function TableTab({
    * that could re-roll a failed escape for free would never fail one.
    */
   const escapeGrapple = (c: Combatant) => {
-    const grappler = grapplerOf(c);
-    if (!grappler) return;
-    const out = escapeContest(
-      skillBonusFor(c, 'athletics', 'str'),
-      skillBonusFor(c, 'acrobatics', 'dex'),
-      skillBonusFor(grappler, 'athletics', 'str'),
-      defaultRng,
-    );
-    const roll = `${out.escapeeUsed} ${out.escapeeRoll} vs Athletics ${out.grapplerRoll}`;
-    let updated = out.success ? letGo(roster, c.id) : roster;
-    updated = updateEncounter(
-      updated,
-      appendLog(
-        activeEncounter(updated),
-        out.success
-          ? `${nameOf(c)} breaks out of ${nameOf(grappler)}'s grip — ${roll}.`
-          : `${nameOf(c)} struggles against ${nameOf(grappler)} — ${roll}: still held.`,
-      ),
-    );
-    if (c.kind === 'character') {
-      const entry = updated.entries.find((e) => e.id === c.rosterId);
-      if (entry) updated = updatePlay(updated, entry.id, setTurnSlot(entry.play, 'action', true));
-    }
-    onChange(updated);
+    if (!grapplerOf(c)) return;
+    onChange(grappleEscape(fight, roster, c));
   };
 
   /**
@@ -2685,44 +2537,14 @@ export function TableTab({
    * being a character.
    */
   const standUpFrom = (c: Combatant) => {
-    const speed = speedOf(c);
-    const cost = standUpCostFor(c);
-    if (speed === 0 || cost > movementLeftFor(c)) return;
-
-    let updated = roster;
-    if (c.kind === 'monster') {
-      const spent = {
-        ...encounter,
-        combatants: encounter.combatants.map((x) =>
-          x.id === c.id && x.kind === 'monster' ? { ...x, moved: (x.moved ?? 0) + cost } : x,
-        ),
-      };
-      updated = updateEncounter(updated, toggleMonsterCondition(spent, c.id, 'prone'));
-    } else {
-      const entry = roster.entries.find((e) => e.id === c.rosterId);
-      if (!entry) return;
-      const play = moveBy(toggleCondition(entry.play, 'prone'), cost, speed);
-      updated = updatePlay(updated, entry.id, play);
-    }
-    onChange(
-      updateEncounter(
-        updated,
-        appendLog(activeEncounter(updated), `${nameOf(c)} stands up — ${cost} ft. of movement.`),
-      ),
-    );
+    const next = grappleStandUp(fight, roster, c);
+    if (next) onChange(next);
   };
 
   /** Letting go, which the SRD makes free: no roll, no action, no argument. */
   const releaseGrapple = (c: Combatant) => {
-    const held = heldBy(c);
-    if (!held) return;
-    const updated = letGo(roster, held.id);
-    onChange(
-      updateEncounter(
-        updated,
-        appendLog(activeEncounter(updated), `${nameOf(c)} lets go of ${nameOf(held)}.`),
-      ),
-    );
+    const next = grappleRelease(fight, roster, c);
+    if (next) onChange(next);
   };
 
   /*
@@ -2730,29 +2552,8 @@ export function TableTab({
     command menu's Hide entry. The real bonus from whichever side owns it -
     the stat block's Stealth skill, or the sheet's.
   */
-  const rollHide = (combatant: Combatant, spendAction = false) => {
-    const bonus =
-      combatant.kind === 'monster'
-        ? byId.get(combatant.monsterId)?.skills?.stealth ??
-          monsterMod(byId.get(combatant.monsterId)?.scores.dex ?? 10)
-        : derived
-            .get(combatant.rosterId)
-            ?.ctx.proficiencies.skills.find((s) => s.skill === 'stealth')?.modifier ?? 0;
-    const roll = rollD20(bonus, 'normal', defaultRng).total;
-    // The menu's Hide is the Hide ACTION - the roll, the hidden state, the
-    // log line and the spent pip all in one write, because a second write
-    // built from the same snapshot would erase the first. The row's Hide
-    // stays free of the pip: out-of-turn hiding is the DM's business.
-    let updated = updateEncounter(
-      roster,
-      appendLog(setHidden(encounter, combatant.id, roll), `${nameOf(combatant)} hides — Stealth ${roll}.`),
-    );
-    if (spendAction && combatant.kind === 'character') {
-      const entry = updated.entries.find((e) => e.id === combatant.rosterId);
-      if (entry) updated = updatePlay(updated, entry.id, setTurnSlot(entry.play, 'action', true));
-    }
-    onChange(updated);
-  };
+  const rollHide = (combatant: Combatant, spendAction = false) =>
+    onChange(grappleRollHide(fight, roster, combatant, spendAction));
 
   /** A click on somebody in the strip or the order: target when aiming, select otherwise. */
   const choose = (id: string) => {
