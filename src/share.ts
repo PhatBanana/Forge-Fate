@@ -63,9 +63,16 @@ export interface DecodeResult {
   error?: string;
 }
 
+/** §118: far above any real character (a heavy build encodes ~8 kB) and
+    low enough that a hostile link cannot make a phone chew megabytes. */
+const MAX_TOKEN = 262_144;
+
 export function decodeBuild(token: string): DecodeResult {
   const trimmed = token.trim().replace(/^#/, '');
   if (!trimmed) return { build: null, error: 'That link carries no character.' };
+  if (trimmed.length > MAX_TOKEN) {
+    return { build: null, error: 'That link is far larger than any character - refusing it.' };
+  }
   if (!trimmed.startsWith(PREFIX)) {
     return {
       build: null,

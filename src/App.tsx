@@ -16,6 +16,7 @@ import {
   activePlay,
   addCharacter,
   isPristine,
+  hydrateRoster,
   loadRoster,
   saveRoster,
   updateActive,
@@ -322,7 +323,11 @@ export default function App() {
   const [tableRoster, setTableRoster] = useState<Roster | null>(() => {
     try {
       const raw = localStorage.getItem('dnd-forge:table-roster:v1');
-      return raw ? (JSON.parse(raw) as Roster) : null;
+      /* §118: hydrated, not cast. This store is written from what a host
+         broadcast over the wire - the one roster whose author might be
+         hostile - and a poisoned copy must load as an empty table, not
+         as a crash at every boot. */
+      return raw ? hydrateRoster(JSON.parse(raw)) : null;
     } catch {
       return null;
     }
@@ -381,7 +386,18 @@ export default function App() {
     if (fromLink) return fromLink;
     try {
       const raw = localStorage.getItem('dnd-forge:relay:v1');
-      return raw ? (JSON.parse(raw) as RelayConfig) : null;
+      const parsed: unknown = raw ? JSON.parse(raw) : null;
+      // §118: shape-checked, because a malformed relay would be handed
+      // straight to `new WebSocket` at boot.
+      if (
+        typeof parsed === 'object' &&
+        parsed !== null &&
+        typeof (parsed as RelayConfig).url === 'string' &&
+        typeof (parsed as RelayConfig).room === 'string'
+      ) {
+        return parsed as RelayConfig;
+      }
+      return null;
     } catch {
       return null;
     }

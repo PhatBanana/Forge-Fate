@@ -695,7 +695,9 @@ export function buildFromDdb(raw: unknown, fallbackRuleset: Ruleset = '2014'): I
   warnings.push(...pack.warnings);
 
   const build: Build = {
-    name: data.name ?? 'Imported Character',
+    // §118: clamped - the one free-text field that crosses this door, and
+    // it later travels state broadcasts and the printable sheet.
+    name: String(data.name ?? 'Imported Character').slice(0, 80),
     ruleset,
     raceId: race.id,
     backgroundId: background?.id,

@@ -18,4 +18,10 @@ describe('the QR drawing', () => {
     expect(svg.querySelector('rect')?.getAttribute('fill')).toBe('#fff');
     expect(svg.querySelector('path')?.getAttribute('fill')).toBe('#000');
   });
+
+  it('§118: says so for a link too long to encode, rather than throwing mid-render', () => {
+    render(<QrSvg text={'x'.repeat(400)} label="the invitation" />);
+    expect(screen.getByRole('note')).toHaveTextContent(/too long/i);
+    expect(screen.queryByRole('img')).toBeNull();
+  });
 });

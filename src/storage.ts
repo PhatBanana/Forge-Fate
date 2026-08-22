@@ -232,38 +232,52 @@ function emptyRoster(): Roster {
  * Never throws and never returns something with no active character, because
  * every caller would otherwise need the same two guards.
  */
+/**
+ * A roster from untrusted bytes, entry by entry: every build through
+ * `hydrateBuild`, every play state overlaid on an empty one, the
+ * encounter hydrated rather than trusted. Null when nothing survives.
+ *
+ * §118: exported because the roster store is not the only roster on a
+ * device any more. The §96 table roster is written from what a *host
+ * broadcast over the wire* - the one store whose author might be
+ * hostile - and it was the one load path that skipped this. A poisoned
+ * table roster was a crash at every boot until somebody cleared site
+ * data; now it is a table that loads as empty and refills on the next
+ * hello.
+ */
+export function hydrateRoster(parsed: unknown): Roster | null {
+  const raw = parsed as Roster | null;
+  const entries = (raw?.entries ?? [])
+    .map((entry) => {
+      const build = hydrateBuild(entry?.build);
+      return build
+        ? {
+            id: entry.id || newId(),
+            build,
+            updatedAt: entry.updatedAt || 0,
+            // Absent on anything saved before play tracking existed.
+            play: { ...emptyPlay(), ...entry.play },
+          }
+        : null;
+    })
+    .filter((e): e is RosterEntry => e !== null);
+  if (!entries.length) return null;
+  const activeId = entries.some((e) => e.id === raw?.activeId) ? raw!.activeId : entries[0].id;
+  return {
+    entries,
+    activeId,
+    // Absent before encounters existed, and hydrated rather than trusted:
+    // a saved fight can name a character who has since been deleted.
+    encounter: hydrateEncounter(raw?.encounter, entries),
+  };
+}
+
 export function loadRoster(): Roster {
   try {
     const raw = read(ROSTER_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as Roster;
-      const entries = (parsed?.entries ?? [])
-        .map((entry) => {
-          const build = hydrateBuild(entry?.build);
-          return build
-            ? {
-                id: entry.id || newId(),
-                build,
-                updatedAt: entry.updatedAt || 0,
-                // Absent on anything saved before play tracking existed.
-                play: { ...emptyPlay(), ...entry.play },
-              }
-            : null;
-        })
-        .filter((e): e is RosterEntry => e !== null);
-
-      if (entries.length) {
-        const activeId = entries.some((e) => e.id === parsed.activeId)
-          ? parsed.activeId
-          : entries[0].id;
-        return {
-          entries,
-          activeId,
-          // Absent before encounters existed, and hydrated rather than trusted:
-          // a saved fight can name a character who has since been deleted.
-          encounter: hydrateEncounter(parsed.encounter, entries),
-        };
-      }
+      const roster = hydrateRoster(JSON.parse(raw));
+      if (roster) return roster;
     }
 
     // No roster yet: adopt the single build the app used to keep, so upgrading

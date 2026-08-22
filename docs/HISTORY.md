@@ -7395,3 +7395,66 @@ passes, including the case rule, which is the half a unit test could
 never have caught.
 
 **Gates.** 2472 tests / 125 files, tsc, oxlint, build in budget.
+
+## 118. The security review, and what it changed
+
+A full pass over every untrusted-input surface, done as three sweeps -
+the parse paths, the delivery surface, and the dependency chain - with
+the multiplayer wire re-checked rather than re-audited, since §100 and
+§117 covered it and nothing since bypasses the guard.
+
+**The posture is strong, and mostly by construction.** Two runtime
+dependencies (React), zero external CDNs, no CSP-relevant sinks anywhere
+- no `dangerouslySetInnerHTML`, no `eval`, no `javascript:` URLs, the
+one `target="_blank"` carries its `rel`, the one `window.open` takes no
+URL. Every localStorage parse is wrapped and hydrated defensively;
+prototype pollution has nowhere to land because every spread copies
+onto a fresh template first. The room code - the app's one secret -
+comes from `crypto.getRandomValues`; every `Math.random` is dice and
+map seeds. CI installs lockfile-exact, and `npm audit` is clean after
+one dev-only transitive fix (nanoid via vite→postcss, an advisory
+against a usage pattern this project does not have).
+
+**Four things found, four things fixed:**
+
+- **The table roster loaded without hydration** - the sharpest one,
+  because it is the wrong store to skip. Every other load path runs
+  `hydrateBuild`; the §96 quarantine store, which is written from what a
+  *host broadcast over the wire* - the one roster whose author might be
+  hostile - was cast straight from JSON. A poisoned copy was a crash at
+  every boot until somebody cleared site data. `hydrateRoster` is now
+  extracted from `loadRoster` and both stores go through it: a poisoned
+  table loads as empty and refills on the next hello.
+- **The stored relay config was cast, not checked** - and it is handed
+  straight to `new WebSocket` at boot. Shape-checked now.
+- **A long seat link crashed the QR to the root boundary.** The encoder
+  throws past ~213 bytes and a long self-hosted relay URL honestly gets
+  there; clicking QR took the whole battle screen with it. It now says
+  "too long - copy it from the box instead."
+- **Two unbounded inputs bounded**: a share token is refused past 256 kB
+  (a heavy character encodes ~8 kB), and the D&D Beyond import's name -
+  the one free-text field that crosses that door, and one that later
+  travels state broadcasts and the printable sheet - is clamped to 80
+  characters.
+
+**Noted, not done, each with the reason:**
+
+- **No CSP.** Real defence-in-depth, and nearly free for an app with no
+  external origins - but it means a meta tag with a hash for the inline
+  theme script and `connect-src` opened to `ws:`/`wss:` for user-chosen
+  relays, and it deserves its own section with a preview-browser check
+  rather than a line in this one.
+- **The service worker caches navigations without checking status** -
+  mitigated by network-first plus a per-deploy cache name; a cached 503
+  only ever shows offline and heals on the next successful load.
+- **The sw message listener takes `skip-waiting` from any caller** -
+  scope-restricted by the platform, so only same-origin pages can reach
+  it, and they could just as well register their own worker.
+- **The dev proxy forwards paths verbatim** - dev-only, hardcoded
+  target, no credentials attached.
+- **Actions pinned to major tags, not SHAs** - all four are official
+  `actions/*`, the lowest-risk publisher; SHA-pinning trades update
+  friction for supply-chain rigour and is a taste call, recorded here so
+  it is a decision rather than an oversight.
+
+**Gates.** 2473 tests / 126 files, tsc, oxlint, build in budget.

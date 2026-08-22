@@ -9,13 +9,31 @@ import { qrMatrix } from '../engine/qr';
  */
 export function QrSvg({ text, label }: { text: string; label: string }) {
   const path = useMemo(() => {
-    const matrix = qrMatrix(text);
-    const parts: string[] = [];
-    for (let r = 0; r < matrix.length; r++)
-      for (let c = 0; c < matrix.length; c++)
-        if (matrix[r][c]) parts.push(`M${c + 4} ${r + 4}h1v1h-1z`);
-    return { d: parts.join(''), size: matrix.length + 8 };
+    /*
+      §118: the encoder throws past version 10 (~213 bytes), and a seat
+      link can honestly get there - a long self-hosted relay URL is all
+      it takes. A throw here unmounts to the root boundary and takes the
+      whole battle screen with it, which is a wild price for one QR. Say
+      it instead; the link beside the button still copies.
+    */
+    try {
+      const matrix = qrMatrix(text);
+      const parts: string[] = [];
+      for (let r = 0; r < matrix.length; r++)
+        for (let c = 0; c < matrix.length; c++)
+          if (matrix[r][c]) parts.push(`M${c + 4} ${r + 4}h1v1h-1z`);
+      return { d: parts.join(''), size: matrix.length + 8 };
+    } catch {
+      return null;
+    }
   }, [text]);
+  if (!path) {
+    return (
+      <p className="hint" role="note">
+        This link is too long to fit a QR code — copy it from the box instead.
+      </p>
+    );
+  }
   return (
     <svg
       className="qr"
