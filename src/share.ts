@@ -135,7 +135,17 @@ export function seatFromLocation(hash?: string): string | null {
     with no relay has no door, a relay with no room has no table. */
 export function tableFromLocation(hash?: string): RelayConfig | null {
   const parsed = params(hash);
-  const room = parsed.get('table');
+  /*
+    §117: upper-cased on the way in, because the room code is the whole
+    address of a table and two spellings of it are two tables. The
+    alphabet it is minted from has no lower case and the join box
+    upper-cases what is typed, so a lower-case code only ever arrives
+    from a link that has been through something that touched its case -
+    a chat client, a QR reader, somebody retyping it. Left alone, that
+    phone joins a room nobody else is in and waits for a DM who is
+    shouting into a different one.
+  */
+  const room = parsed.get('table')?.toUpperCase();
   const url = parsed.get('relay');
   return room && url ? { url, room } : null;
 }

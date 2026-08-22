@@ -112,7 +112,13 @@ export default defineConfig({
     // the default. Component tests opt in per file with an
     // `@vitest-environment jsdom` docblock.
     environment: 'node',
-    include: ['src/**/*.test.{ts,tsx}'],
+    /*
+      §117: `relay/` is tested too. It is shipped code with a property
+      worth asserting - many tables on one relay, none of them hearing
+      each other - and a test that only runs when somebody remembers to
+      run it is not a gate.
+    */
+    include: ['src/**/*.test.{ts,tsx}', 'relay/**/*.test.mjs'],
     setupFiles: ['./src/test/setup.ts'],
     /*
       Vitest stubs CSS imports to an empty string by default, which is right

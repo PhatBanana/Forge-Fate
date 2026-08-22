@@ -8,7 +8,13 @@
  */
 export default {
   async fetch(request, env) {
-    const room = new URL(request.url).searchParams.get('room');
+    /*
+      §117: upper-cased before it names anything. `idFromName` is
+      case-sensitive, so without this a link whose case got touched on
+      the way - a chat client, a QR reader - addresses a different
+      Durable Object, and that phone sits alone in a room of one.
+    */
+    const room = new URL(request.url).searchParams.get('room')?.trim().toUpperCase();
     if (!room) return new Response('a room code is required', { status: 400 });
     if (request.headers.get('Upgrade') !== 'websocket') {
       return new Response('expected a websocket', { status: 426 });

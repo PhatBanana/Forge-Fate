@@ -7355,3 +7355,43 @@ that answers it; `holdOn` was exported to nobody; and `fightZones`
 re-exported a type it had no business re-exporting.
 
 **Gates.** 2464 tests / 124 files, tsc, oxlint, build in budget.
+
+## 117. Many tables, one relay
+
+Asked for directly: the relay has to carry independent tables without
+bleedover. Both implementations already partitioned - the Node server
+keys a Map of rooms and forwards only within one, the Worker gives each
+room its own Durable Object - so the answer was yes. **But "I read it
+and it looks right" is not an answer to a question about isolation**,
+and reading it turned up the one way it was actually breakable.
+
+**The room code is the whole partition, and it was not canonical.** The
+join box upper-cases what is typed and `newRoomCode` mints from an
+alphabet with no lower case - but `tableFromLocation`, which reads the
+code out of a **seat link**, took whatever it found. `idFromName('kwxr7n')
+is a different Durable Object from `idFromName('KWXR7N')`, so a link
+whose case got touched on the way - a chat client, a QR reader, somebody
+retyping it - put that phone in a room of one, watching a lobby that
+never fills while the DM shouted into a different room. Not bleedover:
+its mirror image, and the same root cause. Canonicalised in three
+places, because the fix belongs at every door rather than at one: the
+link parser, the Node relay and the Worker.
+
+**The relay is under test now**, which it never was. `relay/server.mjs`
+grew a `startRelay` export so a test can run one on an ephemeral port,
+and `vite.config.ts` includes `relay/**/*.test.mjs` - shipped code with
+a property worth asserting should not be tested only when somebody
+remembers to. Seven tests, real sockets: two tables that hear only
+themselves, five rooms that leak into none of each other, a message
+never echoed to its sender, one code in any case landing in one room, a
+socket naming no room refused, a room forgotten when its last member
+leaves, and a binary frame ignored because the protocol is text.
+
+**Verified where it actually runs, too.** The CI test covers the Node
+relay; the thing at the table is the Worker, and the two share a rule
+rather than a line of code. `scratchpad/check117.mjs` opens four sockets
+against the **deployed** instance and asserts the same properties - it
+passes, including the case rule, which is the half a unit test could
+never have caught.
+
+**Gates.** 2472 tests / 125 files, tsc, oxlint, build in budget.

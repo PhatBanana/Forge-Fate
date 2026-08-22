@@ -16,36 +16,70 @@
  * and point the app's relay URL at ws://<that-laptop>:<port>. For a room
  * in the cloud instead, deploy relay/worker.js - same behaviour, same
  * protocol, interchangeable.
+ *
+ * §117: **rooms are independent, and that is the property worth
+ * testing.** One relay carries as many tables as ask for it; a message
+ * reaches the other members of its own room and nobody else. The room
+ * code is the whole partition, so it is canonicalised on the way in -
+ * two spellings of a code would otherwise be two tables, which is how a
+ * table splits in half without anybody seeing why.
  */
 import { WebSocketServer } from 'ws';
 
-const port = Number(process.argv[process.argv.indexOf('--port') + 1] || 4390);
-const rooms = new Map(); // room code -> Set<socket>
+/** One canonical spelling of a room code. The alphabet it is minted from
+    has no lower case; anything else arrived through something that
+    touched it - a chat client, a QR reader, somebody retyping it. */
+const canonical = (room) => room.trim().toUpperCase();
 
-const server = new WebSocketServer({ port });
-server.on('connection', (socket, request) => {
-  const room = new URL(request.url ?? '/', 'ws://relay').searchParams.get('room');
-  if (!room) {
-    socket.close(4000, 'a room code is required');
-    return;
-  }
-  let members = rooms.get(room);
-  if (!members) rooms.set(room, (members = new Set()));
-  members.add(socket);
+/**
+ * Start the relay. Exported so a test can run one on an ephemeral port
+ * and prove what matters: that two rooms on one server never hear each
+ * other, and that a room is forgotten when its last member leaves.
+ */
+export function startRelay({ port = 4390 } = {}) {
+  const rooms = new Map(); // room code -> Set<socket>
+  const server = new WebSocketServer({ port });
 
-  socket.on('message', (data, isBinary) => {
-    if (isBinary) return; // the protocol is JSON text; anything else is noise
-    for (const other of members) {
-      if (other !== socket && other.readyState === other.OPEN) {
-        other.send(data.toString());
-      }
+  server.on('connection', (socket, request) => {
+    const raw = new URL(request.url ?? '/', 'ws://relay').searchParams.get('room');
+    const room = raw ? canonical(raw) : null;
+    if (!room) {
+      socket.close(4000, 'a room code is required');
+      return;
     }
-  });
-  socket.on('close', () => {
-    members.delete(socket);
-    if (members.size === 0) rooms.delete(room);
-  });
-  socket.on('error', () => socket.close());
-});
+    let members = rooms.get(room);
+    if (!members) rooms.set(room, (members = new Set()));
+    members.add(socket);
 
-console.log(`relay listening on ws://localhost:${port} - rooms forward and forget`);
+    socket.on('message', (data, isBinary) => {
+      if (isBinary) return; // the protocol is JSON text; anything else is noise
+      // `members` is this room's set and no other: the isolation is the
+      // partition itself rather than a check on the way out.
+      for (const other of members) {
+        if (other !== socket && other.readyState === other.OPEN) {
+          other.send(data.toString());
+        }
+      }
+    });
+    socket.on('close', () => {
+      members.delete(socket);
+      if (members.size === 0) rooms.delete(room);
+    });
+    socket.on('error', () => socket.close());
+  });
+
+  return {
+    /** The port actually bound, which an ephemeral request does not know. */
+    port: () => server.address().port,
+    /** How many rooms are standing - the test's window on the partition. */
+    rooms: () => rooms.size,
+    close: () => new Promise((done) => server.close(done)),
+  };
+}
+
+// Run directly rather than imported: `node relay/server.mjs --port 4390`.
+if (process.argv[1]?.endsWith('server.mjs')) {
+  const port = Number(process.argv[process.argv.indexOf('--port') + 1] || 4390);
+  startRelay({ port });
+  console.log(`relay listening on ws://localhost:${port} - rooms forward and forget`);
+}

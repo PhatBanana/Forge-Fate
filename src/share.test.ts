@@ -184,6 +184,15 @@ describe('the table fragment (§95)', () => {
     expect(tableFromLocation(hash)).toEqual({ url: 'ws://localhost:4390', room: 'X7Q2M4' });
   });
 
+  it('§117: canonicalises the code, so a link whose case was touched still lands', () => {
+    // The room code is the whole address of a table. A chat client, a QR
+    // reader or somebody retyping it can change the case, and a phone
+    // that joins `kwxr7n` while the DM hosts `KWXR7N` waits in a room of
+    // one, watching a lobby that never fills.
+    const lowered = '#seat=c0&table=kwxr7n&relay=ws%3A%2F%2Flocalhost%3A4390';
+    expect(tableFromLocation(lowered)?.room).toBe('KWXR7N');
+  });
+
   it('takes both halves or nothing - a room with no relay has no door', () => {
     expect(tableFromLocation('#seat=c0&table=X7Q2M4')).toBeNull();
     expect(tableFromLocation('#seat=c0&relay=ws%3A%2F%2Fx')).toBeNull();
