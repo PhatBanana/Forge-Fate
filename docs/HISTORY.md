@@ -8154,3 +8154,34 @@ instead of from base36, which produces exactly the characters the alphabet
 omits.
 
 **Gates.** 2530 tests / 128 files, `tsc -b`, oxlint, build in budget.
+
+## 136. The limits, checked against the thing that runs them
+
+§135 added three refusals to the relay, and `relay.test.mjs` covers all
+three - against `server.mjs`. The Worker is a *second implementation* of
+the same room, and it implements the same limits differently: it counts
+members with `this.state.getWebSockets().length` where the Node relay
+counts a `Set`, and caps a frame on `message.length` where the Node relay
+reads `data.length`. Two implementations that have never been compared
+are two implementations that can disagree, and the disagreement shows up
+at somebody's table rather than in CI.
+
+That is the argument §117 already made for room isolation, which is why
+`scratchpad/check117.mjs` exists: real sockets against the deployed
+Worker, run by hand after a `wrangler deploy`. It now covers the limits
+too - twelve sockets seated and the thirteenth refused, and an oversized
+frame dropped while the socket carrying it stays up. The second half of
+that last one is the half worth checking: a frame cap that closed the
+connection would end a session over one large roster.
+
+Both numbers are imported from `relay/limits.mjs` rather than typed in,
+so the script cannot drift from the rule it is checking.
+
+Run against the live worker after deploying §135: nine checks, all
+green. The malformed-code case answers 400 now where it answered 426
+before, which is the shape check refusing to name a Durable Object at
+all.
+
+**Gates.** 2530 tests / 128 files, `tsc -b`, oxlint, build in budget.
+Plus `node scratchpad/check117.mjs` against the deployment, which is not
+a gate CI can run and is recorded here instead.

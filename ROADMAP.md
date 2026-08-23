@@ -309,6 +309,13 @@ phone built for itself. Open, each sized:
   relay/README.md, free tier (hard caps, no billing), deployed by
   `scratchpad/setup-relay.sh`'s path. Redeploys stay `wrangler deploy` by
   hand - a 45-line worker that changes once a year does not need CI.
+- `[x]` **What the relay refuses** — §135, deployed 2026-08-22 (version
+  `63f6dd34`) and verified live by `scratchpad/check117.mjs`, which now
+  covers all three limits rather than isolation alone: a malformed code
+  answers 400 where it used to answer 426, a full room turns the
+  thirteenth socket away, and an oversized frame is dropped while the
+  socket carrying it survives. No auth, deliberately - the room code is
+  the whole secret, and a second one would be a second thing to carry.
 
 ### 8. The battle screen's shape — `[~]` **two cuts made, the core left fused**
 
