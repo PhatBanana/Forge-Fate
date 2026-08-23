@@ -1,11 +1,5 @@
-import {
-  appendLog,
-  damageMonster,
-  recordDamage,
-  setDormant,
-  setHidden,
-  spendMonsterReaction,
-} from './encounter';
+import { appendLog, recordDamage } from './encounter';
+import { damageMonster, setDormant, setHidden, spendMonsterReaction } from './monsterInstance';
 import type { Combatant, Square } from './encounter';
 import { activeEncounter, updateEncounter, updatePlay } from './storage';
 import type { Roster } from './storage';
@@ -26,7 +20,7 @@ import { isMelee, singleStrikes } from './engine/strikes';
 import { opportunityStrike } from './engine/reactions';
 import type { Strike } from './engine/strikes';
 import type { LightLevel } from './engine/light';
-import { combatantName, hitPointsOf } from './hitPoints';
+import { combatantName } from './hitPoints';
 import {
   conditionsOf,
   defencesOf,
@@ -35,6 +29,8 @@ import {
   saveBonusFor,
   sourcesOf,
   stanceOf,
+  hpNowIn,
+  maxHpOf,
 } from './fightFacts';
 import type { FightView } from './fightFacts';
 import { canSeeFrom, lightSees } from './fightSight';
@@ -87,16 +83,19 @@ export function strikesInto(
   opts?: { spendAction?: boolean },
   rng: Rng = defaultRng,
 ): Roster {
-  const maxOf = (rosterId: string) => view.buildOf(rosterId)?.hp.total ?? 0;
+  const maxOf = maxHpOf(view);
   /*
-    Hit points are read off `view.roster` - this render's - rather than
-    off the roster threaded in, which is what the closure this replaced
-    did. It is worth naming because it looks like an oversight and the
-    move had no business deciding: combatants are re-read off `updated`
-    six lines below, so a walk composed just before this is visible in
-    the *positions* and not in the *hit points*. Where that shows is the
-    tally cap and the downed flag when a monster walks through a hazard
-    and then swings in one write. Preserved exactly; see ROADMAP §1.
+    §132: hit points come off `updated` - the roster this composed write is
+    building - not off the render's.
+
+    §115's scripted move changed this by accident and §116 changed it back,
+    on the principle that a refactor is not where a rule gets decided. This
+    is where it gets decided. Positions were already read off `updated` six
+    lines below, so a walk composed just before this swing was visible in
+    where the creature stood and not in what it had left: a goblin that
+    walked through a wall of fire and then swung was hit against its
+    pre-fire hit points, which capped the tally too high and missed the
+    knockdown. The two halves of the same creature now agree.
   */
   let enc = activeEncounter(updated);
   // Re-read both ends off the roster we were handed: a walk composed just
@@ -194,7 +193,7 @@ export function strikesInto(
             ally.kind === attacker.kind &&
             ally.id !== attacker.id &&
             ally.at &&
-            (hitPointsOf(ally, view.roster, maxOf)?.now ?? 0) > 0,
+            hpNowIn(view, updated, ally) > 0,
         )
         .map((ally) => ally.at!),
     )
@@ -287,7 +286,7 @@ export function strikesInto(
 
   // Damage into whichever store owns it; the log onto the fight; the
   // score onto the tally - kill marked when this blow is what dropped them.
-  const hpBefore = hitPointsOf(target, view.roster, maxOf)?.now ?? 0;
+  const hpBefore = hpNowIn(view, updated, target);
   if (target.kind === 'monster' && totalDamage > 0) {
     enc = damageMonster(enc, target.id, totalDamage);
   }
@@ -342,7 +341,7 @@ export function strikesInto(
   let next = updateEncounter(updated, enc);
   if (target.kind === 'character' && totalDamage > 0) {
     const entry = next.entries.find((e) => e.id === target.rosterId);
-    const max = view.buildOf(target.rosterId)?.hp.total ?? 0;
+    const max = maxOf(target.rosterId);
     if (entry) next = updatePlay(next, entry.id, damage(entry.play, totalDamage, max, anyCrit));
   }
   // The spell drops in the same write as the damage that broke it.

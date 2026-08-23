@@ -5,7 +5,6 @@ import {
   addCharacter,
   addMonster,
   currentCombatant,
-  damageMonster,
   emptyEncounter,
   endEncounter,
   isRunning,
@@ -18,14 +17,18 @@ import {
   placeCombatant,
   rollMonsterInitiative,
   setInitiative,
-  setMonsterHp,
   sortCombatants,
   startEncounter,
-  toggleMonsterCondition,
   appendLog,
+  recordDamage,
+  delayTurn,
+} from './encounter';
+import {
+  damageMonster,
+  setMonsterHp,
+  toggleMonsterCondition,
   rechargeReady,
   setMonsterRecharge,
-  recordDamage,
   setDormant,
   setHidden,
   spendLegendary,
@@ -33,9 +36,8 @@ import {
   spendMonsterUse,
   usesLeft,
   addTimedMonsterCondition,
-  delayTurn,
   tickMonsterConditions,
-} from './encounter';
+} from './monsterInstance';
 import type { EncounterState, MonsterCombatant } from './encounter';
 
 /**

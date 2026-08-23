@@ -1,24 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import fixture from './data/srd/srd-2014-monsters.json';
-import type { Monster } from './data/monsters';
 import { addCharacter, addMonster, emptyEncounter, placeCombatant } from './encounter';
 import { activeEncounter, updateEncounter, updatePlay } from './storage';
-import { deriveBuild } from './engine/character';
 import { generateDungeon } from './engine/dungeon';
 import { GRAPPLED } from './engine/grapple';
 import {
   escapeGrapple,
-  knockProne,
   letGo,
   releaseGrapple,
   resolveGrab,
   rollHide,
-  setHeld,
   standUpFrom,
 } from './fightGrapple';
 import { conditionsOf, grapplerOf, heldBy, sourcesOf } from './fightFacts';
-import type { FightView } from './fightFacts';
 import { movementLeftFor } from './fightMovement';
+import { charOf, fixtureMonster, viewOf } from './test/fight';
 import { fighter, rosterOf, wizard } from './test/factories';
 
 /**
@@ -27,8 +22,6 @@ import { fighter, rosterOf, wizard } from './test/factories';
  * battle screen.
  */
 
-const monsters = (fixture as unknown as { records: Monster[] }).records;
-const byId = new Map(monsters.map((m) => [m.id, m]));
 const dungeon = generateDungeon('x', { rooms: 0, width: 10, height: 8 });
 const sight = { dungeon, terrain: {}, elevation: {} };
 
@@ -52,7 +45,7 @@ const table = (elevation: Record<string, number> = {}) => {
   const roster = rosterOf(fighter(), wizard());
   let enc = addCharacter(emptyEncounter(), 'c0', { initiative: 20 });
   enc = addCharacter(enc, 'c1', { initiative: 10 });
-  enc = addMonster(enc, byId.get('goblin')!, { rng: () => 0.5 });
+  enc = addMonster(enc, fixtureMonster('goblin'), { rng: () => 0.5 });
   const [a, b] = enc.combatants.filter((c) => c.kind === 'character');
   // Side by side, so every reach check passes unless a test moves them.
   enc = placeCombatant(enc, a.id, { x: 3, y: 3 });
@@ -61,21 +54,24 @@ const table = (elevation: Record<string, number> = {}) => {
   return updateEncounter(roster, enc);
 };
 
-const viewOf = (roster: ReturnType<typeof table>): FightView => ({
-  encounter: activeEncounter(roster),
-  roster,
-  monsterById: (id) => byId.get(id),
-  buildOf: (rosterId) => {
-    const entry = roster.entries.find((e) => e.id === rosterId);
-    return entry ? deriveBuild(entry.build) : undefined;
-  },
-  ruleset: '2014',
-});
 
-const charOf = (v: FightView, rosterId: string) =>
-  v.encounter.combatants.find((c) => c.kind === 'character' && c.rosterId === rosterId)!;
 const atOf = (roster: ReturnType<typeof table>, id: string) =>
   activeEncounter(roster).combatants.find((c) => c.id === id)?.at;
+
+/**
+ * §130: the fighter takes hold of the wizard, through the door the app uses.
+ *
+ * These setups used to call `setHeld` - an export that existed for no other
+ * reason, so the arrangement half of every grapple test ran code the battle
+ * screen never runs. Going through `resolveGrab` costs a line and buys the
+ * guarantee that the state being tested against is a state the app can
+ * actually reach.
+ */
+const holding = (roster: ReturnType<typeof table>) => {
+  const v = viewOf(roster);
+  return resolveGrab(v, roster, charOf(v, 'c0').id, charOf(v, 'c1').id, 'grapple', sight, shoverWins)
+    .roster;
+};
 
 describe('the three refusals, which are mis-clicks rather than attempts', () => {
   it('refuses out of reach, and spends nothing', () => {
@@ -97,7 +93,7 @@ describe('the three refusals, which are mis-clicks rather than attempts', () => 
     const v0 = viewOf(roster);
     const me = charOf(v0, 'c0');
     // The fighter already has hold of the wizard.
-    roster = setHeld(roster, charOf(v0, 'c1').id, me.id);
+    roster = holding(roster);
     const v = viewOf(roster);
     const gob = v.encounter.combatants.find((c) => c.kind === 'monster')!;
     const beside = updateEncounter(roster, placeCombatant(activeEncounter(roster), gob.id, { x: 3, y: 4 }));
@@ -138,9 +134,19 @@ describe('the contest, and what it costs', () => {
     const after = viewOf(out.roster);
     expect(conditionsOf(after, charOf(after, 'c1'))).toContain('prone');
 
-    // Prone added rather than toggled.
-    const again = knockProne(out.roster, charOf(after, 'c1').id);
-    expect(conditionsOf(viewOf(again), charOf(viewOf(again), 'c1'))).toContain('prone');
+    // Prone added rather than toggled: knocking down somebody already down
+    // leaves them down, with one 'prone' rather than two.
+    const twice = resolveGrab(
+      after,
+      out.roster,
+      charOf(after, 'c0').id,
+      charOf(after, 'c1').id,
+      'prone',
+      sight,
+      shoverWins,
+    );
+    const down = viewOf(twice.roster);
+    expect(conditionsOf(down, charOf(down, 'c1')).filter((c) => c === 'prone')).toHaveLength(1);
   });
 });
 
@@ -195,9 +201,7 @@ describe('a shove, and the chain a ledge sets off', () => {
 
 describe('getting free, and getting up', () => {
   it('spends the action on a failed escape - a free re-roll never fails', () => {
-    let roster = table();
-    const v0 = viewOf(roster);
-    roster = setHeld(roster, charOf(v0, 'c1').id, charOf(v0, 'c0').id);
+    let roster = holding(table());
     const v = viewOf(roster);
 
     const after = escapeGrapple(v, roster, charOf(v, 'c1'), shoverLoses());
@@ -207,9 +211,7 @@ describe('getting free, and getting up', () => {
   });
 
   it('lets go on request, free and without a roll', () => {
-    let roster = table();
-    const v0 = viewOf(roster);
-    roster = setHeld(roster, charOf(v0, 'c1').id, charOf(v0, 'c0').id);
+    let roster = holding(table());
     const v = viewOf(roster);
 
     const after = releaseGrapple(v, roster, charOf(v, 'c0'))!;
@@ -260,9 +262,7 @@ describe('hiding', () => {
 
 describe('letting go', () => {
   it('clears the condition and the source together', () => {
-    let roster = table();
-    const v0 = viewOf(roster);
-    roster = setHeld(roster, charOf(v0, 'c1').id, charOf(v0, 'c0').id);
+    let roster = holding(table());
     const freed = letGo(roster, charOf(viewOf(roster), 'c1').id);
     const v = viewOf(freed);
     expect(conditionsOf(v, charOf(v, 'c1'))).not.toContain(GRAPPLED);

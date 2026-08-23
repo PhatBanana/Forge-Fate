@@ -116,6 +116,38 @@ describe('what a paper sheet has a box for', () => {
     expect(within(table).getByText('Greatsword')).toBeInTheDocument();
   });
 
+  /*
+    §119. A longsword and a shield is a one-handed grip, so the versatile die
+    does not pay out. The engine has always known that - `computeAttacks`
+    gates it on the off hand *and* the shield - but the sheet used to ask the
+    weapon again with only half the question, and printed a d10 while the
+    damage curve behind it was built on a d8.
+
+    The fixture is the whole test: `defenses.shield` is the only thing set,
+    because `loadouts.offHand` stays empty and that is exactly the case the
+    dropped clause got wrong.
+  */
+  it('does not pay out the versatile die when the other hand holds a shield', () => {
+    const build = {
+      ...fighter(),
+      weapons: { mainHandId: 'longsword', magicBonus: {} },
+      defenses: { ...fighter().defenses, shield: true },
+    };
+    setup(build);
+    const table = screen.getByRole('table');
+    const row = within(table).getByText('Longsword').closest('tr') as HTMLElement;
+    expect(row).toHaveTextContent(/1d8/);
+    expect(row).not.toHaveTextContent(/1d10/);
+  });
+
+  it('pays out the versatile die when both hands are free', () => {
+    const build = { ...fighter(), weapons: { mainHandId: 'longsword', magicBonus: {} } };
+    setup(build);
+    const table = screen.getByRole('table');
+    const row = within(table).getByText('Longsword').closest('tr') as HTMLElement;
+    expect(row).toHaveTextContent(/1d10/);
+  });
+
   it('lists species traits and class features together, as the sheet does', () => {
     setup(fighter());
     const features = screen.getByText('Features & traits').closest('.cs-box') as HTMLElement;

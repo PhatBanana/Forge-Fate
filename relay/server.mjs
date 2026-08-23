@@ -25,11 +25,7 @@
  * table splits in half without anybody seeing why.
  */
 import { WebSocketServer } from 'ws';
-
-/** One canonical spelling of a room code. The alphabet it is minted from
-    has no lower case; anything else arrived through something that
-    touched it - a chat client, a QR reader, somebody retyping it. */
-const canonical = (room) => room.trim().toUpperCase();
+import { MAX_FRAME, MAX_MEMBERS, canonical, isRoomCode } from './limits.mjs';
 
 /**
  * Start the relay. Exported so a test can run one on an ephemeral port
@@ -43,16 +39,27 @@ export function startRelay({ port = 4390 } = {}) {
   server.on('connection', (socket, request) => {
     const raw = new URL(request.url ?? '/', 'ws://relay').searchParams.get('room');
     const room = raw ? canonical(raw) : null;
-    if (!room) {
+    /* §135: shaped like a room code, or it never names a room. A probe
+       costs the prober a request and this relay a regex. */
+    if (!room || !isRoomCode(room)) {
       socket.close(4000, 'a room code is required');
       return;
     }
     let members = rooms.get(room);
     if (!members) rooms.set(room, (members = new Set()));
+    // §135: a table is a DM and their players, not ten thousand sockets.
+    if (members.size >= MAX_MEMBERS) {
+      socket.close(4001, 'this room is full');
+      return;
+    }
     members.add(socket);
 
     socket.on('message', (data, isBinary) => {
       if (isBinary) return; // the protocol is JSON text; anything else is noise
+      /* §135: the same cap the app applies on the way in. Dropped rather
+         than closed on: a table whose roster has grown large should lose
+         the broadcast, not the connection. */
+      if (data.length > MAX_FRAME) return;
       // `members` is this room's set and no other: the isolation is the
       // partition itself rather than a check on the way out.
       for (const other of members) {

@@ -1,10 +1,5 @@
-import {
-  appendLog,
-  placeCombatant,
-  setHidden,
-  toggleMonsterCondition,
-  setConditionSource,
-} from './encounter';
+import { appendLog, placeCombatant } from './encounter';
+import { setHidden, toggleMonsterCondition, setConditionSource } from './monsterInstance';
 import type { Combatant, EncounterState } from './encounter';
 import { activeEncounter, updateEncounter, updatePlay } from './storage';
 import type { Roster } from './storage';
@@ -44,7 +39,7 @@ import type { Resolution } from './fightEvents';
 
 /** Prone, added rather than toggled: shoving somebody already down must
     not stand them back up. */
-export function knockProne(roster: Roster, id: string): Roster {
+function knockProne(roster: Roster, id: string): Roster {
   const encNow = activeEncounter(roster);
   const c = encNow.combatants.find((x) => x.id === id);
   if (!c) return roster;
@@ -66,7 +61,7 @@ export function knockProne(roster: Roster, id: string): Roster {
  * can ever end: the escape has no-one to roll against and the sweep has
  * no-one to check.
  */
-export function setHeld(roster: Roster, id: string, byWhom: string | undefined): Roster {
+function setHeld(roster: Roster, id: string, byWhom: string | undefined): Roster {
   const want = byWhom !== undefined;
   const encNow = activeEncounter(roster);
   const c = encNow.combatants.find((x) => x.id === id);

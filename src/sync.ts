@@ -183,6 +183,20 @@ export interface RelayConfig {
 }
 
 /**
+ * A relay config, or nothing.
+ *
+ * §118 shape-checked this at the one place that loaded it, because a
+ * malformed config is handed straight to `new WebSocket` at boot. §124 gave
+ * it a name and put it beside the shape it checks, so the check travels with
+ * the type rather than living in whichever screen happened to read it.
+ */
+export function aRelay(parsed: unknown): RelayConfig | null {
+  if (typeof parsed !== 'object' || parsed === null) return null;
+  const { url, room } = parsed as RelayConfig;
+  return typeof url === 'string' && typeof room === 'string' ? { url, room } : null;
+}
+
+/**
  * A room name nobody guesses: ~30 bits from an alphabet with no 0/O or
  * 1/I/L to squint at over a table. The room name is the whole secret -
  * the relay stores nothing and admits anyone who knows it - which is the

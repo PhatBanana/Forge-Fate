@@ -17,6 +17,8 @@
  * only caller that uses it.
  */
 
+import { signed } from '../format';
+
 /** Returns a float in `[0, 1)`, like `Math.random`. */
 export type Rng = () => number;
 
@@ -76,7 +78,6 @@ export function parseNotation(input: string): Notation | null {
   return terms.length || modifier ? { terms, modifier } : null;
 }
 
-const signed = (n: number) => (n < 0 ? `${n}` : `+${n}`);
 
 /** `{ terms: [2d6], modifier: 3 }` -> `"2d6+3"`, for labelling a button. */
 export function formatNotation({ terms, modifier }: Notation): string {

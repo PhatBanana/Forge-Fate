@@ -876,3 +876,56 @@ describe('forgoing the starting kit for coin', () => {
     expect((button as HTMLButtonElement).disabled).toBe(true);
   });
 });
+
+/*
+  §127. The Defenses panel and the armour class, made to agree.
+
+  The panel labels each armour "(not proficient)" from its own call to
+  `armorProficiencies`, and `computeAc` decides whether to credit the
+  proficiency from another. That call used to omit the ruleset, which
+  defaults to 2014 - and 2024 moved every subclass to level 3, so a 2024
+  Life Cleric at level 1 was told they were trained in heavy armour by a
+  panel sitting directly above an armour class that disagreed.
+
+  Asserted through the rendered label rather than through the engine,
+  because the engine was never wrong: it was one call site not passing what
+  it knew. The argument is required now, so this cannot recur silently -
+  this test is here to say what the right answer is.
+*/
+describe('armour proficiency reads the same as the armour class', () => {
+  const lifeCleric = (ruleset: Build['ruleset'], level: number): Build => ({
+    ...buildOf({ raceId: 'human' }),
+    ruleset,
+    classes: [{ classId: 'cleric', level, subclassId: 'life' }],
+  });
+
+  /*
+    The row is a `ChoiceRow`, closed until asked for, so the options do not
+    exist until it is opened - and an assertion against an absent label would
+    pass by matching nothing. `heavyLabel` therefore throws if the option is
+    missing rather than returning an empty string.
+  */
+  const heavyLabel = async () => {
+    await userEvent.click(screen.getByRole('button', { name: /^Defenses/i }));
+    const chain = screen
+      .getAllByRole('option')
+      .find((o) => o.textContent?.startsWith('Chain mail'));
+    if (!chain) throw new Error('the Defenses row did not offer Chain mail');
+    return chain.textContent ?? '';
+  };
+
+  it('holds heavy armour back from a 2024 Cleric until level 3', async () => {
+    setup(lifeCleric('2024', 1));
+    expect(await heavyLabel()).toMatch(/not proficient/);
+  });
+
+  it('grants it to the same Cleric at level 3', async () => {
+    setup(lifeCleric('2024', 3));
+    expect(await heavyLabel()).not.toMatch(/not proficient/);
+  });
+
+  it('grants it to a 2014 Cleric at level 1, where the domain starts', async () => {
+    setup(lifeCleric('2014', 1));
+    expect(await heavyLabel()).not.toMatch(/not proficient/);
+  });
+});

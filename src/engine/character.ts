@@ -455,6 +455,36 @@ export function deriveBuild(build: Build): BuildContext {
 }
 
 /**
+ * §128: which saving throws this character is proficient in.
+ *
+ * Your starting class only. A multiclass dip grants none - the same rule the
+ * armor and weapon tables follow, and the single most common way a hand-built
+ * sheet ends up wrong.
+ *
+ * It lives here because `BuildContext.proficiencies` covers skills, tools,
+ * languages and expertise but not saves, so every consumer reached past it
+ * into `ctx.slices[0].klass.saves` and wrote the set out. Three of them did,
+ * and one of the three was in the battle-screen half where the character
+ * half could not see it.
+ */
+export function saveProficiencies(ctx: BuildContext): Set<Ability> {
+  return new Set(ctx.slices[0]?.klass.saves ?? []);
+}
+
+/**
+ * What this character adds to a saving throw: the ability modifier, the
+ * proficiency bonus if the class grants that save, and whatever their items
+ * are worth on every save (a Cloak of Protection and its kin).
+ */
+export function saveBonusOf(ctx: BuildContext, ability: Ability): number {
+  return (
+    ctx.mods[ability] +
+    (saveProficiencies(ctx).has(ability) ? ctx.proficiency : 0) +
+    ctx.itemEffects.saves
+  );
+}
+
+/**
  * Put a character in the best armor their proficiencies allow. Used when a
  * build appears from somewhere that does not describe equipment - an import, or
  * loading a pairing out of the race/class matrix.

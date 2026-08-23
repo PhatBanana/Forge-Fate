@@ -7,8 +7,7 @@ import { visibleFrom } from './engine/fog';
 import { inZone } from './zones';
 import { keyOf } from './terrain';
 import type { Square, Combatant, EncounterState } from './encounter';
-import { hitPointsOf } from './hitPoints';
-import { maxHpOf } from './fightFacts';
+import { hpNowOf } from './fightFacts';
 import type { FightView } from './fightFacts';
 
 /**
@@ -38,18 +37,18 @@ import type { FightView } from './fightFacts';
  * where it was lit is not a torch, so a carried light's position is
  * derived from its bearer rather than written down and kept in step.
  */
-export const lightsInPlay = (lights: LightSource[], combatants: Combatant[]) =>
+const lightsInPlay = (lights: LightSource[], combatants: Combatant[]) =>
   placeLights(lights, (id) => combatants.find((c) => c.id === id)?.at ?? undefined);
 
 /** How bright the map is where no light reaches. Bright unless said. */
-export const ambientOf = (encounter: EncounterState): LightLevel =>
+const ambientOf = (encounter: EncounterState): LightLevel =>
   encounter.ambientLight ?? 'bright';
 
 /**
  * How bright one square is - as a lookup with a cache of its own, for
  * the caller to hold for exactly as long as the lights stand still.
  */
-export function litLookup(
+function litLookup(
   lights: ReturnType<typeof lightsInPlay>,
   ambient: LightLevel,
 ): (at: Square) => LightLevel {
@@ -69,7 +68,7 @@ export function litLookup(
  * key. Only the exceptions travel, so a lit map hands the cameras an
  * empty object and both draw nothing at all.
  */
-export function gloomMap(
+function gloomMap(
   litAt: (at: Square) => LightLevel,
   ambient: LightLevel,
   litCount: number,
@@ -122,7 +121,7 @@ export function partyVisible(
   if (!view.encounter.fog) return null;
   const eyes = view.encounter.combatants
     .filter(
-      (c) => c.kind === 'character' && c.at && (hitPointsOf(c, view.roster, maxHpOf(view))?.now ?? 0) > 0,
+      (c) => c.kind === 'character' && c.at && hpNowOf(view, c) > 0,
     )
     .map((c) => eyesOf(view, c))
     .filter((e): e is Eyes => !!e);
@@ -153,3 +152,47 @@ export const canSeeFrom =
     a square rather than of a turn, because Silence is a zone (§64). */
 export const silencedAt = (encounter: EncounterState, at: Square): boolean =>
   (encounter.zones ?? []).some((zone) => zone.effect?.silences && inZone(zone, at));
+
+/**
+ * §122: the lighting, whole.
+ *
+ * Four exports used to come out of this module in one fixed order, and
+ * the caller carried each result into the next:
+ *
+ *     const lights  = lightsInPlay(encounter.lights ?? [], combatants);
+ *     const ambient = ambientOf(encounter);
+ *     const litAt   = litLookup(lights, ambient);
+ *     const gloom   = gloomMap(litAt, ambient, lights.length, w, h);
+ *
+ * Every one of them had exactly one caller, and the battle screen
+ * re-wrapped each back to its old shape immediately below the import -
+ * which is the tell that the seam was not carrying anything. The chain
+ * is implementation now.
+ *
+ * **The lookup still belongs to the caller.** `litAt` is asked once per
+ * square per pair of eyes and again per drawn square, so a party of five
+ * on a 40x30 map is thousands of calls, and the cache that makes that
+ * cheap has to live exactly as long as the lights stand still. It comes
+ * back inside the value rather than being kept here: a module-level
+ * cache would outlive the fight it described.
+ */
+export interface Lighting {
+  /** The standing lights, with carried ones stood where their bearer is. */
+  lights: LightSource[];
+  /** How bright the map is where no light reaches. */
+  ambient: LightLevel;
+  /** How bright one square is, cached for the life of this value. */
+  litAt: (at: Square) => LightLevel;
+  /** Every square that is not bright, by key - the map's own drawing. */
+  gloom: Record<string, 'dim' | 'dark' | 'magical-dark'>;
+}
+
+export function lightingOf(
+  encounter: EncounterState,
+  size: { width: number; height: number },
+): Lighting {
+  const lights = lightsInPlay(encounter.lights ?? [], encounter.combatants);
+  const ambient = ambientOf(encounter);
+  const litAt = litLookup(lights, ambient);
+  return { lights, ambient, litAt, gloom: gloomMap(litAt, ambient, lights.length, size.width, size.height) };
+}

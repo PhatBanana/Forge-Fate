@@ -7458,3 +7458,699 @@ against a usage pattern this project does not have).
   it is a decision rather than an oversight.
 
 **Gates.** 2473 tests / 126 files, tsc, oxlint, build in budget.
+
+## 119. The die the engine already picked
+
+An architecture pass over the half of the app the earlier reviews never
+scoped - the character builder and the sheet - and the first thing it
+turned up was not friction but a wrong number on the page.
+
+`computeAttacks` settles the versatile die once, and it asks the whole
+question: a longsword pays out its d10 only in the main hand, with no
+off-hand weapon *and no shield*. Shillelagh short-circuits the same line
+to a flat d8. The answer is then stored on `Attack.damage.dice`, next to
+the bonus and the type, which is where every other derived number on an
+attack lives.
+
+Five places on screen ignored that field and asked the weapon again:
+
+    damageDice(line.weapon, line.hand === 'main' && !ctx.loadouts.offHand)
+
+Half the question. A Fighter with a longsword and a shield had a damage
+curve built on `1d8` in the Builder, a sheet that printed `1d10`, and an
+Action Tray that rolled `1d10` into the log. A club under Shillelagh
+printed `1d4` for the same reason: the copies never learned about the
+spell, because the spell is settled upstream of them.
+
+The comment that sat over one of them is the whole story:
+
+    // ... the same call the sheet makes, so a longsword reads the same
+    // in both places.
+
+True, and beside the point. The copies were being kept in step with each
+other rather than with the rule, and a fact re-derived at the point of
+display is a fact with two owners. All five now read
+`attack.damage.dice`.
+
+`BuilderTab` keeps its own `damageDice` call and should: the weapon shop
+labels a weapon nobody is holding yet, so there is no grip to know about,
+and `1d8` is the right thing to print beside a longsword on the rack.
+
+**The test.** Two, both through the sheet, because the engine was never
+wrong - only its readers were, so an engine test would have passed
+throughout. One asserts a longsword beside a shield reads `1d8` and *not*
+`1d10`; the negative half is the one that would have caught this. The
+other pins the case that must keep working, both hands free, so the fix
+cannot be "always the base die."
+
+**Gates.** 2475 tests / 124 files, tsc, oxlint, build in budget.
+
+## 120. What a character has left
+
+The same review's second finding, and the one it was really about: a
+character in play is two stores, and nothing owned the join.
+
+`BuildContext` is the derived side - the caps. `PlayState` is the spent
+side, and it holds only the spending. So every read in `play.ts` takes
+the cap as an argument, because on its own it cannot know one:
+
+    hpNow(play, ctx.hp.total)
+    slotsLeft(play, level, casting.bySpellLevel[level - 1] ?? 0)
+    resourceLeft(play, held.key, held.max)
+    hitDiceLeft(play, slice.klass.id, slice.entry.level)
+
+That is a fine shape for a reducer and a bad one for four screens, each
+of which had to reach into a different corner of `ctx` to find its half
+before it could ask anything. The sheet imported forty-five names from
+`play`. The awkward pairings drifted the way awkward pairings do: three
+places wrote `casting.bySpellLevel[level - 1] ?? 0` out longhand, and
+three wrote `heldResources(ctx.slices, entry.build.ruleset, ctx.mods)` -
+an argument triple assembled by hand from `ctx` internals when `ctx`
+itself was right there and could have been passed instead.
+
+`sheetOf(ctx, play)` is the read side of a character, the way `FightView`
+(§110) is the read side of a fight: hit points, slots, pact slots, hit
+dice, held resources, ammunition - each with its cap already inside.
+Callers ask what is left. They no longer have to know what full was.
+
+Two smaller exports come with it. `resourcesOf(ctx)` is the triple, asked
+once. `restoredOn(ctx, 'short' | 'encounter')` is the rest list, which the
+battle screen derives for a party and the sheet derives for one character
+and which has to come out identical or a Warlock's pact slots come back at
+one table and not the other.
+
+**The write side stays in `play.ts`, deliberately.** `damage`,
+`spendSlot` and their kin still take the cap they clamp against. Hiding
+it would make a reducer that looks total and is not, and the caps are the
+part a reducer must be told. What changed is that a caller now has an
+honest place to read the number from - `sheet.hp.max`,
+`sheet.slots[n - 1].fromTable` - instead of re-deriving it.
+
+**Slots are nine entries, always.** A non-caster gets nine zeros rather
+than an empty list, so `slots[level - 1]` is the level and no caller does
+the off-by-one itself. It also gives a slot conjured from sorcery points
+above the class table a row of its own, which is the case that used to be
+paid for and then invisible.
+
+**The test.** Thirteen, none of which render anything - which is the
+point. "Does a pact spend leave the sorcerer half's ordinary slots alone"
+and "does a spent hit die come off the right class" were previously
+questions you could only put to a mounted screen. Every one of the 81
+existing sheet and tray tests passed unedited, which is the check that
+matters: this moved where a fact is asked, not what the answer is.
+
+**Gates.** 2488 tests / 125 files, tsc, oxlint, build in budget.
+
+## 121. The walk, whole
+
+The third finding, and the one with a lesson in it: the §112 extraction
+moved the movement code out of the battle screen but left the *calling
+protocol* behind. Five exports had to be run in one order, and three of
+`routeChoice`'s four arguments were the outputs of its own siblings:
+
+    const overlays = zoneOverlays(zones);
+    const walk     = walkFor(view, sight, who, overlays);
+    const safe     = safeWalkFor(view, sight, who, overlays, walk);
+    const budget   = walkBudget(view, who);
+    const choice   = routeChoice(key, walk, safe, budget);
+
+Nothing checked the order. `walk` and `safe` are the same type, so
+handing them over the wrong way round type-checks perfectly and prices
+every route against the wrong map - silently, and only in the case where
+a hazard is standing.
+
+The tell was in the test file. `walkFor`, `safeWalkFor`, `partyApproach`
+and `routeChoice` were the only four exports in the module with no direct
+test, while everything around them had one. That is not a gap somebody
+forgot to fill: reaching them meant rebuilding the whole chain inside the
+test too, so the cheapest thing to do was let the battle screen's own
+tests cover it, and the battle screen's tests do not walk into fire.
+
+`walkPlanFor(view, sight, who, zones)` returns the plan: the budget, the
+walk, the safe walk, and `routeTo(key)` with the other three already
+inside it. The four steps are no longer exports. The screen's five
+`useMemo`s are one.
+
+**`partyApproach` stayed out of the plan**, and takes the zones itself
+now rather than an overlay somebody else built. It is a full-map sweep
+seeded from every living character, and it does not depend on who is
+selected - folding it into the plan would have re-run it on every click.
+Different question, different lifetime.
+
+**One test was rewritten rather than kept.** `zoneOverlays` is not an
+export any more, so the test that called it could not stand. What
+replaced it goes through `walkPlanFor` and covers what the old one did
+plus the thing nothing had ever tested: that a route prefers the way
+round a wall of fire when the budget stretches to it, takes the short way
+through when it does not, and will not cross a wall of force at any
+price. Both assertions there are flat rather than behind an `if` - a
+conditional assertion in a pathfinding test is one that passes by never
+firing, which is the failure mode §116 already paid for once.
+
+**`groundFor` came out of the same peel.** The danger wash prices a
+monster's reach across the same ground `partyApproach` sweeps, and both
+want the blocked-and-difficult pair from the monster's side. That is a
+real question with two callers, so it is a named export; the full
+overlays, with the party/monster split still to be chosen, are not.
+
+**And the gate itself was wrong.** This landed with a stale name in a
+dependency array, and `npx tsc --noEmit` said nothing, because the root
+`tsconfig.json` is a solution file - `"files": []` and two references -
+so `tsc --noEmit` type-checks an empty program and exits 0. The real
+check is `tsc -b`, which `npm run build` has always run and which found
+it at once. There is now an `npm run typecheck` so the check has a name
+of its own, and `docs/development.md` says which one is which. A gate
+that cannot fail is worse than no gate: it was reporting green over 213
+broken tests.
+
+**Gates.** 2493 tests / 125 files, `tsc -b`, oxlint, build in budget.
+
+## 122. The lighting, whole
+
+The same shape as §121, one module over. `fightSight` had nine exports
+and every single one had exactly one caller - and the battle screen
+re-wrapped each of them back to its pre-extraction signature immediately
+below the import, which is the tell that the seam was not carrying
+anything. Four of them were a chain:
+
+    const lights  = lightsInPlay(encounter.lights ?? [], combatants);
+    const ambient = ambientOf(encounter);
+    const litAt   = litLookup(lights, ambient);
+    const gloom   = gloomMap(litAt, ambient, lights.length, w, h);
+
+`gloomMap` took five arguments, three of which were outputs of its own
+siblings. `lightingOf(encounter, size)` returns all four as one value,
+and the four steps are no longer exports.
+
+**The cache survives, which was the constraint.** §111 deliberately
+handed back a *lookup* rather than a map, because `litAt` is asked once
+per square per pair of eyes and again per drawn square - a party of five
+on a 40x30 map is six thousand calls - and a cache that lives in the
+module would outlive the fight it described. It still comes back inside
+the value, and the screen still memoises it on the lights alone. That
+narrow dependency list is the point and is now commented as such: widen
+it and the cache is thrown away on every hit point.
+
+**`partyVisible` stayed out**, for the §121 reason. It depends on the
+roster as well as the lights, so folding it in would have dragged the
+lookup's lifetime down to the shortest one in the group. It takes `litAt`
+as an argument, which is one sibling's output crossing a seam - but
+deliberately, and for a stated reason, which is the difference between a
+dependency and a leak.
+
+**Four tests were rewritten**, since they called exports that no longer
+exist. They assert the same facts through `lightingOf` and gained two:
+that the lookup answers the same square twice, and that a bearer standing
+under their own torch is not in the dark - the carried-light case had
+only ever been checked at the light's own position, never at what it lit.
+
+`lightSees` and `canSeeFrom` stay exported. `fightStrike` is a second
+caller, so that part of the seam is real.
+
+**Gates.** 2494 tests / 125 files, `tsc -b`, oxlint, build in budget.
+
+## 123. The section is a value
+
+The Builder's rail down the side is five sections, and "which section"
+is a real concept in this app: the Level Up panel's whole design is that
+each step points at the section that already knows how to make that
+choice rather than reimplementing the picker.
+
+It was not a type that crossed the seam. `Section` and `SECTIONS` were
+private to `BuilderTab.tsx` - one file, one export - so `LevelUpPanel`
+declared its own idea of a section id, which was `string`, and its own
+copy of three of the five labels. `'Skills & options'` was written out in
+both files. The Builder cast the value back on the way in:
+
+    onGoTo={(next) => setSection(next as Section)}
+
+That cast is the bug that had not happened yet. Renaming a section id
+would have been a silent no-op in the panel: the link would still render,
+still point at nothing, and nothing would have failed to compile.
+
+`sections.ts` holds the type, the list, the labels derived from the list
+rather than written twice, and `openChoicesBySection`. The panel imports
+the type. The cast is gone. Two type errors fell out of doing it, which
+is the point - both were the seam being checked for the first time.
+
+**The badge counts got their own test.** They were previously reachable
+only by rendering the whole 2,985-line Builder and reading
+`getByTitle('N still to choose')` off the rail, so the counts themselves
+were asserted through three layers of markup. The rule the badges carry -
+an unfinished choice is a badge, not a build-review finding - only works
+if the counts are right, and the two 2024-only choices were missing for a
+while precisely because nothing could say so directly.
+
+**What was deliberately not moved.** The section-to-panel relation is
+still JSX nesting and the section-to-rail-readout relation is still five
+`section === '...'` conditionals. Both are one component's own layout with
+no second reader, and a table of React nodes to make them declarative
+would trade something legible for something clever. What crossed the
+seam was the part another module already had a wrong copy of.
+
+**Gates.** 2501 tests / 126 files, `tsc -b`, oxlint, build in budget.
+
+## 124. A value that survives a reload
+
+`App.tsx` holds thirteen unrelated concerns in one scope, and the review
+that found §119-§123 proposed lifting three of them. This is the one that
+turned out to be carrying something.
+
+Three values are saved and re-read at boot: the seat, the table roster,
+and the relay. Each was written out longhand - a `useState` initialiser
+with a try/catch around a read, an effect with a try/catch around the
+matching write, and a key literal appearing in both halves and nowhere
+else. Same shape, three times, agreeing only because somebody kept them
+in step. Two things were wrong beyond the repetition.
+
+**The guard was optional.** §118 hardened two of the three. The table
+roster is written from what a host broadcast over the wire - the one
+roster whose author might be hostile - so a poisoned copy has to load as
+an empty table rather than as a crash at every boot. The relay config is
+handed straight to `new WebSocket`, so a malformed one has to load as no
+relay. The seat was not hardened, because nothing made it obvious there
+was a third. In `useStored` the hydrate is not an option: it is the only
+way in, so the next stored value cannot be added without one.
+
+**They bypassed the store.** `persist.ts` exists because `localStorage`
+is one five-megabyte budget for the whole origin, and a roster with
+portraits in it does not fit twice; `engine/portrait.ts` is a file of
+careful work spent buying that headroom back a kilobyte at a time. These
+three read and wrote `localStorage` directly, which put a *whole
+broadcast roster* into the budget that module was written to escape. They
+go through the store now. So does the boot check that decides whether a
+phone lands on its seat, which read the same two keys raw and would
+otherwise have started disagreeing with the values themselves.
+
+**A seat written before this existed still counts.** The seat id used to
+be stored with a bare `setItem(key, seatId)` - a raw `c3`, not `"c3"` - so
+the reader falls back to the string when the JSON parse fails. Without
+it, everyone currently sitting at a table would have been put back on the
+character picker by this commit. It costs nothing afterwards: everything
+written from here is JSON and parses on the first attempt.
+
+`aRelay` moved to `sync.ts`, beside the shape it checks, so the guard
+travels with the type rather than living in whichever screen reads it.
+
+**What did not move, and why.**
+
+- **The session binding.** Roughly ninety lines of relay, seats, refs and
+  effects. `tableSession` (§103) already owns the protocol - this is only
+  the React binding to it, current-value readers in and state setters
+  out - so lifting it would move glue rather than concentrate a decision,
+  and the five ref-mirrors it keeps exist precisely because they must
+  live in the component that renders. Deleting it would not concentrate
+  complexity; it would relocate it.
+- **The undo keydown effect**, which has no dependency array and so
+  re-binds a window listener on every render. That reads like an
+  oversight and is not: it is what keeps `stepBack` and `stepForward`
+  fresh, and the ref indirection that would let it bind once buys nothing
+  a user could notice. Recorded here so it stays a decision.
+
+**Gates.** 2512 tests / 127 files, `tsc -b`, oxlint, build in budget.
+
+## 125. One bench for the fight modules
+
+Six test files each carried their own copy of `viewOf`, and five of the
+six carried `charOf` and `monsterOf` as well. Byte-identical apart from
+one string literal - the ruleset - which is the shape duplication takes
+when nobody has anywhere to put the thing.
+
+It matters more than tidiness. `FightView` is the read-side seam every
+one of those modules answers through (§110), and there is exactly one
+production caller that builds one. Six hand-written copies of how to
+build the same value are six chances for a test to be exercising a view
+the app never actually constructs - and the copies had already started to
+drift in the small way that precedes the large one: each had its own
+fixture load, its own `byId` map, its own `!` on the lookup.
+
+`src/test/fight.ts` holds the bench: the SRD lookup, `viewOf` with the
+ruleset as its one parameter, `charOf`, `monsterOf`, and `fixtureMonster`,
+which throws rather than returning undefined - a fixture that has gone
+missing should fail loudly rather than turn into a confusing assertion
+three lines later.
+
+**Each file's own `table()` stayed local.** They look alike and are not:
+one takes a fog flag, one takes an elevation map, and they stand their
+combatants on different squares because different rules need different
+geometry. A shared `table()` would have grown a parameter per caller,
+which is the same duplication wearing a hat.
+
+Not one assertion changed. That is the check that matters for a test-only
+refactor: if the bench built a different view than the copies did,
+something in those sixty-four would have said so.
+
+**Gates.** 2512 tests / 127 files, `tsc -b`, oxlint, build in budget.
+
+## 126. Two things encounter.ts was not about
+
+`encounter.ts` had forty-seven exports across six unrelated sub-domains,
+and the only property they shared was the argument type: nearly every one
+was `(EncounterState, ...) => EncounterState`. That is cohesion by shape
+rather than by concept, and it makes a file a place things get put rather
+than a module that answers something. Twenty-five files import it.
+
+Two clusters came out. Both were already nouns.
+
+**`monsterInstance.ts`** - what happens to one monster during a fight.
+Hit points, conditions and who caused them, limited uses, recharges,
+legendary actions, movement and reaction, stance, dormancy, hiding,
+surprise, and the round-timer that expires the timed ones. §106 named the
+read side of this rule - monster hit points ride the combatant, character
+hit points live on the roster - and this is the write side of the same
+one. Seventeen writers and the two readers that go with them.
+
+**`encounterLights.ts`** - what a DM does to a light during a fight. Four
+writers, and the concept was already split three ways with two of the
+three named: `engine/light.ts` owns what a light is, `fightSight.ts`
+(§111, §122) owns what it means for a square, and this was the unnamed
+third.
+
+`encounter.ts` is 695 lines and 26 exports, down from 1,059 and 47. What
+stayed is the fight itself: the state, the turn order, the lifecycle, the
+map, the log and the damage tally.
+
+**Moved verbatim, and checked.** §107, §114 and §116 each record a move
+that quietly became a rewrite, and the last of those cost a real
+regression no type could see. So every body was carried across by
+substitution rather than retyped, and then all twenty-three were diffed
+against `HEAD` character by character before the tests were run. Not one
+differs. `clamp` travelled with them, because its only remaining callers
+went too.
+
+**What was not attempted.** `EncounterState` is still twenty-three
+fields, about fifteen of them owned by a module somewhere else that
+imports the type back. Splitting the state is a much larger job with
+twenty-five importers and no obvious seam, and doing it badly would be
+worse than leaving it - so it stays recorded as the thing this section
+deliberately did not do.
+
+**Gates.** 2512 tests / 127 files, `tsc -b`, oxlint, build in budget.
+
+## 127. The argument that was allowed to be forgotten
+
+The review that produced §119-§126 kept a second list of smaller things.
+This is the one that was a defect rather than a tidy.
+
+`armorProficiencies` took the ruleset with a default:
+
+    ruleset: Ruleset = '2014',
+
+which reads like a convenience and is not. It feeds `subclassLevelFor`,
+which answers **3** under 2024 and **the class's own level** under 2014 -
+1 for a Cleric, whose Life domain grants heavy armour. So a caller that
+left the argument off was not saying "2014"; it was saying nothing, and
+getting 2014's answer for whatever character it was actually holding.
+
+One caller left it off: the Builder's Defenses panel. `computeAc` always
+passed the real one. So a **2024 Cleric at level 1 or 2 with a
+heavy-armour domain** was shown "Chain mail — AC 16" with no "(not
+proficient)" marker, sitting directly above an armour class that had
+declined to credit the proficiency. The panel and the number under it
+disagreed.
+
+**The fix is the signature, not the call site.** The parameter is
+required now, on `armorProficiencies` and on `weaponProficiencies`, which
+had the identical default for the identical reason. Making it required
+turned every omission into a compile error, which found the Builder and
+five places in `defense.test.ts` that had been quietly asserting against
+the default rather than against a ruleset. A default that changes the
+answer is not a default; it is a guess with a friendly face.
+
+**Two tests, at both levels.** One in `defense.test.ts` pins the rule:
+the same Life Cleric is proficient in heavy armour at level 1 under 2014
+and not until level 3 under 2024. One in `BuilderTab.test.tsx` renders
+the panel and reads the label, which is the half that was actually wrong
+- and it fails against the old behaviour, checked by putting the bug
+back and watching it go red before putting it away again.
+
+**Gates.** 2523 tests / 128 files, `tsc -b`, oxlint, build in budget.
+
+## 128. Three copies of two facts
+
+Two derived facts had grown a copy per screen.
+
+**The saving throw.** `ctx.mods[a] + (proficient ? ctx.proficiency : 0) +
+ctx.itemEffects.saves`, with the proficiency set built from
+`ctx.slices[0]?.klass.saves` - written out in the sheet, in the play card,
+and in `fightFacts`. Only the third had a name, and it lived in the
+battle-screen half where the character half could not see it. Nothing
+asserted the three agreed.
+
+The reason they were copies is visible in the type: `BuildContext` has a
+`proficiencies` field covering skills, tools, languages and expertise, and
+saves are the one category not in it, so every consumer reached past it
+into the slices. `saveProficiencies(ctx)` and `saveBonusOf(ctx, ability)`
+now live in `engine/character.ts`, beside the context they read, and all
+three call them. The new test asserts the fight and the sheet give the
+same number for all six abilities - which is the thing three copies could
+never promise.
+
+**The hit-point pair.** `hitPointsOf(c, view.roster, maxHpOf(view))`
+appeared verbatim **eight times** across four modules, twice inside a
+filter that rebuilt the lambda per element. Worse, `maxHpOf` - whose own
+doc comment says "five modules were each writing this lambda out; it
+belongs beside the view" - was still hand-inlined at two more places,
+including inside `fightStrike`, which did not import it.
+
+`hpOf(view, c)` and `hpNowOf(view, c)` replace all eight. The roster read
+is `view.roster` deliberately: that is §116's rule, learned the hard way,
+and a caller that genuinely needs the threaded roster still has
+`hitPointsOf` and has to say so out loud. The battle screen's own two
+inline copies now use the closure it already had.
+
+**Gates.** 2523 tests / 128 files, `tsc -b`, oxlint, build in budget.
+
+## 129. What dpr.ts exports, and why
+
+The review flagged thirteen exports in `engine/dpr.ts` with no production
+caller, and reported seven of them as having no reference at all. That
+second half was wrong, and checking is what found it: all seven are used
+*inside* the module. They were over-exported, not dead.
+
+So they are private now - `critChance`, `typicalSaveBonusFor`,
+`attacksPerAction`, `critRangeFor`, `weaponDiceAverage`, `spellDamageAt`,
+`bestSpells` - which takes the module from 25 exports to 18 and changes
+no behaviour at all.
+
+The other six stay, and the module now says why. `averageWithReroll`,
+`withAdvantage`, `failChance`, `expectedSaveDamage`, `cantripMultiplier`
+and `typicalAcFor` are the probability arithmetic, exported deliberately
+as a test surface. Advantage is `1-(1-p)^2`; getting it slightly wrong is
+a rounding error nobody would ever see in an end-to-end damage number,
+and you can see it at four decimal places. That is a real reason, and it
+is written in the file so the next review reads them as intentional
+rather than as leftovers.
+
+**The other half of the report's claim was also wrong.** It said the
+400-line `computeDpr` has no direct test. It has no test that names it -
+because nothing names it, including the app: it runs as part of
+`deriveBuild`, and fifteen assertions across the suite reach it the same
+way, through `deriveBuild(build).dpr`. That is the honest interface. No
+gap, and nothing invented to fill one.
+
+**Gates.** 2523 tests / 128 files, `tsc -b`, oxlint, build in budget.
+
+## 130. Two exports that existed for a test
+
+`knockProne` and `setHeld` were exported from `fightGrapple.ts` with no
+production caller anywhere. They were the *arrangement* half of five
+grapple tests: the state each test needed before it could assert
+anything - somebody already held, somebody already down.
+
+That is backwards. It meant the setup ran code the battle screen never
+runs, so the state being tested against was a state only the test knew how
+to build. The setups go through `resolveGrab` now, which is the door the
+app uses, and both functions are private. It costs a helper and buys the
+guarantee that every grapple test starts from a position a real fight can
+reach.
+
+One assertion got sharper on the way. "Prone added rather than toggled"
+used to knock a prone creature down again and check they were still
+prone; it now checks they carry **one** `prone`, not two, which is what
+"added rather than toggled" was trying to say.
+
+**`fightEvents.ts` has a test now**, and it is a small one on purpose.
+The event union is checked by the compiler at every emit site - a test
+that builds one and reads its `kind` back is testing TypeScript. What is
+worth pinning is `nothingHappened`: it returns the *same* roster by
+identity, not a copy, and an empty list rather than null, so no caller
+has to special-case a mis-click. Somebody could undo that to "save an
+object" and twelve call sites would stop checking. The union itself gets
+an inventory rather than a behaviour test, which is what a reviewer wants
+to diff against when a new `kind` appears.
+
+**Gates.** 2523 tests / 128 files, `tsc -b`, oxlint, build in budget.
+
+## 131. How a number reads, and what a feat is called
+
+Two presentation bugs from the same list.
+
+**Feat ids reached the printed sheet.** The Features & Traits box
+rendered `[...ctx.featIds].join(', ')`, so a paper character sheet said
+`great-weapon-master` - two lines below `ctx.features`, which has always
+rendered `.name`. The set holds ids and joining a set of ids is the
+shortest thing that compiles, which is how it survived. It reads names
+now, through `featById` so a 2024 character gets 2024's record, sorted,
+falling back to the id if a feat ever goes missing from the table: a
+kebab-case word on the page beats a blank.
+
+**Seven copies of the sign.** D&D writes modifiers with their sign -
+`+3`, `-1`, and `+0` rather than `0`, because a sheet says "you add
+nothing" out loud rather than leaving the reader wondering whether the box
+got filled in. Six modules had the identical ternary and a seventh had it
+written the other way round. Nothing had gone wrong, which is the only
+good time to fix it: the copies were not being kept in step by anybody,
+and the first one to be improved - trimming `+0` to `0`, say - would have
+made two printouts of the same character disagree. `src/format.ts` holds
+it once.
+
+Not folded into `Delta` (`components/shared.tsx`), which looks like the
+same thing and is not: that is a component, it rounds to one decimal, and
+it carries a colour class for a comparison readout. This is a string.
+
+**Gates.** 2523 tests / 128 files, `tsc -b`, oxlint, build in budget.
+
+## 132. Which roster a swing reads from
+
+Decided, after two sections of deliberately not deciding it.
+
+§115's scripted move changed which roster hit points are read from inside
+a composed write; §116 changed it back, on the principle that a refactor
+is not where a rule gets settled. It is settled now, and it goes the way
+§115 accidentally had it: **hit points come off the roster the write is
+building**, the same one the combatants are already re-read from.
+
+The case that shows it: a goblin at 7 walks through a wall of fire for 5
+and then swings, all in one write. Positions were already read off the
+threaded roster - the goblin is where the walk left it - while its hit
+points came off the render's, so it was 7 in one half of the same
+creature and 2 in the other. A maul landing on it was tallied against 7
+(too much damage credited) and never flagged as the blow that dropped it.
+
+Five sites move, the same five §116 catalogued: two in `fightStrike`
+(the living-ally filter and the `hpBefore` cap) and three in `fightZones`
+(`biteZone`'s cap, `healFromZone`'s test for "hurt but not down", and
+`dropZone`'s jolt chain, which hurts somebody and then asks whether they
+are still standing).
+
+**Two helpers, not one.** `hpIn(view, roster, c)` reads a roster you hand
+it; `hpOf(view, c)` reads the view's. §128 had folded them into one, which
+was the right shape for the rule as it stood and the wrong one for this.
+The three call sites with no write in flight - the movement budget, the
+fog's living-eyes filter, `partyApproach` - genuinely are only looking,
+and they keep `hpOf`.
+
+**The §116 pin became the §132 test.** It asserted the old behaviour on
+purpose, so it had to be rewritten rather than kept: a maul landing on a
+character at 1 hit point now tallies 1 taken and 1 drop, where before it
+tallied fourteen and no drop.
+
+**Gates.** 2530 tests / 128 files, `tsc -b`, oxlint, build in budget.
+
+## 133. The room gets the credit
+
+A wall of fire deals damage and nothing was accountable for it. The tally
+recorded what the target took and, with no `by`, credited the damage to
+nobody - so a party could walk out of a room having lost half its hit
+points and the debrief would show the loss with no account of where it
+went.
+
+`ENVIRONMENT` is a reserved tally key, deliberately not a combatant id -
+the alphabet ids are built from cannot produce it. `biteZone` credits it,
+and the debrief renders it as a row of its own below the ranking, ruled
+off, called *The room*.
+
+**Never the MVP.** The ranking skips it, because "the dungeon did the
+most damage" is true more often than a table would like and is not the
+compliment that line is for. A fight where only the room dealt damage
+gets its own subtitle rather than a nonsense one.
+
+**Still ungated on `isRunning`, and now on purpose.** §113 recorded this
+as an inconsistency with `applyHitPoints` and left it. It stays, because
+the two paths are different things: a hazard biting during setup *is* an
+event and the recap is the only place it is ever said, while
+`applyHitPoints` is also how a DM nudges a number by hand, which is
+bookkeeping. Two tests pin it, one of them explicitly on a fight that
+never started.
+
+**Gates.** 2530 tests / 128 files, `tsc -b`, oxlint, build in budget.
+
+## 134. One tool in hand
+
+The battle screen can arm six tools - aim, grab, the light, the mark
+brush, the walk, and a zone placement - and until now only three of them
+knew about each other. Aiming put the walk down; grabbing put the aim and
+the walk down; the light and the mark brush put down nothing at all. So
+arming the light while aiming left both live, and Escape's priority stack
+existed partly to unwind states nobody had chosen to allow.
+
+`putDownTools()` is called by every arming site, so arming any tool puts
+every other one down. Pressing the same tool again still toggles it off -
+"I meant the other thing" and "I meant nothing" are both things a DM
+means, and the light and the mark brush were already toggles.
+
+**Escape keeps its order** even though at most one tool branch can now
+fire. It also unwinds the things that are *not* tools - the board cursor
+(§85), the save results, the drawer - and those still stack behind
+whatever is in hand: a DM pressing Escape mid-aim means "put the bow
+down", not "close the bestiary I opened a minute ago".
+
+**This unblocks ROADMAP §8's tool union**, which was decided against with
+a stated condition: *"Reopen only with a decision that one tool at a time
+is the rule."* That is now the rule, and the six flags are genuinely
+mutually exclusive - the state a union would have made unrepresentable no
+longer exists. The union itself is not done here; making the rule true is
+the part that needed deciding, and folding six pieces of state into one is
+a separate change that should stand or fall on its own.
+
+All 209 battle-screen tests passed unedited, which is the useful signal:
+no existing flow depended on holding two tools at once.
+
+**Gates.** 2530 tests / 128 files, `tsc -b`, oxlint, build in budget.
+
+## 135. What the relay refuses
+
+The room code is the whole secret (§95), and that stays: auth would mean a
+second secret the app has to carry, which buys little when the first is
+already unguessable at ~30 bits. What the relay can do without the app
+knowing anything about it is refuse traffic no table ever produces.
+
+Three limits, in `relay/limits.mjs` so the Node relay and the Worker
+cannot drift - two implementations of the same room disagreeing about what
+is allowed is the kind of difference that only shows up at somebody's
+table.
+
+- **The code must be shaped like one**: six characters from the alphabet
+  `newRoomCode()` mints from. This is the cheap half and the valuable one.
+  The Worker called `idFromName` on unfiltered input, so anyone scanning
+  the URL could spin up a Durable Object per guess against this account's
+  quota; a regex is the whole defence. It also turns a mistyped code into
+  a refusal rather than a silent room of one, which is the failure §117
+  spent a section chasing.
+- **Twelve sockets per room.** A table is a DM and their players. The
+  number is generous because the cost of being wrong is a real person who
+  cannot join, and what it defends against is not a thirteenth friend but
+  a script opening ten thousand.
+- **A megabyte per frame, dropped rather than closed on**, matching the
+  cap the app already applies on the way in (§100). That guard was
+  one-sided: a client refuses to *read* a frame this big, but the relay
+  would push one at every phone in the room first. Dropping rather than
+  closing means an oversized broadcast costs the broadcast, not the table.
+
+**Rate limiting per IP is left to Cloudflare's dashboard rules**, not to
+code. It is a control the platform already has, and a counter in the
+Durable Object would cost storage this relay deliberately does not use.
+
+**The alphabet omits `0`, `O`, `1`, `I` and `L`** so nobody has to squint
+at a code across a table - and two of this repo's own test fixtures
+(`EMPTY1`, `BINARY`) turned out not to be valid room codes when the check
+went in. So did the first fixture I wrote for the capacity test. That is a
+fair illustration of why the check is worth having, and it is recorded
+rather than quietly renamed.
+
+`scratchpad/check117.mjs` draws its throwaway codes from the alphabet now
+instead of from base36, which produces exactly the characters the alphabet
+omits.
+
+**Gates.** 2530 tests / 128 files, `tsc -b`, oxlint, build in budget.

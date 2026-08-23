@@ -7,6 +7,8 @@ the app; this is for people changing it.
 npm install
 npm run dev      # http://localhost:5173
 npm test         # engine, import and component tests
+npm run lint     # oxlint
+npm run typecheck   # tsc -b; plain `tsc --noEmit` checks NOTHING here (§121)
 npm run build    # static bundle in dist/, plus the service worker and budgets
 npm run audit    # diff the data tables against the SRD fixtures
 npm run audit:refresh   # re-fetch those fixtures from the SRD APIs

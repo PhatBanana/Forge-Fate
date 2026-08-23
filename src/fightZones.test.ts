@@ -1,13 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import fixture from './data/srd/srd-2014-monsters.json';
-import type { Monster } from './data/monsters';
-import { addCharacter, addMonster, emptyEncounter, placeCombatant } from './encounter';
+import { ENVIRONMENT, addCharacter, addMonster, emptyEncounter, isRunning, placeCombatant } from './encounter';
 import { activeEncounter, updateEncounter, updatePlay } from './storage';
-import { deriveBuild } from './engine/character';
 import { biteZone, healFromZone } from './fightZones';
 import { hitPointsOf } from './hitPoints';
-import type { FightView } from './fightFacts';
 import type { Zone } from './zones';
+import { charOf, fixtureMonster, monsterOf, viewOf } from './test/fight';
 import { fighter, rosterOf, wizard } from './test/factories';
 
 /**
@@ -16,8 +13,6 @@ import { fighter, rosterOf, wizard } from './test/factories';
  * cannot be asserted on, which is why none of this had a test before.
  */
 
-const monsters = (fixture as unknown as { records: Monster[] }).records;
-const byId = new Map(monsters.map((m) => [m.id, m]));
 
 /** Every die reads high, so a roll is its own maximum: 6 on a d6, 20 on
     a d20. Deterministic, and the arithmetic stays legible. */
@@ -29,27 +24,14 @@ const table = () => {
   const roster = rosterOf(fighter(), wizard());
   let enc = addCharacter(emptyEncounter(), 'c0', { initiative: 20 });
   enc = addCharacter(enc, 'c1', { initiative: 10 });
-  enc = addMonster(enc, byId.get('goblin')!, { rng: () => 0.5 });
+  enc = addMonster(enc, fixtureMonster('goblin'), { rng: () => 0.5 });
   const [a, b] = enc.combatants.filter((c) => c.kind === 'character');
   enc = placeCombatant(enc, a.id, { x: 1, y: 1 });
   enc = placeCombatant(enc, b.id, { x: 2, y: 1 });
   return updateEncounter(roster, enc);
 };
 
-const viewOf = (roster: ReturnType<typeof table>): FightView => ({
-  encounter: activeEncounter(roster),
-  roster,
-  monsterById: (id) => byId.get(id),
-  buildOf: (rosterId) => {
-    const entry = roster.entries.find((e) => e.id === rosterId);
-    return entry ? deriveBuild(entry.build) : undefined;
-  },
-  ruleset: '2014',
-});
 
-const charOf = (v: FightView, rosterId: string) =>
-  v.encounter.combatants.find((c) => c.kind === 'character' && c.rosterId === rosterId)!;
-const monsterOf = (v: FightView) => v.encounter.combatants.find((c) => c.kind === 'monster')!;
 
 const fire = (over: Partial<Zone> = {}): Zone =>
   ({
@@ -108,6 +90,44 @@ describe('ground that bites', () => {
     const tally = activeEncounter(after).tally?.[gob.id];
     expect(tally?.taken).toBe(standing);
     expect(tally?.drops).toBe(1);
+  });
+
+  /*
+    §133. The room gets the credit. There is no hand behind a wall of fire,
+    so this used to record the damage against the target and against nobody
+    at all - which meant a party could walk out of a room having lost half
+    its hit points to it, and the debrief would show the loss with no
+    account of where it went.
+
+    Deliberately not gated on the fight running. A hazard that bites during
+    setup dealt that damage, and the recap is the only place it is ever
+    said. That is the one thing that still differs from `applyHitPoints`,
+    and it differs on purpose: that path is also how a DM nudges a number
+    by hand, which is bookkeeping rather than an event.
+  */
+  it('credits the room, so the debrief can say where the damage went', () => {
+    const roster = table();
+    const v = viewOf(roster);
+    const gob = monsterOf(v);
+    const before = hitPointsOf(gob, roster, () => 0)!.now;
+
+    const after = biteZone(v, roster, gob.id, fire(), 'is caught by', maxRoll);
+    const tally = activeEncounter(after).tally!;
+    const dealt = tally[ENVIRONMENT]?.dealt ?? 0;
+    expect(dealt).toBeGreaterThan(0);
+    // What the room dealt is what the goblin took - one event, two sides.
+    expect(dealt).toBe(tally[gob.id]?.taken);
+    expect(before).toBeGreaterThan(0);
+  });
+
+  it('tallies a bite taken before the fight started, which is when it is only ever said', () => {
+    const roster = table();
+    const v = viewOf(roster);
+    // `table()` never calls `startEncounter`, so this fight is not running.
+    expect(isRunning(activeEncounter(roster))).toBe(false);
+
+    const after = biteZone(v, roster, monsterOf(v).id, fire(), 'is caught by', maxRoll);
+    expect(activeEncounter(after).tally?.[ENVIRONMENT]?.dealt).toBeGreaterThan(0);
   });
 
   it('wakes a dormant monster, because ground hurts like a sword does', () => {

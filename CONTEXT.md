@@ -53,3 +53,37 @@ same in code, comments, HISTORY and reviews. Deeper reasoning lives in
 - **Combatant facts** — what is true of one combatant right now:
   conditions, size, exhaustion, ruleset, defences, stance, who holds
   them. Reads from whichever store owns each one (§106).
+
+## The character
+
+- **Sheet view** — the read side of a character in play (`sheetOf`,
+  §120): hit points, slots, pact slots, hit dice, held resources and
+  ammunition, each with its cap already inside. `BuildContext` holds the
+  caps, `PlayState` holds the spending; this is the join. The write side
+  stays in `play.ts` and still takes its cap.
+- **Section** — one step of the Builder's rail (`sections.ts`, §123):
+  identity, abilities, equipment, skills & options, feats. Carries its
+  own label and its own count of choices still unmade. The Level Up
+  panel points at one rather than reimplementing its pickers.
+- **Stored value** — something that survives a reload (`useStored`,
+  §124): a key, a hydrate that is the only way in, and the store behind
+  `persist.ts`. There is no unguarded stored value.
+- **Saving throw** — ability modifier, proficiency if the *starting*
+  class grants that save (a dip grants none), plus what the items are
+  worth on every save (`saveBonusOf`, §128). One answer, asked by the
+  sheet, the play card and the fight.
+- **Signed** — how this game writes a modifier: `+3`, `-1`, and `+0`
+  rather than `0` (`format.ts`, §131). A sheet says "you add nothing"
+  out loud.
+
+## The fight, continued
+
+- **Walk plan** — one combatant's walk, whole (`walkPlanFor`, §121): the
+  budget in two tiers, the map, the map with hazards avoided, and the
+  price to a square by the route the feet would actually take.
+- **Lighting** — the lights, the ambient level, the per-square lookup and
+  the gloom the map draws (`lightingOf`, §122), as one value with one
+  lifetime. The lookup carries its cache, so the value's lifetime is the
+  cache's.
+- **Monster instance** — one monster's own state during a fight
+  (`monsterInstance.ts`, §126): the write side of §106's rule.

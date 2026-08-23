@@ -327,12 +327,13 @@ screen. What was worth doing, and what was not:
   and stayed: it reads six derived values from the middle of the fight
   (objective, delve, ward, rounds, tally), so peeling it would trade a
   fused region for a prop list as wide as the panel is tall.
-- `[–]` **Folding the tool states into one union** — *decided against,
-  see §107.* They are not mutually exclusive: Escape is a priority
-  stack, and holding a placement under an aim is a real state. A union
-  makes it unrepresentable, so it is a behaviour change rather than a
-  refactor. Reopen only with a decision that one tool at a time is the
-  rule.
+- `[~]` **Folding the tool states into one union** — *reopened, §134.*
+  It was decided against because the six tools were not mutually
+  exclusive: Escape is a priority stack, and holding a placement under an
+  aim was a real state. §134 made one-tool-at-a-time the rule, so that
+  state no longer exists and the union is representable. The behaviour
+  change is done; the union itself is not, and should stand or fall on
+  its own merits as a refactor now that nothing blocks it.
 - `[–]` **Splitting the entangled core** (map stage, cockpit, field) —
   each reads 8+ pieces of state and writes handlers defined in the
   resolution regions. Cutting there moves complexity rather than
@@ -438,6 +439,76 @@ above it, so no step needs a temporary shim:
 six rules modules with direct tests, and the fight testable without a
 DOM. **Not expected:** any change to what the app does. If a step
 produces a user-visible difference, it is a bug in the step.
+
+### 10. The second architecture review — `[x]` **done, §119-§131**
+
+A review on 2026-08-22, scoped deliberately to what the first one never
+looked at: the character-building half (`BuilderTab` at 2,985 lines,
+`CharacterSheet` at 1,686), the nine `fight*` modules §110-§116 had just
+carved out, and the two files nobody had touched — `App.tsx` and
+`encounter.ts`. Eight candidates, all taken.
+
+**Two were defects the table could see**, and both were the same shape: a
+fact the engine had already derived, re-derived at the point of display.
+
+- `[x]` **The versatile grip** — §119. Five screens asked the weapon
+  again with half the question, so a longsword beside a shield printed
+  and *rolled* `1d10` against a damage curve built on `1d8`.
+- `[x]` **The proficiency default** — §127. A `ruleset = '2014'` default
+  meant the Builder's Defenses panel and the armour class under it
+  disagreed for a 2024 Cleric with a heavy-armour domain. The parameter
+  is required now, so the omission cannot recur.
+
+**Six were deepenings**, each collapsing a chain or a duplication:
+
+- `[x]` **`sheetOf`** — §120. The join of `BuildContext` and `PlayState`,
+  which four screens each performed by hand.
+- `[x]` **`walkPlanFor`** — §121. A four-export ordered protocol the
+  caller had to obey; the four had no direct test, which was not a
+  coincidence.
+- `[x]` **`lightingOf`** — §122. The same shape in `fightSight`, whose
+  nine exports had nine single callers.
+- `[x]` **`sections.ts`** — §123. The Builder's rail step, as a type that
+  crosses the seam instead of a `string` and a cast.
+- `[x]` **`useStored`** — §124. Three hand-written storage pairs, two
+  hardened and one not; the hydrate is the only way in now.
+- `[x]` **`src/test/fight.ts`** — §125. Six copies of the `FightView`
+  test builder.
+- `[x]` **`monsterInstance.ts` / `encounterLights.ts`** — §126.
+  `encounter.ts` 1,059 lines and 47 exports down to 695 and 26.
+
+**Four questions the review raised were then decided**, §132-§135: which
+roster a swing reads hit points from (the one the write is building), what
+credits a wall of fire's damage in the debrief (the room, and outside a
+running fight too), whether two tools can be armed at once (no), and what
+the relay refuses (a code that is not shaped like one, a thirteenth
+socket, an oversized frame).
+
+**And a housekeeping pass**, §128-§131: three copies of the saving-throw
+rule and eight of the hit-point pair made one, seven over-exported `dpr`
+helpers made private with the six deliberate ones documented, two exports
+that existed only for a test removed, feat *names* on the printed sheet,
+and one `signed()` instead of seven.
+
+**The gate itself was broken.** `npx tsc --noEmit` type-checks nothing in
+this repo — the root `tsconfig.json` is a solution file with
+`"files": []` — and reported green over 213 broken tests during §121. The
+real check is `tsc -b`, now also `npm run typecheck`. See §121.
+
+**What was looked at and left**, each with the reason in its section:
+
+- `[–]` **The `App.tsx` session binding** — ~90 lines of React glue over
+  `tableSession`, which already owns the protocol. Lifting it relocates
+  complexity rather than concentrating it. §124.
+- `[–]` **The undo keydown effect's missing dependency array** — it is
+  what keeps `stepBack`/`stepForward` fresh; the ref indirection that
+  would let it bind once buys nothing observable. §124.
+- `[–]` **Splitting `EncounterState`** — still 23 fields, ~15 owned by a
+  module that imports the type back. Twenty-five importers and no obvious
+  seam; doing it badly is worse than leaving it. §126.
+- `[–]` **The Builder's section-to-panel and section-to-rail relations** —
+  still JSX nesting and five conditionals. One component's own layout, no
+  second reader. §123.
 
 ### 7. Housekeeping a fresh clone found — `[x]` **done in §99**
 

@@ -1,4 +1,5 @@
-import { appendLog, damageMonster, recordDamage, setDormant } from './encounter';
+import { ENVIRONMENT, appendLog, recordDamage } from './encounter';
+import { damageMonster, setDormant } from './monsterInstance';
 import type { EncounterState } from './encounter';
 import { activeEncounter, updateEncounter, updatePlay } from './storage';
 import type { Roster } from './storage';
@@ -9,9 +10,8 @@ import { applyDefences } from './engine/defences';
 import { combatantsIn, grantsUnder, sideOf } from './zones';
 import { placeZone } from './surfaces';
 import type { Zone } from './zones';
-import { hitPointsOf } from './hitPoints';
 import { combatantName } from './hitPoints';
-import { defencesOf, maxHpOf, saveBonusFor } from './fightFacts';
+import { defencesOf, hpIn, hpNowIn, maxHpOf, saveBonusFor } from './fightFacts';
 import type { FightView } from './fightFacts';
 
 /**
@@ -95,12 +95,18 @@ export function biteZone(
   );
   if (dealt <= 0) return updateEncounter(roster, enc);
 
-  // This render's roster, as the closure this replaced read it - see
-  // the note in fightStrike.ts.
-  const hpBefore = hitPointsOf(combatant, view.roster, maxHpOf(view))?.now ?? 0;
-  // The zone's damage scores in the debrief too - no hand behind it, so no
-  // dealer, but every point taken and every knockdown counts.
+  // §132: the roster this write is building, not the render's - so a
+  // creature already hurt earlier in the same composed write is bitten
+  // against what it has left rather than what it started the frame on.
+  const hpBefore = hpNowIn(view, roster, combatant);
+  /*
+    The zone's damage scores in the debrief, credited to the room rather
+    than to nobody (§133). It is tallied whether or not a fight is running,
+    which is the point: a party that walks into a wall of fire during setup
+    took that damage, and the recap should say where it went.
+  */
   enc = recordDamage(enc, {
+    by: ENVIRONMENT,
     to: combatant.id,
     amount: Math.min(dealt, hpBefore),
     downed: hpBefore > 0 && hpBefore - dealt <= 0,
@@ -160,7 +166,7 @@ export function healFromZone(
   const c = encNow.combatants.find((x) => x.id === combatantId);
   const parsed = parseNotation(dice);
   if (!c || !parsed) return roster;
-  const hp = hitPointsOf(c, view.roster, maxHpOf(view));
+  const hp = hpIn(view, roster, c);
   if (!hp || hp.now <= 0 || hp.now >= hp.max) return roster;
   const rolled = rollNotation(parsed, rng).total;
   const enc = appendLog(
@@ -203,7 +209,7 @@ export function dropZone(
 
   for (const jolt of jolts) {
     for (const victim of combatantsIn(jolt, activeEncounter(updated).combatants)) {
-      if ((hitPointsOf(victim, view.roster, maxHpOf(view))?.now ?? 0) <= 0) continue;
+      if (hpNowIn(view, updated, victim) <= 0) continue;
       updated = biteZone(view, updated, victim.id, jolt, 'is caught by', rng);
     }
   }

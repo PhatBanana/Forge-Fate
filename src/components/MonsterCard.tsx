@@ -1,4 +1,5 @@
 import { ABILITIES } from '../types';
+import { signed } from '../format';
 import type { Monster, MonsterAbility } from '../data/monsters';
 import { formatCr, formatSpeed, monsterMod } from '../data/monsters';
 import { CONDITIONS_BY_ID } from '../data/conditions';
@@ -15,7 +16,6 @@ import { CONDITIONS_BY_ID } from '../data/conditions';
  * It prints, because a stat block is a thing you put on the table.
  */
 
-const signed = (value: number) => (value >= 0 ? `+${value}` : `${value}`);
 
 /** "STR 8 (-1)" - the score and the modifier, since a stat block gives both. */
 function Scores({ monster }: { monster: Monster }) {

@@ -30,8 +30,10 @@ import { canRedo, canUndo, forget, historyFor, record, redo, undo } from './undo
 import { push } from './toast';
 import type { Intent, Seat } from './seats';
 import { claimSeat, queueIntent, withdrawIntent } from './seats';
-import { rememberRelayUrl, tableSession } from './sync';
-import type { RelayConfig, SessionRole, TableSession } from './sync';
+import { aRelay, rememberRelayUrl, tableSession } from './sync';
+import type { SessionRole, TableSession } from './sync';
+import { read } from './persist';
+import { aString, useStored } from './storedState';
 import type { Toast } from './toast';
 import { ToastHost } from './components/ToastHost';
 import {
@@ -282,10 +284,10 @@ export default function App() {
     /* §96: a phone that held a seat at a table boots back into it - a
        reload mid-session (or the browser evicting the tab) must land the
        player on their sheet, not the menu. Leave the seat to leave. */
+    // §124: through the store, like the two values themselves - a raw
+    // `localStorage` read here would have started disagreeing with them.
     try {
-      if (localStorage.getItem('dnd-forge:seat:v1') && localStorage.getItem('dnd-forge:relay:v1')) {
-        return 'seat';
-      }
+      if (read('dnd-forge:seat:v1') && read('dnd-forge:relay:v1')) return 'seat';
     } catch {
       // Private browsing; the menu it is.
     }
@@ -294,23 +296,7 @@ export default function App() {
   /* §93: which roster character this device's seat plays. `''` from a bare
      `#seat` fragment lands on the picker; null means no seat taken.
      §96: persisted, so the phone reload walks back to its own sheet. */
-  const [seatId, setSeatId] = useState<string | null>(() => {
-    const fromLink = seatFromLocation();
-    if (fromLink) return fromLink;
-    try {
-      return localStorage.getItem('dnd-forge:seat:v1');
-    } catch {
-      return null;
-    }
-  });
-  useEffect(() => {
-    try {
-      if (seatId) localStorage.setItem('dnd-forge:seat:v1', seatId);
-      else localStorage.removeItem('dnd-forge:seat:v1');
-    } catch {
-      // Private browsing; the chair is re-picked.
-    }
-  }, [seatId]);
+  const [seatId, setSeatId] = useStored('dnd-forge:seat:v1', aString, seatFromLocation);
   const [seats, setSeats] = useState<Seat[]>([]);
   /*
     §96: the table's roster, on a seat device. §95 persisted incoming state
@@ -320,29 +306,11 @@ export default function App() {
     player's own hit points and slots are on their phone, as asked), and it
     never touches the characters they built for themselves.
   */
-  const [tableRoster, setTableRoster] = useState<Roster | null>(() => {
-    try {
-      const raw = localStorage.getItem('dnd-forge:table-roster:v1');
-      /* §118: hydrated, not cast. This store is written from what a host
-         broadcast over the wire - the one roster whose author might be
-         hostile - and a poisoned copy must load as an empty table, not
-         as a crash at every boot. */
-      return raw ? hydrateRoster(JSON.parse(raw)) : null;
-    } catch {
-      return null;
-    }
-  });
-  useEffect(() => {
-    try {
-      if (tableRoster) {
-        localStorage.setItem('dnd-forge:table-roster:v1', JSON.stringify(tableRoster));
-      } else {
-        localStorage.removeItem('dnd-forge:table-roster:v1');
-      }
-    } catch {
-      // Private browsing; the table is re-fetched on the next hello.
-    }
-  }, [tableRoster]);
+  /* §118: hydrated, not cast. This store is written from what a host
+     broadcast over the wire - the one roster whose author might be
+     hostile - and a poisoned copy must load as an empty table, not as a
+     crash at every boot. §124 made that the only way in. */
+  const [tableRoster, setTableRoster] = useStored('dnd-forge:table-roster:v1', hydrateRoster);
   /*
     §92's plan queue, lifted: the battle cockpit and the player seat write
     the same one, and a plan survives the DM stepping out to another screen.
@@ -381,41 +349,14 @@ export default function App() {
   const [linkUp, setLinkUp] = useState(true);
   const tableRosterRef = useRef(tableRoster);
   tableRosterRef.current = tableRoster;
-  const [relay, setRelay] = useState<RelayConfig | null>(() => {
-    const fromLink = tableFromLocation();
-    if (fromLink) return fromLink;
-    try {
-      const raw = localStorage.getItem('dnd-forge:relay:v1');
-      const parsed: unknown = raw ? JSON.parse(raw) : null;
-      // §118: shape-checked, because a malformed relay would be handed
-      // straight to `new WebSocket` at boot.
-      if (
-        typeof parsed === 'object' &&
-        parsed !== null &&
-        typeof (parsed as RelayConfig).url === 'string' &&
-        typeof (parsed as RelayConfig).room === 'string'
-      ) {
-        return parsed as RelayConfig;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  });
+  /* Persisted so the phone that reloads without its fragment - or the DM
+     who closed the lid - walks back into the same room. §96 also remembers
+     the URL alone, so the next join asks only for a code.
+     §118: shape-checked, because a malformed relay would be handed straight
+     to `new WebSocket` at boot. */
+  const [relay, setRelay] = useStored('dnd-forge:relay:v1', aRelay, tableFromLocation);
   useEffect(() => {
-    /* Persisted so the phone that reloads without its fragment - or the
-       DM who closed the lid - walks back into the same room. §96 also
-       remembers the URL alone, so the next join asks only for a code. */
-    try {
-      if (relay) {
-        localStorage.setItem('dnd-forge:relay:v1', JSON.stringify(relay));
-        rememberRelayUrl(relay.url);
-      } else {
-        localStorage.removeItem('dnd-forge:relay:v1');
-      }
-    } catch {
-      // Private browsing; the room simply is not remembered.
-    }
+    if (relay) rememberRelayUrl(relay.url);
   }, [relay]);
   useEffect(() => {
     /*

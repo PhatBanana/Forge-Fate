@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Monster, MonsterAbility } from '../data/monsters';
 import { parseUsage } from '../data/monsters';
 import type { MonsterCombatant } from '../encounter';
-import { rechargeReady, usesLeft } from '../encounter';
+import { rechargeReady, usesLeft } from '../monsterInstance';
 import { defaultRng, rollDie } from '../engine/dice';
 import { routineFor, strikeOf } from '../engine/strikes';
 import type { Strike } from '../engine/strikes';

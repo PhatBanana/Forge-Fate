@@ -1,4 +1,5 @@
-import { appendLog, damageMonster, isRunning, recordDamage, setDormant } from './encounter';
+import { appendLog, isRunning, recordDamage } from './encounter';
+import { damageMonster, setDormant } from './monsterInstance';
 import type { Combatant, EncounterState } from './encounter';
 import { damage, heal, hpNow } from './play';
 import { updateEncounter, updatePlay } from './storage';

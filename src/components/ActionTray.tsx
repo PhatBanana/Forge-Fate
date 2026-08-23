@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { signed } from '../format';
 import type { Build } from '../types';
 import type { BuildContext } from '../engine/character';
 import type { PlayState } from '../play';
+import { sheetOf } from '../sheet';
 import {
   dash,
   heal,
@@ -16,7 +18,6 @@ import {
   startConcentration,
 } from '../play';
 import { defaultRng, parseNotation, rollD20, rollDamage, rollNotation } from '../engine/dice';
-import { damageDice } from '../data/weapons';
 import type { Spell } from '../data/spells';
 import { consumeItem, isConsumable, quantityOf } from '../engine/items';
 import { gearById } from '../data/gear';
@@ -43,7 +44,6 @@ import { castingBlocks, handsOf } from '../engine/components';
  * through the same machinery the rail's Hide button uses.
  */
 
-const signed = (value: number) => (value >= 0 ? `+${value}` : `${value}`);
 
 export function CommandMenu({
   ctx,
@@ -164,8 +164,7 @@ export function CommandMenu({
 
   const damageFor = (i: number, crit: boolean) => {
     const line = ctx.attacks[i];
-    const dice = damageDice(line.weapon, line.hand === 'main' && !ctx.loadouts.offHand);
-    const notation = `${dice}${line.damage.bonus ? signed(line.damage.bonus) : ''}`;
+    const notation = `${line.damage.dice}${line.damage.bonus ? signed(line.damage.bonus) : ''}`;
     const parsed = parseNotation(notation);
     if (!parsed) return;
     log(
@@ -179,6 +178,9 @@ export function CommandMenu({
   // ----------------------------------------------------------------- spells
 
   const casting = ctx.spellcasting;
+  // §120: slot counts read off the join, so the off-by-one into the class
+  // table is written once rather than at each of the three places that asked.
+  const sheet = sheetOf(ctx, play);
   const spells = casting.casts
     ? (casting.preparesFromBook
         ? [
@@ -221,8 +223,8 @@ export function CommandMenu({
   /** The cheapest way to pay for a spell, or null when nothing can. */
   const slotFor = (spell: Spell): { kind: 'slot'; level: number } | { kind: 'pact' } | null => {
     if (spell.level === 0) return null;
-    for (let level = spell.level; level <= casting.bySpellLevel.length; level++) {
-      if (slotsLeft(play, level, casting.bySpellLevel[level - 1] ?? 0) > 0) {
+    for (let level = spell.level; level <= sheet.slots.length; level++) {
+      if ((sheet.slots[level - 1]?.left ?? 0) > 0) {
         return { kind: 'slot', level };
       }
     }
@@ -268,7 +270,7 @@ export function CommandMenu({
         next = spendPact(next, casting.pact?.count ?? 0);
         cost = `pact slot`;
       } else {
-        next = spendSlot(next, pay.level, casting.bySpellLevel[pay.level - 1] ?? 0);
+        next = spendSlot(next, pay.level, sheet.slots[pay.level - 1]?.fromTable ?? 0);
         cost =
           pay.level > spell.level ? `level ${pay.level} slot, upcast` : `level ${pay.level} slot`;
       }
@@ -597,7 +599,7 @@ export function CommandMenu({
                 title={`Roll ${line.weapon.name} damage`}
                 onClick={() => damageFor(index, false)}
               >
-                {damageDice(line.weapon, line.hand === 'main' && !ctx.loadouts.offHand)}
+                {line.damage.dice}
                 {line.damage.bonus ? signed(line.damage.bonus) : ''}
               </button>
               <button
@@ -614,7 +616,7 @@ export function CommandMenu({
                   className="hud-act hud-act-sub"
                   title={`Aim the ${line.weapon.name} at somebody — the app compares the roll to their armor class and applies the damage`}
                   onClick={() => {
-                    const dice = damageDice(line.weapon, line.hand === 'main' && !ctx.loadouts.offHand);
+                    const dice = line.damage.dice;
                     onAim([
                       {
                         label: line.weapon.name,

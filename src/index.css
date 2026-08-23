@@ -7200,6 +7200,18 @@ input.pcard-amount {
   color: var(--text-faint);
 }
 
+/* §133: the room's own damage. Ruled off rather than ranked - it is not a
+   competitor, and putting it in the ordering would let a wall of fire take
+   the MVP line off whoever earned it. */
+.debrief tr.is-environment td {
+  border-top: 1px solid var(--border);
+}
+
+.debrief tr.is-environment td:first-child {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
 /* What the fight was worth, under the table that says how it went. */
 .debrief-payout {
   margin-top: 10px;

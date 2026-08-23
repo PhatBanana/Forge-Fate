@@ -1,4 +1,5 @@
 import { ABILITIES, ABILITY_NAMES } from '../types';
+import { signed } from '../format';
 import { analyze } from '../engine/analyze';
 import { describeSuggestion, planProgression } from '../engine/recommend';
 import type { BuildContext } from '../engine/character';
@@ -11,10 +12,6 @@ import type { BuildContext } from '../engine/character';
  * the character sheet deliberately leaves out, because they are useful while
  * building and noise at the table.
  */
-
-function signed(value: number): string {
-  return value >= 0 ? `+${value}` : `${value}`;
-}
 
 export function PrintSummary({ ctx }: { ctx: BuildContext }) {
   const plan = planProgression(ctx.build);

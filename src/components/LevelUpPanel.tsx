@@ -4,6 +4,8 @@ import { Panel } from './shared';
 import { defaultRng, rollDie } from '../engine/dice';
 import { recordHitDieRoll } from '../engine/levelUp';
 import type { LevelUpStep, LevelUpSummary } from '../engine/levelUp';
+import { SECTION_LABEL } from './sections';
+import type { Section } from './sections';
 
 /**
  * What just happened when you went up a level.
@@ -20,19 +22,13 @@ import type { LevelUpStep, LevelUpSummary } from '../engine/levelUp';
  */
 
 /** Which Builder section answers each kind of step. */
-const SECTION_FOR: Record<LevelUpStep['kind'], string | null> = {
+const SECTION_FOR: Record<LevelUpStep['kind'], Section | null> = {
   hp: null,
   features: null,
   subclass: 'identity',
   asi: 'feats',
   spells: 'options',
   options: 'options',
-};
-
-const SECTION_LABEL: Record<string, string> = {
-  identity: 'Identity',
-  feats: 'Feats',
-  options: 'Skills & options',
 };
 
 /**
@@ -71,7 +67,7 @@ export function LevelUpPanel({
   /** The character's hit points as they stand, which a roll here changes. */
   hpTotal: number;
   patch: (partial: Partial<Build>) => void;
-  onGoTo: (section: string) => void;
+  onGoTo: (section: Section) => void;
   onDismiss: () => void;
 }) {
   const [rolled, setRolled] = useState<number | null>(null);

@@ -1,21 +1,22 @@
 import { ABILITIES, ABILITY_NAMES } from '../types';
+import { signed } from '../format';
 import type { Ability } from '../types';
+import { saveBonusOf, saveProficiencies } from '../engine/character';
 import type { BuildContext } from '../engine/character';
 import type { PlayState } from '../play';
+import { sheetOf } from '../sheet';
 import {
   addTimedCondition,
   applyDeathSaveRoll,
   breakConcentration,
   damage,
   heal,
-  hpNow,
   movementLeft,
   setInspiration,
   setTurnSlot,
   toggleCondition,
   toggleTurnSlot,
 } from '../play';
-import { damageDice } from '../data/weapons';
 import { CONDITIONS, CONDITIONS_BY_ID, conditionTextFor } from '../data/conditions';
 import { defaultRng, rollD20 } from '../engine/dice';
 import { useState } from 'react';
@@ -45,7 +46,6 @@ import type { GrabMode } from '../engine/grapple';
  * onto it, not a fourth store.
  */
 
-const signed = (value: number) => (value >= 0 ? `+${value}` : `${value}`);
 
 export function PlayCard({
   ctx,
@@ -103,18 +103,17 @@ export function PlayCard({
   /** Which pip's command menu is open - the Breath-of-Fire box. */
   const [menu, setMenu] = useState<'action' | 'bonus' | null>(standing ? 'action' : null);
 
-  const max = ctx.hp.total;
-  const current = hpNow(play, max);
-  const down = current === 0;
+  // §120: the hit-point join asked once, of the pair, rather than pairing
+  // `play` with `ctx.hp.total` here the way four screens each used to.
+  const hp = sheetOf(ctx, play).hp;
+  const max = hp.max;
+  const current = hp.now;
+  const down = hp.down;
   const speed = ctx.speed.total;
 
-  // Saving throws come from the starting class only, the same rule the sheet
-  // and the multiclass tables follow.
-  const saveAbilities = new Set<Ability>(ctx.slices[0]?.klass.saves ?? []);
-  const saveFor = (ability: Ability) =>
-    ctx.mods[ability] +
-    (saveAbilities.has(ability) ? ctx.proficiency : 0) +
-    ctx.itemEffects.saves;
+  // §128: the same two answers the sheet and the battle screen give.
+  const saveAbilities = saveProficiencies(ctx);
+  const saveFor = (ability: Ability) => saveBonusOf(ctx, ability);
 
   return (
     <div className={`pcard ${down ? 'is-down' : ''}`}>
@@ -288,11 +287,9 @@ export function PlayCard({
           <span className="k">Attacks</span>
           {ctx.attacks.map((attack, i) => (
             <p key={i}>
-              {/* The second argument is whether it is swung two-handed, which
-                  is what picks the versatile die - the same call the sheet
-                  makes, so a longsword reads the same in both places. */}
+              {/* §119: the die the engine settled, not one re-derived here. */}
               <b>{attack.weapon.name}</b> {signed(attack.toHit)} ·{' '}
-              {damageDice(attack.weapon, attack.hand === 'main' && !ctx.loadouts.offHand)}
+              {attack.damage.dice}
               {attack.damage.bonus ? signed(attack.damage.bonus) : ''} {attack.damage.type}
             </p>
           ))}

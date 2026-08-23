@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { signed } from '../format';
 import type { CSSProperties } from 'react';
 import type { Monster } from '../data/monsters';
 import type { Ruleset } from '../types';
@@ -31,11 +32,11 @@ import { loadEncounters, loadIntoPlay, saveEncounters } from '../encounters';
 import type { Roster } from '../storage';
 import { activeEncounter, updateEncounter, updatePlay } from '../storage';
 import type { Combatant } from '../encounter';
+import { addLight, removeLight, setAmbientLight, toggleLightOut } from '../encounterLights';
 import {
   addCharacter,
   addMonster,
   currentCombatant,
-  damageMonster,
   emptyEncounter,
   endEncounter,
   isRunning,
@@ -46,27 +47,27 @@ import {
   sortCombatants,
   placeCombatant,
   recordDamage,
+  ENVIRONMENT,
+  appendLog,
+  delayTurn,
+} from '../encounter';
+import {
+  damageMonster,
   setDormant,
   setHidden,
   setConditionSource,
   CONDITIONS_WITH_A_SOURCE,
   toggleMonsterCondition,
   addTimedMonsterCondition,
-  appendLog,
-  delayTurn,
-  addLight,
-  removeLight,
-  setAmbientLight,
   setMonsterRecharge,
   setSurprised,
-  toggleLightOut,
   spendLegendary,
   spendMonsterMovement,
   spendMonsterReaction,
   setMonsterStance,
   spendMonsterUse,
   tickMonsterConditions,
-} from '../encounter';
+} from '../monsterInstance';
 import type { EncounterState, Square } from '../encounter';
 import {
   END_REASON,
@@ -78,7 +79,7 @@ import {
   mayApproach,
   mayAttack,
 } from '../engine/advantage';
-import { heldResources, restoredKeys } from '../engine/resources';
+import { restoredOn } from '../sheet';
 import { describeSpoils, spoilsFor } from '../engine/spoils';
 import {
   activeCampaign,
@@ -118,25 +119,19 @@ import {
 } from '../fightFacts';
 import type { FightView } from '../fightFacts';
 import {
-  ambientOf,
   eyesOf as sightEyesOf,
-  gloomMap,
-  lightsInPlay,
-  litLookup,
+  lightingOf as sightLightingOf,
   partyVisible as sightPartyVisible,
   silencedAt as sightSilencedAt,
 } from '../fightSight';
 import {
+  groundFor as moveGroundFor,
   movementLeftFor as moveMovementLeftFor,
   partyApproach as movePartyApproach,
-  routeChoice as moveRouteChoice,
-  safeWalkFor as moveSafeWalkFor,
   speedOf as moveSpeedOf,
   standUpCostFor as moveStandUpCostFor,
-  walkBudget as moveWalkBudget,
-  walkFor as moveWalkFor,
+  walkPlanFor as moveWalkPlanFor,
   walkerOf as moveWalkerOf,
-  zoneOverlays as moveZoneOverlays,
 } from '../fightMovement';
 import {
   biteZone as zoneBite,
@@ -164,7 +159,6 @@ import { forecast } from '../engine/forecast';
 import { concentrationDc, damage, dash,   hpNow, moveBy,  awardXp, longRest, newTurn,  setTurnSlot, shortRest, startOfEncounter, tickConditions,   applyDeathSaveRoll } from '../play';
 import { defaultRng, expectedTotal, parseNotation, rollD20 } from '../engine/dice';
 import { CONDITIONS, CONDITIONS_BY_ID, conditionTextFor } from '../data/conditions';
-import { damageDice } from '../data/weapons';
 import { hitChance } from '../engine/dpr';
 import { flanked, heightAdvantage } from '../engine/tactics';
 import { COVER_AC } from '../engine/sight';
@@ -536,6 +530,35 @@ export function TableTab({
      block; each map click toggles a marked square. A tool like the light
      tool, so Escape and the one-tool-in-hand rule already know it. */
   const [placingMark, setPlacingMark] = useState(false);
+
+  /**
+   * §134: one tool in hand.
+   *
+   * Six tools can be armed - aim, grab, the light, the mark brush, the walk,
+   * and a placement - and until now only three of them knew about each
+   * other: aiming put the walk down, grabbing put both down, and the light
+   * and the mark brush put down nothing at all. So arming the light while
+   * aiming left both live, and the priority stack in the Escape handler
+   * existed to unwind states nobody had chosen to allow.
+   *
+   * Arming any tool now puts every other one down. Pressing the same tool
+   * again still toggles it off, because "I meant the other thing" and "I
+   * meant nothing" are both things a DM means.
+   *
+   * The Escape handler keeps its order even though at most one branch can
+   * now fire: it also unwinds the things that are *not* tools - the board
+   * cursor, the save results, the drawer - and those still stack behind
+   * whatever is in hand.
+   */
+  const putDownTools = () => {
+    setAim(null);
+    setGrab(null);
+    setPlacingLight(null);
+    setPlacingMark(false);
+    setMoveArmed(false);
+    setPlacing(null);
+    setAimFrom(null);
+  };
   /* §90: a delve was just begun and the party still needs seating on the
      new ground. Deployment runs one commit later than the venue change, so
      the map memos it plans against are the delve's map, not the old one. */
@@ -1340,41 +1363,30 @@ export function TableTab({
   );
 
   /*
-    The lights, with the carried ones stood where their bearer is standing.
+    §122: the lighting, in one value with one lifetime.
 
     A torch is the commonest light in the game and a torch that stays where it
     was lit is not a torch, so the position of a carried light is derived from
     its bearer on every render rather than written down and kept in step.
+
+    `litAt` carries a cache of its own, which is why this is memoised on the
+    lights and nothing else: the fog asks it once per square per pair of eyes
+    and the map asks it once per drawn square, so a party of five on a 40x30
+    map is six thousand calls to a loop over the lights, and the cache turns
+    that into twelve hundred. Widening these dependencies would throw that
+    cache away on every hit point.
+
+    `gloom` is what the map draws: every square that is not bright, by key.
+    Only the exceptions travel, so a lit map hands the cameras an empty object
+    and both draw nothing at all - which is what every fight from before §40
+    is, and what a table that never touches the light control stays.
   */
-  const lights = useMemo(
-    () => lightsInPlay(encounter.lights ?? [], encounter.combatants),
-    [encounter.lights, encounter.combatants],
+  const lighting = useMemo(
+    () => sightLightingOf(encounter, dungeon),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [encounter.lights, encounter.combatants, encounter.ambientLight, dungeon.width, dungeon.height],
   );
-
-  /** How bright the map is where no light reaches. Bright unless said. */
-  const ambient: LightLevel = ambientOf(encounter);
-
-  /**
-   * How bright one square is, memoised across a render.
-   *
-   * The fog asks this once per square per pair of eyes and the map asks it
-   * once per drawn square, so a party of five on a 40x30 map is six thousand
-   * calls to a loop over the lights. The cache turns that into twelve hundred.
-   */
-  const litAt = useMemo(() => litLookup(lights, ambient), [lights, ambient]);
-
-  /**
-   * The dark, as the map draws it: every square that is not bright, by key.
-   *
-   * Only the exceptions travel, so a lit map hands the cameras an empty
-   * object and both draw nothing at all - which is what every fight from
-   * before §40 is, and what a table that never touches the light control
-   * stays.
-   */
-  const gloom = useMemo(
-    () => gloomMap(litAt, ambient, lights.length, dungeon.width, dungeon.height),
-    [litAt, ambient, lights.length, dungeon.width, dungeon.height],
-  );
+  const { ambient, litAt, gloom } = lighting;
 
   /**
    * What a creature's eyes are worth: where they are, and what they can see
@@ -1611,36 +1623,24 @@ export function TableTab({
     a glance. The walk itself runs the whole map, so the ruler can measure a
     route to anywhere the feet could ever go, bends included.
   */
-  const walkBudget = useMemo(
-    () => moveWalkBudget(fight, selected),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selected, roster.entries],
-  );
-
   /*
-    What the standing zones do to the ground, as key sets the pathfinder
-    eats: a wall of force is a wall, a web is deep ground, a wall of fire is
-    somewhere a route would rather not go.
-  */
-  const zoneOverlays = useMemo(() => moveZoneOverlays(encounter.zones), [encounter.zones]);
+    §121: the walk, whole. One walk serves three masters - the wash, the
+    click's price, and the ruler - so it runs the entire map uncapped, and
+    the budget is applied by whoever is asking.
 
-  const walk = useMemo(
-    () => moveWalkFor(fight, sightContext, selected, zoneOverlays),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selected, encounter.combatants, roster.entries, sightContext, zoneOverlays],
-  );
-
-  /*
-    The same walk with the hazards off the table entirely - the route a sane
-    walker takes. Preferring this map when its price fits the budget is what
-    "pathing avoids the fire when movement allows" means; when only the
-    burning shortcut fits, the ordinary map answers and the fire bites.
+    The budget has two tiers, because "can I get there this turn" has two
+    answers and a DM wants both at a glance. `routeTo` prices a square by the
+    route that would actually be walked: around the fire when the budget
+    allows it, through it when only the burning shortcut fits, which is what
+    "pathing avoids the fire when movement allows" means. The four steps that
+    produce all this used to be four calls in a fixed order here.
   */
-  const walkSafe = useMemo(
-    () => moveSafeWalkFor(fight, sightContext, selected, zoneOverlays, walk),
+  const walkPlan = useMemo(
+    () => moveWalkPlanFor(fight, sightContext, selected, encounter.zones),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [walk, selected, sightContext, zoneOverlays],
+    [selected, encounter.combatants, encounter.zones, roster.entries, sightContext],
   );
+  const { walk, budget: walkBudget, routeTo: routeChoice } = walkPlan;
 
   /**
    * How far every square is from the party, by walking.
@@ -1653,19 +1653,19 @@ export function TableTab({
    * straight-line answer would have it stand there for the whole fight. The
    * door is the way out and only a walk knows where the door is.
    *
+   * Kept apart from the plan above on purpose: this one does not depend on
+   * who is selected, and it is a full-map sweep from every character, so
+   * folding it in would re-run it on every click.
+   *
    * Hazards are not avoided here - this is "which way is the fight", not
    * "which way should I step". The step itself is still priced by
-   * `routeChoice`, which does prefer the unburned route.
+   * `routeTo`, which does prefer the unburned route.
    */
   const partyApproach = useMemo(
-    () => movePartyApproach(fight, sightContext, zoneOverlays),
+    () => movePartyApproach(fight, sightContext, encounter.zones),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [encounter.combatants, roster.entries, sightContext, zoneOverlays],
+    [encounter.combatants, encounter.zones, roster.entries, sightContext],
   );
-
-  /** The price to a square - the unburned route when the budget allows it,
-      the short one otherwise - and which walk that price came from. */
-  const routeChoice = (key: string) => moveRouteChoice(key, walk, walkSafe, walkBudget);
 
   const reach = useMemo((): { at: Square; dash?: boolean }[] => {
     // The glow is the armed tool's readout: lit tiles mean "clicking walks".
@@ -1697,7 +1697,7 @@ export function TableTab({
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walk, walkSafe, walkBudget, encounter, moveArmed, selected, active]);
+  }, [walkPlan, walk, walkBudget, encounter, moveArmed, selected, active]);
 
   /**
    * What the monster whose turn it is would do, if it were driving itself.
@@ -1762,7 +1762,7 @@ export function TableTab({
       approach: partyApproach ? (at) => partyApproach.cost.get(keyOf(at)) ?? null : undefined,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [encounter, aim, placing, moveArmed, active, selected, byId, derived, walk, walkSafe, walkBudget, partyApproach]);
+  }, [encounter, aim, placing, moveArmed, active, selected, byId, derived, walkPlan, walk, walkBudget, partyApproach]);
 
   /**
    * §88: the future, computed. For every monster that will actually act -
@@ -1799,10 +1799,7 @@ export function TableTab({
     const segments: IntentSegment[] = [];
     const incoming = new Map<string, number>();
     const actors = battleActors();
-    const overlays = {
-      blocked: zoneOverlays.blocked,
-      difficult: zoneOverlays.difficultFor('monsters'),
-    };
+    const overlays = moveGroundFor(encounter.zones, 'monsters');
     // What an attack cannot pass, for the danger spread: the map's own rock,
     // and terrain that blocks sight - a pillar shields the square behind it.
     const passes = (at: Square) => {
@@ -1880,7 +1877,7 @@ export function TableTab({
       incoming,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showDanger, showIntents, encounter, byId, derived, sightContext, zoneOverlays, partyApproach]);
+  }, [showDanger, showIntents, encounter, byId, derived, sightContext, partyApproach]);
 
   /*
     §89: the objective, judged. Facts first - squares of the living party,
@@ -2271,11 +2268,10 @@ export function TableTab({
     if (combatant.kind !== 'character') return [];
     const ctx = derived.get(combatant.rosterId)?.ctx;
     if (!ctx) return [];
-    const sign = (value: number) => (value >= 0 ? `+${value}` : `${value}`);
     return ctx.attacks
       .filter((line) => line.hand !== 'off')
       .map((line) => {
-        const dice = damageDice(line.weapon, line.hand === 'main' && !ctx.loadouts.offHand);
+        const dice = line.damage.dice;
         return {
           label: line.weapon.name,
           toHit: line.toHit,
@@ -2293,7 +2289,7 @@ export function TableTab({
             : { ranged: line.weapon.range ?? { normal: 20, long: 60 } },
           damage: [
             {
-              dice: `${dice}${line.damage.bonus ? sign(line.damage.bonus) : ''}`,
+              dice: `${dice}${line.damage.bonus ? signed(line.damage.bonus) : ''}`,
               type: line.damage.type,
             },
           ],
@@ -2548,7 +2544,7 @@ export function TableTab({
         enc = damageMonster(enc, combatant.id, dealt);
       } else {
         const entry = updated.entries.find((e) => e.id === combatant.rosterId);
-        const max = derived.get(combatant.rosterId)?.ctx.hp.total ?? 0;
+        const max = maxHpOf(combatant.rosterId);
         if (entry) {
           if (entry.play.concentratingOn) {
             enc = appendLog(
@@ -2661,10 +2657,7 @@ export function TableTab({
         entries: updated.entries.map((entry) => {
           const info = derived.get(entry.id);
           if (!info) return entry;
-          const keys = restoredKeys(
-            heldResources(info.ctx.slices, entry.build.ruleset, info.ctx.mods),
-            'encounter',
-          );
+          const keys = restoredOn(info.ctx, 'encounter');
           const play = startOfEncounter(entry.play, keys);
           return play === entry.play ? entry : { ...entry, play };
         }),
@@ -2740,7 +2733,7 @@ export function TableTab({
         the rule fires, and composed into the same write as the turn advance.
       */
       const now = updated.entries.find((e) => e.id === began.rosterId);
-      const max = derived.get(began.rosterId)?.ctx.hp.total ?? 0;
+      const max = maxHpOf(began.rosterId);
       if (now && hpNow(now.play, max) <= 0 && now.play.deathSaves.failures < 3) {
         const d20 = rollD20(0, 'normal', defaultRng);
         const natural = d20.rolls[d20.kept] ?? d20.rolls[0];
@@ -3549,7 +3542,7 @@ export function TableTab({
       note,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [placing, aim, hover, selected, walk, walkSafe, walkBudget, encounter]);
+  }, [placing, aim, hover, selected, walkPlan, walk, walkBudget, encounter]);
   const rulerNote = measuring?.note;
 
   /*
@@ -3726,10 +3719,7 @@ export function TableTab({
         Warlock's pact slots come back on a short rest, a Fighter's Second
         Wind does, and which is which can depend on the class level.
       */
-      const shortKeys = restoredKeys(
-        heldResources(info.ctx.slices, entry.build.ruleset, info.ctx.mods),
-        'short',
-      );
+      const shortKeys = restoredOn(info.ctx, 'short');
       const hitDice = Object.fromEntries(
         info.ctx.slices.map((sl) => [sl.klass.id, sl.entry.level]),
       );
@@ -3803,15 +3793,25 @@ export function TableTab({
       }) }))
       .filter((r) => r.dealt || r.taken || r.kills || r.drops)
       .sort((a, b) => b.dealt - a.dealt);
-    if (!rows.length) return null;
+    /*
+      §133: the room's own damage, which has no combatant to hang off and so
+      would otherwise be tallied and never seen. It sits at the bottom rather
+      than in the ranking, and it is never the MVP - "the dungeon did the most
+      damage" is true more often than a table would like, and is not the
+      compliment that line is for.
+    */
+    const environment = encounter.tally![ENVIRONMENT];
     const mvp = rows[0];
+    if (!rows.length && !environment) return null;
     return (
       <Panel
         title="The debrief"
         subtitle={
-          encounter.endedAfter
-            ? `${encounter.endedAfter} round${encounter.endedAfter === 1 ? '' : 's'}. MVP: ${mvp.name} — ${mvp.dealt} damage${mvp.kills ? `, ${mvp.kills} down` : ''}.`
-            : `MVP: ${mvp.name} — ${mvp.dealt} damage.`
+          !mvp
+            ? 'Nobody swung; the room did the damage.'
+            : encounter.endedAfter
+              ? `${encounter.endedAfter} round${encounter.endedAfter === 1 ? '' : 's'}. MVP: ${mvp.name} — ${mvp.dealt} damage${mvp.kills ? `, ${mvp.kills} down` : ''}.`
+              : `MVP: ${mvp.name} — ${mvp.dealt} damage.`
         }
       >
         {/* §89: how the mission went, above who hit hardest - X-COM's own
@@ -3852,6 +3852,15 @@ export function TableTab({
                 <td>{row.drops || ''}</td>
               </tr>
             ))}
+            {environment && (
+              <tr className="is-environment">
+                <td>The room</td>
+                <td>{environment.dealt}</td>
+                <td>{environment.taken || ''}</td>
+                <td>{environment.kills || ''}</td>
+                <td>{environment.drops || ''}</td>
+              </tr>
+            )}
           </tbody>
         </table>
         {payout}
@@ -4567,7 +4576,11 @@ export function TableTab({
             className={`btn btn-sm ${placingLight === kind.id ? 'btn-primary' : ''}`}
             title={kind.hint}
             aria-pressed={placingLight === kind.id}
-            onClick={() => setPlacingLight(placingLight === kind.id ? null : kind.id)}
+            onClick={() => {
+              const same = placingLight === kind.id;
+              putDownTools();
+              if (!same) setPlacingLight(kind.id);
+            }}
           >
             {kind.label}
           </button>
@@ -4822,6 +4835,7 @@ export function TableTab({
                 : base && base.surface
                   ? { ...base, surface: undefined }
                   : base;
+              putDownTools();
               setPlacing({
                 label: zoneForm.label,
                 shape: zoneForm.shape,
@@ -5000,7 +5014,11 @@ export function TableTab({
             <button
               className={`btn btn-sm ${placingMark ? 'btn-primary' : ''}`}
               aria-pressed={placingMark}
-              onClick={() => setPlacingMark((was) => !was)}
+              onClick={() => {
+                const was = placingMark;
+                putDownTools();
+                if (!was) setPlacingMark(true);
+              }}
             >
               {placingMark ? 'Painting — click squares' : 'Paint the mark'}
             </button>
@@ -5254,14 +5272,14 @@ export function TableTab({
       onPlayChange={(next) => onChange(updatePlay(roster, selectedEntry.id, next))}
       onPopOut={() => popOut(selected.id)}
       onAim={(strikes) => {
-        // One tool in hand at a time: aiming puts the walk down.
-        setMoveArmed(false);
+        // §134: one tool in hand - aiming puts every other one down.
+        putDownTools();
         setAim({ attacker: nameOf(selected), attackerId: selected.id, strikes });
       }}
       onMoveCommand={
         !isRunning(encounter) || selected.id === active?.id
           ? () => {
-              setAim(null);
+              putDownTools();
               setMoveArmed(true);
             }
           : undefined
@@ -5269,8 +5287,7 @@ export function TableTab({
       onGrab={
         !isRunning(encounter) || selected.id === active?.id
           ? (mode) => {
-              setAim(null);
-              setMoveArmed(false);
+              putDownTools();
               setGrab({ byId: selected.id, mode });
             }
           : undefined
@@ -5403,13 +5420,13 @@ export function TableTab({
           monster={selectedMonster}
           combatant={selected}
           onAim={(strikes) => {
-            setMoveArmed(false);
+            putDownTools();
             setAim({ attacker: nameOf(selected), attackerId: selected.id, strikes });
           }}
           onMove={
             !isRunning(encounter) || selected.id === active?.id
               ? () => {
-                  setAim(null);
+                  putDownTools();
                   setMoveArmed(true);
                 }
               : undefined
@@ -5417,10 +5434,7 @@ export function TableTab({
           onGrab={
             !isRunning(encounter) || selected.id === active?.id
               ? (mode) => {
-                  // One tool in hand: arming a shove or a grab puts the walk
-                  // and the aim down, the way arming either of those does.
-                  setAim(null);
-                  setMoveArmed(false);
+                  putDownTools();
                   setGrab({ byId: selected.id, mode });
                 }
               : undefined

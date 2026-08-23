@@ -206,7 +206,7 @@ describe('armor proficiency', () => {
         featIds: ['heavily-armored'],
       }),
     );
-    const profs = armorProficiencies(ctx.slices, ctx.race, ctx.featIds);
+    const profs = armorProficiencies(ctx.slices, ctx.race, ctx.featIds, ctx.build.ruleset);
     expect([...profs].sort()).toEqual(['heavy', 'light', 'medium']);
   });
 
@@ -214,12 +214,50 @@ describe('armor proficiency', () => {
     const early = deriveBuild(
       build({ raceId: 'human', classes: [{ classId: 'cleric', level: 1, subclassId: 'life' }] }),
     );
-    expect(armorProficiencies(early.slices, early.race, early.featIds).has('heavy')).toBe(true);
+    expect(armorProficiencies(early.slices, early.race, early.featIds, early.build.ruleset).has('heavy')).toBe(
+      true,
+    );
 
     const warlock2 = deriveBuild(
       build({ raceId: 'human', classes: [{ classId: 'warlock', level: 1, subclassId: 'hexblade' }] }),
     );
-    expect(armorProficiencies(warlock2.slices, warlock2.race, warlock2.featIds).has('medium')).toBe(true);
+    expect(
+      armorProficiencies(warlock2.slices, warlock2.race, warlock2.featIds, warlock2.build.ruleset).has(
+        'medium',
+      ),
+    ).toBe(true);
+  });
+
+  /*
+    §127. The same Cleric, the same domain, two rulesets - and the answer
+    differs, because 2024 moved every subclass to level 3 while 2014 let
+    Life domain start at 1. The heavy armour a Life Cleric wears at level 1
+    is a 2014 fact.
+
+    This is what the old `ruleset = '2014'` default was hiding. `computeAc`
+    always passed the real ruleset; the Builder's Defenses panel did not, so
+    a 2024 Cleric 1 was labelled proficient in armour their own armour class
+    did not credit them with. The argument is required now, which is why
+    this test can exist at all - before it, the divergence was one call site
+    forgetting a parameter rather than a rule anybody had stated.
+  */
+  it("holds a subclass's armor back to level 3 under 2024, and to level 1 under 2014", () => {
+    const cleric = (ruleset: Build['ruleset'], level: number) =>
+      deriveBuild(
+        build({
+          raceId: 'human',
+          ruleset,
+          classes: [{ classId: 'cleric', level, subclassId: 'life' }],
+        }),
+      );
+
+    const heavy = (ctx: ReturnType<typeof cleric>) =>
+      armorProficiencies(ctx.slices, ctx.race, ctx.featIds, ctx.build.ruleset).has('heavy');
+
+    expect(heavy(cleric('2014', 1))).toBe(true);
+    expect(heavy(cleric('2024', 1))).toBe(false);
+    expect(heavy(cleric('2024', 2))).toBe(false);
+    expect(heavy(cleric('2024', 3))).toBe(true);
   });
 
   it('picks the best legal armor for a character', () => {
@@ -230,7 +268,7 @@ describe('armor proficiency', () => {
         baseScores: { str: 15, dex: 14, con: 14, int: 8, wis: 10, cha: 8 },
       }),
     );
-    const profs = armorProficiencies(ctx.slices, ctx.race, ctx.featIds);
+    const profs = armorProficiencies(ctx.slices, ctx.race, ctx.featIds, ctx.build.ruleset);
     expect(bestArmorFor(profs, ctx.mods, ctx.scores, 10)).toBe('plate');
 
     // Strength 10 rules plate and splint out on the speed penalty.
@@ -407,8 +445,8 @@ describe('proficiency from a multiclass dip', () => {
   const profs = (classes: Build['classes']) => {
     const ctx = deriveBuild({ ...emptyBuild(), raceId: 'human', classes });
     return {
-      armor: armorProficiencies(ctx.slices, ctx.race, ctx.featIds),
-      weapons: weaponProficiencies(ctx.slices, ctx.race),
+      armor: armorProficiencies(ctx.slices, ctx.race, ctx.featIds, ctx.build.ruleset),
+      weapons: weaponProficiencies(ctx.slices, ctx.race, ctx.build.ruleset),
     };
   };
 

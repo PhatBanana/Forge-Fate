@@ -3,8 +3,10 @@ import { monsterMod } from './data/monsters';
 import type { Monster } from './data/monsters';
 import type { Combatant, EncounterState } from './encounter';
 import type { Roster } from './storage';
+import { saveBonusOf } from './engine/character';
 import type { BuildContext } from './engine/character';
 import type { Defences } from './engine/defences';
+import { hitPointsOf } from './hitPoints';
 import type { MaxHpOf } from './hitPoints';
 import type { Ruleset } from './types';
 
@@ -185,8 +187,9 @@ export function saveBonusFor(
   }
   const ctx = view.buildOf(c.rosterId);
   if (!ctx) return null;
-  const proficient = new Set(ctx.slices[0]?.klass.saves ?? []).has(ability);
-  return ctx.mods[ability] + (proficient ? ctx.proficiency : 0) + ctx.itemEffects.saves;
+  // §128: the character half of this is a build fact, and it is answered
+  // where the build lives - the sheet and the play card ask the same one.
+  return saveBonusOf(ctx, ability);
 }
 
 /**
@@ -196,3 +199,31 @@ export function saveBonusFor(
  */
 export const maxHpOf = (view: FightView): MaxHpOf => (rosterId) =>
   view.buildOf(rosterId)?.hp.total ?? 0;
+
+/**
+ * §128: what this combatant is on, and out of what.
+ *
+ * `hitPointsOf(c, roster, maxHpOf(view))` was written out eight times across
+ * four modules, twice inside a loop that rebuilt the lambda per element -
+ * and `maxHpOf` was *still* hand-inlined twice more despite the comment
+ * above it saying that was the thing it existed to stop.
+ *
+ * **Two of these, and the difference matters (§132).** `hpIn` reads a roster
+ * you hand it, which is the one a composed write is building; `hpOf` reads
+ * the view's, which is this render's. They differ only inside a write that
+ * changes hit points and then asks about them - a walk through fire and then
+ * a swing - and that is exactly what these modules are for. Ask `hpIn` when
+ * you are mid-write and have the roster in hand; ask `hpOf` when you are
+ * only looking.
+ */
+export const hpIn = (view: FightView, roster: Roster, c: Combatant) =>
+  hitPointsOf(c, roster, maxHpOf(view));
+
+/** The same, as a number, for the very common "are they still up" test. */
+export const hpNowIn = (view: FightView, roster: Roster, c: Combatant): number =>
+  hpIn(view, roster, c)?.now ?? 0;
+
+/** This render's roster - for the reads that are not part of a write. */
+export const hpOf = (view: FightView, c: Combatant) => hpIn(view, view.roster, c);
+
+export const hpNowOf = (view: FightView, c: Combatant): number => hpNowIn(view, view.roster, c);

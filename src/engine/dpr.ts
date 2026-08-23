@@ -22,6 +22,24 @@ import type { CastingSource } from './spellcasting';
  * Two numbers come out, because they answer different questions. **Sustained**
  * is what you do every round, all day. **Nova** is your best single round with
  * resources spent, which is what actually kills a boss.
+ *
+ * ## What is exported, and why (§129)
+ *
+ * `computeDpr` is the module. Nothing outside calls it directly - it runs as
+ * part of `deriveBuild`, and the tests assert it the same way, through
+ * `deriveBuild(build).dpr`. That is the honest interface: it is the one the
+ * app uses.
+ *
+ * Six leaves are exported that no production code calls -
+ * `averageWithReroll`, `withAdvantage`, `failChance`, `expectedSaveDamage`,
+ * `cantripMultiplier`, `typicalAcFor`. They are the probability arithmetic,
+ * and they are exported deliberately as a test surface: advantage is
+ * `1-(1-p)^2` and getting it wrong is a rounding error you would never see in
+ * an end-to-end number, but you can see it at four decimal places. That is a
+ * real reason, written down here so the next review does not read them as
+ * dead and delete them.
+ *
+ * Seven more used to be exported for no reason at all and are now private.
  */
 
 /** The lowest and highest target AC worth plotting. */
@@ -106,7 +124,7 @@ export function withAdvantage(p: number): number {
 }
 
 /** Champion widens the crit range; Elven Accuracy effectively does too. */
-export function critChance(critOn: number, advantage: boolean): number {
+function critChance(critOn: number, advantage: boolean): number {
   const p = (21 - critOn) / 20;
   return advantage ? withAdvantage(p) : p;
 }
@@ -144,7 +162,7 @@ export function expectedDamage(
  * the same reason: it scales loosely and pretending otherwise would be false
  * precision.
  */
-export function typicalSaveBonusFor(level: number): number {
+function typicalSaveBonusFor(level: number): number {
   if (level >= 17) return 7;
   if (level >= 11) return 5;
   if (level >= 5) return 3;
@@ -189,7 +207,7 @@ export function cantripMultiplier(level: number): number {
  * so a Fighter 11 carrying two of them attacks three times - the count comes
  * from the feature table rather than a per-class rule.
  */
-export function attacksPerAction(features: HeldFeature[]): number {
+function attacksPerAction(features: HeldFeature[]): number {
   return 1 + features.filter((f) => f.tags?.includes('extra-attack')).length;
 }
 
@@ -252,7 +270,7 @@ export interface SpellDamageOptions {
 }
 
 /** The crit range this build attacks on, which Champion widens. */
-export function critRangeFor(input: DprInput): number {
+function critRangeFor(input: DprInput): number {
   const champion = input.subclassIds.has('champion');
   if (!champion) return 20;
   const fighterLevel = input.slices
@@ -264,7 +282,7 @@ export function critRangeFor(input: DprInput): number {
 }
 
 /** Dice averages for a weapon's damage, honouring Great Weapon Fighting. */
-export function weaponDiceAverage(
+function weaponDiceAverage(
   weapon: Weapon,
   dice: string,
   greatWeaponFighting: boolean,
@@ -826,7 +844,7 @@ function castingFor(
   return { saveDc: source?.saveDc ?? null, attack: source?.attackBonus ?? null };
 }
 
-export function spellDamageAt(
+function spellDamageAt(
   spell: Spell,
   input: DprInput,
   ac: number,
@@ -868,7 +886,7 @@ export function spellDamageAt(
 }
 
 /** The best at-will and best slot spell this character actually has. */
-export function bestSpells(
+function bestSpells(
   input: DprInput,
   ac: number,
   critOn: number,

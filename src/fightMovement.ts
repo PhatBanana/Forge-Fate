@@ -8,8 +8,7 @@ import type { SightContext } from './engine/sight';
 import { bitesOnEnter, sideOf, zoneReaches, zoneSquareKeys } from './zones';
 import type { Zone } from './zones';
 import { emptyPlay, movementLeft } from './play';
-import { hitPointsOf } from './hitPoints';
-import { conditionsOf, exhaustionOf, heldBy, maxHpOf, rulesetOf, sizeOf } from './fightFacts';
+import { conditionsOf, exhaustionOf, heldBy, hpNowOf, hpOf, rulesetOf, sizeOf } from './fightFacts';
 import type { FightView } from './fightFacts';
 import type { Combatant } from './encounter';
 
@@ -133,7 +132,7 @@ export interface ZoneOverlays {
  * pathfinder eats: a wall of force is a wall, a web is deep ground, a
  * wall of fire is somewhere a route would rather not go.
  */
-export const zoneOverlays = (zones: Zone[] | undefined): ZoneOverlays => ({
+const zoneOverlays = (zones: Zone[] | undefined): ZoneOverlays => ({
   blocked: zoneSquareKeys(zones, (z) => Boolean(z.effect?.blocks)),
   difficult: zoneSquareKeys(zones, (z) => Boolean(z.effect?.difficult)),
   // The same ground, filtered to the side it actually slows - Spirit
@@ -151,14 +150,14 @@ export const zoneOverlays = (zones: Zone[] | undefined): ZoneOverlays => ({
  * Walked, not radiused: a Chebyshev circle offers the far side of a wall
  * at five feet, and people cannot go through walls (typically).
  */
-export function walkFor(
+function walkFor(
   view: FightView,
   sight: SightContext,
   c: Combatant | null,
   overlays: ZoneOverlays,
 ): Walk | null {
   if (!c?.at) return null;
-  const hp = hitPointsOf(c, view.roster, maxHpOf(view));
+  const hp = hpOf(view, c);
   if (!hp || hp.now === 0) return null;
   return walkMap(
     sight,
@@ -176,7 +175,7 @@ export function walkFor(
  * only the burning shortcut fits, the ordinary map answers and the fire
  * bites.
  */
-export function safeWalkFor(
+function safeWalkFor(
   view: FightView,
   sight: SightContext,
   c: Combatant | null,
@@ -216,25 +215,39 @@ export function safeWalkFor(
 export function partyApproach(
   view: FightView,
   sight: SightContext,
-  overlays: ZoneOverlays,
+  zones: Zone[] | undefined,
 ): Walk | null {
   const sources = view.encounter.combatants
     .filter(
-      (c) => c.kind === 'character' && c.at && (hitPointsOf(c, view.roster, maxHpOf(view))?.now ?? 0) > 0,
+      (c) => c.kind === 'character' && c.at && hpNowOf(view, c) > 0,
     )
     .map((c) => c.at!);
   if (!sources.length) return null;
   // Seeded from the party but walked by a monster, so the ground is
   // priced the way the monster will experience it.
-  return walkMap(sight, sources, Infinity, {
-    blocked: overlays.blocked,
-    difficult: overlays.difficultFor('monsters'),
-  });
+  return walkMap(sight, sources, Infinity, groundFor(zones, 'monsters'));
+}
+
+/**
+ * The ground as one side experiences it: what stops them, and what
+ * costs them double.
+ *
+ * The pathfinder's own argument shape, and the part of the overlays a
+ * caller genuinely needs on its own - the danger wash prices a monster's
+ * reach across the same ground `partyApproach` sweeps, and Spirit
+ * Guardians is deep going for the goblins and open floor for the party.
+ */
+export function groundFor(
+  zones: Zone[] | undefined,
+  side: 'party' | 'monsters',
+): { blocked: Set<string>; difficult: Set<string> } {
+  const overlays = zoneOverlays(zones);
+  return { blocked: overlays.blocked, difficult: overlays.difficultFor(side) };
 }
 
 /** The price to a square - the unburned route when the budget allows it,
     the short one otherwise - and which walk that price came from. */
-export function routeChoice(
+function routeChoice(
   key: string,
   walk: Walk | null,
   safe: Walk | null,
@@ -246,4 +259,45 @@ export function routeChoice(
   const through = walk.cost.get(key);
   if (through === undefined) return null;
   return { cost: through, via: walk };
+}
+
+/**
+ * §121: one combatant's walk, whole.
+ *
+ * The four steps below used to be four exports, and the caller ran them
+ * in a fixed order with three of `routeChoice`'s four arguments being the
+ * outputs of its own siblings. Nothing checked the order: the types line
+ * up whichever way round they go, so getting it wrong would have priced
+ * a route against the wrong map and said nothing. That the four had no
+ * direct test while the rest of this module did is not a coincidence -
+ * they could not be reached without rebuilding the chain in the test too.
+ *
+ * The chain is implementation now. A caller asks for a plan and gets one.
+ */
+export interface WalkPlan {
+  /** The two tiers of "can I get there this turn": plain, and with a Dash. */
+  budget: { base: number; dash: number };
+  /** The whole map, uncapped, hazards priced as ordinary ground. */
+  walk: Walk | null;
+  /** The same map with the hazards avoided - null when the walk is. */
+  safe: Walk | null;
+  /**
+   * The price to a square, by the route that would actually be walked:
+   * around the fire when the budget allows it, through it when only the
+   * shortcut fits. Null for a square the feet cannot reach at all.
+   */
+  routeTo: (key: string) => { cost: number; via: Walk } | null;
+}
+
+export function walkPlanFor(
+  view: FightView,
+  sight: SightContext,
+  c: Combatant | null,
+  zones: Zone[] | undefined,
+): WalkPlan {
+  const overlays = zoneOverlays(zones);
+  const budget = walkBudget(view, c);
+  const walk = walkFor(view, sight, c, overlays);
+  const safe = safeWalkFor(view, sight, c, overlays, walk);
+  return { budget, walk, safe, routeTo: (key) => routeChoice(key, walk, safe, budget) };
 }

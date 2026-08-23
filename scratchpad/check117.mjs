@@ -25,10 +25,17 @@ const join = (room) =>
   });
 const settle = (ms = 900) => new Promise((r) => setTimeout(r, ms));
 
-// Unique per run: a stale member of a fixed code would poison the result.
-const stamp = Math.random().toString(36).slice(2, 8).toUpperCase();
-const A = `A${stamp}`;
-const B = `B${stamp}`;
+/*
+  Unique per run: a stale member of a fixed code would poison the result.
+  Drawn from the room alphabet rather than base36, because §135 made the
+  relay refuse anything that is not shaped like a real code - and base36
+  produces 0, 1, I, L and O, every one of which the alphabet omits.
+*/
+const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const stamp = (n) =>
+  Array.from({ length: n }, () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)]).join('');
+const A = `A${stamp(5)}`;
+const B = `B${stamp(5)}`;
 
 const [dmA, playerA, dmB, playerB] = await Promise.all([join(A), join(A), join(B), join(B)]);
 dmA.say('table A');
@@ -41,7 +48,7 @@ say(dmA.heard.length === 0, `room ${A}'s DM heard nothing from ${B} (no bleedove
 say(dmB.heard.length === 0, `room ${B}'s DM heard nothing from ${A} (no bleedover)`);
 
 // The case rule, live: idFromName is case-sensitive without it.
-const C = `C${stamp}`;
+const C = `C${stamp(5)}`;
 const [upper, lower] = await Promise.all([join(C), join(C.toLowerCase())]);
 upper.say('same table?');
 await settle();

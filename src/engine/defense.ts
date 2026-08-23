@@ -37,12 +37,20 @@ export interface HpResult {
 
 // ------------------------------------------------------------ proficiencies
 
-/** Every armor proficiency this character has, from all sources. */
+/**
+ * Every armor proficiency this character has, from all sources.
+ *
+ * §127: the ruleset is required, and that is the whole fix. It used to
+ * default to `'2014'`, which reads like a harmless convenience and is not:
+ * it feeds `subclassLevelFor`, which answers 3 under 2024 and the class's
+ * own level under 2014. A caller who left it off was not saying "2014", it
+ * was saying nothing - and got 2014's answer for a 2024 character.
+ */
 export function armorProficiencies(
   slices: ClassSlice[],
   race: Race,
   featIds: Set<string>,
-  ruleset: Ruleset = '2014',
+  ruleset: Ruleset,
 ): Set<ArmorProficiency> {
   const out = new Set<ArmorProficiency>();
   for (const slice of slices) {
@@ -75,7 +83,8 @@ export function armorProficiencies(
 export function weaponProficiencies(
   slices: ClassSlice[],
   race: Race,
-  ruleset: Ruleset = '2014',
+  // §127: required, for the reason `armorProficiencies` above spells out.
+  ruleset: Ruleset,
 ): { categories: Set<WeaponCategory>; specific: Set<string> } {
   const categories = new Set<WeaponCategory>();
   const specific = new Set<string>();

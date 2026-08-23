@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import fixture from './data/srd/srd-2014-monsters.json';
-import type { Monster } from './data/monsters';
 import { addCharacter, addMonster, emptyEncounter, placeCombatant } from './encounter';
 import { activeEncounter, updateEncounter, updatePlay } from './storage';
-import { deriveBuild } from './engine/character';
 import { generateDungeon } from './engine/dungeon';
 import { DEFAULT_HOUSE_RULES } from './houseRules';
 import { spendReactionOf, strikesInto } from './fightStrike';
@@ -13,6 +10,7 @@ import type { StrikeContext } from './fightStrike';
 import { reactionSpentOf } from './fightFacts';
 import type { FightView } from './fightFacts';
 import type { Strike } from './engine/strikes';
+import { charOf, fixtureMonster, monsterOf, viewOf } from './test/fight';
 import { fighter, rosterOf, wizard } from './test/factories';
 
 /**
@@ -20,8 +18,6 @@ import { fighter, rosterOf, wizard } from './test/factories';
  * reachable only by mounting a battle screen and clicking a token.
  */
 
-const monsters = (fixture as unknown as { records: Monster[] }).records;
-const byId = new Map(monsters.map((m) => [m.id, m]));
 const dungeon = generateDungeon('x', { rooms: 0, width: 10, height: 8 });
 
 /** Every die reads its maximum: a natural 20, top damage. */
@@ -40,7 +36,7 @@ const table = () => {
   const roster = rosterOf(fighter(), wizard());
   let enc = addCharacter(emptyEncounter(), 'c0', { initiative: 20 });
   enc = addCharacter(enc, 'c1', { initiative: 10 });
-  enc = addMonster(enc, byId.get('goblin')!, { rng: () => 0.5 });
+  enc = addMonster(enc, fixtureMonster('goblin'), { rng: () => 0.5 });
   const [a, b] = enc.combatants.filter((c) => c.kind === 'character');
   const gob = enc.combatants.find((c) => c.kind === 'monster')!;
   enc = placeCombatant(enc, a.id, { x: 3, y: 3 });
@@ -49,20 +45,7 @@ const table = () => {
   return updateEncounter(roster, enc);
 };
 
-const viewOf = (roster: ReturnType<typeof table>): FightView => ({
-  encounter: activeEncounter(roster),
-  roster,
-  monsterById: (id) => byId.get(id),
-  buildOf: (rosterId) => {
-    const entry = roster.entries.find((e) => e.id === rosterId);
-    return entry ? deriveBuild(entry.build) : undefined;
-  },
-  ruleset: '2014',
-});
 
-const charOf = (v: FightView, rosterId: string) =>
-  v.encounter.combatants.find((c) => c.kind === 'character' && c.rosterId === rosterId)!;
-const monsterOf = (v: FightView) => v.encounter.combatants.find((c) => c.kind === 'monster')!;
 
 /** A plain, predictable swing: +5 to hit, 1d6 slashing. */
 const sword = (): Strike[] => [
@@ -216,23 +199,24 @@ describe('the reaction', () => {
   });
 });
 
-describe('the roster it reads from, which is not the one it writes to', () => {
+describe('the roster it reads from, which is the one it writes to', () => {
   /*
-    The scope a scripted move got wrong once, and which the compiler
-    could not catch: a *character's* hit points are read off the
-    render's roster, while combatants are re-read off the threaded one.
-    (A monster's ride the combatant itself, so the roster argument never
-    reaches them - which is why the first draft of this test proved
-    nothing.) It looks like an oversight and may well be one; a move is
-    not the place to decide, so it is pinned and a change has to be
-    deliberate.
+    §132. A scripted move got this scope wrong once (§115), it was put back
+    (§116) because a refactor is not where a rule gets decided, and it is
+    decided now: hit points come off the roster the composed write is
+    building, the same one the combatants are re-read from.
+
+    A monster's hit points ride the combatant itself, so the roster argument
+    never reaches them - which is why the first draft of this test proved
+    nothing. It has to be a character.
   */
-  it("caps a character's tally from the render's roster, not the threaded one", () => {
+  it("caps a character's tally against what the threaded roster leaves them", () => {
     const roster = table();
     const v = viewOf(roster);
     const gob = monsterOf(v);
     // Fresh play state leaves currentHp undefined, meaning full - so ask.
     const full = hitPointsOf(charOf(v, 'c1'), roster, maxHpOf(v))!.now;
+    expect(full).toBeGreaterThan(1);
 
     // The wizard is already at 1hp in the roster threaded in - the sort of
     // thing a walk through a wall of fire composes just before a swing.
@@ -248,9 +232,12 @@ describe('the roster it reads from, which is not the one it writes to', () => {
       undefined,
       alwaysHigh,
     );
-    const taken = activeEncounter(after).tally?.[charOf(v, 'c1').id]?.taken ?? 0;
-    // Capped against the render's hit points (full), not the threaded 1.
-    expect(full).toBeGreaterThan(1);
-    expect(taken).toBeGreaterThan(1);
+    const entry = activeEncounter(after).tally?.[charOf(v, 'c1').id];
+    // One hit point was there to take, so one is what the debrief records -
+    // a maul that lands on somebody at 1 did not deal them fourteen.
+    expect(entry?.taken).toBe(1);
+    // And it dropped them, which the render's roster would have missed:
+    // from full, a maul does not reach zero and nothing is a knockdown.
+    expect(entry?.drops).toBe(1);
   });
 });

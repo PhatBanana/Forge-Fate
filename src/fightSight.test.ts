@@ -1,20 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import fixture from './data/srd/srd-2014-monsters.json';
-import type { Monster } from './data/monsters';
 import { addCharacter, addMonster, emptyEncounter, placeCombatant } from './encounter';
 import { activeEncounter, updateEncounter, updatePlay } from './storage';
-import { deriveBuild } from './engine/character';
 import { generateDungeon } from './engine/dungeon';
 import {
-  ambientOf,
+  lightingOf,
   eyesOf,
-  gloomMap,
-  lightsInPlay,
-  litLookup,
   partyVisible,
   silencedAt,
 } from './fightSight';
-import type { FightView } from './fightFacts';
+import { fixtureMonster, viewOf } from './test/fight';
 import { fighter, rosterOf, wizard } from './test/factories';
 
 /**
@@ -23,15 +17,13 @@ import { fighter, rosterOf, wizard } from './test/factories';
  * no battle screen, no DOM.
  */
 
-const monsters = (fixture as unknown as { records: Monster[] }).records;
-const byId = new Map(monsters.map((m) => [m.id, m]));
 const dungeon = generateDungeon('x', { rooms: 0, width: 8, height: 6 });
 
 const table = (fog = false) => {
   const roster = rosterOf(fighter(), wizard());
   let enc = addCharacter(emptyEncounter(), 'c0', { initiative: 20 });
   enc = addCharacter(enc, 'c1', { initiative: 10 });
-  enc = addMonster(enc, byId.get('goblin')!, { rng: () => 0.5 });
+  enc = addMonster(enc, fixtureMonster('goblin'), { rng: () => 0.5 });
   // Stood on the board: eyes need a position to be worth anything.
   const [a, b] = enc.combatants.filter((c) => c.kind === 'character');
   enc = placeCombatant(enc, a.id, { x: 1, y: 1 });
@@ -40,36 +32,32 @@ const table = (fog = false) => {
   return updateEncounter(roster, enc);
 };
 
-const viewOf = (roster: ReturnType<typeof table>): FightView => ({
-  encounter: activeEncounter(roster),
-  roster,
-  monsterById: (id) => byId.get(id),
-  buildOf: (rosterId) => {
-    const entry = roster.entries.find((e) => e.id === rosterId);
-    return entry ? deriveBuild(entry.build) : undefined;
-  },
-  ruleset: '2014',
-});
 
 describe('how dark it is', () => {
   it('is bright unless the fight says otherwise', () => {
     const enc = activeEncounter(table());
-    expect(ambientOf(enc)).toBe('bright');
-    expect(ambientOf({ ...enc, ambientLight: 'dark' })).toBe('dark');
+    expect(lightingOf(enc, dungeon).ambient).toBe('bright');
+    expect(lightingOf({ ...enc, ambientLight: 'dark' }, dungeon).ambient).toBe('dark');
   });
 
   it('hands the cameras nothing at all when the map is lit', () => {
-    const enc = activeEncounter(table());
-    const litAt = litLookup(lightsInPlay(enc.lights ?? [], enc.combatants), 'bright');
-    expect(gloomMap(litAt, 'bright', 0, dungeon.width, dungeon.height)).toEqual({});
+    expect(lightingOf(activeEncounter(table()), dungeon).gloom).toEqual({});
   });
 
   it('names every square that is not bright when the lights go out', () => {
     const enc = { ...activeEncounter(table()), ambientLight: 'dark' as const };
-    const litAt = litLookup(lightsInPlay(enc.lights ?? [], enc.combatants), 'dark');
-    const gloom = gloomMap(litAt, 'dark', 0, dungeon.width, dungeon.height);
+    const { gloom } = lightingOf(enc, dungeon);
     expect(Object.keys(gloom)).toHaveLength(dungeon.width * dungeon.height);
     expect(new Set(Object.values(gloom))).toEqual(new Set(['dark']));
+  });
+
+  it('asks a square once and remembers - the cache is the point of the value', () => {
+    const enc = { ...activeEncounter(table()), ambientLight: 'dim' as const };
+    const { litAt } = lightingOf(enc, dungeon);
+    // Same lookup twice is the same answer; a fresh value answers the same.
+    expect(litAt({ x: 2, y: 2 })).toBe('dim');
+    expect(litAt({ x: 2, y: 2 })).toBe('dim');
+    expect(lightingOf(enc, dungeon).litAt({ x: 2, y: 2 })).toBe('dim');
   });
 
   it('stands a carried light where its bearer is standing', () => {
@@ -80,21 +68,23 @@ describe('how dark it is', () => {
       ...enc,
       lights: [{ id: 'l1', label: 'Torch', carriedBy: bearer.id, bright: 20, dim: 20 }],
     } as typeof enc;
-    const placed = lightsInPlay(withTorch.lights ?? [], withTorch.combatants);
-    expect(placed[0]?.at).toEqual(bearer.at);
+    const { lights, gloom } = lightingOf(withTorch, dungeon);
+    expect(lights[0]?.at).toEqual(bearer.at);
+    // The torch is standing on the bearer, so their own square is not dark.
+    expect(gloom[`${bearer.at!.x},${bearer.at!.y}`]).toBeUndefined();
   });
 });
 
 describe('what the party can see', () => {
   it('shows everything when the fog is off', () => {
     const view = viewOf(table(false));
-    const litAt = litLookup(lightsInPlay(view.encounter.lights ?? [], view.encounter.combatants), 'bright');
+    const { litAt } = lightingOf(view.encounter, dungeon);
     expect(partyVisible(view, { dungeon, terrain: {}, elevation: {} }, dungeon, litAt)).toBeNull();
   });
 
   it('looks from the eyes of whoever is still standing', () => {
     const view = viewOf(table(true));
-    const litAt = litLookup(lightsInPlay(view.encounter.lights ?? [], view.encounter.combatants), 'bright');
+    const { litAt } = lightingOf(view.encounter, dungeon);
     const seen = partyVisible(view, { dungeon, terrain: {}, elevation: {} }, dungeon, litAt);
     expect(seen).not.toBeNull();
     expect(seen!.size).toBeGreaterThan(0);
@@ -108,7 +98,7 @@ describe('what the party can see', () => {
       roster = updatePlay(roster, id, { ...entry.play, currentHp: 0 });
     }
     const view = viewOf(roster);
-    const litAt = litLookup(lightsInPlay(view.encounter.lights ?? [], view.encounter.combatants), 'bright');
+    const { litAt } = lightingOf(view.encounter, dungeon);
     const seen = partyVisible(view, { dungeon, terrain: {}, elevation: {} }, dungeon, litAt);
     expect(seen!.size).toBe(0);
   });

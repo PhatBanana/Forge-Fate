@@ -38,6 +38,29 @@ ever goes over quota it stops until the day rolls over rather than costing
 anyone anything. `scratchpad/setup-relay.sh` is the wizard that walks a
 human through deploying their own.
 
+## What it refuses (§135)
+
+The room code is the whole secret - no accounts, nothing stored - so there
+is no auth to add without giving the app a second secret to carry. What the
+relay does instead is turn away traffic no table ever produces. All of it is
+invisible to a game in progress, and all of it lives in `limits.mjs` so the
+Node relay and the Worker cannot drift apart:
+
+| Limit | Why |
+|---|---|
+| The code must match `[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}` | The shape `newRoomCode()` mints. A probe never names a Durable Object, so scanning costs this account nothing - and a mistyped code is refused rather than silently seating somebody in a room of one. |
+| 12 sockets per room | A table is a DM and their players. The number is generous because the cost of being wrong is a real person who cannot join. |
+| 1 MB per frame, dropped not closed on | The same cap the app applies on the way in. Without it the guard was one-sided: a client refuses to *read* a frame this big, but the relay would push one at every phone first. |
+
+Note the alphabet omits `0`, `O`, `1`, `I` and `L`, so a code with any of
+them in it is not a code. Two of this repo's own test fixtures had to be
+renamed when the check went in, which is a fair illustration of the point.
+
+Rate limiting per IP is left to Cloudflare's own dashboard rules rather than
+to code: it is a control the platform already has, and putting a counter in
+the Durable Object would cost storage that this relay deliberately does not
+use.
+
 ## In the app
 
 The DM opens the battle screen's **Prep** drawer → *The table*: set the

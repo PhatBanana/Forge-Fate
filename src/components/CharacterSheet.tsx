@@ -1,18 +1,20 @@
 import { useState } from 'react';
+import { signed } from '../format';
 import { ABILITIES, ABILITY_NAMES } from '../types';
-import type { Ability, Build, CharacterDetails, ClassId } from '../types';
+import type { Build, CharacterDetails, ClassId } from '../types';
 import { CASTING_TIME_LABELS, SPELLS_BY_ID } from '../data/spells';
 import { sourceForSpell } from '../engine/spellcasting';
-import { damageDice } from '../data/weapons';
 import { RARITY_LABELS } from '../data/magicItems';
 import { formatWeight } from '../data/gear';
-import { ammunitionCarried, describePurse } from '../engine/inventory';
+import { describePurse } from '../engine/inventory';
+import { featById } from '../data/feats';
 import { BACKGROUNDS_BY_ID } from '../data/backgrounds';
 import { ARMOR_CATEGORY_LABEL } from '../data/armor';
 import { armorProficiencies } from '../engine/defense';
+import { saveBonusOf, saveProficiencies } from '../engine/character';
 import type { BuildContext } from '../engine/character';
 import { describeSpell } from '../engine/spellRecommend';
-import { RECHARGE_LABEL, heldResources, rechargeFor, restoredKeys } from '../engine/resources';
+import { RECHARGE_LABEL, rechargeFor } from '../engine/resources';
 import { describeComponents } from '../engine/components';
 import { SORCERY_POINT_SLOT_COSTS } from '../data/classResources';
 import { CONDITIONS, conditionText } from '../data/conditions';
@@ -27,12 +29,9 @@ import {
   clearRolls,
   damage,
   heal,
-  hitDiceLeft,
-  hpNow,
   isFresh,
   longRest,
   recordDeathSave,
-  resourceLeft,
   restorePact,
   restoreResource,
   restoreSlot,
@@ -42,13 +41,11 @@ import {
   shortRest,
   startOfEncounter,
   toggleCondition,
-  ammoLeft,
   spendAmmo,
   setAmmoLeft,
   recoverAmmo,
   restockAmmo,
   slotsLeft,
-  slotsTotal,
   createSlotWithPoints,
   convertSlotToPoints,
   spendHitDie,
@@ -67,6 +64,7 @@ import {
   setCustomValue,
 } from '../play';
 import type { PlayState, TurnSlot } from '../play';
+import { restoredOn, sheetOf } from '../sheet';
 import { defaultRng, parseNotation, rollD20, rollDamage, rollDie, rollNotation } from '../engine/dice';
 import type { D20Mode, RollKind } from '../engine/dice';
 
@@ -116,10 +114,6 @@ const TURN_SLOTS: { slot: TurnSlot; label: string; hint: string }[] = [
     hint: 'One between turns - an opportunity attack, a Shield, a Counterspell. You get it back at the start of your next turn, not at the end of this one.',
   },
 ];
-
-function signed(value: number): string {
-  return value >= 0 ? `+${value}` : `${value}`;
-}
 
 /** A bordered box with the small caps label the paper sheet uses. */
 function Box({
@@ -285,9 +279,16 @@ export function CharacterSheet({
   const setDetail = (partial: Partial<CharacterDetails>) =>
     onBuildChange({ ...build, details: { ...details, ...partial } });
 
-  const max = ctx.hp.total;
-  const current = hpNow(play, max);
-  const down = current === 0;
+  /*
+    §120: the two stores joined once, at the top, instead of at each read.
+    Every "what is left" below - hit points, slots, hit dice, resources,
+    ammunition - comes off this rather than pairing `play` with whichever
+    corner of `ctx` holds its cap.
+  */
+  const sheet = sheetOf(ctx, play);
+  const max = sheet.hp.max;
+  const current = sheet.hp.now;
+  const down = sheet.hp.down;
 
   // Read once rather than at each use: the movement tracker measures against
   // the same number the Speed chip prints, armor penalty and Boots of Speed
@@ -311,21 +312,15 @@ export function CharacterSheet({
     setAmount('');
   };
 
-  // Saving throws come from your starting class only; a multiclass dip grants
-  // none, which is the same rule the armor and weapon tables follow.
-  const saveAbilities = new Set<Ability>(ctx.slices[0]?.klass.saves ?? []);
+  // §128: the rule (starting class only, a dip grants none) is stated once in
+  // `engine/character.ts`, not here and in two other screens.
+  const saveAbilities = saveProficiencies(ctx);
 
   const classLine = ctx.slices
     .map((s) => `${s.klass.name}${s.subclass ? ` (${s.subclass.name})` : ''} ${s.entry.level}`)
     .join(' / ');
 
-  const hitDice = ctx.slices.map((slice) => ({
-    classId: slice.klass.id,
-    name: slice.klass.name,
-    die: slice.klass.hitDie,
-    total: slice.entry.level,
-    left: hitDiceLeft(play, slice.klass.id, slice.entry.level),
-  }));
+  const hitDice = sheet.hitDice;
   const hitDiceByClass = Object.fromEntries(hitDice.map((d) => [d.classId, d.total]));
 
   /*
@@ -435,10 +430,10 @@ export function CharacterSheet({
     });
   };
 
-  const ammo = ammunitionCarried(build);
-  const resources = heldResources(ctx.slices, build.ruleset, ctx.mods);
-  const shortRechargeKeys = restoredKeys(resources, 'short');
-  const encounterKeys = restoredKeys(resources, 'encounter');
+  const ammo = sheet.ammo;
+  const resources = sheet.resources;
+  const shortRechargeKeys = restoredOn(ctx, 'short');
+  const encounterKeys = restoredOn(ctx, 'encounter');
 
   const spellsByLevel = new Map<number, typeof casting.chosen>();
   const grantedIds = new Set(casting.granted.map((s) => s.id));
@@ -477,7 +472,7 @@ export function CharacterSheet({
 
   // Font of Magic is offered where the slots are rather than where the points
   // are, because the exchange is a thing you do to a slot.
-  const sorceryPoints = resources.find((held) => held.resource.id === 'sorcery-points');
+  const sorceryPoints = resources.find((r) => r.held.resource.id === 'sorcery-points');
 
   return (
     <article className="cs">
@@ -568,10 +563,7 @@ export function CharacterSheet({
                 <ul className="cs-list">
                   {ABILITIES.map((ability) => {
                     const proficient = saveAbilities.has(ability);
-                    const bonus =
-                      ctx.mods[ability] +
-                      (proficient ? ctx.proficiency : 0) +
-                      ctx.itemEffects.saves;
+                    const bonus = saveBonusOf(ctx, ability);
                     return (
                       <li key={ability}>
                         <span className={`dot ${proficient ? 'on' : ''}`} />
@@ -998,11 +990,7 @@ export function CharacterSheet({
                 </thead>
                 <tbody>
                   {ctx.attacks.map((attack, i) => {
-                    const dice = damageDice(
-                      attack.weapon,
-                      attack.hand === 'main' && !ctx.loadouts.offHand,
-                    );
-                    const line = `${dice}${attack.damage.bonus !== 0 ? signed(attack.damage.bonus) : ''}`;
+                    const line = `${attack.damage.dice}${attack.damage.bonus !== 0 ? signed(attack.damage.bonus) : ''}`;
                     return (
                       <tr key={i}>
                         <td>
@@ -1054,8 +1042,7 @@ export function CharacterSheet({
               <p className="cs-para">Nothing equipped.</p>
             )}
 
-            {ammo.map((stack) => {
-              const left = ammoLeft(play, stack.gearId, stack.total);
+            {ammo.map(({ stack, left }) => {
               return (
                 <div className="cs-track cs-ammo" key={stack.gearId}>
                   <span className="label">
@@ -1118,11 +1105,12 @@ export function CharacterSheet({
 
           {(resources.length > 0 || customResources.length > 0) && (
             <Box label="Class resources">
-              {resources.map((held) => {
-                const left = resourceLeft(play, held.key, held.max);
+              {resources.map(({ held, left }) => {
                 const recharge = rechargeFor(held);
                 const label = `${held.resource.name}${
-                  resources.some((o) => o !== held && o.resource.name === held.resource.name)
+                  resources.some(
+                    (o) => o.held !== held && o.held.resource.name === held.resource.name,
+                  )
                     ? ` (${held.className})`
                     : ''
                 }`;
@@ -1445,10 +1433,23 @@ export function CharacterSheet({
                   <div className="sub">{feature.summary}</div>
                 </li>
               ))}
+              {/*
+                §131: names, not ids. This printed `great-weapon-master` on a
+                paper character sheet - two lines below `ctx.features`, which
+                has always rendered `.name` - because the set holds ids and
+                joining a set of ids is the shortest thing that compiles.
+                Falls back to the id if a feat ever goes missing from the
+                table, since a kebab-case word on the page beats a blank.
+              */}
               {[...ctx.featIds].length > 0 && (
                 <li>
                   <b>Feats</b>
-                  <div className="sub">{[...ctx.featIds].join(', ')}</div>
+                  <div className="sub">
+                    {[...ctx.featIds]
+                      .map((id) => featById(id, build.ruleset)?.name ?? id)
+                      .sort((a, b) => a.localeCompare(b))
+                      .join(', ')}
+                  </div>
                 </li>
               )}
             </ul>
@@ -1524,8 +1525,9 @@ export function CharacterSheet({
             )}
 
             {slotLevels.map((level) => {
-              const fromTable = casting.bySpellLevel[level - 1] ?? 0;
-              const have = slotsTotal(play, level, fromTable);
+              const slot = sheet.slots[level - 1];
+              const fromTable = slot?.fromTable ?? 0;
+              const have = slot?.total ?? 0;
               const known = spellsByLevel.get(level) ?? [];
               const cost = SORCERY_POINT_SLOT_COSTS[level];
               return (
@@ -1535,7 +1537,7 @@ export function CharacterSheet({
                     {have > 0 ? (
                       <Pips
                         total={have}
-                        left={slotsLeft(play, level, fromTable)}
+                        left={slot?.left ?? 0}
                         count
                         label={`Level ${level} slot`}
                         onSpend={() => onPlayChange(spendSlot(play, level, fromTable))}
@@ -1549,11 +1551,11 @@ export function CharacterSheet({
                     <div className="cs-fontofmagic">
                       <button
                         type="button"
-                        disabled={resourceLeft(play, sorceryPoints.key, sorceryPoints.max) < cost}
+                        disabled={sorceryPoints.left < cost}
                         title={`Spend ${cost} sorcery points for one level ${level} slot`}
                         onClick={() =>
                           onPlayChange(
-                            createSlotWithPoints(play, level, sorceryPoints.key, sorceryPoints.max),
+                            createSlotWithPoints(play, level, sorceryPoints.held.key, sorceryPoints.held.max),
                           )
                         }
                       >
@@ -1565,7 +1567,7 @@ export function CharacterSheet({
                         title={`Expend one level ${level} slot for ${level} sorcery ${level === 1 ? 'point' : 'points'}`}
                         onClick={() =>
                           onPlayChange(
-                            convertSlotToPoints(play, level, fromTable, sorceryPoints.key),
+                            convertSlotToPoints(play, level, fromTable, sorceryPoints.held.key),
                           )
                         }
                       >
