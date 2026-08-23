@@ -317,7 +317,7 @@ phone built for itself. Open, each sized:
   socket carrying it survives. No auth, deliberately - the room code is
   the whole secret, and a second one would be a second thing to carry.
 
-### 8. The battle screen's shape — `[~]` **two cuts made, the core left fused**
+### 8. The battle screen's shape — `[~]` **the peels and the union done, the core left fused**
 
 An architecture review (2026-08-20) surveyed the 7,500-line battle
 screen. What was worth doing, and what was not:
@@ -334,13 +334,13 @@ screen. What was worth doing, and what was not:
   and stayed: it reads six derived values from the middle of the fight
   (objective, delve, ward, rounds, tally), so peeling it would trade a
   fused region for a prop list as wide as the panel is tall.
-- `[~]` **Folding the tool states into one union** — *reopened, §134.*
-  It was decided against because the six tools were not mutually
-  exclusive: Escape is a priority stack, and holding a placement under an
-  aim was a real state. §134 made one-tool-at-a-time the rule, so that
-  state no longer exists and the union is representable. The behaviour
-  change is done; the union itself is not, and should stand or fall on
-  its own merits as a refactor now that nothing blocks it.
+- `[x]` **Folding the tool states into one union** — done in §137, and
+  recorded as ADR-0001. It was decided against in §107 because the six
+  tools were not mutually exclusive: Escape is a priority stack, and
+  holding a placement under an aim was a real state. §134 made
+  one-tool-at-a-time the rule, which is what made the union honest rather
+  than a behaviour change in disguise. Seven `useState` calls are one;
+  `aimFrom` folded into the zone member it depends on.
 - `[–]` **Splitting the entangled core** (map stage, cockpit, field) —
   each reads 8+ pieces of state and writes handlers defined in the
   resolution regions. Cutting there moves complexity rather than

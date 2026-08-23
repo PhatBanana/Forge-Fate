@@ -5530,3 +5530,140 @@ describe('queued plans (§92)', () => {
     expect(screen.queryByText(/Queued:/)).toBeNull();
   });
 });
+
+/*
+  §134/ADR-0001: one tool in hand, and what empties the hands.
+
+  The rule landed in §134 with all 209 tests here passing unedited, which
+  proved no flow depended on holding two tools at once - and pinned nothing.
+  Every test in this file exercises the tools *individually*; the axis none
+  of them touched is the transition between one and the next, which is
+  exactly what the union of §137 restructures.
+
+  The hint line is the hook for three of the six, because it names whatever
+  is in hand in one place. The light and the mark brush carry `aria-pressed`.
+  The grab has its own banner.
+*/
+describe('one tool in hand', () => {
+  const hint = () => document.querySelector('.hud-hint')?.textContent ?? '';
+  const aiming = () =>
+    (document.querySelector('.hud-aim-banner')?.textContent ?? '').startsWith('Aiming');
+  const lightButton = (name: RegExp) => screen.getByRole('button', { name });
+  const pressed = (el: HTMLElement) => el.getAttribute('aria-pressed') === 'true';
+
+  /** Start a fight with the party in it and the first character up. */
+  const fightUnderway = async (user: ReturnType<typeof userEvent.setup>) => {
+    const view = setup(party());
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name: view.roster.entries[0].build.name }));
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+    return view;
+  };
+
+  /** Arm an aim: the cockpit's Attack, then `vs…` beside the weapon. The
+      weapon's own button rolls to hit; `vs…` is what puts a bow in hand. */
+  const armAim = async (user: ReturnType<typeof userEvent.setup>) => {
+    const menu = document.querySelector('.pcard .cmd-menu') as HTMLElement;
+    await user.click(within(menu).getByRole('button', { name: /^Attack/ }));
+    await user.click(screen.getByRole('button', { name: 'vs…' }));
+  };
+
+  /** Arm the walk: the cockpit's Move. */
+  const armWalk = async (user: ReturnType<typeof userEvent.setup>) => {
+    const menu = document.querySelector('.pcard .cmd-menu') as HTMLElement;
+    await user.click(within(menu).getByRole('button', { name: /^Move/ }));
+  };
+
+  it('puts the aim down when the walk is armed', async () => {
+    const user = userEvent.setup();
+    await fightUnderway(user);
+    await armAim(user);
+    expect(aiming()).toBe(true);
+
+    await armWalk(user);
+    expect(aiming()).toBe(false);
+    expect(hint()).toMatch(/lit tile/i);
+  });
+
+  it('puts the walk down when an aim is armed', async () => {
+    const user = userEvent.setup();
+    await fightUnderway(user);
+    await armWalk(user);
+    expect(hint()).toMatch(/lit tile/i);
+
+    await armAim(user);
+    expect(aiming()).toBe(true);
+    expect(hint()).not.toMatch(/lit tile/i);
+  });
+
+  it('puts the aim down when the light is armed', async () => {
+    const user = userEvent.setup();
+    await fightUnderway(user);
+    await armAim(user);
+    expect(aiming()).toBe(true);
+
+    await open(user, 'Field');
+    const torch = lightButton(/torch/i);
+    await user.click(torch);
+    expect(pressed(torch)).toBe(true);
+    expect(aiming()).toBe(false);
+  });
+
+  it('puts the light down when the mark brush is armed', async () => {
+    const user = userEvent.setup();
+    await fightUnderway(user);
+    await open(user, 'Field');
+    const torch = lightButton(/torch/i);
+    await user.click(torch);
+    expect(pressed(torch)).toBe(true);
+
+    await open(user, 'Prep');
+    await user.click(screen.getByRole('button', { name: /reach/i }));
+    const brush = screen.getByRole('button', { name: /paint the mark/i });
+    await user.click(brush);
+    expect(pressed(brush)).toBe(true);
+
+    // Drawers are exclusive, so the light lives behind a closed door now -
+    // reopen it to read the torch back.
+    await open(user, 'Field');
+    expect(pressed(lightButton(/torch/i))).toBe(false);
+  });
+
+  it('toggles a tool off when the same one is pressed again', async () => {
+    const user = userEvent.setup();
+    await fightUnderway(user);
+    await open(user, 'Field');
+    const torch = lightButton(/torch/i);
+    await user.click(torch);
+    expect(pressed(torch)).toBe(true);
+    await user.click(lightButton(/torch/i));
+    expect(pressed(lightButton(/torch/i))).toBe(false);
+  });
+
+  it('empties the hands when the turn changes', async () => {
+    const user = userEvent.setup();
+    await fightUnderway(user);
+    await armAim(user);
+    expect(aiming()).toBe(true);
+
+    await user.click(screen.getByRole('button', { name: /end turn/i }));
+    // An aim carries the attacker it was armed for; it must not survive
+    // into somebody else's turn still pointing at the last one.
+    expect(aiming()).toBe(false);
+  });
+
+  it('empties the hands when the fight ends', async () => {
+    const user = userEvent.setup();
+    await fightUnderway(user);
+    await armAim(user);
+    expect(aiming()).toBe(true);
+
+    // The control lives in the Order drawer; opening a drawer is not a tool,
+    // so the aim is still in hand when it is pressed.
+    await open(user, 'Order');
+    expect(aiming()).toBe(true);
+    await user.click(screen.getByRole('button', { name: /end the fight/i }));
+    expect(aiming()).toBe(false);
+  });
+
+});

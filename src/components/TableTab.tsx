@@ -262,6 +262,43 @@ import { CharacterSheet } from './CharacterSheet';
 const missingBlock = (loading: boolean) =>
   loading ? 'Stat block still loading…' : 'No stat block — deleted from your bestiary?';
 
+/**
+ * §137 / ADR-0001: what the DM has in hand on the battle screen.
+ *
+ * Exactly one, or none. §107 declined this union because the tools were not
+ * mutually exclusive and it would have made a reachable state - a zone
+ * placement held under an aim - unrepresentable. §134 changed the rule
+ * rather than the type, so the union is honest now.
+ */
+type Tool =
+  /** A creature is aiming; the next click on a token is the target. */
+  | { kind: 'aim'; attacker: string; attackerId?: string; strikes: Strike[] }
+  /** A grapple, a shove or a trip, waiting for whoever is within reach. */
+  | { kind: 'grab'; byId: string; mode: GrabMode }
+  /** A light of this kind, waiting for a square or a bearer. */
+  | { kind: 'light'; lightKind: string }
+  /** The mark brush: each click toggles a marked square. */
+  | { kind: 'mark' }
+  /** The walk: clicks spend feet, and only the active combatant's. */
+  | { kind: 'walk' }
+  /** A spell on the ground: what it is, waiting for where. */
+  | {
+      kind: 'zone';
+      label: string;
+      shape: ZoneShape;
+      feet: number;
+      rounds?: number;
+      effect?: ZoneEffect;
+      /**
+       * The first of two clicks for an aimed shape - a cone or a line needs
+       * an origin, then a direction. Null until that first click. It lives
+       * here rather than beside the tool because it means nothing without
+       * one, which is the whole reason §137 folded it in.
+       */
+      from: Square | null;
+    };
+
+
 export function TableTab({
   roster,
   onChange: writeRoster,
@@ -433,18 +470,22 @@ export function TableTab({
   */
   const [camera, setCamera] = useState<Camera>(WHOLE_MAP);
 
-  /*
-    A spell being placed: what it is, waiting for where. Aimed shapes take two
-    clicks - origin, then the way it points - so `aimFrom` holds the first.
-  */
-  const [placing, setPlacing] = useState<{
-    label: string;
-    shape: ZoneShape;
-    feet: number;
-    rounds?: number;
-    effect?: ZoneEffect;
-  } | null>(null);
-  const [aimFrom, setAimFrom] = useState<Square | null>(null);
+  /**
+   * §137: what the DM has in hand. One, or none - see ADR-0001.
+   *
+   * Six tools used to be six pieces of state, and §134 made arming one put
+   * the others down. This is that rule as a type: the six are members of a
+   * union, so "an aim and a light at once" is not a state to be avoided but
+   * a value that cannot be written down.
+   *
+   * `from` lives inside the zone member because it is meaningless without
+   * one. Aimed shapes take two clicks - origin, then the way it points - so
+   * it holds the first, and it used to sit beside `placing` as an equal.
+   */
+  const [tool, setTool] = useState<Tool | null>(null);
+
+  /** Put down whatever is in hand. Every arming site calls this first. */
+  const putDownTools = () => setTool(null);
   const [zoneForm, setZoneForm] = useState({
     label: '',
     shape: 'sphere' as ZoneShape,
@@ -462,29 +503,9 @@ export function TableTab({
     surface: '' as SurfaceKind | '',
   });
 
-  /*
-    An attack waiting for its target.
+  // §137: was the aim state; the doc lives on the `Tool` member now.
 
-    Set by the trays - a character's "vs" button, a monster's whole action row -
-    and resolved by the next click on anybody in the strip or the order. One
-    aim at a time; a second aim replaces the first, and Escape-by-clicking-the
-    -banner cancels.
-  */
-  const [aim, setAim] = useState<{
-    attacker: string;
-    attackerId?: string;
-    strikes: Strike[];
-  } | null>(null);
-
-  /*
-    FFT's explicit Move: in combat, feet are spent only while this is armed,
-    and only by the active combatant - a stray click on the map never walks
-    anybody. Armed from the command menus' Move entry; sticky through a
-    multi-step walk; put down by Escape, by aiming (one tool in hand at a
-    time), and when the turn ends. Out of combat, placement clicks stay free
-    and need no arming - setup is setup.
-  */
-  const [moveArmed, setMoveArmed] = useState(false);
+  // §137: was the walk state; the doc lives on the `Tool` member now.
   /**
    * §85: the board cursor - a square the arrow keys move and Enter acts on.
    *
@@ -507,58 +528,42 @@ export function TableTab({
    * mark; inert until summoned, and Escape puts it down like everything else.
    */
   const [boardAt, setBoardAt] = useState<Square | null>(null);
-  /**
-   * A hand reaching for somebody: the next click on a combatant resolves the
-   * contest. The mode was chosen when it was armed, because the SRD leaves the
-   * push-or-floor-or-hold choice to the attacker and asking afterwards would
-   * be asking after the dice.
-   *
-   * One state for all three because it is one gesture - arm it, click a token
-   * - and because the map can only have one tool in hand at a time. §39 widened
-   * it from the two shove modes rather than adding a second armed state beside
-   * it, which would have needed every "put the tool down" to learn a new name.
-   */
-  const [grab, setGrab] = useState<{ byId: string; mode: GrabMode } | null>(null);
-  /**
-   * A light waiting for a square: the next click on the map puts it down.
-   *
-   * The same arm-then-click grammar as a zone or a shove, because it is the
-   * same gesture and a DM should not have to learn a second one.
-   */
-  const [placingLight, setPlacingLight] = useState<string | null>(null);
-  /* §89: the mark-painting tool. Armed from the Prep drawer's objective
-     block; each map click toggles a marked square. A tool like the light
-     tool, so Escape and the one-tool-in-hand rule already know it. */
-  const [placingMark, setPlacingMark] = useState(false);
+  // §137: was the grab state; the doc lives on the `Tool` member now.
+  // §137: was the light state; the doc lives on the `Tool` member now.
+  // §137: was the mark-brush state; the doc lives on the `Tool` member now.
 
-  /**
-   * §134: one tool in hand.
-   *
-   * Six tools can be armed - aim, grab, the light, the mark brush, the walk,
-   * and a placement - and until now only three of them knew about each
-   * other: aiming put the walk down, grabbing put both down, and the light
-   * and the mark brush put down nothing at all. So arming the light while
-   * aiming left both live, and the priority stack in the Escape handler
-   * existed to unwind states nobody had chosen to allow.
-   *
-   * Arming any tool now puts every other one down. Pressing the same tool
-   * again still toggles it off, because "I meant the other thing" and "I
-   * meant nothing" are both things a DM means.
-   *
-   * The Escape handler keeps its order even though at most one branch can
-   * now fire: it also unwinds the things that are *not* tools - the board
-   * cursor, the save results, the drawer - and those still stack behind
-   * whatever is in hand.
-   */
-  const putDownTools = () => {
-    setAim(null);
-    setGrab(null);
-    setPlacingLight(null);
-    setPlacingMark(false);
-    setMoveArmed(false);
-    setPlacing(null);
-    setAimFrom(null);
-  };
+  /*
+    §137: the six names the rest of this file reads, derived from the one
+    piece of state that now holds them. Scaffolding while the fold happens -
+    each one is deleted in turn, and the compiler then names every site that
+    used it.
+  */
+
+  /*
+    Each of these puts its OWN tool down, not whatever happens to be in hand.
+    That distinction is the whole reason the scaffolding is worth having: the
+    first draft aliased `setMoveArmed(false)` to `setTool(null)`, which drops
+    everything - and two sites (the enemy-turn runner's tail, and the
+    objective changing away from `reach`) deliberately drop one named tool
+    and must leave the rest alone. A shortcut here would have moved
+    behaviour under cover of a refactor, which is §116's lesson exactly.
+  */
+  const drop = (kind: Tool['kind']) => (t: Tool | null) => (t?.kind === kind ? null : t);
+  const setAim = (next: { attacker: string; attackerId?: string; strikes: Strike[] } | null) =>
+    setTool(next ? { kind: 'aim', ...next } : drop('aim'));
+  const setGrab = (next: { byId: string; mode: GrabMode } | null) =>
+    setTool(next ? { kind: 'grab', ...next } : drop('grab'));
+  const setPlacingLight = (lightKind: string | null) =>
+    setTool(lightKind ? { kind: 'light', lightKind } : drop('light'));
+  const setPlacingMark = (on: boolean) => setTool(on ? { kind: 'mark' } : drop('mark'));
+  const setMoveArmed = (on: boolean) => setTool(on ? { kind: 'walk' } : drop('walk'));
+  const setPlacing = (
+    next: { label: string; shape: ZoneShape; feet: number; rounds?: number; effect?: ZoneEffect } | null,
+  ) => setTool(next ? { kind: 'zone', ...next, from: null } : drop('zone'));
+  /** Only ever called with a zone in hand: it is that zone's first click. */
+  const setAimFrom = (at: Square | null) =>
+    setTool((t) => (t?.kind === 'zone' ? { ...t, from: at } : t));
+
   /* §90: a delve was just begun and the party still needs seating on the
      new ground. Deployment runs one commit later than the venue change, so
      the map memos it plans against are the delve's map, not the old one. */
@@ -854,7 +859,7 @@ export function TableTab({
       tool stays armed for the next square; Escape or the Prep button puts
       it down.
     */
-    if (placingMark) {
+    if (tool?.kind === 'mark') {
       const current = encounter.objective;
       if (current?.kind === 'reach') {
         setEncounter({
@@ -866,8 +871,8 @@ export function TableTab({
     }
     // A light being placed claims the click first: it is the simplest tool
     // in hand and has no second step to get wrong.
-    if (placingLight) {
-      const kind = LIGHT_KINDS.find((k) => k.id === placingLight);
+    if (tool?.kind === 'light') {
+      const kind = LIGHT_KINDS.find((k) => k.id === tool.lightKind);
       setPlacingLight(null);
       if (kind) {
         setEncounter(
@@ -893,30 +898,37 @@ export function TableTab({
       A spell being placed claims the click. Aimed shapes take the origin
       first, then the click that points them.
     */
-    if (placing) {
-      const aimed = ZONE_SHAPES.find((s) => s.shape === placing.shape)?.aimed;
-      if (aimed && !aimFrom) {
+    if (tool?.kind === 'zone') {
+      const aimed = ZONE_SHAPES.find((s) => s.shape === tool.shape)?.aimed;
+      if (aimed && !tool.from) {
         setAimFrom(at);
         return;
       }
-      const origin = aimed ? aimFrom! : at;
+      const origin = aimed ? tool.from! : at;
       const angle = aimed ? Math.atan2(at.y - origin.y, at.x - origin.x) : 0;
       dropZone({
         id: `z${encounter.nextSeq}`,
-        label: placing.label || 'Effect',
-        shape: placing.shape,
+        label: tool.label || 'Effect',
+        shape: tool.shape,
         at: origin,
-        feet: placing.feet,
+        feet: tool.feet,
         angle,
-        rounds: placing.rounds,
+        rounds: tool.rounds,
         tint: (encounter.zones?.length ?? 0) % 4,
-        effect: placing.effect,
+        effect: tool.effect,
       });
       setPlacing(null);
       setAimFrom(null);
       return;
     }
-    if (placing || aim) return;
+    /*
+      §137: an aim only. `moveSelected` below IS the walk, so a bare
+      `if (tool) return` here would have made a walk in hand stop the map
+      from walking anybody - the exact shape of mistake this fold's audit
+      was looking for. The zone, the light and the mark brush have all
+      returned above; a grab falls through, as it always did.
+    */
+    if (tool?.kind === 'aim') return;
     moveSelected(at);
   };
 
@@ -950,7 +962,7 @@ export function TableTab({
     // In initiative, walking is deliberate: the Move command arms it, and
     // only for whoever's turn it is. This is what makes "click the goblin
     // to attack it" safe - the click cannot be mistaken for a walk.
-    if (!moveArmed || selected.id !== active?.id) return;
+    if (tool?.kind !== 'walk' || selected.id !== active?.id) return;
 
     const next = walkInto(roster, selected, to);
     if (next) onChange(next);
@@ -1672,7 +1684,8 @@ export function TableTab({
     // Unarmed, clicks do not walk, so nothing lights. Each tile is priced by
     // the route that would actually be walked - around the fire when the
     // budget allows, through it when only the shortcut fits.
-    if (!walk || !isRunning(encounter) || !moveArmed || selected?.id !== active?.id) return [];
+    if (!walk || !isRunning(encounter) || tool?.kind !== 'walk' || selected?.id !== active?.id)
+      return [];
     const out: { at: Square; dash?: boolean }[] = [];
     /*
       Frightened's other half, drawn as well as enforced. `walkInto` has
@@ -1697,7 +1710,7 @@ export function TableTab({
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walkPlan, walk, walkBudget, encounter, moveArmed, selected, active]);
+  }, [walkPlan, walk, walkBudget, encounter, tool, selected, active]);
 
   /**
    * What the monster whose turn it is would do, if it were driving itself.
@@ -1735,7 +1748,19 @@ export function TableTab({
     }));
 
   const enemyPlan = useMemo(() => {
-    if (!isRunning(encounter) || aim || placing || moveArmed) return null;
+    /*
+      §137: the three the original named - an aim, a zone, a walk - rather
+      than "anything in hand". A light or the mark brush leaves the enemy's
+      plan on screen, which is how it behaves today.
+    */
+    if (
+      !isRunning(encounter) ||
+      tool?.kind === 'aim' ||
+      tool?.kind === 'zone' ||
+      tool?.kind === 'walk'
+    ) {
+      return null;
+    }
     if (active?.kind !== 'monster' || selected?.id !== active.id || !active.at) return null;
     if ((hpOf(active)?.now ?? 0) <= 0 || active.dormant) return null;
     const monster = byId.get(active.monsterId);
@@ -1762,7 +1787,7 @@ export function TableTab({
       approach: partyApproach ? (at) => partyApproach.cost.get(keyOf(at)) ?? null : undefined,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [encounter, aim, placing, moveArmed, active, selected, byId, derived, walkPlan, walk, walkBudget, partyApproach]);
+  }, [encounter, tool, active, selected, byId, derived, walkPlan, walk, walkBudget, partyApproach]);
 
   /**
    * §88: the future, computed. For every monster that will actually act -
@@ -2076,8 +2101,8 @@ export function TableTab({
   };
 
   const resolveAim = (target: Combatant) => {
-    if (!aim) return;
-    resolveStrikes({ name: aim.attacker, id: aim.attackerId }, aim.strikes, target);
+    if (tool?.kind !== 'aim') return;
+    resolveStrikes({ name: tool.attacker, id: tool.attackerId }, tool.strikes, target);
     setAim(null);
   };
 
@@ -2183,13 +2208,13 @@ export function TableTab({
    * already replaced.
    */
   const resolveGrab = (targetId: string) => {
-    if (!grab) return;
-    const mode = grab.mode;
+    if (tool?.kind !== 'grab') return;
+    const { byId, mode } = tool;
     setGrab(null);
     const { roster: next, events } = grappleResolve(
       fight,
       roster,
-      grab.byId,
+      byId,
       targetId,
       mode,
       sightContext,
@@ -2255,7 +2280,7 @@ export function TableTab({
   /** A click on somebody in the strip or the order: target when aiming, select otherwise. */
   const choose = (id: string) => {
     const combatant = encounter.combatants.find((c) => c.id === id);
-    if (aim && combatant) {
+    if (tool?.kind === 'aim' && combatant) {
       resolveAim(combatant);
       return;
     }
@@ -2362,12 +2387,23 @@ export function TableTab({
   const tokenClick = (id: string) => {
     // An armed shove takes the click before anything else: the tool in hand
     // is the tool that answers, same as an armed aim.
-    if (grab) {
+    if (tool?.kind === 'grab') {
       resolveGrab(id);
       return;
     }
     const target = encounter.combatants.find((c) => c.id === id);
-    if (target && !aim && !placing && !moveArmed && maySwingAt(target)) {
+    /*
+      §137: the three that took the click before this one, named rather than
+      collapsed to `!tool` - a light or the mark brush in hand does not stop
+      a token click from being an attack, which is how it behaves today.
+    */
+    if (
+      target &&
+      tool?.kind !== 'aim' &&
+      tool?.kind !== 'zone' &&
+      tool?.kind !== 'walk' &&
+      maySwingAt(target)
+    ) {
       const strikes = strikesFor(active!);
       if (strikes.length) {
         resolveStrikes({ name: nameOf(active!), id: active!.id }, strikes, target, {
@@ -2387,7 +2423,8 @@ export function TableTab({
     scimitar is rarely aiming it at another goblin.
   */
   const aimTargets = useMemo(() => {
-    if (!aim) return [];
+    if (tool?.kind !== 'aim') return [];
+    const aim = tool;
     const attacker = aim.attackerId
       ? encounter.combatants.find((c) => c.id === aim.attackerId)
       : undefined;
@@ -2473,7 +2510,7 @@ export function TableTab({
     return out.sort((a, b) => (a.foe !== b.foe ? (a.foe ? -1 : 1) : b.chance - a.chance));
     // hpOf/nameOf are stable per render and derive from the same stores.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aim, encounter.combatants, sightContext, roster.entries, partyVisible]);
+  }, [tool, encounter.combatants, sightContext, roster.entries, partyVisible]);
 
   /**
    * The group save: everyone still standing rolls with their real bonus.
@@ -2772,7 +2809,10 @@ export function TableTab({
     // whoever came up is the cockpit until the DM clicks somebody else.
     if (began) setSelectedId(began.id);
     // The old turn's walk does not carry into the new one's hands.
-    setMoveArmed(false);
+    // §137/ADR-0001: a turn boundary empties the DM's hands, not just the
+    // walk. An aim carries the combatant it was armed for, so surviving
+    // into somebody else's turn meant pointing at the last one.
+    setTool(null);
     onChange(updated);
   };
 
@@ -2796,8 +2836,15 @@ export function TableTab({
   */
   const clickAttacks =
     isRunning(encounter) &&
-    !placing &&
-    !moveArmed &&
+    /*
+      §137: the zone and the walk specifically, not "nothing in hand". An
+      armed aim or grab takes the click before this is consulted, but a
+      light or the mark brush leaves tokens rendering as targetable - which
+      is what happens today, so it is preserved rather than tidied. Changing
+      it would be a behaviour change riding along with a refactor.
+    */
+    tool?.kind !== 'zone' &&
+    tool?.kind !== 'walk' &&
     active?.kind === 'character' &&
     !roster.entries.find((e) => e.id === active.rosterId)?.play.turn.action &&
     strikesFor(active).length > 0;
@@ -2832,7 +2879,7 @@ export function TableTab({
         flash: flashes[c.id],
         float: floats[c.id],
         hiding: c.hidden !== undefined,
-        targetable: aim
+        targetable: tool?.kind === 'aim'
           ? true
           : clickAttacks && c.kind === 'monster' && (hp?.now ?? 0) > 0,
         conditions: conditionIds.map((id) => ({
@@ -2906,7 +2953,7 @@ export function TableTab({
     one square must not move the target it meant to hit.
   */
   const onMove = (id: string, to: Square) => {
-    if (aim) return;
+    if (tool?.kind === 'aim') return;
     const combatant = encounter.combatants.find((c) => c.id === id);
     if (!combatant) return;
     if (!isRunning(encounter) || !combatant.at) {
@@ -3019,7 +3066,8 @@ export function TableTab({
             <button
               className="btn btn-sm"
               onClick={() => {
-                setMoveArmed(false);
+                // §137: the fight is over, so nothing is still in hand.
+                setTool(null);
                 setEncounter(endEncounter(encounter));
               }}
             >
@@ -3039,7 +3087,8 @@ export function TableTab({
               confirmLabel="Really clear"
               title="Empty the table: combatants, positions, log and map"
               onConfirm={() => {
-                setMoveArmed(false);
+                // §137: the table is gone, so nothing is still in hand.
+                setTool(null);
                 setEncounter(emptyEncounter());
               }}
             />
@@ -3079,8 +3128,8 @@ export function TableTab({
                        says what this is rather than what pressing it does. The
                        visible name is still inside it, so the label contains
                        what a reader sees. */
-                    aria-label={aim ? `Target ${nameOf(combatant)}` : `Show ${nameOf(combatant)} in the rail`}
-                    title={aim ? `Target ${nameOf(combatant)}` : `Show ${nameOf(combatant)} in the rail`}
+                    aria-label={tool?.kind === 'aim' ? `Target ${nameOf(combatant)}` : `Show ${nameOf(combatant)} in the rail`}
+                    title={tool?.kind === 'aim' ? `Target ${nameOf(combatant)}` : `Show ${nameOf(combatant)} in the rail`}
                     onClick={() => choose(combatant.id)}
                   >
                     <b>{nameOf(combatant)}</b>
@@ -3484,17 +3533,18 @@ export function TableTab({
     line waits for its origin, then swings toward the cursor from there.
   */
   const ghostZone = useMemo(() => {
-    if (!placing || !hover) return [];
-    const aimed = ZONE_SHAPES.find((z) => z.shape === placing.shape)?.aimed;
-    const origin = aimed ? aimFrom ?? hover : hover;
+    if (tool?.kind !== 'zone' || !hover) return [];
+    const { from } = tool;
+    const aimed = ZONE_SHAPES.find((z) => z.shape === tool.shape)?.aimed;
+    const origin = aimed ? from ?? hover : hover;
     const angle =
-      aimed && aimFrom ? Math.atan2(hover.y - aimFrom.y, hover.x - aimFrom.x) : 0;
+      aimed && from ? Math.atan2(hover.y - from.y, hover.x - from.x) : 0;
     const phantom = {
       id: 'ghost',
-      label: placing.label || 'Effect',
-      shape: placing.shape,
+      label: tool.label || 'Effect',
+      shape: tool.shape,
       at: origin,
-      feet: placing.feet,
+      feet: tool.feet,
       angle,
       tint: (encounter.zones?.length ?? 0) % 4,
     };
@@ -3504,11 +3554,11 @@ export function TableTab({
         label: phantom.label,
         tint: phantom.tint,
         origin: phantom.at,
-        squares: aimed && !aimFrom ? [origin] : zoneSquares(phantom),
+        squares: aimed && !from ? [origin] : zoneSquares(phantom),
         ghost: true,
       },
     ];
-  }, [placing, hover, aimFrom, encounter.zones]);
+  }, [tool, hover, encounter.zones]);
 
   /*
     The ruler measures the walk, not the crow: the note is the walked cost and
@@ -3517,7 +3567,8 @@ export function TableTab({
     route exists at all, it says so instead of inventing a number.
   */
   const measuring = useMemo(() => {
-    if (placing || aim || !hover || !selected?.at || !walk) return null;
+    if (tool?.kind === 'zone' || tool?.kind === 'aim' || !hover || !selected?.at || !walk)
+      return null;
     if (hover.x === selected.at.x && hover.y === selected.at.y) return null;
     // The ruler draws the route that would actually be walked - bending
     // around the fire exactly when the walk itself would.
@@ -3542,7 +3593,7 @@ export function TableTab({
       note,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [placing, aim, hover, selected, walkPlan, walk, walkBudget, encounter]);
+  }, [tool, hover, selected, walkPlan, walk, walkBudget, encounter]);
   const rulerNote = measuring?.note;
 
   /*
@@ -3557,17 +3608,17 @@ export function TableTab({
     return encounter.combatants.filter((c) => c.at && inGhost.has(keyOf(c.at))).length;
   })();
   const bestShot = aimTargets.find((t) => t.foe) ?? aimTargets[0];
-  const hint = aim
+  const hint = tool?.kind === 'aim'
     ? bestShot
-      ? `Pick ${aim.attacker}'s target — best shot: ${bestShot.name}, ${Math.round(bestShot.chance * 100)}%`
-      : `Click ${aim.attacker}'s target — Esc cancels`
-    : placing && ZONE_SHAPES.find((s) => s.shape === placing.shape)?.aimed && !aimFrom
+      ? `Pick ${tool.attacker}'s target — best shot: ${bestShot.name}, ${Math.round(bestShot.chance * 100)}%`
+      : `Click ${tool.attacker}'s target — Esc cancels`
+    : tool?.kind === 'zone' && ZONE_SHAPES.find((s) => s.shape === tool.shape)?.aimed && !tool.from
       ? 'Click the origin square, then point the shape'
-      : placing
+      : tool?.kind === 'zone'
         ? `Move to aim the footprint — click to place, Esc cancels${
             ghostCaught ? ` · catches ${ghostCaught} creature${ghostCaught === 1 ? '' : 's'}` : ''
           }`
-        : isRunning(encounter) && moveArmed && selected?.id === active?.id
+        : isRunning(encounter) && tool?.kind === 'walk' && selected?.id === active?.id
           ? 'Click a lit tile to move — amber needs a Dash, Esc puts the walk down'
           : isRunning(encounter) && selected && selected.id === active?.id
             ? 'Choose Move in the cockpit to walk — clicking a monster attacks'
@@ -4007,7 +4058,7 @@ export function TableTab({
           sit where the shooting is, X-COM's shot bar. Same resolveAim as
           clicking a token.
         */}
-        {aim && (
+        {tool?.kind === 'aim' && (
           <div className="hud-aim-row">
             <button
               type="button"
@@ -4015,7 +4066,7 @@ export function TableTab({
               onClick={() => setAim(null)}
               title="Press to cancel"
             >
-              Aiming: <b>{aim.strikes.map((s) => s.label).join(', ')}</b> — Esc cancels
+              Aiming: <b>{tool.strikes.map((s) => s.label).join(', ')}</b> — Esc cancels
             </button>
             {aimTargets.map((t) => (
               <button
@@ -4053,7 +4104,10 @@ export function TableTab({
           third mode to the same gesture, so it is fixed here rather than
           left for whoever hits it.
         */}
-        {grab && !aim && (
+        {/* §137: the `&& !aim` this used to carry is gone - it guarded
+            against holding a grab and an aim at once, which ADR-0001 made
+            a state that cannot be written down. */}
+        {tool?.kind === 'grab' && (
           <div className="hud-aim-row">
             <button
               type="button"
@@ -4061,9 +4115,9 @@ export function TableTab({
               onClick={() => setGrab(null)}
               title="Press to cancel"
             >
-              {grab.mode === 'grapple'
+              {tool.mode === 'grapple'
                 ? 'Grappling: '
-                : grab.mode === 'prone'
+                : tool.mode === 'prone'
                   ? 'Tripping: '
                   : 'Shoving: '}
               <b>click whoever is within reach</b> — Esc cancels
@@ -4086,7 +4140,7 @@ export function TableTab({
             // While aiming, each targetable token carries its odds - the
             // same number the chip shows, floated over the head X-COM puts
             // it on.
-            tokens: aim
+            tokens: tool?.kind === 'aim'
               ? tokens.map((t) => {
                   const shot = aimTargets.find((a) => a.id === t.id);
                   return shot ? { ...t, odds: `${Math.round(shot.chance * 100)}%` } : t;
@@ -4154,13 +4208,13 @@ export function TableTab({
                over the pointer's when it is down, because it is the one that
                had to be summoned - a hover is where the mouse happens to be,
                and a board cursor is where somebody put it. */
-            cursor: boardAt ?? (placing ? hover : null),
+            cursor: boardAt ?? (tool?.kind === 'zone' ? hover : null),
             note: rulerNote,
             noteAt: measuring?.to ?? null,
             ruler: measuring ? { points: measuring.points } : null,
             arc:
-              placing && hover && (aimFrom ?? selected?.at)
-                ? { from: (aimFrom ?? selected?.at)!, to: hover }
+              tool?.kind === 'zone' && hover && (tool.from ?? selected?.at)
+                ? { from: (tool.from ?? selected?.at)!, to: hover }
                 : null,
             fog: partyVisible
               ? { visible: partyVisible, explored: new Set(encounter.explored ?? []) }
@@ -4573,11 +4627,11 @@ export function TableTab({
           <button
             key={kind.id}
             type="button"
-            className={`btn btn-sm ${placingLight === kind.id ? 'btn-primary' : ''}`}
+            className={`btn btn-sm ${tool?.kind === 'light' && tool.lightKind === kind.id ? 'btn-primary' : ''}`}
             title={kind.hint}
-            aria-pressed={placingLight === kind.id}
+            aria-pressed={tool?.kind === 'light' && tool.lightKind === kind.id}
             onClick={() => {
-              const same = placingLight === kind.id;
+              const same = tool?.kind === 'light' && tool.lightKind === kind.id;
               putDownTools();
               if (!same) setPlacingLight(kind.id);
             }}
@@ -4586,18 +4640,18 @@ export function TableTab({
           </button>
         ))}
       </div>
-      {placingLight && (
+      {tool?.kind === 'light' && (
         <p className="hint" style={{ marginTop: 0 }}>
           Click the map to put it down — Esc puts it back.
           {selected && ' Or hand it to whoever is selected, and it walks with them.'}
         </p>
       )}
-      {placingLight && selected && (
+      {tool?.kind === 'light' && selected && (
         <div className="row" style={{ gap: 6, marginBottom: 8 }}>
           <button
             className="btn btn-sm"
             onClick={() => {
-              const kind = LIGHT_KINDS.find((k) => k.id === placingLight);
+              const kind = LIGHT_KINDS.find((k) => k.id === tool.lightKind);
               setPlacingLight(null);
               if (!kind) return;
               setEncounter(
@@ -4803,10 +4857,10 @@ export function TableTab({
           )}
           <button
             type="button"
-            className={`btn btn-sm ${placing ? 'btn-primary' : ''}`}
+            className={`btn btn-sm ${tool?.kind === 'zone' ? 'btn-primary' : ''}`}
             style={{ alignSelf: 'center' }}
             onClick={() => {
-              if (placing) {
+              if (tool?.kind === 'zone') {
                 setPlacing(null);
                 setAimFrom(null);
                 return;
@@ -4845,13 +4899,13 @@ export function TableTab({
               });
             }}
           >
-            {placing ? 'Cancel placing' : 'Place on map'}
+            {tool?.kind === 'zone' ? 'Cancel placing' : 'Place on map'}
           </button>
         </div>
-        {placing && (
+        {tool?.kind === 'zone' && (
           <p className="muted" style={{ margin: '0 0 8px' }}>
-            {ZONE_SHAPES.find((s) => s.shape === placing.shape)?.aimed
-              ? aimFrom
+            {ZONE_SHAPES.find((s) => s.shape === tool.shape)?.aimed
+              ? tool.from
                 ? 'Now click the way it points.'
                 : 'Click where it starts, then the way it points.'
               : 'Click the map to place it.'}
@@ -5012,15 +5066,15 @@ export function TableTab({
         {objective?.kind === 'reach' && (
           <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <button
-              className={`btn btn-sm ${placingMark ? 'btn-primary' : ''}`}
-              aria-pressed={placingMark}
+              className={`btn btn-sm ${tool?.kind === 'mark' ? 'btn-primary' : ''}`}
+              aria-pressed={tool?.kind === 'mark'}
               onClick={() => {
-                const was = placingMark;
+                const was = tool?.kind === 'mark';
                 putDownTools();
                 if (!was) setPlacingMark(true);
               }}
             >
-              {placingMark ? 'Painting — click squares' : 'Paint the mark'}
+              {tool?.kind === 'mark' ? 'Painting — click squares' : 'Paint the mark'}
             </button>
             <span className="muted">
               {objective.squares.length
@@ -5751,15 +5805,13 @@ export function TableTab({
           setKeysOpen(false);
           return;
         }
-        if (aim) setAim(null);
-        else if (grab) setGrab(null);
-        else if (placingLight) setPlacingLight(null);
-        else if (placingMark) setPlacingMark(false);
-        else if (moveArmed) setMoveArmed(false);
-        else if (placing) {
-          setPlacing(null);
-          setAimFrom(null);
-        } else if (saveResults) setSaveResults(null);
+        if (tool?.kind === 'aim') setAim(null);
+        else if (tool?.kind === 'grab') setGrab(null);
+        else if (tool?.kind === 'light') setPlacingLight(null);
+        else if (tool?.kind === 'mark') setPlacingMark(false);
+        else if (tool?.kind === 'walk') setMoveArmed(false);
+        else if (tool?.kind === 'zone') setPlacing(null);
+        else if (saveResults) setSaveResults(null);
         /* §85: the board cursor is the weakest thing in hand - it is a place
            being pointed at rather than a tool armed - so it goes after every
            tool and before the drawer. */

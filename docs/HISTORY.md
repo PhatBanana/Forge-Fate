@@ -8185,3 +8185,83 @@ all.
 **Gates.** 2530 tests / 128 files, `tsc -b`, oxlint, build in budget.
 Plus `node scratchpad/check117.mjs` against the deployment, which is not
 a gate CI can run and is recorded here instead.
+
+## 137. One tool, one union
+
+ROADMAP §8's last open item, and the one §134 unblocked. The battle
+screen's six tools were six pieces of state; they are one now.
+
+    type Tool =
+      | { kind: 'aim'; attacker; attackerId?; strikes }
+      | { kind: 'grab'; byId; mode }
+      | { kind: 'light'; lightKind }
+      | { kind: 'mark' }
+      | { kind: 'walk' }
+      | { kind: 'zone'; label; shape; feet; rounds?; effect?; from }
+
+Seven `useState` calls became one. `aimFrom` folded into the zone member,
+where it belongs: it is the first of two clicks for an aimed shape, it is
+meaningless without a zone in hand, and it had been sitting beside
+`placing` as an equal.
+
+**The order this was done in is the point.** §107 declined this union with
+a sound reason - the tools were not exclusive, so a union would have made
+a reachable state unrepresentable - and wrote down the condition for
+reopening. §134 met that condition by changing the product rule. Only
+then was the type honest. Doing it the other way round, folding the union
+to tidy the state and discovering the behaviour change afterwards, is the
+mistake ADR-0001 exists to stop somebody making in reverse.
+
+**Tests first, because the gap was measured.** §134 landed with all 209
+battle-screen tests passing unedited, which proved no flow depended on
+holding two tools and pinned nothing: every test in that file exercises
+the tools one at a time, and the axis a union restructures is the
+transitions between them. Seven tests went in first. Five passed
+immediately - characterisation of §134's rule - and two failed, which is
+the behaviour this section adds.
+
+**Then six compiler-driven passes.** The union went in with six derived
+aliases keeping the old names, so every read site still compiled; then
+the aliases were deleted one at a time, and `tsc -b` listed exactly the
+sites that had used each. That turns "find the hundred and thirty places"
+into six rounds where the compiler enumerates them and refuses to build
+until each is handled, with a green suite between rounds.
+
+It earned its keep three times over.
+
+**What the scaffolding caught.** The first draft aliased
+`setMoveArmed(false)` to `setTool(null)` - shorter, and a different app.
+It drops *everything*, so it turned the turn-change test green for the
+wrong reason and would have emptied the DM's hands at the two sites that
+deliberately drop one named tool. Each setter drops only its own now.
+
+**What the audit caught.** Three conditions had been quietly widened from
+a named set of tools to "anything in hand". All three compiled:
+
+- `enemyPlan` suppressed the danger wash for any tool, not the three that
+  named it, so a light in hand would have blanked it.
+- `tokenClick` would have stopped a token click being an attack while the
+  mark brush was held.
+- **`boardClick` would have broken walking entirely.** `moveSelected(at)`
+  sits directly beneath it, so returning early with the walk in hand
+  means map clicks stop moving anybody.
+
+That last one is not a subtle wrong number, and it is exactly the shape
+this fold was warned about: two of the six tools are booleans, so a
+check for a *specific* tool collapsing into truthiness on the shared
+variable type-checks perfectly. The first grep for it missed the third
+case, which wears `||` rather than `if`; widening the search to every
+bare `tool` is what found it. All three name their tools explicitly now,
+each with a comment saying why it is not `!tool`.
+
+**Three behaviour changes, all chosen.** A turn ending, a fight ending
+and the table being cleared now empty the DM's hands rather than dropping
+only the walk. The first also fixes a latent case: an aim carries the
+combatant it was armed for, so surviving into somebody else's turn meant
+pointing at the last one.
+
+**And one guard deleted rather than translated.** The grab banner
+rendered on `grab && !aim`; the `&& !aim` existed solely to cope with
+holding both. It is not a condition any more, because it is not a state.
+
+**Gates.** 2537 tests / 128 files, `tsc -b`, oxlint, build in budget.

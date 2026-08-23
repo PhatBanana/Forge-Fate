@@ -42,6 +42,16 @@ same in code, comments, HISTORY and reviews. Deeper reasoning lives in
   declared extras, typed at the caller so a dropped prop is a compile
   error.
 
+## The battle screen
+
+- **Tool** — what the DM has in hand: an aim, a grab, a light, the mark
+  brush, the walk, or a zone placement. Exactly one, or none (§134,
+  ADR-0001). Arming one puts the other down; a turn ending, a fight
+  ending or the table being cleared empties the hands.
+- **Board cursor** — a square being pointed at rather than something
+  held (§85). Not a tool: Escape unwinds it after whatever is in hand
+  and before the drawer.
+
 ## The fight
 
 - **Fight view** — the read-side of a fight, bundled so a rules module
