@@ -25,6 +25,11 @@ dist-ssr
 # Local notes-to-self (the relay wizard records the deployed URL here)
 .env
 
+# Wrangler's build scratch. `wrangler deploy` bundles the worker into
+# relay/.wrangler/tmp/ on the way out; it is the same source that is
+# already committed, rebuilt per deploy under a random directory name.
+.wrangler/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
