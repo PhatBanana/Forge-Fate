@@ -9716,6 +9716,40 @@ input.pcard-amount {
   color: var(--accent);
 }
 
+/*
+  §143: the one thing on a seat a player rolls.
+
+  Loud on purpose - it is the only button on this screen that resolves
+  anything, and a save the table is waiting on should not be something you
+  scroll past. Above the sheet rather than inside it, because the sheet is
+  what you read and this is what you do.
+*/
+.seat-save {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--ring);
+}
+
+.ask-answers .val {
+  font-family: var(--mono);
+  min-width: 2.5em;
+}
+
+.ask-answers em {
+  color: var(--text-faint);
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 .ss-attack > span {
   flex: 1;
   min-width: 0;

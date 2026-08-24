@@ -335,7 +335,7 @@ describe('the relay wire through a dead spot (§97)', () => {
         tableRoster: () => null,
         call: () => null,
       },
-      { onRoster: () => {}, onPlans: () => {}, onSeats: () => {}, onCall: () => {} },
+      { onRoster: () => {}, onPlans: () => {}, onSeats: () => {}, onCall: () => {}, onAnswer: () => {} },
     )!;
     session.setRole('seat');
     const socket = FakeSocket.instances[0];
@@ -395,12 +395,14 @@ describe('the table session (§103)', () => {
       plans: unknown[];
       seats: unknown[];
       calls: CheckCall[];
-    } = { rosters: [], plans: [], seats: [], calls: [] };
+      answers: { rosterId: string; total: number }[];
+    } = { rosters: [], plans: [], seats: [], calls: [], answers: [] };
     const events: SessionEvents = {
       onRoster: (roster, home) => got.rosters.push({ roster, home }),
       onPlans: (plans) => got.plans.push(plans),
       onSeats: (seats) => got.seats.push(seats),
       onCall: (call) => got.calls.push(call),
+      onAnswer: (rosterId, total) => got.answers.push({ rosterId, total }),
     };
     return { got, events };
   };
@@ -428,14 +430,14 @@ describe('the table session (§103)', () => {
       const seatSession = tableSession(room, worldOf(), seat.events, seatWire)!;
       seatSession.setRole('seat');
 
-      asked = { skillId: 'perception' };
+      asked = { ask: 'skill', skillId: 'perception' };
       host.announce('call');
-      expect(seat.got.calls).toEqual([{ skillId: 'perception' }]);
+      expect(seat.got.calls).toEqual([{ ask: 'skill', skillId: 'perception' }]);
 
       // And putting the question away is the same message, said with null.
       asked = null;
       host.announce('call');
-      expect(seat.got.calls).toEqual([{ skillId: 'perception' }, null]);
+      expect(seat.got.calls).toEqual([{ ask: 'skill', skillId: 'perception' }, null]);
       host.close();
       seatSession.close();
     });
@@ -447,7 +449,7 @@ describe('the table session (§103)', () => {
       host.setRole('host');
       const seatSession = tableSession(
         room,
-        worldOf({ call: () => ({ skillId: 'stealth' }) }),
+        worldOf({ call: () => ({ ask: 'skill', skillId: 'stealth' }) }),
         recorder().events,
         seatWire,
       )!;
@@ -460,11 +462,30 @@ describe('the table session (§103)', () => {
       seatSession.close();
     });
 
+    it('carries a save’s answer back to the host, and only to the host', () => {
+      const [hostWire, seatWire] = pairedWires();
+      const hostGot = recorder();
+      const host = tableSession(null, worldOf(), hostGot.events, hostWire)!;
+      host.setRole('host');
+      const seatGot = recorder();
+      const seatSession = tableSession(room, worldOf(), seatGot.events, seatWire)!;
+      seatSession.setRole('seat');
+
+      /* §143: the one thing that travels seat → host. A proposal, like an
+         intent - the seat says what it rolled and the DM decides. */
+      seatSession.say({ kind: 'answer', rosterId: 'c0', total: 17 });
+      expect(hostGot.got.answers).toEqual([{ rosterId: 'c0', total: 17 }]);
+      // And it is not another seat's business.
+      expect(seatGot.got.answers).toEqual([]);
+      host.close();
+      seatSession.close();
+    });
+
     it('answers a newcomer’s hello with the question already outstanding', () => {
       const [hostWire, seatWire] = pairedWires();
       const host = tableSession(
         null,
-        worldOf({ call: () => ({ skillId: 'perception' }) }),
+        worldOf({ call: () => ({ ask: 'skill', skillId: 'perception' }) }),
         recorder().events,
         hostWire,
       )!;
@@ -476,7 +497,7 @@ describe('the table session (§103)', () => {
       // Joining mid-question: the phone is asked it rather than sitting
       // blank while the table waits on the one person who reconnected.
       seatWire.send({ kind: 'hello' });
-      expect(seat.got.calls).toEqual([{ skillId: 'perception' }]);
+      expect(seat.got.calls).toEqual([{ ask: 'skill', skillId: 'perception' }]);
       host.close();
       seatSession.close();
     });

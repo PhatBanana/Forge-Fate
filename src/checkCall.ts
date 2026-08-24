@@ -1,8 +1,10 @@
 import { SKILLS_BY_ID } from './data/skills';
 import type { SkillId } from './data/skills';
-import { deriveBuild } from './engine/character';
+import { deriveBuild, saveBonusOf } from './engine/character';
 import type { BuildContext } from './engine/character';
 import type { Roster } from './storage';
+import { ABILITY_NAMES } from './types';
+import type { Ability } from './types';
 
 /**
  * §141: the DM asks the table a question.
@@ -25,12 +27,35 @@ import type { Roster } from './storage';
  * skill line this one does.
  */
 
-/** What the DM asked for, on the wire. Null is "nothing is being asked". */
-export type CheckCall = { skillId: SkillId } | null;
+/**
+ * What the DM asked for. Null is "nothing is being asked".
+ *
+ * §143 added the save. Checks and saves are the same two dice at a table -
+ * a d20 and a modifier against a number - and they are different questions:
+ * a check asks *who to ask*, and nothing has been rolled yet; a save is an
+ * event everybody answers, and the answers change the fight. So they share
+ * the call and part company at the answer.
+ */
+export type Call =
+  /** "Who has the highest Perception." Nobody rolls; the best hand goes up. */
+  | { ask: 'skill'; skillId: SkillId }
+  /**
+   * "Everyone make a Dexterity save." Everybody rolls, on their own phone,
+   * and the totals come back - which is the half a check deliberately has
+   * not got, because a check resolves nothing and a save resolves damage.
+   */
+  | { ask: 'save'; ability: Ability; dc?: number };
+
+export type CheckCall = Call | null;
 
 /** One character's answer to a call. */
 export interface Called {
-  skillId: SkillId;
+  ask: 'skill' | 'save';
+  /** The skill asked for, when one was. */
+  skillId?: SkillId;
+  /** The save asked for, when one was, and the number to beat if given. */
+  ability?: Ability;
+  dc?: number;
   /** "Perception", for the row and the mark. */
   name: string;
   /** What this character adds. */
@@ -45,13 +70,18 @@ export interface Called {
    * Whether to speak up. Ties raise: two characters on +5 should both put a
    * hand up, because the DM asked who is best and they equally are - and a
    * tie broken silently by roster order would be a lie told by a sort.
+   *
+   * Only a skill has this. A save is not a competition - everybody rolls,
+   * and the best modifier in the party is nobody's business.
    */
   raise: boolean;
 }
 
-/** A character's modifier for one skill, from the lines every sheet draws. */
-const modifierFor = (ctx: BuildContext, skillId: SkillId): number =>
-  ctx.proficiencies.skills.find((line) => line.skill === skillId)?.modifier ?? 0;
+/** What this character adds to whatever was asked for. */
+const modifierFor = (ctx: BuildContext, call: Call): number =>
+  call.ask === 'skill'
+    ? (ctx.proficiencies.skills.find((line) => line.skill === call.skillId)?.modifier ?? 0)
+    : saveBonusOf(ctx, call.ability);
 
 /**
  * The answer this character gives to the call, compared against the party.
@@ -72,26 +102,36 @@ export function called(
   party: Roster | null,
 ): Called | null {
   if (!call) return null;
-  const skill = SKILLS_BY_ID[call.skillId];
-  if (!skill) return null;
+  const name =
+    call.ask === 'skill' ? SKILLS_BY_ID[call.skillId]?.name : ABILITY_NAMES[call.ability];
+  if (!name) return null;
 
-  const mineModifier = modifierFor(mine, call.skillId);
+  const mineModifier = modifierFor(mine, call);
 
+  /*
+    A save is not a competition. Everybody rolls one, so the best modifier
+    in the party is nobody's business and comparing would tell a player the
+    wrong thing entirely - "Bram has this one" when the fireball is landing
+    on them too.
+  */
   let best: { name: string; modifier: number } | null = null;
-  for (const entry of party?.entries ?? []) {
-    if (entry.id === myRosterId) continue;
-    const modifier = modifierFor(deriveBuild(entry.build), call.skillId);
-    if (!best || modifier > best.modifier) {
-      best = { name: entry.build.name || 'Unnamed', modifier };
+  if (call.ask === 'skill') {
+    for (const entry of party?.entries ?? []) {
+      if (entry.id === myRosterId) continue;
+      const modifier = modifierFor(deriveBuild(entry.build), call);
+      if (!best || modifier > best.modifier) {
+        best = { name: entry.build.name || 'Unnamed', modifier };
+      }
     }
   }
 
   return {
-    skillId: call.skillId,
-    name: skill.name,
+    ask: call.ask,
+    ...(call.ask === 'skill' ? { skillId: call.skillId } : { ability: call.ability, dc: call.dc }),
+    name,
     mine: mineModifier,
     best,
-    raise: !best || mineModifier >= best.modifier,
+    raise: call.ask === 'skill' && (!best || mineModifier >= best.modifier),
   };
 }
 
@@ -107,6 +147,11 @@ export function called(
  */
 export function verdict(answer: Called): string {
   const mine = answer.mine >= 0 ? `+${answer.mine}` : `${answer.mine}`;
+  // A save asks everybody, so there is nothing to compare and nothing to
+  // decide - the line says what you add and what you are beating.
+  if (answer.ask === 'save') {
+    return answer.dc ? `${mine} · beat ${answer.dc}` : `${mine} · roll it`;
+  }
   if (answer.raise) return `${mine} · raise your hand`;
   return `${mine} · ${answer.best!.name} has this one`;
 }

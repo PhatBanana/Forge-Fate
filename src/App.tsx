@@ -423,6 +423,13 @@ export default function App() {
   const [call, setCall] = useState<CheckCall>(null);
   const callRef = useRef(call);
   callRef.current = call;
+  /*
+    §143: what the table rolled, for the save being asked. Keyed by roster
+    id and cleared whenever the question changes, because an answer to a
+    question nobody is asking any more is a number with no meaning - and
+    leaving it up would have the DM reading last round's saves.
+  */
+  const [answers, setAnswers] = useState<Record<string, number>>({});
   const seatIdRef = useRef(seatId);
   seatIdRef.current = seatId;
   /* §97: whether the line to the table is up. Always true on the
@@ -463,6 +470,7 @@ export default function App() {
         onPlans: setPlans,
         onSeats: setSeats,
         onCall: setCall,
+        onAnswer: (rosterId, total) => setAnswers((was) => ({ ...was, [rosterId]: total })),
         onStatus: setLinkUp,
       },
     );
@@ -494,6 +502,8 @@ export default function App() {
   useEffect(() => {
     sessionRef.current?.announce('call');
   }, [tab, call]);
+  /* A new question wipes the old answers - see the note where they live. */
+  useEffect(() => setAnswers({}), [call]);
   /*
     Monsters you made, kept in their own store rather than on the roster.
 
@@ -1187,6 +1197,7 @@ export default function App() {
             seats={seats}
             call={call}
             onCall={setCall}
+            answers={answers}
             aside={<ThemeToggle choice={themeChoice} onChange={chooseTheme} />}
           />
         )}
@@ -1262,6 +1273,13 @@ export default function App() {
                seat is the one holding both halves - this character, and the
                roster it reads, which at a relayed table is the table's. */
             call={call}
+            /* §143: a called save's total, back to the DM. It travels as an
+               operation and lands locally too, so on one device the answer
+               shows up the same way it does across a wire. */
+            onAnswer={(rosterId, total) => {
+              sessionRef.current?.say({ kind: 'answer', rosterId, total });
+              setAnswers((was) => ({ ...was, [rosterId]: total }));
+            }}
             say={say}
           />
         )}

@@ -52,11 +52,13 @@ same in code, comments, HISTORY and reviews. Deeper reasoning lives in
 - **Board cursor** — a square being pointed at rather than something
   held (§85). Not a tool: Escape unwinds it after whatever is in hand
   and before the drawer.
-- **Check-call** — the DM asking the table for a skill (§141): "who has
-  the highest Perception". Travels host → seats only; the answer is a
-  hand going up in the room, never a message coming back. Truth rather
-  than an operation, so a phone that reconnects mid-question is asked it
-  again.
+- **Check-call** — the DM asking the table something (§141, §143). A
+  **check** names a skill: "who has the highest Perception". It travels
+  host → seats only and the answer is a hand going up in the room. A
+  **save** names an ability and a DC: everybody rolls where they are
+  sitting, and the totals come back as proposals the DM reads. Truth
+  rather than an operation either way, so a phone that reconnects
+  mid-question is asked it again.
 
 ## The fight
 

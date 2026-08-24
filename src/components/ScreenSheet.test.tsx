@@ -214,6 +214,7 @@ describe('the chip that just landed', () => {
 */
 describe('the DM’s check-call', () => {
   const perception = (mine: number, best: { name: string; modifier: number } | null): Called => ({
+    ask: 'skill',
     skillId: 'perception',
     name: 'Perception',
     mine,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { called, verdict } from './checkCall';
-import { deriveBuild } from './engine/character';
+import { deriveBuild, saveBonusOf } from './engine/character';
 import { buildOf, rosterOf } from './test/factories';
 import type { Build } from './types';
 
@@ -24,7 +24,7 @@ const watcher = (name: string, wis: number, proficient: boolean): Build =>
   });
 
 const ctxOf = (build: Build) => deriveBuild(build);
-const PERCEPTION = { skillId: 'perception' } as const;
+const PERCEPTION = { ask: 'skill', skillId: 'perception' } as const;
 
 describe('what a call asks of one sheet', () => {
   it('is nothing at all when nothing is being asked', () => {
@@ -101,7 +101,7 @@ describe('what a call asks of one sheet', () => {
 
   it('is nothing for a skill that does not exist', () => {
     const build = watcher('Nyx', 10, false);
-    const bogus = { skillId: 'telepathy' } as unknown as { skillId: 'perception' };
+    const bogus = { ask: 'skill', skillId: 'telepathy' } as unknown as typeof PERCEPTION;
     expect(called(bogus, ctxOf(build), 'c0', rosterOf(build))).toBeNull();
   });
 });
@@ -125,5 +125,56 @@ describe('the line the heading carries', () => {
     const answer = called(PERCEPTION, ctxOf(build), 'c0', rosterOf(build))!;
     expect(answer.mine).toBeLessThan(0);
     expect(verdict(answer)).toMatch(/^-\d+ · raise your hand$/);
+  });
+});
+
+/*
+  §143. The save half.
+
+  Checks and saves are the same two dice and different questions, and the
+  difference shows up here: a check compares this character against the
+  party, a save does not compare at all. Everybody rolls one, so telling a
+  player "Bram has this one" while the fireball lands on them too would be
+  the wrong answer said confidently.
+*/
+describe('a called save', () => {
+  const DEX = { ask: 'save', ability: 'dex', dc: 15 } as const;
+
+  it('adds what the sheet adds to that save', () => {
+    const build = watcher('Nyx', 10, false);
+    const ctx = ctxOf(build);
+    const answer = called(DEX, ctx, 'c0', rosterOf(build))!;
+    expect(answer.ask).toBe('save');
+    expect(answer.mine).toBe(saveBonusOf(ctx, 'dex'));
+    expect(answer.name).toBe('Dexterity');
+  });
+
+  it('does not compare against the party, however good somebody else is', () => {
+    const mine = watcher('Nyx', 10, false);
+    const party = rosterOf(mine, watcher('Bram', 18, true));
+    const answer = called(DEX, ctxOf(mine), party.entries[0].id, party)!;
+    // Nobody is best at a save everybody is making.
+    expect(answer.best).toBeNull();
+    expect(answer.raise).toBe(false);
+  });
+
+  it('says what to beat rather than whose moment it is', () => {
+    const build = watcher('Nyx', 10, false);
+    const answer = called(DEX, ctxOf(build), 'c0', rosterOf(build))!;
+    expect(verdict(answer)).toBe(`+${answer.mine} · beat 15`);
+  });
+
+  it('asks for the roll when no DC was given', () => {
+    const build = watcher('Nyx', 10, false);
+    const open = { ask: 'save', ability: 'dex' } as const;
+    const answer = called(open, ctxOf(build), 'c0', rosterOf(build))!;
+    expect(verdict(answer)).toBe(`+${answer.mine} · roll it`);
+    expect(answer.dc).toBeUndefined();
+  });
+
+  it('is nothing for an ability that does not exist', () => {
+    const build = watcher('Nyx', 10, false);
+    const bogus = { ask: 'save', ability: 'luck' } as unknown as typeof DEX;
+    expect(called(bogus, ctxOf(build), 'c0', rosterOf(build))).toBeNull();
   });
 });

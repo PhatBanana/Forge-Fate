@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Panel } from './shared';
 import { PlayCard } from './PlayCard';
 import { PlanComposer } from './PlanComposer';
 import { ScreenSheet } from './ScreenSheet';
+import { defaultRng, rollD20 } from '../engine/dice';
+import { signed } from '../format';
 import { called } from '../checkCall';
 import type { CheckCall } from '../checkCall';
 import { deriveBuild } from '../engine/character';
@@ -50,6 +52,7 @@ export function SeatTab({
   onSeatChange,
   linkUp = true,
   call = null,
+  onAnswer,
   say,
 }: {
   roster: Roster;
@@ -74,6 +77,9 @@ export function SeatTab({
       than upstream, because this screen holds both halves - the character
       and the roster to compare it against. */
   call?: CheckCall;
+  /** §143: this player's total for a called save, sent back to the DM.
+      A proposal, like a plan - the DM reads it and decides. */
+  onAnswer?: (rosterId: string, total: number) => void;
   /** The roster entry this seat plays; null shows the picker. */
   seatId: string | null;
   onSeatChange: (id: string | null) => void;
@@ -87,6 +93,15 @@ export function SeatTab({
   const [joinCode, setJoinCode] = useState('');
   const [joinUrl, setJoinUrl] = useState(lastRelayUrl);
   const [playerName, setPlayerName] = useState('');
+  /* §143: one roll per question, and up here with the other hooks because
+     the seat returns early when nobody is sitting - a hook after that
+     branch would not run in the same order every render.
+
+     The total is kept so the button becomes a record of what was rolled
+     rather than an invitation to roll again: re-rolling a save until it
+     passes is not a feature. */
+  const [rolled, setRolled] = useState<number | null>(null);
+  useEffect(() => setRolled(null), [call]);
 
   const entry = roster.entries.find((e) => e.id === seatId);
   const ctx = useMemo(() => (entry ? deriveBuild(entry.build) : null), [entry]);
@@ -239,6 +254,12 @@ export function SeatTab({
         : `${combatantName(active!)} is up — ${away} ${away === 1 ? 'turn' : 'turns'} to yours.`;
 
   const plan = me ? intentFor(plans, me.id) : undefined;
+  /*
+    §141/§143: the question, answered for this character against the roster
+    this seat reads - the table's copy at a relayed table, this device's own
+    on one browser.
+  */
+  const answer = called(call, ctx, seatId, roster);
 
   /*
     Who a plan may name: living monsters, and under fog only those the party
@@ -326,10 +347,42 @@ export function SeatTab({
         No `onBuildChange`: at a relayed table this is the host's copy of
         the character (§96), so the name reads rather than types.
       */}
+      {/*
+        §143: a called save is the one thing on this screen a player rolls.
+        Not a breach of §92 but an instance of it - the seat says what it
+        rolled and the DM's screen decides what it means, which is exactly
+        the shape of a plan. A *check* has no button here on purpose:
+        nothing is resolved, so the answer is a hand in the room.
+      */}
+      {answer?.ask === 'save' && onAnswer && (
+        <div className="seat-save">
+          <b>
+            {answer.name} save{answer.dc ? ` vs ${answer.dc}` : ''}
+          </b>
+          {rolled === null ? (
+            <button
+              className="btn btn-sm btn-primary"
+              onClick={() => {
+                const roll = rollD20(answer.mine, 'normal', defaultRng);
+                setRolled(roll.total);
+                onAnswer(entry.id, roll.total);
+              }}
+            >
+              Roll {signed(answer.mine)}
+            </button>
+          ) : (
+            <span className="detail">
+              You rolled <b>{rolled}</b>
+              {answer.dc !== undefined && (rolled >= answer.dc ? ' — passed' : ' — failed')}
+            </span>
+          )}
+        </div>
+      )}
+
       <ScreenSheet
         ctx={ctx}
         play={entry.play}
-        called={called(call, ctx, seatId, roster)}
+        called={answer}
         onPlayChange={(next) => onPlay(entry.id, next)}
       />
 

@@ -223,7 +223,7 @@ describe('the sheet on the seat (§142)', () => {
   });
 
   it('lights the skill the DM asked for, and says whether to speak up', () => {
-    seat({ seatId: 'c0', roster: watchers(), call: { skillId: 'perception' } });
+    seat({ seatId: 'c0', roster: watchers(), call: { ask: 'skill', skillId: 'perception' } });
     const called = document.querySelector('.ss-skill.is-called') as HTMLElement;
     expect(called).not.toBeNull();
     expect(called.textContent).toContain('Perception');
@@ -239,7 +239,7 @@ describe('the sheet on the seat (§142)', () => {
       engine's business and `checkCall.test.ts` pins it; what matters here
       is that the other character was consulted at all.
     */
-    seat({ seatId: 'c0', roster: watchers(), call: { skillId: 'perception' } });
+    seat({ seatId: 'c0', roster: watchers(), call: { ask: 'skill', skillId: 'perception' } });
     const line = document.querySelector('.ss-called')!.textContent!;
     expect(line.includes('Unwyn') || line.includes('raise your hand')).toBe(true);
   });
@@ -255,5 +255,70 @@ describe('the sheet on the seat (§142)', () => {
     seat({ seatId: 'c0', roster: watchers() });
     expect(document.querySelector('.ss-called')).toBeNull();
     expect(document.querySelector('.ss-skill.is-called')).toBeNull();
+  });
+});
+
+/*
+  §143. A called save is the one thing a player rolls on this screen.
+
+  Not a breach of §92 but an instance of it: the seat says what it rolled
+  and the DM's screen decides what it means, which is the shape of a plan.
+  A check has no button here, and that difference is what these pin.
+*/
+describe('rolling a called save (§143)', () => {
+  const watchers = () =>
+    rosterOf(
+      { ...fighter(), name: 'Basher', skillIds: ['perception'] },
+      { ...wizard(), name: 'Unwyn', skillIds: ['stealth'] },
+    );
+
+  it('offers no roll for a check, because nothing is resolved by one', () => {
+    seat({
+      seatId: 'c0',
+      roster: watchers(),
+      call: { ask: 'skill', skillId: 'perception' },
+      onAnswer: vi.fn(),
+    });
+    expect(screen.queryByRole('button', { name: /^Roll/ })).toBeNull();
+  });
+
+  it('offers one for a save, and sends the total back', async () => {
+    const user = userEvent.setup();
+    const onAnswer = vi.fn();
+    seat({
+      seatId: 'c0',
+      roster: watchers(),
+      call: { ask: 'save', ability: 'dex', dc: 15 },
+      onAnswer,
+    });
+    await user.click(screen.getByRole('button', { name: /^Roll/ }));
+
+    expect(onAnswer).toHaveBeenCalledTimes(1);
+    const [rosterId, total] = onAnswer.mock.calls[0];
+    expect(rosterId).toBe('c0');
+    // A d20 and a modifier: the total is in range for the bonus shown.
+    expect(typeof total).toBe('number');
+  });
+
+  it('will not roll the same save twice', async () => {
+    const user = userEvent.setup();
+    const onAnswer = vi.fn();
+    seat({
+      seatId: 'c0',
+      roster: watchers(),
+      call: { ask: 'save', ability: 'dex', dc: 15 },
+      onAnswer,
+    });
+    await user.click(screen.getByRole('button', { name: /^Roll/ }));
+    // The button becomes the record of what was rolled. Re-rolling a save
+    // until it passes is not a feature.
+    expect(screen.queryByRole('button', { name: /^Roll/ })).toBeNull();
+    expect(screen.getByText(/You rolled/)).toBeInTheDocument();
+    expect(onAnswer).toHaveBeenCalledTimes(1);
+  });
+
+  it('says nothing about a save when the DM has not asked for one', () => {
+    seat({ seatId: 'c0', roster: watchers(), onAnswer: vi.fn() });
+    expect(document.querySelector('.seat-save')).toBeNull();
   });
 });

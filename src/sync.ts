@@ -64,6 +64,15 @@ export type TableMessage =
    * puts the question away.
    */
   | { kind: 'call'; call: CheckCall }
+  /**
+   * §143: seat → host - the total this player rolled for the save that was
+   * called. A proposal, not a write: the seat says what it rolled and the
+   * DM's screen decides what it means, which is the same shape as an
+   * intent and the reason this does not breach §92. A *check* has no
+   * answer message on purpose - nothing is resolved, so a hand goes up in
+   * the room instead.
+   */
+  | { kind: 'answer'; rosterId: string; total: number }
   /** Seat → host: just joined; answer with state, plans and seats. */
   | { kind: 'hello' };
 
@@ -155,6 +164,9 @@ export function hostApply(
     /* §141: the host is the one that calls, so a call reaching it came
        from somewhere else and is not its truth to take. */
     case 'call':
+    /* §143: an answer is not one of the three stores either - the DM reads
+       it and decides. It goes straight to the screen. */
+    case 'answer':
     case 'hello':
       return {};
   }
@@ -178,6 +190,8 @@ export function seatApply(
     /* §141: a call changes none of the three stores. It is answered in the
        room, so the session hands it straight to the screen. */
     case 'call':
+    /* §143: another seat's answer is not this seat's business. */
+    case 'answer':
     case 'hello':
       return {};
   }
@@ -377,6 +391,8 @@ export function isTableMessage(value: unknown): value is TableMessage {
     }
     case 'play':
       return typeof m.rosterId === 'string' && typeof m.play === 'object' && m.play !== null;
+    case 'answer':
+      return typeof m.rosterId === 'string' && typeof m.total === 'number';
     case 'call': {
       // §141: null is the whole "nothing is being asked" state, so it is a
       // valid call rather than a missing one.
@@ -519,6 +535,8 @@ export interface SessionEvents {
   onSeats(seats: Seat[]): void;
   /** §141: the DM asked for a skill, or put the question away. */
   onCall(call: CheckCall): void;
+  /** §143: a seat answered the save that was called. Host-side only. */
+  onAnswer(rosterId: string, total: number): void;
   onStatus?(up: boolean): void;
 }
 
@@ -593,6 +611,8 @@ export function tableSession(
       if (applied.roster) events.onRoster(applied.roster, 'own');
       if (applied.plans) events.onPlans(applied.plans);
       if (applied.seats) events.onSeats(applied.seats);
+      /* §143: a save's answers are the DM's to read. */
+      if (message.kind === 'answer') events.onAnswer(message.rosterId, message.total);
       if (message.kind === 'hello') {
         // The newcomer's answer: the whole truth, in four messages. §141's
         // call is among them - a phone that joins mid-question is asked it.

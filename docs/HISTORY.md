@@ -8745,3 +8745,51 @@ to reach for the seated character's derivation to do it. The seat holds
 both halves already, so it takes the question and answers it.
 
 **Gates.** 2597 tests / 130 files, `tsc -b`, oxlint, build in budget.
+
+## 143. The save, asked rather than rolled for them
+
+Checks and saves are the same two dice at a table - a d20 and a modifier
+against a number - and asking whether they should work the same way is a
+fair question. They should not, and the reason is what the table does with
+the answer rather than what the dice do.
+
+A **check** asks *who to ask*. Nobody has rolled, nothing is resolved, so
+nothing needs to come back: the answer is a hand going up (§141). A
+**save** is an event everybody answers, and the answers change the fight -
+so the totals have to come back, and a one-way call cannot carry them.
+
+**That is the objection §141 raised against itself, and it does not
+apply.** A seat sending "I rolled 17" is not the seat writing to the
+fight. It is the seat answering a question the DM asked, and the DM's
+screen still decides what it means. That is the shape of a plan (§92): a
+proposal the host resolves. So the save-call fits the authority rule
+rather than carving an exception into it, and the seat gets exactly one
+button - for the one thing on that screen that resolves anything.
+
+**It does not replace `GroupSaves`, and the choice is the feature.** §108
+rolls every save on the DM's screen and applies the damage: a fireball in
+three clicks, which is the right trade when six players are chatting. This
+is the other trade - slower, and the roll belongs to the player. A
+save-or-die is worth waiting for; a wall of fire ticking is not. The DM
+picks per question rather than per campaign.
+
+**A save is not a competition**, which is the one place the shared code
+had to part company. A check compares this character against the party and
+says whose moment it is; doing that for a save would tell a player "Bram
+has this one" while the fireball lands on them too. So the comparison is
+skipped outright for a save and the verdict says what you add and what you
+are beating.
+
+**One roll per question.** The button becomes the record of what was
+rolled rather than an invitation to roll again - re-rolling a save until it
+passes is not a feature - and the total clears when the question changes.
+The `useState` for it sits with the other hooks at the top of the seat
+rather than beside the thing it draws, because the seat returns early when
+nobody is sitting and a hook after that branch does not run in the same
+order every render. oxlint caught that, not me.
+
+**Answers clear when the question changes.** An answer to a question
+nobody is asking any more is a number with no meaning, and leaving it up
+would have the DM reading last round's saves.
+
+**Gates.** 2607 tests / 130 files, `tsc -b`, oxlint, build in budget.

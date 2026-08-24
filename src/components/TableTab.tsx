@@ -318,6 +318,7 @@ export function TableTab({
   seats = [],
   call = null,
   onCall,
+  answers,
   say,
   aside,
 }: {
@@ -378,6 +379,8 @@ export function TableTab({
   call?: CheckCall;
   /** Ask, or put the question away. Absent where there is no wire. */
   onCall?: (call: CheckCall) => void;
+  /** §143: what each seat rolled for the save being asked, by roster id. */
+  answers?: Record<string, number>;
   /**
    * §83: the battle is the screen where this matters most - almost every
    * control is in a drawer covering the board it acts on, so the result of a
@@ -3644,7 +3647,15 @@ export function TableTab({
   /* §141: beside the saves because that is the other panel that asks the
      whole party something - and not folded into it, because a save
      resolves damage and a check is a question. */
-  const askPanel = onCall ? <AskTheTable call={call} onCall={onCall} /> : null;
+  const askPanel = onCall ? (
+    <AskTheTable
+      call={call}
+      onCall={onCall}
+      answers={answers}
+      /* §143: the answers arrive keyed by roster id; the DM reads names. */
+      names={Object.fromEntries(roster.entries.map((e) => [e.id, e.build.name || 'Unnamed']))}
+    />
+  ) : null;
 
   const savesPanel = (
     <GroupSaves
