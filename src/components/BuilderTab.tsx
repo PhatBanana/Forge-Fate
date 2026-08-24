@@ -8,9 +8,14 @@ import { CLASSES_BY_ID, classesFor, subclassLevelFor, subclassName, subclassSour
 import { featById, featsFor } from '../data/feats';
 import { RACES_BY_ID, raceLineages } from '../data/races';
 import { BACKGROUNDS_BY_ID, backgroundsFor } from '../data/backgrounds';
-import { SECTIONS, openChoicesBySection } from './sections';
+import { SECTION_LABEL, SECTIONS, openChoicesBySection, sectionSummary, waitingChoices } from './sections';
+import { PendingBand } from './PendingBand';
+import { GuidedFlow, LevelUpReport, RankedOption, ReviewFindings } from './GuidedFlow';
+import { guidedStepsFor } from './flowSteps';
+import { formStepHint, rankedStepFor } from './guidedPicks';
+import { ScreenSheet } from './ScreenSheet';
 import type { Section } from './sections';
-import { LEVEL_CAP, abilityMod, racialAsi, totalLevel } from '../engine/character';
+import { LEVEL_CAP, abilityMod, racialAsi } from '../engine/character';
 import { RUN_UP_FEET, describeJump, jumpDistances, movementFor } from '../engine/movement';
 import { ARMOR, ARMOR_CATEGORY_LABEL } from '../data/armor';
 import { armorProficiencies, isProficientWith, weaponProficiencies } from '../engine/defense';
@@ -22,6 +27,7 @@ import { skillName } from '../data/skills';
 import type { SkillId } from '../data/skills';
 import type { Line } from '../engine/defense';
 import type { BuildContext } from '../engine/character';
+import type { PlayState } from '../play';
 import {
   POINT_BUY_BUDGET,
   POINT_BUY_MAX,
@@ -31,12 +37,15 @@ import {
   pointsSpent,
   rollAbilityScores,
 } from '../engine/pointBuy';
-import { defaultRng } from '../engine/dice';
+import { defaultRng, rollDie } from '../engine/dice';
 import { analyze, problemsOnly } from '../engine/analyze';
 import { recommendNext } from '../engine/recommend';
 import type { Suggestion } from '../engine/recommend';
 import { ChoiceRow } from './ChoiceRow';
+import { PrintSummary } from './PrintSummary';
 import { dprByLevel } from '../engine/scaling';
+import type { LevelPoint } from '../engine/scaling';
+import { FlowFoot } from './FlowFoot';
 import { ProgressionPanel } from './ProgressionPanel';
 import { rowState } from './picker';
 import type { PickerProps } from './picker';
@@ -56,7 +65,7 @@ import { ItemsPanel } from './ItemsPanel';
 import { InventoryPanel } from './InventoryPanel';
 import { StartingEquipmentPanel } from './StartingEquipmentPanel';
 import { LevelUpPanel } from './LevelUpPanel';
-import { levelUpSummary } from '../engine/levelUp';
+import { levelUpSummary, recordHitDieRoll } from '../engine/levelUp';
 import type { LevelUpSummary } from '../engine/levelUp';
 import { ToolsPanel } from './ToolsPanel';
 import { CountersPanel } from './CountersPanel';
@@ -90,11 +99,36 @@ const LOADOUT_LABELS: Record<Loadout, string> = {
 export function BuilderTab({
   build,
   ctx,
+  view,
+  onView,
+  play,
   onChange,
+  onPlayChange,
 }: {
   build: Build;
   ctx: BuildContext;
+  /*
+    §138: which of the Builder's two readings is showing. `flow` is the guided
+    card on the sheet; `page` is this screen's long-standing one page with
+    every section on it.
+  */
+  view: 'flow' | 'page';
+  /*
+    §138: a form-shaped step is answered on the dense page, so the flow needs
+    a way to send you there. It goes up to `App` rather than being held here,
+    because the reading and the tab are one decision (see `VIEW_TAB`).
+  */
+  onView: (view: 'flow' | 'page') => void;
+  /*
+    §138: the guided view renders the character sheet under the step card, so
+    the Builder needs what the sheet needs. Building and playing are still
+    different activities - §33's header above says so and it is still true -
+    but the *sheet* is one component and it takes its play state, so passing
+    it through is cheaper than a second sheet that cannot show hit points.
+  */
+  play: PlayState;
   onChange: (build: Build) => void;
+  onPlayChange: (play: PlayState) => void;
 }) {
   const patch = (partial: Partial<Build>) => onChange({ ...build, ...partial });
 
@@ -158,7 +192,38 @@ export function BuilderTab({
     }
   }
   const [changes, setChanges] = useState<string[]>([]);
+  /*
+    §138: which step the guided flow is on, and which breakdowns are open.
+
+    Both are view state and neither is the character. `stepIx` indexes a list
+    that is *derived* every render from what is still waiting, which is what
+    makes applying a choice advance the flow without anything advancing it:
+    answer the step at index 2 and the list is one shorter, so index 2 is now
+    the next question. A stored step id would have needed a rule for what
+    happens when the step it names stops existing.
+
+    `openWhy` is keyed by step and pick together, so opening one card's
+    working and moving on does not leave a trail of open cards behind you.
+  */
+  const [stepIx, setStepIx] = useState(0);
+  const [openWhy, setOpenWhy] = useState<Record<string, boolean>>({});
+  /* This level's hit die face, once rolled - the same state `LevelUpPanel`
+     holds for its own copy of the report, and for the same reason. */
+  const [rolledHitDie, setRolledHitDie] = useState<number | null>(null);
+  /*
+    §139: twenty whole builds derived, so it is computed once here and handed
+    to both readers. `FlowFoot` wants the shape of the curve and `DamagePanel`
+    wants the chart; memoising in each of them would mean the dense page paid
+    for the same twenty derivations twice.
+  */
+  const byLevel = useMemo(
+    () => dprByLevel(build, ctx.dpr.targetAc, Math.max(20, ctx.totalLevel)),
+    [build, ctx.dpr.targetAc, ctx.totalLevel],
+  );
   const openChoices = openChoicesBySection(ctx);
+  /* §138: the same facts at the grain the flow asks them at. Derived rather
+     than held - see `stepIx` above for why that is what advances the flow. */
+  const steps = guidedStepsFor(waitingChoices(ctx), levelUp);
   // Counted from the badges rather than from the findings, so the sentence in
   // the review and the numbers in the nav cannot disagree.
   const stillOpen = Object.values(openChoices).reduce((sum, n) => sum + n, 0);
@@ -285,9 +350,125 @@ export function BuilderTab({
     });
   };
 
-  return (
-    <>
-      {/*
+  /*
+    §138. The guided flow, and the sheet it runs on.
+
+    One column: the band, one step card, and the character sheet underneath.
+    The sheet is not a preview of the flow's work and not a link to somewhere
+    the work will show up later - it is the same screen, and the step card
+    above it names which of its boxes the current question fills.
+
+    Everything here is derived. The step list comes from what is still
+    waiting, the ranked options come from the engine that already scores them,
+    and applying one returns a whole new build rather than mutating a draft -
+    so the sheet below redraws from the same `deriveBuild` every other reader
+    of this character uses. There is no second model of the character in the
+    flow, which is the only way the two halves of one screen can agree.
+  */
+  if (view === 'flow') {
+    const step = steps[Math.min(stepIx, steps.length - 1)];
+    const ranked =
+      step?.kind === 'choice' ? rankedStepFor(step.choice, ctx, build) : null;
+
+    return (
+      <div className="flow-main">
+        <PendingBand ctx={ctx} current={section} onGoTo={setSection} />
+
+        <GuidedFlow
+          steps={steps}
+          index={Math.min(stepIx, steps.length - 1)}
+          onIndex={setStepIx}
+          waitingCount={stillOpen}
+          footNote={ranked?.foot}
+        >
+          {step?.kind === 'report' && levelUp && (
+            <LevelUpReport
+              summary={levelUp}
+              hpTotal={ctx.hp.total}
+              rolling={build.defenses.hpMode === 'rolled'}
+              rolled={rolledHitDie}
+              onRoll={() => {
+                const face = rollDie(levelUp.hitDie, defaultRng);
+                setRolledHitDie(face);
+                patch(recordHitDieRoll(build, face));
+              }}
+            />
+          )}
+
+          {step?.kind === 'review' && <ReviewFindings findings={problems} />}
+
+          {step?.kind === 'choice' &&
+            (ranked ? (
+              <div className="flow-opts">
+                {ranked.picks.map((pick, index) => {
+                  const key = `${step.id}:${pick.id}`;
+                  return (
+                    <RankedOption
+                      key={pick.id}
+                      pick={pick}
+                      rank={index + 1}
+                      open={!!openWhy[key]}
+                      onToggle={() => setOpenWhy((was) => ({ ...was, [key]: !was[key] }))}
+                      /*
+                        No `setStepIx` here on purpose. The step list is derived
+                        from what is waiting, so answering this step removes it
+                        and the same index lands on the next question. Advancing
+                        as well would skip one.
+                      */
+                      onApply={() => {
+                        const next = ranked.apply(pick.id);
+                        if (next) onChange(next);
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              /*
+                A choice the engine holds no opinion about. Saying so and
+                stopping would be a dead end in the middle of a flow, so the
+                step carries the way through: the dense page, on the section
+                that answers it, which is where that picker already lives and
+                works. Reimplementing it here is what §31.4's wizard did.
+              */
+              <div className="flow-form">
+                <p className="muted">{formStepHint(step.choice)}</p>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-primary"
+                  onClick={() => {
+                    setSection(step.choice.section);
+                    onView('page');
+                  }}
+                >
+                  Answer it under {SECTION_LABEL[step.choice.section]} →
+                </button>
+              </div>
+            ))}
+        </GuidedFlow>
+
+        {/*
+          §138: the screen reading, not the paper one. The step card above is
+          on the app's palette and says which box it fills; a cream sheet
+          underneath could not answer in the same accent, which is the whole
+          reason the two readings were split (see `SheetTab`).
+        */}
+        <ScreenSheet
+          ctx={ctx}
+          play={play}
+          highlight={step?.target}
+          onPlayChange={onPlayChange}
+          onBuildChange={onChange}
+        />
+
+        {/* §139: what the build hits for and what is wrong with it, under
+            every reading - see `FlowFoot`. Answering a step moves both. */}
+        <FlowFoot ctx={ctx} byLevel={byLevel} findings={problems} onGoTo={setSection} />
+      </div>
+    );
+  }
+
+  /*
         §33.4. One page, and a rail of anchors down its side.
 
         §31.4 made the five sections a numbered route with Back and Next, on
@@ -309,32 +490,38 @@ export function BuilderTab({
 
         The badge is still the point of having a rail: it says where a choice
         is unmade without making you scroll the page to find out.
-      */}
-      <nav className="steps" aria-label="Sections of this character">
-        {SECTIONS.map((entry, i) => {
-          const open = openChoices[entry.id];
-          return (
-            <a
-              key={entry.id}
-              href={`#section-${entry.id}`}
-              className={`step ${section === entry.id ? 'is-on' : ''} ${open > 0 ? 'is-open' : ''}`}
-              aria-current={section === entry.id ? 'true' : undefined}
-              onClick={() => setSection(entry.id)}
-            >
-              <span className="step-n" aria-hidden="true">{i + 1}</span>
-              <span className="step-label">{entry.label}</span>
-              {open > 0 && (
-                <span className="badge" title={`${open} still to choose`}>
-                  {open}
-                </span>
-              )}
-            </a>
-          );
-        })}
-      </nav>
 
-    <div className="columns">
-      <div className="stack">
+        ## §138: the rail became a band
+
+        Everything above still holds - same five sections, same anchors, same
+        badge doing the same job - but it is one line across the top of the
+        column rather than a rail down its side, and it is `PendingBand` now
+        because the sheet needs the same line and neither screen should own
+        it. The numbered route went with the rail: the numbers said "first,
+        then, then" about an order you have never been obliged to follow, and
+        the count of what is unmade was always the part people read.
+
+        ## §139: and the band moved inside the measure
+
+        The page is one measure now rather than a form column beside a pinned
+        rail, so the band sits inside it with everything else instead of
+        spanning a grid it is no longer above.
+  */
+  return (
+    <div className="flow-main">
+      <PendingBand ctx={ctx} current={section} onGoTo={setSection} />
+      {/*
+        §138's contract, stated where the reader is standing. Two readings of
+        one character rather than two modes is a claim the screen has to make
+        out loud, because every wizard that ever shipped beside a form made
+        the opposite one silently.
+      */}
+      <p className="flow-contract">
+        The guided view and this page are two readings of one character, not two modes.
+        Anything the flow asks you is a row here; anything you answer here is a step the
+        flow stops asking.
+      </p>
+
         {/* Above the section, and in every section: a level changes things
             across all of them, so it would be odd to only mention it on the
             one that happened to be open. */}
@@ -349,7 +536,7 @@ export function BuilderTab({
           />
         )}
 
-        <section id="section-identity" className="bsec">
+        <SectionRow id="identity" ctx={ctx} open={openChoices["identity"]}>
         {/*
           §87 audited converting this panel to ChoiceRow and ruled it out, on
           ChoiceRow's own header rule: "Your character is always visible. The
@@ -561,9 +748,49 @@ export function BuilderTab({
             </button>
           )}
         </Panel>
-        </section>
 
-        <section id="section-abilities" className="bsec">
+        <Panel title={build.ruleset === '2024' ? 'Species fit' : 'Lineage fit'}>
+          {(() => {
+            const cell = cellFor(ctx.race.id, ctx.primary.klass.id, build.ruleset);
+            if (!cell) return null;
+            return (
+              <>
+                <p style={{ margin: '0 0 8px' }}>
+                  <strong>
+                    {ctx.race.name} {ctx.primary.klass.name}
+                  </strong>{' '}
+                  <RatingTag rating={cell.rating} />
+                </p>
+                {cell.note && <p className="note">{cell.note}</p>}
+                <ul className="reasons">
+                  {cell.reasons.map((reason, i) => (
+                    <li key={i}>
+                      <span>{reason}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            );
+          })()}
+        </Panel>
+
+        <Panel title={build.ruleset === '2024' ? 'Species traits' : 'Lineage traits'}>
+          <dl className="detail-list">
+            {ctx.race.traits.map((trait) => (
+              <div key={trait.name}>
+                <dt>{trait.name}</dt>
+                <dd>{trait.text}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="muted" style={{ marginTop: 12 }}>
+            {ctx.race.size} · {ctx.race.speed} ft. speed · {ctx.race.source}
+          </p>
+        </Panel>
+          
+        </SectionRow>
+
+        <SectionRow id="abilities" ctx={ctx} open={openChoices["abilities"]}>
         <Panel
           title="Ability scores"
           subtitle="Set your base scores here. Lineage increases, half-feats and spent ASIs are added on top and shown underneath each score."
@@ -676,9 +903,33 @@ export function BuilderTab({
             {build.ruleset === '2024' && ' — a 2024 species grants none'}.
           </p>
         </Panel>
-        </section>
 
-        <section id="section-equipment" className="bsec">
+          <Panel
+            title={`What a ${ctx.primary.klass.name} wants`}
+            subtitle="The class's priority order — where an increase pays off first."
+          >
+            <ul className="reasons">
+              {[...ABILITIES]
+                .sort((a, b) => (ctx.abilityPriority[b] ?? 0) - (ctx.abilityPriority[a] ?? 0))
+                .map((ability) => (
+                  <li key={ability}>
+                    <Delta value={ctx.mods[ability]} />
+                    <span>
+                      <b>{ABILITY_NAMES[ability]}</b> — {ctx.scores[ability]} now
+                      {(ctx.abilityPriority[ability] ?? 0) >= 3
+                        ? ' · primary'
+                        : (ctx.abilityPriority[ability] ?? 0) >= 2
+                          ? ' · secondary'
+                          : ''}
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          </Panel>
+        
+        </SectionRow>
+
+        <SectionRow id="equipment" ctx={ctx} open={openChoices["equipment"]}>
 
         {/* First in the section, because "what do I start with" comes before
             "what am I holding" for anyone who has not answered it yet. It
@@ -707,9 +958,15 @@ export function BuilderTab({
 
         <InventoryPanel build={build} ctx={ctx} patch={patch} picker={picker} onPicker={setPicker} />
 
-        </section>
 
-        <section id="section-options" className="bsec">
+        <AttacksPanel ctx={ctx} />
+
+        <HealingPanel ctx={ctx} />
+
+          
+        </SectionRow>
+
+        <SectionRow id="options" ctx={ctx} open={openChoices["options"]}>
 
         <ProficienciesPanel build={build} ctx={ctx} patch={patch} picker={picker} onPicker={setPicker} />
 
@@ -721,9 +978,11 @@ export function BuilderTab({
 
         <SpellsPanel build={build} ctx={ctx} patch={patch} picker={picker} onPicker={setPicker} />
 
-        </section>
 
-        <section id="section-feats" className="bsec">
+<ClassFeaturesPanel ctx={ctx} />
+        </SectionRow>
+
+        <SectionRow id="feats" ctx={ctx} open={openChoices["feats"]}>
         <Panel
           title="Feats and ability score improvements"
           subtitle={`Level ${ctx.totalLevel} unlocks ${ctx.asiSlotsReached} ability score improvement ${ctx.asiSlotsReached === 1 ? 'slot' : 'slots'}, ${ctx.asiSlotsSpent} assigned${ctx.originFeatSlots ? `, plus ${ctx.originFeatSlots} free origin ${ctx.originFeatSlots === 1 ? 'feat' : 'feats'}` : ''}.`}
@@ -809,109 +1068,7 @@ export function BuilderTab({
 
           <NextPicks ctx={ctx} build={build} onChange={onChange} picker={picker} onPicker={setPicker} />
         </Panel>
-        </section>
 
-      </div>
-
-      <div className="stack rail">
-        <GlancePanel ctx={ctx} />
-
-        {/*
-          Where the work is left, by name.
-
-          Better than the badge it reads from: a badge says "7" and a rail says
-          which seven and where. It is also on screen permanently, which a badge
-          you have scrolled past is not - and on a page this long that is the
-          difference between the count being useful and being decoration.
-        */}
-        <NextChoicesPanel open={openChoices} onGoTo={setSection} />
-
-        {section === 'equipment' && (
-          <>
-        <AttacksPanel ctx={ctx} />
-
-        <HealingPanel ctx={ctx} />
-
-          </>
-        )}
-
-        {section === 'identity' && (
-          <>
-        <Panel title={build.ruleset === '2024' ? 'Species fit' : 'Lineage fit'}>
-          {(() => {
-            const cell = cellFor(ctx.race.id, ctx.primary.klass.id, build.ruleset);
-            if (!cell) return null;
-            return (
-              <>
-                <p style={{ margin: '0 0 8px' }}>
-                  <strong>
-                    {ctx.race.name} {ctx.primary.klass.name}
-                  </strong>{' '}
-                  <RatingTag rating={cell.rating} />
-                </p>
-                {cell.note && <p className="note">{cell.note}</p>}
-                <ul className="reasons">
-                  {cell.reasons.map((reason, i) => (
-                    <li key={i}>
-                      <span>{reason}</span>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            );
-          })()}
-        </Panel>
-
-        <Panel title={build.ruleset === '2024' ? 'Species traits' : 'Lineage traits'}>
-          <dl className="detail-list">
-            {ctx.race.traits.map((trait) => (
-              <div key={trait.name}>
-                <dt>{trait.name}</dt>
-                <dd>{trait.text}</dd>
-              </div>
-            ))}
-          </dl>
-          <p className="muted" style={{ marginTop: 12 }}>
-            {ctx.race.size} · {ctx.race.speed} ft. speed · {ctx.race.source}
-          </p>
-        </Panel>
-          </>
-        )}
-
-        {section === 'options' && <ClassFeaturesPanel ctx={ctx} />}
-
-        {/*
-          §80: the two sections whose contextual slot sat empty. Scrolling
-          into Abilities or Feats visibly *lost* a rail block, and they are
-          the two places a readout helps most - what the class wants from
-          the scores being set, and where a half-feat's +1 would land.
-        */}
-        {section === 'abilities' && (
-          <Panel
-            title={`What a ${ctx.primary.klass.name} wants`}
-            subtitle="The class's priority order — where an increase pays off first."
-          >
-            <ul className="reasons">
-              {[...ABILITIES]
-                .sort((a, b) => (ctx.abilityPriority[b] ?? 0) - (ctx.abilityPriority[a] ?? 0))
-                .map((ability) => (
-                  <li key={ability}>
-                    <Delta value={ctx.mods[ability]} />
-                    <span>
-                      <b>{ABILITY_NAMES[ability]}</b> — {ctx.scores[ability]} now
-                      {(ctx.abilityPriority[ability] ?? 0) >= 3
-                        ? ' · primary'
-                        : (ctx.abilityPriority[ability] ?? 0) >= 2
-                          ? ' · secondary'
-                          : ''}
-                    </span>
-                  </li>
-                ))}
-            </ul>
-          </Panel>
-        )}
-
-        {section === 'feats' && (
           <Panel
             title="Room to grow"
             subtitle="Odd scores are half-feat bait — a +1 there buys a whole modifier. Even scores need +2 or a different feat."
@@ -936,19 +1093,64 @@ export function BuilderTab({
                 })}
             </ul>
           </Panel>
-        )}
+        
+        </SectionRow>
 
         {/*
-          The two scalings, pinned rather than shown on one section.
+          §138. The build summary, rehoused.
 
-          Both answer "where is this build going", which is a question you ask
-          while making any part of it - the progression plan was on a different
-          *tab* until §33.1, and damage per round was tied to the equipment
-          section although a feat or an ability score moves it just as much.
+          It lived on the Sheet tab behind a toggle reading "Character sheet /
+          Build summary", which put a question about *which document* inside a
+          control about which sheet. It is not a sheet: it is the Builder's own
+          output on paper - where the character is going, what the damage model
+          says, what a knowledgeable reader would flag - and every one of those
+          three is already on this page in its live form. So it belongs at the
+          foot of the page that produced it, as the thing you print when you
+          want to take the plan away with you.
+
+          Behind a row, because it is a page of paper and a page of paper
+          unfolded at the bottom of a page this long is a second page nobody
+          asked for. Same one-at-a-time picker state as every other row here.
         */}
+        <ChoiceRow
+          {...rowState('build-summary', { picker, onPicker: setPicker })}
+          title="Build summary"
+          summary="the plan, the damage model and the review, on one printable page"
+        >
+          <div className="btn-row" style={{ marginBottom: 12 }}>
+            <button className="btn btn-sm btn-primary" onClick={() => window.print()}>
+              Print the summary
+            </button>
+            <span className="muted">
+              The character sheet prints from its own paper reading; this is the planning
+              page, and the two are different documents.
+            </span>
+          </div>
+          <PrintSummary ctx={ctx} />
+        </ChoiceRow>
+
+      {/*
+        §139. The analysis half of the page, and it is not a sixth section.
+
+        These four are readouts rather than choices - §123's five are the
+        things a character is *made of*, and nothing here is one of them. They
+        were the pinned rail, and the rail was right that they belong to every
+        section rather than to one: a feat, an ability score and a weapon all
+        move damage, and "where is this build going" is a question you ask
+        while making any part of a character.
+
+        What §138 took away was the *pinning*, not the argument. There is one
+        measure now, so they sit at the end of it - which is also the order
+        you use them in: you make the choices, then you read what they came
+        to. The compact pair from `FlowFoot` rides the other three readings,
+        where the panel would be more than a glance wants.
+      */}
+      <div className="flow-analysis">
+        <GlancePanel ctx={ctx} />
+
         <ProgressionPanel build={build} ctx={ctx} onChange={onChange} />
 
-        <DamagePanel build={build} ctx={ctx} patch={patch} />
+        <DamagePanel build={build} ctx={ctx} byLevel={byLevel} patch={patch} />
 
         {/* The review is the one readout that belongs to every section: a
             choice made here is often flagged by something over there. */}
@@ -979,7 +1181,58 @@ export function BuilderTab({
         </Panel>
       </div>
     </div>
-    </>
+  );
+}
+
+/**
+ * §139. One section of the dense page, as a row.
+ *
+ * ## What changed, and what did not
+ *
+ * §33.4 put every section on one page and hung the readouts in a pinned rail
+ * beside them, keyed to whichever section you had scrolled to. That rail is
+ * gone - §138 gave the page one measure - and the readouts came *into* the
+ * sections they were keyed to. Which is a better answer to §33's own rule
+ * ("the readouts its own edits move, beside the edit"), because "beside" is
+ * now inside rather than in a column that happened to be showing the right
+ * thing: Attacks is in Equipment because it is about what you are holding,
+ * not because you scrolled somewhere.
+ *
+ * ## The header, and why the state is on the edge
+ *
+ * A label, what the section currently holds, and a count of what it is still
+ * waiting on. The left edge carries the waiting state - accent when something
+ * is unmade, the quiet inner rule when it is not - which is the same signal
+ * the band's pills use at the top of the page, in the same colour, for the
+ * same fact. Two ways of saying it would be two things to keep in step; this
+ * is one fact drawn twice.
+ */
+function SectionRow({
+  id,
+  ctx,
+  open,
+  children,
+}: {
+  id: Section;
+  ctx: BuildContext;
+  /** How many choices this section is still waiting on. */
+  open: number;
+  children: ReactNode;
+}) {
+  const summary = sectionSummary(ctx)[id];
+  return (
+    <section id={`section-${id}`} className={`bsec ${open > 0 ? 'is-waiting' : ''}`}>
+      <header className="bsec-head">
+        <h2>{SECTION_LABEL[id]}</h2>
+        <p>{summary}</p>
+        {open > 0 && (
+          <span className="bsec-waiting">
+            {open} waiting <span aria-hidden="true">→</span>
+          </span>
+        )}
+      </header>
+      {children}
+    </section>
   );
 }
 
@@ -1112,40 +1365,6 @@ function useSectionSpy(onSection: (section: Section) => void) {
  * beneath reports what is wrong. Keeping those apart is what stopped the
  * review crying wolf with nine findings on an untouched sheet.
  */
-function NextChoicesPanel({
-  open,
-  onGoTo,
-}: {
-  open: Record<Section, number>;
-  onGoTo: (section: Section) => void;
-}) {
-  const left = SECTIONS.filter((entry) => open[entry.id] > 0);
-
-  return (
-    <Panel
-      title="Next choices"
-      subtitle={left.length ? 'What is still unchosen, and where.' : undefined}
-    >
-      {left.length === 0 ? (
-        <p className="muted">Every choice is made. What is left is taste.</p>
-      ) : (
-        <ul className="next-list">
-          {left.map((entry) => (
-            <li key={entry.id}>
-              <a href={`#section-${entry.id}`} onClick={() => onGoTo(entry.id)}>
-                <span className="next-where">{entry.label}</span>
-                <span className="next-count">
-                  {open[entry.id]} to choose
-                </span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Panel>
-  );
-}
-
 function GlancePanel({ ctx }: { ctx: BuildContext }) {
   const [open, setOpen] = useState<string | null>(null);
   const { build } = ctx;
@@ -2636,10 +2855,14 @@ function HealingPanel({ ctx }: { ctx: BuildContext }) {
 function DamagePanel({
   build,
   ctx,
+  byLevel,
   patch,
 }: {
   build: Build;
   ctx: BuildContext;
+  /* §139: derived once by the page and handed to both readers of it - twenty
+     `deriveBuild` calls is too much to run twice for one screen. */
+  byLevel: LevelPoint[];
   patch: (partial: Partial<Build>) => void;
 }) {
   const dpr = ctx.dpr;
@@ -2649,11 +2872,6 @@ function DamagePanel({
     class it is measured at - and computed whichever chart is showing, because
     the alternative is a stall on every toggle.
   */
-  // §72: a character past 20 gets a curve that reaches their level.
-  const byLevel = useMemo(
-    () => dprByLevel(build, dpr.targetAc, Math.max(20, totalLevel(build))),
-    [build, dpr.targetAc],
-  );
 
   // A caster with nothing in hand still has a damage number - it comes from
   // cantrips rather than swings, so the panel stays. Hooks first: this early

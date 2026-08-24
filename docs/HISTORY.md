@@ -8265,3 +8265,369 @@ rendered on `grab && !aim`; the `&& !aim` existed solely to cope with
 holding both. It is not a condition any more, because it is not a state.
 
 **Gates.** 2537 tests / 128 files, `tsc -b`, oxlint, build in budget.
+
+## 138. The flow moved onto the sheet
+
+A design handoff, not a defect: "rethink the screens themselves" rather
+than reskin them. The direction chosen was a **fusion** - the guided flow
+runs *on* the character sheet, filling its boxes as you answer, rather
+than being a wizard beside a readout and a sheet on another screen.
+
+Being landed in phases, each one green before the next starts. This
+section grows as they do.
+
+### Phase 1 - the foundation
+
+**One token added, `--ring`.** Not a fourth entry in the tint group: the
+three tints there wash a *meaning* over a surface (this is bad, this is a
+warning), and this one carries none. It marks the thing the screen and
+the reader are currently talking about - the box the flow is filling, the
+skill the DM just called, the chip that landed a second ago - and it is
+`--accent` at low alpha because "we are here" is the accent's job
+everywhere else too. Four points more alpha on dark, because the same
+wash reads weaker over a near-black panel than over cream.
+
+**The dark panel deepened**, `#241f1c` → `#1c1917`. The redesign puts a
+character sheet on a panel rather than on paper, and at the old value the
+sheet's own cards (`--bg-raised`) sat 1.15:1 off their ground - the same
+defect the palette comment has described for the page since §79. Every
+text ratio on that palette only *gains* contrast as the panel darkens, so
+`theme.test.ts` passed unedited, which is the whole reason that suite
+reads the values out of the stylesheet rather than keeping a copy.
+
+**Four readings, one character.** Builder and sheet were two tabs with a
+door each way, because they were two activities. They are not any more,
+so the two one-way buttons became one segmented control in the bar:
+Guided / Sheet / Paper / Dense page. The tab is *derived* from the view
+rather than tracked beside it - a view that disagreed with its tab is a
+state the app should not be able to hold - and every other way into those
+screens (the menu, a share link, accepting a shared character) snaps the
+view back to that screen's first reading, in one effect rather than at
+each of those call sites.
+
+§35's rule is unchanged and this is not a tab strip: it switches what you
+are *reading*, never where you are. The menu is still the only navigation.
+
+**The rail became a band.** §33.4's rail of anchors down the side of the
+Builder, and §33.5's "Next choices" panel pinned in the readout column,
+were the same list of the same five sections read from the same
+`openChoicesBySection` - one badged, one named. They are one thing now,
+`PendingBand`, one line across the top of the column, because the flow
+and the sheet both need it and neither should own it.
+
+What survived: the anchors (§33.4 argued them - keyboard behaviour, the
+back button, a shareable URL, and no `scrollIntoView` for jsdom to not
+implement), the sticky position (§33.4's argument again: a table of
+contents you can only read from the top is one you read once), the count,
+and the mark on where you are.
+
+What did not: the numerals. "1, 2, 3, 4, 5" said the sections were a
+route you had to walk, and you have not had to since §33.4. The order is
+still the order a character is made in, and that is what the test pins
+now.
+
+Done sections stay in the band reading `done ✓` rather than dropping out
+of it. A band that shortened as you worked would move every remaining
+pill under the cursor each time you answered one.
+
+**One figure rides along**: sustained damage per round. It is the only
+number a choice three sections away can move, and the card that holds it
+is at the foot of a page you are standing at the top of.
+
+**Gates.** `tsc -b`, oxlint, and the suite green with the seven touched
+tests repointed rather than deleted.
+
+### Phase 2 - the step card, on the sheet
+
+The Builder's guided reading is now one column: the band, one step card,
+and the character sheet underneath it. The card asks; the sheet is the
+thing being asked about, on screen while it asks.
+
+**The card is not sticky, and that took two attempts.** Every instinct
+says pin the thing you are working in. Pinned, it covered the sheet's own
+head on the first scroll - which is precisely what the fusion exists to
+keep visible, and a card that hides the sheet while asking about it is
+§31.4's wizard with a picture of a sheet behind it. The band above is
+sticky; that is enough.
+
+**Every step names the box it fills.** `WaitingChoice` carries a `target`
+- "Feats & ability increases", "Skills", "Pact magic" - and the card sets
+it beside the title rather than under it, so a reader who takes only the
+heading takes both halves of the sentence. A step that cannot name where
+its answer lands has not been fused with anything, and `sections.test.ts`
+now refuses one.
+
+**The list is derived, which is what advances the flow.** `stepIx` indexes
+a list rebuilt every render from what is still waiting. Answer the step at
+index 2 and the list is one shorter, so index 2 *is* the next question -
+there is no `setStepIx` in the apply handler, and adding one would skip a
+step. A stored step id would have needed a rule for what happens when the
+step it names stops existing; this needs none.
+
+**One card draws four engines.** Feats (`recommend.ts`), class options
+(`classOptions.ts`), skills (`skillValue.ts`) and spells
+(`spellRecommend.ts`) already returned the same shape: a score, signed
+reasons, the strongest of them as a headline, and whether the thing can be
+taken. Nobody designed that and it is the whole reason this is one
+component rather than four. What differs is only how you *apply* one,
+which is three lines of `Build` patching each and lives in
+`guidedPicks.ts`.
+
+**Reasoning at rest.** `SuggestionCard` is a `<details>`: the name, a
+source tag and a fit bar, with every reason behind the disclosure. So the
+ranking was visible and the argument was not, which makes a ranked list a
+leaderboard - you take the top one because it is the top one. The
+strongest single reason is now always visible and the ±working is one
+click away. Same information, opposite order.
+
+**Refusal at the choice, which had to be put back deliberately.** Every
+one of those four engines filters what you cannot take *out* of its
+ranking, correctly - a recommendation that recommends the impossible is
+broken. But a step is not a recommendation, and a list that quietly drops
+what you cannot take teaches nothing: you go looking for Perception, do
+not find it, and never learn that it is already yours. So each adapter
+asks for the refusals separately and puts the highest-scoring one back on
+the end, dimmed, with the reason where its score would be. One, not all
+of them - the point is that the refusal is reachable where the choice is
+made, not that the card becomes a list of things you cannot do.
+
+A probe of a Warlock 6 / Sorcerer 4 is what caught this: eight steps,
+four ranked, and not one refusal on any of them.
+
+**Two grains of one fact.** `openChoicesBySection` used to count five
+numbers directly; it is a sum over `waitingChoices` now. The band's counts
+and the flow's steps are the same facts read at two grains, and the only
+way to stop them drifting is to have one derive the other. Four tests hold
+the sum across six characters.
+
+**What is a form, and says so.** Six ability scores, a background, what
+you are wearing, which spells you prepare - the engine holds no opinion
+about any of these, and ranking them would mean inventing the scores as
+well as the ranking. Those steps say so and carry the way through to the
+section that answers them, on the dense page where that picker already
+exists and already works. Reimplementing it in the card is exactly what
+§31.4's wizard did.
+
+The same probe caught `prepared` mislabelled as a ranking: preparing is a
+checklist over spells you already know, not a ranking of a catalogue.
+
+**Gates.** `tsc -b`, oxlint clean (the two fast-refresh warnings this
+introduced were fixed by splitting `flowSteps.ts` and `levelUpText.ts` out
+rather than left standing), `index` 114.2 kB against a 175.8 kB budget
+with the sheet now eager, and the suite green.
+
+### Phase 3 - two readings of a sheet, and the palette that split them
+
+The handoff asked for both sheet readings to follow the theme. The comment
+above `.cs`'s palette has argued the opposite since it was written: the
+sheet is ink on cream in *both* themes, because the promise it makes is
+that the screen and the printed page are the same document, and the print
+block is four rules long precisely because there is nothing to invert.
+
+Both are right, about different readings. The argument was always about
+print, and there are two readings now - so the conceit stayed on the one
+that earns it.
+
+- **paper** (`CharacterSheet`) keeps `--ink` on `--paper`, is the sheet of
+  record, and is what the print block targets. Its corner went from the
+  app's 8px `--radius` to 4px: there are two readings now and the corner
+  is the fastest thing that tells them apart, because a card rounds and
+  paper does not.
+- **sheet** (`ScreenSheet`) is new, on the app's own palette, in the app's
+  own card shell, and never prints - `@media print` hides it outright.
+
+`.mc` and `.dmap` are untouched, `theme.test.ts`'s ink suite passed
+unedited, and no token moved.
+
+**The palette split is not a style preference.** The step card says "this
+fills Feats & ability increases" and the box has to answer in the accent
+the card is using. It cannot from cream: `--accent` on `--paper` is a
+different colour relationship from `--accent` on `--panel`. The fusion
+needed one palette across the card and the sheet underneath it, and that
+is what this buys. `--ring` plus an inset accent rule, on the box the
+current step names, and nothing else.
+
+**Abridged on purpose.** Eight skills rather than eighteen, no conditions,
+no death saves, no inventory - what you read *between* decisions rather
+than during a fight. Everything left out is on the paper reading, one
+click away. A test holds the eight, because a reading that quietly grew
+back to eighteen would have become a second sheet of record with two
+places to fix anything wrong with it.
+
+**The contract test, and what it caught immediately.** Every *ranked*
+step is answered inside the flow, so the box it names must exist on the
+screen underneath; every *form* step is answered on the dense page, where
+its box is the section. The test asserts the first half against real
+`waitingChoices` for five characters rather than against a hand-kept
+list - and failed on the first run for a Fighter 1, whose fighting-style
+step pointed at a "Class features & options" box that only rendered once
+something had been chosen. The box exists the moment the flow can point
+at it now. That is a typo no amount of reading catches.
+
+Two boxes were added to make the other targets land: `Spells` carries the
+slots *and* what is recorded, and `Class features & options` carries the
+style, the boon and the invocations.
+
+**Build summary moved.** It sat on the Sheet tab behind a toggle reading
+"Character sheet / Build summary", which put a question about *which
+document* inside a control about which sheet. It is not a sheet - it is
+the Builder's output on paper, the plan and the damage model and the
+review, all three of which are on the dense page in their live form. It
+is at the foot of that page now, behind a `ChoiceRow` for §33's height
+bound, with its own print button. The Sheet tab's sub-toggle is gone; the
+switcher in the bar is the only control that says which reading you are
+on.
+
+**Gates.** `tsc -b`, oxlint clean, and the suite green with ten new tests
+on the screen reading.
+
+## 139. The number that moved twice as far as the change
+
+`index` grew 40.9 kB in one commit and I reported it as bundle growth.
+Measured against a clean build of the parent, that was wrong.
+
+Thirty of those kilobytes were two shared chunks - `analyze` and `sheet` -
+being **inlined**. Both were emitted separately because two chunks
+imported them; §138 moved `PrintSummary` out of the lazy `SheetTab` and
+into the eager Builder, each was left with one importer, and Rollup folded
+them in. Those bytes were already fetched on first paint. They stopped
+being separate files, and nothing about what a visitor downloads changed.
+
+Real growth across the three §138 phases: **22.3 kB**, first paint 1014.1
+kB to 1036.4 kB.
+
+So the per-chunk number moved twice as far as the change did, in a
+direction that says nothing about what anyone pays. That is exactly the
+defect §59.5 named on `data` - an invariant "proxied by a number I keep
+editing" - and it is why raising `index` on its own would have made this
+file *weaker*: it would have restored the alarm margin and left the alarm
+still measuring the wrong thing.
+
+**Two changes, and the second is the point.**
+
+`index` is 256 kB, up from 180 kB, where the app sat at 82% of its ceiling
+- close enough that ordinary growth fires it, which is how §59.5's four
+reactive raises began. 256 kB restores the margin `data` (60%) and
+`TableTab` (58%) have.
+
+And first paint is now checked as itself: the entry chunk plus every chunk
+it statically imports, read out of `dist/index.html`, which is where Vite
+writes that set as the module script and its `modulepreload` links. That
+file *is* the browser's instruction - whatever is listed is fetched before
+the app runs - so it is the measurement rather than a proxy for it, and it
+is immune to re-chunking, because moving a module between two chunks that
+are both on the list does not change the total. 1.3 MB against 1.04 MB
+today.
+
+Ceiling only. A chunk leaving that list is a chunk that became lazy, which
+is the direction this check wants, so there is nothing to floor.
+
+**Both failure paths were fired before the commit**, because a guard
+nobody has seen fail is a guard nobody knows works: the ceiling with the
+limit temporarily lowered, and the "this check has stopped working" branch
+with the emitted HTML's script tags mangled. Both exit 1 and name what
+they mean.
+
+`vendor` sits at 90% of its ceiling and is deliberately left there. It is
+React; it only moves on an upgrade, and a major bump firing this is the
+right outcome.
+
+## 140. The dense page, and what the rail became
+
+§138's last two readings. The Builder's one page stopped being a form
+column beside a pinned rail, and the two readouts that belonged to every
+section found a home that is not a column.
+
+### The rail dissolved into the sections it was keyed to
+
+§33.4 hung the contextual readouts in a rail and showed each one when you
+scrolled to the section it belonged to - Attacks while you were in
+Equipment, "What a Fighter wants" while you were in Abilities. The rule
+was right and the mechanism was a workaround: §33's own words are "the
+readouts its own edits move, **beside** the edit", and a rail that swaps
+its contents when you scroll is beside the edit only while you are looking
+at it.
+
+They are *inside* their sections now. Attacks is in Equipment because it
+is about what you are holding, not because you scrolled somewhere. The
+test that used to assert "Attacks appears on Equipment and goes when you
+leave" asserts "Attacks is in Equipment and is not in Abilities", which is
+the stronger claim and the one §33 was making.
+
+What was left of the rail is four readouts that are not about any one
+section - At a glance, the progression plan, the damage panel and the
+build review. They sit at the end of the one measure, in a
+`.flow-analysis` block that is deliberately **not a sixth section**:
+§123's five are what a character is made of, and none of these is one.
+That is also the order you use them in - make the choices, then read what
+they came to.
+
+### A section is a row that says what it holds
+
+Label, a summary of what is in it, and a count of what it is still waiting
+on. The summary is what makes the page a *reading*: five rows naming only
+their sections would be a table of contents, and you would learn nothing
+the band had not already told you.
+
+The waiting state is on the left edge, in the same accent as the band's
+pills at the top of the page. One fact drawn twice rather than two things
+to keep in step - and 2px rather than 3, because the findings in the foot
+use 3px for severity and two meanings at one weight read as one.
+
+### The foot, on every reading
+
+Damage per round and the build review, as a glance rather than a panel.
+Both were in the rail and the rail was right that they belong to every
+section; what §138 took away was the pinning, not the argument.
+
+They ride the sheet readings too. "Is this build actually all right" is
+the same question asked from a different chair, and having the answer only
+on the Builder would mean it vanished exactly when you went to look at
+what you had built. Each finding is the way to the section that fixes it,
+because a review you cannot act on from where you are reading it is a list
+of things to remember.
+
+Which section a finding belongs to is decided in `FlowFoot`, not carried
+on `Finding`. `analyze.ts` is about the character, not about the screen
+showing it, and a rules module that knew the Builder's five sections would
+be the wrong module knowing it.
+
+The full `DamagePanel` stays on the dense page with its two charts and its
+assumptions. The foot is the figure and the shape of the curve; the panel
+is what you open when the glance raises a question - the same relation the
+pending band has to the sections.
+
+**Twenty derivations, once.** `dprByLevel` derives twenty whole builds and
+both the foot and the panel want it, so the page memoises it and hands it
+to both rather than each memoising its own.
+
+### Three animations became one
+
+`just-landed` fires on a chip that has just arrived on the screen reading,
+which is the fusion's claim made visible: a choice in the card appears in
+a box below, and a figure that changes silently in a page of figures is a
+figure nobody saw change. It seeds its "what was here before" on the first
+render and marks nothing, because arriving at a sheet is not the same as
+watching something land on it - a sheet that lit everything up on arrival
+would teach you to ignore the tint.
+
+The other two were **written and then deleted before they shipped**.
+`called-flash` belongs to the DM check-call, which arrives over the wire
+from the DM's screen rather than from anything on this one. `overlay-in`
+was for a menu overlay this redesign turned out not to need, because §35's
+menu is the title screen and not a panel that slides over the work. Both
+were sitting in the stylesheet as keyframes nothing referenced, which is
+dead CSS that reads as a feature. Each goes in with the thing that fires
+it.
+
+### What the new budget check saw
+
+`index` went 143.7 kB to 119.4 kB across this section while first paint
+rose 3 kB - `analyze` became a shared chunk again the moment `SheetTab`
+imported it. The per-chunk number moved 24 kB in the *opposite* direction
+from the change, which is §139's point demonstrated a second time and
+from the other side.
+
+**Gates.** `tsc -b`, oxlint clean, first paint 1039.4 kB against 1269.5
+kB, and the suite green with twelve new tests across the page, the foot
+and the tint.

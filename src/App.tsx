@@ -169,6 +169,51 @@ const TAB_LABELS: Record<Tab, string> = {
   table: 'Battle',
 };
 
+/*
+  §138. Four readings of one character, and they are not four destinations.
+
+  The Builder and the sheet were two tabs with a door between them because
+  they were two activities: you built, then you went and read what you had
+  built. §138 fused them - the guided flow now runs on the sheet, filling its
+  boxes as you answer - so what is left is one character shown four ways:
+
+    flow    the guided flow, on the sheet          (Builder)
+    sheet   the sheet as a screen surface          (Character sheet)
+    paper   the same data in the printed arrangement (Character sheet)
+    page    every choice as one dense page         (Builder)
+
+  Which is why this is a `view` beside the tab rather than four more tabs.
+  §35's rule holds: the menu is still the only navigation, and this switches
+  what you are looking at, never where you are. The tab is derived from the
+  view rather than tracked beside it, because a view that disagreed with its
+  tab is a state this app should not be able to hold.
+*/
+type BuildView = 'flow' | 'sheet' | 'paper' | 'page';
+
+const VIEW_TAB: Record<BuildView, Tab> = {
+  flow: 'builder',
+  page: 'builder',
+  sheet: 'sheet',
+  paper: 'sheet',
+};
+
+/* The bar's caption, which now has to say which reading as well as which
+   screen - "Character sheet" twice over would leave the switcher looking
+   like it had done nothing. */
+const VIEW_LABELS: Record<BuildView, string> = {
+  flow: 'Builder · guided',
+  sheet: 'Character sheet',
+  paper: 'Character sheet · paper',
+  page: 'Builder · dense page',
+};
+
+const VIEW_BUTTONS: { view: BuildView; label: string; title: string }[] = [
+  { view: 'flow', label: 'Guided', title: 'The flow, one choice at a time, on the sheet' },
+  { view: 'sheet', label: 'Sheet', title: 'The whole character as a screen' },
+  { view: 'paper', label: 'Paper', title: 'The same character in the printed arrangement' },
+  { view: 'page', label: 'Dense page', title: 'Every choice as one page' },
+];
+
 /* §103: the §92 rule as a function - the screen showing decides the
    session's role. Everything that is not the table or a seat is off, so a
    tab editing a character never has broadcasts land on its half-typed name. */
@@ -293,6 +338,30 @@ export default function App() {
     }
     return 'title';
   });
+  /*
+    §138: which of the four readings is showing. Not persisted, because the
+    tab is not either - a reload lands on the menu, and a view remembered from
+    a session two days ago would be answering a question nobody asked.
+  */
+  const [view, setView] = useState<BuildView>('flow');
+  /* Switching the reading is switching the screen when the reading lives on
+     the other one. One call, so the two can never disagree. */
+  const showView = useCallback((next: BuildView) => {
+    setView(next);
+    setTab(VIEW_TAB[next]);
+  }, []);
+  /*
+    The other direction. Every way into these two screens that is not the
+    switcher - the menu, a share link, "Add to my characters" - sets the tab
+    and knows nothing about views, and would otherwise leave a Paper reading
+    showing under a Builder heading. Snapping here rather than at each of
+    those call sites keeps the rule in one place: arriving at a screen by any
+    other route gives you that screen's first reading.
+  */
+  useEffect(() => {
+    if (tab !== 'builder' && tab !== 'sheet') return;
+    if (VIEW_TAB[view] !== tab) setView(tab === 'builder' ? 'flow' : 'sheet');
+  }, [tab, view]);
   /* §93: which roster character this device's seat plays. `''` from a bare
      `#seat` fragment lands on the picker; null means no seat taken.
      §96: persisted, so the phone reload walks back to its own sheet. */
@@ -897,8 +966,35 @@ export default function App() {
           <button type="button" className="gbar-home" onClick={() => setTab('title')}>
             Forge<span>&</span>Fate
           </button>
-          <span className="gbar-screen">{TAB_LABELS[tab]}</span>
+          {/* §138: on the two fused screens the caption names the reading as
+              well as the screen, since "Character sheet" for both the screen
+              surface and the printed page would make the switcher look inert. */}
+          <span className="gbar-screen">
+            {tab === 'builder' || tab === 'sheet' ? VIEW_LABELS[view] : TAB_LABELS[tab]}
+          </span>
           <span className="gbar-actions">
+            {/* §138: the switcher, first in the cluster because it is the one
+                control here that changes what you are reading rather than
+                doing something to it. It also *is* the door between Builder
+                and sheet that §35's correction added - two buttons that each
+                went one way, replaced by one control that shows where you are
+                while it offers where else you could be. */}
+            {(tab === 'builder' || tab === 'sheet') && (
+              <span className="gbar-views" role="group" aria-label="How to read this character">
+                {VIEW_BUTTONS.map((b) => (
+                  <button
+                    key={b.view}
+                    type="button"
+                    className={view === b.view ? 'is-on' : ''}
+                    aria-pressed={view === b.view}
+                    title={b.title}
+                    onClick={() => showView(b.view)}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </span>
+            )}
             {tab === 'pairings' && (
               <button className="btn btn-sm" onClick={() => setTab('builder')}>
                 Back to the Builder
@@ -929,17 +1025,11 @@ export default function App() {
                 >
                   ↷ Redo
                 </button>
-                {/* The pair people flip between, so each carries a door to
-                    the other rather than a trip through the menu. */}
-                <button className="btn btn-sm" onClick={() => setTab('sheet')}>
-                  Character sheet →
-                </button>
+                {/* §138: "Character sheet →" and "← Edit in Builder" stood
+                    here, one on each screen. The switcher is both of them and
+                    a state readout besides, so keeping them would have left
+                    two controls doing the same trip. */}
               </>
-            )}
-            {tab === 'sheet' && (
-              <button className="btn btn-sm" onClick={() => setTab('builder')}>
-                ← Edit in Builder
-              </button>
             )}
             {(tab === 'builder' || tab === 'sheet') && (
               <button className="btn btn-sm" onClick={() => setTab('table')}>
@@ -1007,14 +1097,41 @@ export default function App() {
         before: it is the tab most sessions open on, and a loading flash on the
         thing you came for is worse than the few kilobytes.
       */}
-      {tab === 'builder' && <BuilderTab build={build} ctx={ctx} onChange={setBuild} />}
+      {tab === 'builder' && (
+        <BuilderTab
+          build={build}
+          ctx={ctx}
+          /* §138: the tab is one of two readings, and the switcher above says
+             which. `VIEW_TAB` guarantees only these two reach the Builder. */
+          view={view === 'page' ? 'page' : 'flow'}
+          onView={showView}
+          play={activePlay(roster)}
+          onChange={setBuild}
+          onPlayChange={(next) => setRoster((current) => updatePlay(current, current.activeId, next))}
+        />
+      )}
       <Suspense fallback={<TabLoading />}>
         {tab === 'sheet' && (
           <SheetTab
             ctx={ctx}
+            /* §138: `VIEW_TAB` guarantees only these two reach the sheet. */
+            view={view === 'paper' ? 'paper' : 'sheet'}
             play={activePlay(roster)}
             onPlayChange={(next) => setRoster((current) => updatePlay(current, current.activeId, next))}
             onBuildChange={setBuild}
+            /*
+              §139: a finding in the sheet's foot takes you to the Builder,
+              on the section that fixes it. Through the hash rather than
+              through a prop that reaches into the Builder's own state -
+              §33.4 argued anchors for exactly this (keyboard, the back
+              button, a URL you can send someone), and a button that
+              navigates by the same mechanism as the band's links keeps one
+              way of getting to a section rather than two.
+            */
+            onGoTo={(section) => {
+              showView('page');
+              window.location.hash = `section-${section}`;
+            }}
           />
         )}
         {tab === 'pairings' && (

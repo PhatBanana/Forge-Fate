@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { SECTIONS, SECTION_LABEL, openChoicesBySection } from './sections';
+import { SECTIONS, SECTION_LABEL, openChoicesBySection, waitingChoices } from './sections';
 import { deriveBuild } from '../engine/character';
-import { buildOf, fighter } from '../test/factories';
+import { buildOf, fighter, warlockSorcerer, wizard } from '../test/factories';
 import { defaultDefenses } from '../engine/defense';
 
 /** Nothing chosen: no background, every score at 8, nothing held or worn. */
@@ -77,6 +77,58 @@ describe('what each section is still waiting on', () => {
       for (const [id, count] of Object.entries(open)) {
         expect(count, `${id} at level ${level}`).toBeGreaterThanOrEqual(0);
       }
+    }
+  });
+});
+
+/*
+  §138. The same facts at two grains.
+
+  The band counts five sections; the flow asks one question at a time. Both
+  read `waitingChoices`, and `openChoicesBySection` is now a sum over it - so
+  these check that the split did not quietly change any count, and that the
+  finer grain carries what a step needs.
+*/
+describe('the waiting choices the flow steps through', () => {
+  it('sums to exactly what the section counts say', () => {
+    for (const build of [blank(), fighter(1), fighter(5), fighter(12), wizard(9), warlockSorcerer()]) {
+      const ctx = deriveBuild(build);
+      const summed: Record<string, number> = {};
+      for (const choice of waitingChoices(ctx)) {
+        summed[choice.section] = (summed[choice.section] ?? 0) + choice.open;
+      }
+      for (const [section, count] of Object.entries(openChoicesBySection(ctx))) {
+        expect(summed[section] ?? 0, `${section} on ${build.name || 'a blank'}`).toBe(count);
+      }
+    }
+  });
+
+  it('never lists a choice nothing is waiting on', () => {
+    for (const level of [1, 4, 8, 20]) {
+      for (const choice of waitingChoices(deriveBuild(fighter(level)))) {
+        expect(choice.open, `${choice.id} at level ${level}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  /*
+    The load-bearing half of §138's fusion. A step that cannot name the box on
+    the sheet its answer lands in is a step that has not been fused with
+    anything, so every one of them carries a target and a title.
+  */
+  it('names a title and a sheet box for every one of them', () => {
+    for (const build of [blank(), fighter(5), wizard(9), warlockSorcerer()]) {
+      for (const choice of waitingChoices(deriveBuild(build))) {
+        expect(choice.title.length, choice.id).toBeGreaterThan(0);
+        expect(choice.target.length, choice.id).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('keeps ids unique, since the flow indexes steps by them', () => {
+    for (const build of [blank(), fighter(12), wizard(9), warlockSorcerer()]) {
+      const ids = waitingChoices(deriveBuild(build)).map((c) => c.id);
+      expect(new Set(ids).size, build.name || 'a blank').toBe(ids.length);
     }
   });
 });

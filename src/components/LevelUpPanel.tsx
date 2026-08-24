@@ -4,6 +4,7 @@ import { Panel } from './shared';
 import { defaultRng, rollDie } from '../engine/dice';
 import { recordHitDieRoll } from '../engine/levelUp';
 import type { LevelUpStep, LevelUpSummary } from '../engine/levelUp';
+import { hitPointDetail } from './levelUpText';
 import { SECTION_LABEL } from './sections';
 import type { Section } from './sections';
 
@@ -30,29 +31,6 @@ const SECTION_FOR: Record<LevelUpStep['kind'], Section | null> = {
   spells: 'options',
   options: 'options',
 };
-
-/**
- * What to say about this level's hit points, given what has happened so far.
- *
- * Written here rather than in the summary because rolling happens *in* this
- * panel: a sentence fixed at level-up would go on saying "the fixed average"
- * after somebody had already rolled, which is the kind of small lie that makes
- * a reader stop believing the rest.
- */
-function hitPointDetail(
-  rolling: boolean,
-  rolled: number | null,
-  hitDie: number,
-  hpTotal: number,
-): string {
-  if (rolled !== null) {
-    return `Rolled a ${rolled} on the d${hitDie}. You are on ${hpTotal} hit points.`;
-  }
-  if (rolling) {
-    return `One die per level. This one is not rolled yet, so it counts as the average of a d${hitDie}.`;
-  }
-  return `The fixed average of a d${hitDie}, plus your Constitution modifier. Roll instead if your table does.`;
-}
 
 export function LevelUpPanel({
   summary,

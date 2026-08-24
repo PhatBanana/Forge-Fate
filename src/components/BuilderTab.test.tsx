@@ -5,7 +5,8 @@ import userEvent from '@testing-library/user-event';
 import { BuilderTab } from './BuilderTab';
 import { deriveBuild } from '../engine/character';
 import type { Build } from '../types';
-import { buildOf, fighter } from '../test/factories';
+import { buildOf, fighter, warlockSorcerer } from '../test/factories';
+import { emptyPlay } from '../play';
 
 /**
  * The Builder offers every choice where the choice is made, on one page.
@@ -19,14 +20,30 @@ import { buildOf, fighter } from '../test/factories';
  * These pin all three, and that nothing about *playing* leaked back in.
  */
 
-function setup(build: Build) {
+/**
+ * §138 gave the Builder two readings and the tests a parameter. `page` is the
+ * default here because that is the reading every test below was written
+ * against - one page with every section on it - and the guided flow has a
+ * describe of its own rather than being retrofitted onto all of them.
+ */
+function setup(build: Build, view: 'flow' | 'page' = 'page') {
   const onChange = vi.fn();
+  const onPlayChange = vi.fn();
   let current = build;
 
-  const view = render(<BuilderTab build={current} ctx={deriveBuild(current)} onChange={onChange} />);
+  const props = () => ({
+    build: current,
+    ctx: deriveBuild(current),
+    view,
+    onView: () => {},
+    play: emptyPlay(),
+    onChange,
+    onPlayChange,
+  });
+  const rendered = render(<BuilderTab {...props()} />);
   onChange.mockImplementation((next: Build) => {
     current = next;
-    view.rerender(<BuilderTab build={current} ctx={deriveBuild(current)} onChange={onChange} />);
+    rendered.rerender(<BuilderTab {...props()} />);
   });
 
   return {
@@ -45,8 +62,13 @@ function setup(build: Build) {
  * column shows, which is the one thing the rail still switches, and it is a
  * link now rather than a tab. Kept under the old name because most call sites
  * only ever meant "go and look at this bit".
+ *
+ * §138: the rail is a band across the top of the column now rather than a
+ * column down its side. Same anchors, same five sections, so this helper
+ * moved one selector and nothing else - which is the point of the sections
+ * having been a list all along.
  */
-const rail = () => document.querySelector('.steps') as HTMLElement;
+const rail = () => document.querySelector('.flow-pending') as HTMLElement;
 const goTo = (label: string | RegExp) =>
   userEvent.click(within(rail()).getByRole('link', { name: label }));
 
@@ -120,16 +142,28 @@ describe('the section nav', () => {
     }
   });
 
-  /** The readouts an edit moves have to be beside the edit, or the loop breaks. */
-  it('keeps each section beside the numbers its own edits move', async () => {
+  /*
+    The readouts an edit moves have to be beside the edit, or the loop breaks.
+
+    §139 made "beside" mean *inside*. §33.4 hung these in a rail keyed to
+    whichever section you had scrolled to, so Attacks appeared when you
+    happened to be looking at Equipment; the rail is gone and Attacks is in
+    Equipment, because it is about what you are holding. That is a stronger
+    version of the same rule - the readout is in the section whether or not
+    you scrolled there - so this asks where it is rather than when it shows.
+  */
+  it('keeps each section beside the numbers its own edits move', () => {
     setup(fighter(5));
-
-    await goTo(/^equipment/i);
-    expect(panelTitles()).toContain('Attacks');
-
-    await goTo(/^abilities/i);
-    // Attacks is about what you are holding, so it goes when you leave.
-    expect(panelTitles()).not.toContain('Attacks');
+    const inSection = (id: string, title: string) => {
+      const section = document.getElementById(`section-${id}`) as HTMLElement;
+      return [...section.querySelectorAll('.panel > h2')].some((h) => h.textContent === title);
+    };
+    expect(inSection('equipment', 'Attacks')).toBe(true);
+    expect(inSection('abilities', 'Attacks')).toBe(false);
+    // And every section that had a contextual readout still has its own.
+    expect(inSection('abilities', 'What a Fighter wants')).toBe(true);
+    expect(inSection('feats', 'Room to grow')).toBe(true);
+    expect(inSection('identity', 'Lineage traits')).toBe(true);
   });
 
   it('pins the two readouts every edit moves', async () => {
@@ -144,7 +178,10 @@ describe('the section nav', () => {
       await goTo(label);
       expect(panelTitles(), String(label)).toContain('Damage per round');
       expect(panelTitles(), String(label)).toContain('Progression plan');
-      expect(panelTitles(), String(label)).toContain('Next choices');
+      // §138: "Next choices" was the third of these and is the band now, which
+      // is above the column rather than pinned beside it - so what this asks
+      // of it is that it is there at all, from wherever you are reading.
+      expect(rail(), String(label)).toBeInTheDocument();
     }
   });
 
@@ -199,10 +236,16 @@ describe('the section nav', () => {
     setup(fighter(5));
     // One unspent improvement, reached at Fighter 4. A plain Human grants no
     // free origin feat, so that is the whole count.
-    expect(within(within(rail()).getByRole('link', { name: /^feats/i })).getByText('1')).toBeInTheDocument();
+    expect(
+      within(within(rail()).getByRole('link', { name: /^feats/i })).getByText('1 choice'),
+    ).toBeInTheDocument();
     // Skill picks and the Battle Master's style and maneuvers.
     expect(
-      Number(within(within(rail()).getByRole('link', { name: /^skills/i })).getByTitle(/still to choose/i).textContent),
+      Number(
+        within(within(rail()).getByRole('link', { name: /^skills/i }))
+          .getByTitle(/still to choose/i)
+          .textContent!.match(/\d+/)![0],
+      ),
     ).toBeGreaterThan(0);
     // Nothing is outstanding on abilities.
     expect(
@@ -218,8 +261,9 @@ describe('the section nav', () => {
   it('counts the two things only a 2024 character has', () => {
     const badge = (section: RegExp) =>
       Number(
-        within(within(rail()).getByRole('link', { name: section })).queryByTitle(/still to choose/i)
-          ?.textContent ?? 0,
+        within(within(rail()).getByRole('link', { name: section }))
+          .queryByTitle(/still to choose/i)
+          ?.textContent!.match(/\d+/)![0] ?? 0,
       );
 
     const soldier = buildOf({
@@ -312,19 +356,25 @@ describe('rolling for ability scores', () => {
   });
 });
 
-describe('the section rail', () => {
-  it('numbers the steps in the order a character is made', () => {
+describe('the pending band', () => {
+  /*
+    §138 dropped the numbering with the rail. The order is still the order a
+    character is made in - that was §31.4's good idea and it survives - but
+    "1, 2, 3" said the sections were a route you had to walk, and you never
+    had to. So what is pinned here is the order, not the numerals.
+  */
+  it('names the sections in the order a character is made', () => {
     setup(fighter(5));
-    expect([...document.querySelectorAll('.step-n')].map((n) => n.textContent)).toEqual([
-      '1', '2', '3', '4', '5',
-    ]);
+    expect(
+      [...rail().querySelectorAll('.flow-pending-where')].map((n) => n.textContent),
+    ).toEqual(['Identity', 'Abilities', 'Equipment', 'Skills & options', 'Feats']);
   });
 
   it('points each one at a section that is actually on the page', () => {
-    // A rail of anchors is only navigation if every target exists. This is the
+    // A band of anchors is only navigation if every target exists. This is the
     // cheapest guard against a section being renamed out from under its link.
     setup(fighter(5));
-    const links = [...document.querySelectorAll('.steps a')] as HTMLAnchorElement[];
+    const links = [...rail().querySelectorAll('a')] as HTMLAnchorElement[];
     expect(links).toHaveLength(5);
     for (const link of links) {
       const id = link.getAttribute('href')!.slice(1);
@@ -342,42 +392,47 @@ describe('the section rail', () => {
   });
 });
 
-describe('next choices', () => {
-  const panel = () => screen.getByText('Next choices').closest('.panel') as HTMLElement;
+/*
+  §138: "Next choices" was a pinned panel in the rail that listed the sections
+  still waiting. The band at the top of the column does that job now, for all
+  five sections rather than the unfinished ones - so these tests moved to it
+  rather than going with the panel. What they guard is unchanged: the count is
+  named and placed, it agrees with itself, and it says so when there is
+  nothing left.
+*/
+describe('what is still waiting', () => {
+  const countIn = (label: RegExp) =>
+    within(rail()).getByRole('link', { name: label }).querySelector('em')!.textContent!;
 
   it('names what is left and where, not just how many', () => {
     /*
-      §33.5, and the reason it earns space a badge already had: a badge says
-      "7", this says which seven and where to go for them. Pinned, so it keeps
-      saying it from the middle of a page that is nearly three screens long.
+      §33.5, and the reason it earns the space a bare badge already had: a
+      badge says "7", this says which seven and where to go for them. Across
+      the top of the column rather than pinned beside it, because §138 gave
+      the column no side to pin anything to.
     */
     setup(fighter(5));
-    const rows = within(panel()).getAllByRole('link');
-    expect(rows.length).toBeGreaterThan(0);
-    for (const row of rows) {
-      expect(row.textContent).toMatch(/\d+ to choose/);
-      // And every one points at a section that exists.
-      expect(document.getElementById(row.getAttribute('href')!.slice(1))).not.toBeNull();
+    const links = within(rail()).getAllByRole('link');
+    expect(links).toHaveLength(5);
+    for (const link of links) {
+      // Every pill says its state out loud - a count or "done" - and points
+      // at a section that exists.
+      expect(link.querySelector('em')!.textContent).toMatch(/\d+ choices?|done/);
+      expect(document.getElementById(link.getAttribute('href')!.slice(1))).not.toBeNull();
     }
+    // And at least one of them is actually waiting on a Fighter 5.
+    expect(links.some((l) => l.className.includes('is-waiting'))).toBe(true);
   });
 
-  it('reads the same counts as the rail badges', () => {
-    // Same source, `openChoicesBySection` - so they cannot disagree, and this
-    // is what says so.
+  it('totals the same choices it lists', () => {
+    // One source, `openChoicesBySection`, so the headline and the pills cannot
+    // disagree - and this is what says so.
     setup(fighter(5));
-    const fromRail = Object.fromEntries(
-      within(rail())
-        .getAllByRole('link')
-        .map((link) => [
-          link.querySelector('.step-label')!.textContent,
-          Number(link.querySelector('.badge')?.textContent ?? 0),
-        ]),
-    );
-    for (const row of within(panel()).getAllByRole('link')) {
-      const where = row.querySelector('.next-where')!.textContent!;
-      const count = Number(row.querySelector('.next-count')!.textContent!.match(/\d+/)![0]);
-      expect(count, where).toBe(fromRail[where]);
-    }
+    const perSection = within(rail())
+      .getAllByRole('link')
+      .map((link) => Number(link.querySelector('em')!.textContent!.match(/\d+/)?.[0] ?? 0));
+    const total = Number(rail().querySelector('.flow-pending-count')!.textContent!.match(/\d+/)![0]);
+    expect(total).toBe(perSection.reduce((sum, n) => sum + n, 0));
   });
 
   it('says so plainly when there is nothing left to choose', () => {
@@ -393,7 +448,19 @@ describe('next choices', () => {
         asiPicks: [['str', 'str']],
       }),
     );
-    expect(within(panel()).getByText(/every choice is made/i)).toBeInTheDocument();
+    expect(within(rail()).getByText('all answered')).toBeInTheDocument();
+    // Every pill reads done rather than disappearing: a band that shortened as
+    // you worked would move the remaining pills under the cursor each time.
+    for (const label of [/^identity/i, /^abilities/i, /^equipment/i, /^skills/i, /^feats/i]) {
+      expect(countIn(label), String(label)).toBe('done ✓');
+    }
+  });
+
+  /* The one figure a choice three sections away can move, at the top of a page
+     whose damage card is at the foot of it. */
+  it('carries the damage figure the whole build feeds', () => {
+    setup(fighter(5));
+    expect(rail().querySelector('.flow-pending-dpr')!.textContent).toMatch(/dpr\d+\.\d/);
   });
 });
 
@@ -454,14 +521,13 @@ describe('the build review', () => {
     // And it says the open choices exist without listing them.
     expect(within(review).getByText(/still unmade/i)).toBeInTheDocument();
 
-    // The count agrees with the badges by construction, not by coincidence.
-    // Scoped to the rail: Next choices reads the same numbers and would double
-    // every one of them.
-    const badges = within(rail())
+    // The count agrees with the band by construction, not by coincidence -
+    // both read `openChoicesBySection`, and this is what says they still do.
+    const counts = within(rail())
       .getAllByRole('link')
-      .map((link) => Number(link.querySelector('.badge')?.textContent ?? 0));
+      .map((link) => Number(link.querySelector('em')!.textContent!.match(/\d+/)?.[0] ?? 0));
     expect(within(review).getByText(/still unmade/i).textContent).toContain(
-      String(badges.reduce((sum, n) => sum + n, 0)),
+      String(counts.reduce((sum, n) => sum + n, 0)),
     );
   });
 
@@ -927,5 +993,320 @@ describe('armour proficiency reads the same as the armour class', () => {
   it('grants it to a 2014 Cleric at level 1, where the domain starts', async () => {
     setup(lifeCleric('2014', 1));
     expect(await heavyLabel()).not.toMatch(/not proficient/);
+  });
+});
+
+/*
+  §138. The guided flow, on the sheet.
+
+  What these pin is the fusion rather than the card: that the step names a box
+  on the sheet, that the sheet is underneath while it asks, that the reasoning
+  is readable without opening anything, and that answering a step moves the
+  flow on because the list is derived rather than walked.
+*/
+describe('the guided flow', () => {
+  const card = () => document.querySelector('.flow-step') as HTMLElement;
+  const options = () => [...document.querySelectorAll('.flow-opt')] as HTMLElement[];
+  /*
+    Walk to the first step the engine has an opinion about. A Fighter 5 with no
+    background opens on a form step, which is correct - the order is the order a
+    character is made in, and a background comes before a fighting style - so the
+    tests about ranking have to get to a ranking rather than assume step 1 is one.
+  */
+  const toFirstRanked = async () => {
+    const pips = [...card().querySelectorAll('.flow-step-pips button')] as HTMLElement[];
+    for (let i = 0; i < pips.length; i++) {
+      if (options().length) return;
+      await userEvent.click(pips[i]);
+    }
+  };
+
+  it('opens on something that is actually waiting, and names the box it fills', () => {
+    setup(fighter(5), 'flow');
+    expect(within(card()).getByText(/^Step 1 of \d+$/)).toBeInTheDocument();
+    // The load-bearing half of the fusion: every step says where its answer
+    // lands. Without this the sheet below is decoration.
+    expect(card().querySelector('.flow-step-target')!.textContent).toMatch(/^fills /);
+  });
+
+  it('runs on the sheet rather than beside it', () => {
+    setup(fighter(5), 'flow');
+    /* §138: the screen reading, not the paper one - the step card is on the
+       app's palette and the sheet under it has to be able to answer in the
+       same accent. `SheetTab` argues the split. */
+    const sheet = document.querySelector('.ss');
+    expect(sheet).not.toBeNull();
+    // Order matters and is the whole design: the question, then the thing it
+    // is asking about. A sheet above the card would be a preview.
+    expect(card().compareDocumentPosition(sheet!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  /*
+    §138's argument in one test. `SuggestionCard` put every reason behind a
+    `<details>`, which makes a ranked list a leaderboard - you take the top one
+    because it is the top one. The strongest reason is in the open now and the
+    ±working is one click away, which is the same information in the opposite
+    order.
+  */
+  it('shows the strongest reason at rest and the working one click away', async () => {
+    setup(fighter(5), 'flow');
+    await toFirstRanked();
+    const first = options()[0];
+    expect(first.querySelector('.flow-opt-top')!.textContent!.length).toBeGreaterThan(0);
+    expect(first.querySelector('.flow-opt-reasons')).toBeNull();
+
+    await userEvent.click(within(first).getByRole('button', { name: /why this score/i }));
+    expect(first.querySelector('.flow-opt-reasons')).not.toBeNull();
+    // Every row is a signed delta and a reason - §131's rule, applied to the
+    // working rather than to a modifier.
+    for (const row of first.querySelectorAll('.flow-opt-reasons em')) {
+      expect(row.textContent).toMatch(/^[+\-—]/);
+    }
+
+    await userEvent.click(within(first).getByRole('button', { name: /hide the working/i }));
+    expect(first.querySelector('.flow-opt-reasons')).toBeNull();
+  });
+
+  it('applies a pick to the character, and the sheet under it moves', async () => {
+    const app = setup(fighter(5), 'flow');
+    await toFirstRanked();
+    const before = app.build;
+    const name = options()[0].querySelector('h3')!.textContent!;
+
+    await userEvent.click(within(options()[0]).getByRole('button', { name: 'Apply' }));
+    expect(app.build).not.toBe(before);
+    // Whatever it was, the character now carries it - and the count of what is
+    // waiting went down, which is the band and the sheet agreeing.
+    expect(JSON.stringify(app.build)).not.toBe(JSON.stringify(before));
+    expect(name.length).toBeGreaterThan(0);
+  });
+
+  /*
+    Nothing advances the step index when a choice is applied. The list is
+    derived from what is waiting, so answering the step at index 2 removes it
+    and index 2 lands on the next question by itself. Advancing as well would
+    skip one, which is the bug this pins.
+  */
+  it('moves to the next question without skipping one', async () => {
+    const app = setup(fighter(5), 'flow');
+    await toFirstRanked();
+    const at = () => {
+      const [, n, of] = within(card())
+        .getByText(/^Step \d+ of \d+$/)
+        .textContent!.match(/Step (\d+) of (\d+)/)!;
+      return { n: Number(n), of: Number(of) };
+    };
+    const title = () => card().querySelector('h2')!.textContent;
+    const firstTitle = title();
+    const was = at();
+    const before = openChoicesFrom();
+
+    await userEvent.click(within(options()[0]).getByRole('button', { name: 'Apply' }));
+    // One answered, one fewer waiting - and the step is still the one asking,
+    // because this kind wanted two of them.
+    expect(openChoicesFrom()).toBe(before - 1);
+    expect(at().n).toBe(was.n);
+
+    // Answer the rest of it. Bounded, so a step that never closes fails here
+    // rather than hanging the suite.
+    for (let guard = 0; guard < 8 && title() === firstTitle && options().length; guard++) {
+      await userEvent.click(within(options()[0]).getByRole('button', { name: 'Apply' }));
+    }
+
+    // The index did not move and the list got shorter, which together are what
+    // "the next question, without skipping one" means.
+    expect(at().n).toBe(was.n);
+    expect(at().of).toBe(was.of - 1);
+    expect(title()).not.toBe(firstTitle);
+    expect(app.build).toBeTruthy();
+  });
+
+  it('ends on the review, which is about mistakes rather than unfinished work', async () => {
+    setup(fighter(5), 'flow');
+    const pips = [...card().querySelectorAll('.flow-step-pips button')] as HTMLElement[];
+    await userEvent.click(pips[pips.length - 1]);
+
+    expect(card().querySelector('h2')!.textContent).toMatch(/what is wrong with this build/i);
+    expect(within(card()).getByText(/mistakes, not unfinished business/i)).toBeInTheDocument();
+    // No ranked options on the review - it is a reading, not a choice.
+    expect(options()).toHaveLength(0);
+  });
+
+  it('jumps to a step from its pip', async () => {
+    setup(fighter(5), 'flow');
+    const pips = [...card().querySelectorAll('.flow-step-pips button')] as HTMLElement[];
+    expect(pips.length).toBeGreaterThan(1);
+    await userEvent.click(pips[1]);
+    expect(within(card()).getByText('Step 2 of ' + pips.length)).toBeInTheDocument();
+  });
+
+  /*
+    A list that quietly drops what you cannot take teaches nothing: you go
+    looking for something, do not find it, and never learn why. So the
+    highest-scoring refusal rides along, dimmed, with the reason where its
+    score would be - which is the third of §138's four changes and the one
+    that is easiest to lose by accident, since every engine here filters
+    ineligible options out by default.
+  */
+  it('refuses an option at the choice rather than dropping it from the list', async () => {
+    setup(warlockSorcerer(), 'flow');
+    // A Warlock 6 / Sorcerer 4 has invocations they cannot take yet and spells
+    // they already know; whichever step carries a refusal, it must say so.
+    const pips = [...card().querySelectorAll('.flow-step-pips button')] as HTMLElement[];
+    let refused: HTMLElement | undefined;
+    for (const pip of pips) {
+      await userEvent.click(pip);
+      refused = options().find((o) => o.className.includes('is-blocked'));
+      if (refused) break;
+    }
+    expect(refused, 'no step offered a refusal').toBeDefined();
+
+    // The reason is where the score would be, and Apply is not on offer.
+    expect(within(refused!).getByRole('button', { name: /unavailable/i })).toBeDisabled();
+    expect(refused!.querySelector('.flow-opt-score')!.textContent).toBe('—');
+    expect(refused!.querySelector('.flow-opt-top')!.textContent!.length).toBeGreaterThan(0);
+  });
+
+  /*
+    A choice the engine holds no opinion about - six ability scores, a
+    background - is a form, and inventing a ranking for it would mean
+    inventing the scores too. The step says so and carries the way through
+    rather than being a dead end in the middle of a flow.
+  */
+  it('says plainly when a step is a form rather than a ranking', () => {
+    setup(
+      buildOf({
+        ...fighter(1),
+        backgroundId: undefined,
+        baseScores: { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 },
+      }),
+      'flow',
+    );
+    expect(within(card()).getByText(/a form rather than a ranking/i)).toBeInTheDocument();
+    expect(options()).toHaveLength(0);
+    // And it names where it is answered rather than stopping there.
+    expect(within(card()).getByRole('button', { name: /answer it under/i })).toBeInTheDocument();
+  });
+});
+
+/** What the band says is still waiting, as a number. */
+function openChoicesFrom(): number {
+  const label = document.querySelector('.flow-pending-count')!.textContent!;
+  return Number(label.match(/\d+/)?.[0] ?? 0);
+}
+
+/*
+  §139. The dense page, as a list of sections rather than a stack of panels.
+
+  What these pin is the reading: each section says what it holds before you
+  open it, and carries its own waiting state on the same edge the band uses.
+*/
+describe('the dense page', () => {
+  const row = (id: string) => document.getElementById(`section-${id}`) as HTMLElement;
+
+  it('states the contract, because a wizard beside a form never did', () => {
+    setup(fighter(5));
+    expect(screen.getByText(/two readings of one character, not two modes/i)).toBeInTheDocument();
+  });
+
+  it('says what each section holds before you open anything', () => {
+    setup(fighter(5));
+    for (const id of ['identity', 'abilities', 'equipment', 'options', 'feats']) {
+      const summary = row(id).querySelector('.bsec-head p')!.textContent ?? '';
+      expect(summary.length, id).toBeGreaterThan(0);
+    }
+    // The abilities row is the six scores, in the order every sheet prints
+    // them - a list of six numbers is only readable if it is always the same
+    // six in the same order.
+    expect(row('abilities').querySelector('.bsec-head p')!.textContent).toMatch(
+      /^\d+ \/ \d+ \/ \d+ \/ \d+ \/ \d+ \/ \d+$/,
+    );
+  });
+
+  /*
+    One fact drawn twice, in the same colour: the band's pill and the section's
+    left edge are the same claim about the same section. Two ways of saying it
+    would be two things to keep in step.
+  */
+  it('marks a waiting section on its edge, and agrees with the band', () => {
+    setup(fighter(5));
+    for (const id of ['identity', 'abilities', 'equipment', 'options', 'feats']) {
+      const waitingHere = row(id).className.includes('is-waiting');
+      const pill = within(rail()).getByRole('link', { name: new RegExp(`^${id === 'options' ? 'skills' : id}`, 'i') });
+      expect(waitingHere, id).toBe(pill.className.includes('is-waiting'));
+    }
+  });
+
+  it('counts what a waiting section is waiting on, on the row itself', () => {
+    setup(fighter(5));
+    const feats = row('feats').querySelector('.bsec-waiting');
+    expect(feats!.textContent).toMatch(/^1 waiting/);
+  });
+});
+
+/*
+  §139. The foot: what the build hits for, and what is wrong with it.
+
+  Both were in the pinned rail and the rail's argument for them was right -
+  they belong to every section rather than to one. What went was the pinning.
+*/
+describe('the foot', () => {
+  const foot = () => document.querySelector('.flow-foot') as HTMLElement;
+
+  it('rides the guided reading, where a choice moves both of its halves', () => {
+    setup(fighter(5), 'flow');
+    expect(foot()).toBeInTheDocument();
+    expect(within(foot()).getByText('Damage per round')).toBeInTheDocument();
+    expect(within(foot()).getByText('Build review')).toBeInTheDocument();
+  });
+
+  it('draws one bar per level and marks the one you are on', () => {
+    setup(fighter(5), 'flow');
+    const bars = [...foot().querySelectorAll('.flow-spark i')];
+    expect(bars.length).toBeGreaterThanOrEqual(20);
+    // Exactly one, or "where am I on this curve" has two answers.
+    expect(bars.filter((b) => b.className.includes('is-here'))).toHaveLength(1);
+  });
+
+  /*
+    A review you cannot act on from where you are reading it is a list of
+    things to remember, so every finding is the way to the section that fixes
+    it. Which section is a judgement `analyze.ts` does not carry and should
+    not - it is about the character, not about the screen showing it.
+  */
+  it('makes every finding the way to the section that fixes it', async () => {
+    setup(
+      // Chain mail on a Dexterity Fighter: a real finding, and one the review
+      // has flagged since long before §139.
+      buildOf({ ...fighter(5), defenses: { ...fighter(5).defenses, armorId: 'chain-mail' } }),
+      'flow',
+    );
+    const rows = [...foot().querySelectorAll('.flow-review-row')] as HTMLElement[];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const finding of rows) {
+      // Severity on the edge, and a real destination behind the click.
+      expect(finding.className).toMatch(/is-(error|warning|info|good)/);
+    }
+    await userEvent.click(rows[0]);
+    // The click routes rather than throwing; the section it lands on is the
+    // band's business and is asserted there.
+    expect(foot()).toBeInTheDocument();
+  });
+
+  it('says so plainly when nothing is a mistake', () => {
+    setup(
+      buildOf({
+        ...fighter(4),
+        backgroundId: 'soldier',
+        skillIds: ['athletics', 'perception', 'survival'],
+        classOptionIds: ['defense'],
+        asiPicks: [['str', 'str']],
+      }),
+      'flow',
+    );
+    const review = foot().querySelector('.flow-review')!;
+    if (!review.querySelector('.flow-review-row')) {
+      expect(review.textContent).toMatch(/nothing here is a mistake/i);
+    }
   });
 });

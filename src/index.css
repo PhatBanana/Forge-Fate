@@ -50,6 +50,18 @@
   --tint-red: rgba(157, 49, 35, 0.32);
   --tint-orange: rgba(149, 87, 7, 0.3);
   --tint-accent: rgba(138, 95, 24, 0.3);
+  /*
+    §138. The tint that says "this, right now".
+
+    Not a fourth tint in the group above - those wash a *meaning* over a
+    surface (this is bad, this is a warning). This one carries no meaning at
+    all; it marks the one thing the screen and the reader are currently
+    talking about, and it is always the same thing however it got there: the
+    box the guided flow is filling, the skill the DM just called, the chip
+    that landed a second ago. `--accent` at low alpha, because "we are here"
+    is the accent's job everywhere else in the app too.
+  */
+  --ring: rgba(130, 89, 23, 0.16);
 
   /*
     A panel lifts off parchment with a shadow; on dark it catches a highlight
@@ -73,7 +85,16 @@
   --bg: #0d0b09;
   --bg-raised: #2e2823;
   --bg-sunken: #151210;
-  --panel: #241f1c;
+  /*
+    §138: deepened from #241f1c. The redesign puts a character sheet on a
+    panel rather than on paper, and at #241f1c the sheet's own cards
+    (`--bg-raised`, #2e2823) sat 1.15:1 off their ground - the same defect
+    the palette comment above describes for the page. Two steps down gives
+    the raised cards an edge without touching a single text ratio, since
+    every text token on this palette only gains contrast as the panel
+    darkens.
+  */
+  --panel: #1c1917;
   --border: #67584e;
   --border-soft: #473e36;
   --border-strong: #8a7768;
@@ -96,6 +117,10 @@
   --tint-red: rgba(212, 107, 89, 0.5);
   --tint-orange: rgba(224, 145, 60, 0.4);
   --tint-accent: rgba(201, 151, 63, 0.35);
+  /* Four points more alpha than parchment: the same wash reads weaker over a
+     near-black panel than over cream, so matching the numbers would not match
+     the effect. */
+  --ring: rgba(201, 151, 63, 0.2);
 
   --panel-shadow: inset 0 1px 0 rgba(255, 245, 230, 0.045), 0 1px 2px rgba(0, 0, 0, 0.4);
   --menu-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
@@ -439,43 +464,6 @@ button {
 .seg button.is-on {
   background: var(--accent);
   color: var(--on-accent);
-}
-
-/* Next choices: where the work is left, named rather than counted. */
-.next-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.next-list a {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 7px 0;
-  border-bottom: 1px solid var(--border-soft);
-  color: inherit;
-  text-decoration: none;
-}
-
-.next-list li:last-child a {
-  border-bottom: none;
-}
-
-.next-list a:hover .next-where {
-  color: var(--accent);
-}
-
-.next-where {
-  font-weight: 600;
-}
-
-.next-count {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--text-dim);
-  white-space: nowrap;
 }
 
 .columns-wide {
@@ -2648,7 +2636,15 @@ dl.detail-list {
   background: var(--paper);
   color: var(--ink);
   border: 1px solid var(--rule);
-  border-radius: var(--radius);
+  /*
+    §138: 4px rather than the app's 8px `--radius`. There are two readings of
+    a character now and the corner is the fastest thing that tells them apart:
+    the screen reading is a card and rounds like one, and paper does not round
+    at all. Four is the smallest radius that still reads as deliberate at 1px
+    of rule, which is the compromise between that and a hairline of white in
+    each corner at some zoom levels.
+  */
+  border-radius: 4px;
   padding: 16px;
   font-size: 13px;
   line-height: 1.4;
@@ -8618,119 +8614,18 @@ input.pcard-amount {
 /* -------------------------------------------------- the character-creation route */
 
 /*
-  §31.4. The Builder's five sections, numbered and walkable.
+  §31.4 numbered the Builder's five sections and gave them Back and Next;
+  §33.4 put them on one page with a rail of anchors down its side; §138 made
+  that rail the band at the top of the column (`.flow-pending`). What survives
+  all three is the order - who you are, then what you are good at, then what
+  you carry, then what you know, then what you took with a slot - and the
+  count of what is still unmade, which was the reason to have a nav at all.
 
-  They were already the steps of making a character - who you are, then what
-  you are good at, then what you carry, then what you know, then what you took
-  with a slot. The strip above them said so only by their order, which is the
-  one thing a row of pills does not communicate. Numbering them says it; the
-  Back/Next pair underneath makes it a route.
-
-  Still tabs, though: `role="tablist"` is unchanged and every step remains
-  clickable. A returning player editing one thing must not have to walk past
-  four screens to reach it, and a wizard that forbids that is a wizard people
-  work around rather than through.
+  All that is left here is the room a section needs under the thing that
+  navigates to it.
 */
- /*
-  §33.4. The rail, sticky, because the page it navigates is one page now.
-
-  A row of anchors that scrolled away with the content would be a table of
-  contents you can only read at the top - the whole reason it exists is to be
-  reachable from the middle of the feats.
-*/
-.steps {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 16px;
-  padding: 6px 0;
-  background: var(--bg);
-}
-
-/* Anchors rather than buttons since §33.4 - so they need to stop looking
-   like body links and start looking like the pills they were. */
-.step {
-  text-decoration: none;
-  cursor: pointer;
-}
-
-/*
-  A section, and the room the sticky rail needs above it. Without this an
-  anchor jump puts the section's heading underneath the rail, which reads as
-  the link having gone one panel too far.
-*/
-.bsec {
-  display: block;
-  scroll-margin-top: 56px;
-}
-
-.step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px 6px 6px;
-  background: var(--bg-sunken);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--text-dim);
-  font-size: 13px;
-}
-
-.step:hover {
-  color: var(--text);
-  border-color: var(--border-strong);
-}
-
-/* The number, in a disc. Mono because it is a figure rather than a word, and
-   figures in the app's body face do not line up in a column of five. */
-.step-n {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  background: var(--panel);
-  border: 1px solid var(--border-soft);
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text-faint);
-}
-
-.step[aria-selected='true'] {
-  background: var(--panel);
-  border-color: var(--accent-dim);
-  color: var(--accent);
-}
-
-.step[aria-selected='true'] .step-n {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
-}
-
-/* A count of choices still unmade, so the route answers "what have I not
-   finished" without walking it. Carried over from the pills it replaced. */
-.step .badge {
-  display: inline-block;
-  min-width: 17px;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--on-accent);
-  font-family: var(--mono);
-  font-size: 10px;
-  line-height: 16px;
-  text-align: center;
-}
-
-@media print {
-  .steps {
-    display: none !important;
-  }
-}
+/* §139: `.bsec` moved to the dense-page block at the foot of this file,
+   where it is a row with its own state rather than only a scroll target. */
 
 /* -------------------------------------------------------------- the chrome */
 
@@ -8839,4 +8734,1334 @@ input.pcard-amount {
   font-size: 18px;
   letter-spacing: 0.15em;
   text-transform: uppercase;
+}
+
+/* ------------------------------------- §138: the guided flow, on the sheet */
+
+/*
+  §138. The Builder stopped being a form beside a readout.
+
+  Before this, making a choice and seeing what it did were two places: the
+  form on the left, the pinned rail on the right, and a separate sheet on a
+  separate screen that you went to afterwards to find out what you had built.
+  The rail existed because the consequence had nowhere else to be.
+
+  Now the flow runs *on* the sheet. Each step names the box it fills, applying
+  a pick writes into that box, and every figure downstream moves in place
+  where you can see it. That collapses the two-column layout to one measure -
+  there is no second column, because the second column was the sheet and the
+  sheet is now underneath.
+
+  One animation carries it, and it is the only one:
+
+    just-landed   "what did that do" - the chip that received a choice.
+
+  It washes `--ring` and fades out, and it does not move layout. The
+  `prefers-reduced-motion` block at the top of this file already covers it,
+  since it matches every animation by selector rather than by name.
+
+  Two others were written and deleted before they shipped. `called-flash` is
+  for the skill row the DM asks about, and belongs to the check-call, which
+  arrives over the wire from the DM's screen rather than from anything on
+  this one. `overlay-in` was for a menu overlay this redesign turned out not
+  to need: §35's menu is the title screen, not a panel that slides over the
+  work. Each goes in with the thing that fires it, because a keyframe waiting
+  for a feature is dead CSS that reads as a feature.
+*/
+
+@keyframes just-landed {
+  from {
+    background: var(--ring);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+/*
+  The view switcher.
+
+  Four readings of one character - guided, sheet, paper, dense page - not four
+  destinations, which is why this is a segmented control in the bar's own
+  action cluster rather than anything resembling the tab strip §35 removed.
+  It switches what you are looking at; it never switches what you are on.
+
+  Shares the `.theme-toggle` recipe deliberately: they sit next to each other
+  and are the same kind of control, so they are the same shape.
+*/
+.gbar-views {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-sunken);
+}
+
+.gbar-views button {
+  border: none;
+  background: none;
+  border-radius: 999px;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 12px;
+}
+
+.gbar-views button:hover {
+  color: var(--text);
+}
+
+.gbar-views button.is-on {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/*
+  One measure, not two columns.
+
+  1060px because the sheet's six-across ability grid wants ~1000px before the
+  cells start setting two-digit scores on two lines, and past ~1100px the
+  step card's prose breaks the 66ch measure it sets for itself. The old
+  `.columns` grid is not used here at all - see the header comment.
+*/
+.flow-main {
+  max-width: 1060px;
+  margin: 0 auto;
+  padding: 24px 22px 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/*
+  The pending band - what the rail's "Next choices" panel became.
+
+  Named rather than counted, and horizontal rather than stacked, because it is
+  now a single line above the work instead of a panel beside it. Each pill is
+  the way to the step that answers it, so the band is a table of contents for
+  everything the level still wants.
+*/
+.flow-pending {
+  /*
+    Sticky, for §33.4's reason and not a new one: this is a table of contents
+    for a page that is nearly three screens tall, and one you can only read
+    from the top is one you read once. `top: 0` rather than the bar's height
+    because the bar is a sibling of the scroll region, not above it.
+  */
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+}
+
+.flow-pending-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.flow-pending-pill {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  background: var(--bg-raised);
+  /* The border is the whole state: accent while something is waiting, the
+     quiet inner rule once it is answered. No tick, no colour change on the
+     label - the edge does it. */
+  border: 1px solid var(--border-soft);
+  /* §33.4's rail was anchors and this is that rail; the link styling the rest
+     of the app gives an `a` is wrong on something shaped like a pill. */
+  text-decoration: none;
+}
+
+.flow-pending-pill:hover {
+  background: var(--hover-fill);
+}
+
+.flow-pending-pill.is-waiting {
+  border-color: var(--accent-dim);
+}
+
+.flow-pending-where {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-faint);
+}
+
+.flow-pending-pill.is-waiting .flow-pending-where {
+  color: var(--text);
+}
+
+/* Where you are, which the contextual column is still keyed to. A ring rather
+   than a fill, so the "waiting" edge above it stays readable underneath - the
+   two states are about different things and must be legible together. */
+.flow-pending-pill.is-on {
+  background: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.flow-pending-pill em {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-style: normal;
+  color: var(--text-dim);
+}
+
+/* The one figure worth carrying at the top of every view: what the build hits
+   for. It is here rather than in the foot card as well, because the foot is
+   three screens down while you are choosing. */
+.flow-pending-dpr {
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+}
+
+.flow-pending-dpr b {
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/*
+  The step card.
+
+  Deliberately **not sticky**. Every instinct says pin it - it is the thing
+  you are working in - and the first build did, and it covered the sheet's own
+  head the moment you scrolled. The sheet underneath is the whole point of the
+  fusion; a card that hides it while asking about it is a wizard with a
+  picture of a sheet behind it. The band above is sticky and that is enough.
+*/
+.flow-step {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--panel-shadow);
+  /* The head strip is flush to the corners, so it has to be clipped by them. */
+  overflow: hidden;
+}
+
+.flow-step-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: var(--bg-sunken);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.flow-step-n {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.flow-step-pips {
+  display: flex;
+  gap: 4px;
+}
+
+/*
+  A pip per step, and each one is a way there. No border and no number: the
+  strip answers "how many of these are there and where am I", where a numbered
+  pill answers "which one must I do first" - which §33.4 settled, and §138
+  did not reopen.
+*/
+.flow-step-pips button {
+  width: 26px;
+  height: 5px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--border-soft);
+  cursor: pointer;
+}
+
+.flow-step-pips button.is-done {
+  background: var(--accent-dim);
+}
+
+.flow-step-pips button.is-on {
+  background: var(--accent);
+}
+
+.flow-step-waiting {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.flow-step-body {
+  padding: 18px 20px 20px;
+}
+
+.flow-step-body > h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0;
+  font-size: 23px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/*
+  Which box on the sheet this step fills.
+
+  The one piece of the card that makes it a fusion rather than a wizard, so it
+  sits beside the title rather than under it - a reader who takes only the
+  heading still takes both halves of the sentence.
+*/
+.flow-step-target {
+  padding: 2px 7px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.flow-step-blurb {
+  margin: 8px 0 16px;
+  /* A measure, because this is the one place on the screen with real prose in
+     it and 1060px of prose is not read, it is skimmed. */
+  max-width: 66ch;
+  font-size: 14px;
+  color: var(--text-dim);
+  text-wrap: pretty;
+}
+
+.flow-step-foot {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+/* "Skip for now" is a way out, not an action - so it is set as a caption
+   rather than a button. Leaving a choice unmade is allowed and costs nothing;
+   a third button here would have made it look like a decision. */
+.flow-step-skip {
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.flow-step-skip:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.flow-step-skip:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.flow-step-note {
+  margin-left: auto;
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+/*
+  A step the engine holds no opinion about.
+
+  Six ability scores and a background are forms, and ranking them would mean
+  inventing the scores as well as the ranking. So the step says so and carries
+  the way through rather than being a dead end in the middle of a flow - the
+  picker it sends you to already exists on the dense page and already works,
+  which is precisely what §31.4's wizard did not do.
+*/
+.flow-form {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 14px 15px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.flow-form p {
+  flex: 1;
+  min-width: 260px;
+  margin: 0;
+  max-width: 66ch;
+  text-wrap: pretty;
+}
+
+/* ------------------------------------------------------ the ranked option */
+
+.flow-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+/*
+  One thing the engine has an opinion about.
+
+  The edge carries the rank and nothing else does: accent-dim on the top pick,
+  the ordinary border on the rest. A blocked option keeps the plain border and
+  loses four tenths of its opacity, which is enough to read as unavailable
+  without making the refusal - the reason it is on screen at all - hard to
+  read.
+*/
+.flow-opt {
+  display: flex;
+  gap: 13px;
+  padding: 13px 15px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.flow-opt.is-top {
+  border-color: var(--accent-dim);
+}
+
+.flow-opt.is-blocked {
+  opacity: 0.62;
+}
+
+.flow-opt-rank {
+  width: 16px;
+  flex: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.flow-opt-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.flow-opt-main > h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.flow-opt-src {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* The refusal, beside the name. Red on the border as well as the text, because
+   this is the one thing on the card that is not an opinion. */
+.flow-opt-flag {
+  padding: 1px 6px;
+  border: 1px solid var(--red);
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--red);
+}
+
+/*
+  The strongest single reason, at rest.
+
+  This line is §138's argument in one rule. Behind a disclosure the list was a
+  leaderboard and you took the top one because it was the top one; in the open
+  it is a case being made, which a reader can disagree with without opening
+  anything.
+*/
+.flow-opt-top {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  color: var(--text-dim);
+  text-wrap: pretty;
+}
+
+.flow-opt-why {
+  margin-top: 8px;
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.flow-opt-reasons {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.flow-opt-reasons li {
+  display: flex;
+  gap: 10px;
+  padding: 5px 0;
+  border-top: 1px solid var(--border-soft);
+}
+
+/* Right-aligned in a fixed column, so the deltas read as a column of figures
+   rather than as the first word of each sentence. */
+.flow-opt-reasons em {
+  width: 44px;
+  flex: none;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.flow-opt-reasons em.is-up {
+  color: var(--green);
+}
+
+.flow-opt-reasons em.is-down {
+  color: var(--red);
+}
+
+.flow-opt-reasons em.is-flat {
+  color: var(--text-faint);
+}
+
+.flow-opt-reasons span {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.flow-opt-fit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  flex: none;
+}
+
+.flow-opt-bar {
+  display: block;
+  width: 78px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.flow-opt-bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+}
+
+.flow-opt-score {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* --------------------------------------------- the level-up report cells */
+
+/*
+  A grid whose gap is the rule. One background showing through 1px gaps draws
+  every line in the table with no borders to keep in step, and the cells stay
+  a grid at any count - which matters, because a level hands over between one
+  and five of these depending on the class.
+*/
+.flow-report {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1px;
+  background: var(--border-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.flow-report-cell {
+  padding: 12px 13px;
+  background: var(--bg-raised);
+}
+
+.flow-report-cell span {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.flow-report-cell b {
+  display: block;
+  margin-top: 4px;
+  font-size: 19px;
+  font-weight: 400;
+}
+
+.flow-report-cell em {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  font-style: normal;
+  color: var(--text-dim);
+}
+
+/* ---------------------------------------------------- the review findings */
+
+.flow-findings {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/*
+  A left edge rather than a chip. Four severities down a list as four chips
+  read as four labels to sort by; the list is already in the order it should
+  be read, so the colour only has to say how loud each one is.
+*/
+.flow-finding {
+  padding-left: 14px;
+  border-left: 3px solid var(--border);
+}
+
+.flow-finding.is-error {
+  border-left-color: var(--red);
+}
+
+.flow-finding.is-warning {
+  border-left-color: var(--orange);
+}
+
+.flow-finding.is-info {
+  border-left-color: var(--blue);
+}
+
+.flow-finding.is-good {
+  border-left-color: var(--green);
+}
+
+.flow-finding > h3 {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.flow-finding > p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-dim);
+  text-wrap: pretty;
+}
+
+.flow-finding-fix {
+  color: var(--text-faint);
+}
+
+.flow-finding-fix span {
+  color: var(--accent);
+}
+
+/*
+  §138's one breakpoint of its own, and it reuses the file's 780px rather than
+  inventing a number. The option card's fit column is the first thing that
+  stops fitting: a fixed 78px beside prose that has already been squeezed.
+*/
+@media (max-width: 780px) {
+  .flow-opt {
+    flex-wrap: wrap;
+  }
+
+  .flow-opt-fit {
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+@media print {
+  .flow-pending,
+  .flow-step {
+    display: none !important;
+  }
+}
+
+/* ------------------------------------------ §138: the sheet, as a screen */
+
+/*
+  The other reading of a character, and the one that is not paper.
+
+  `.cs` above is ink on cream in both themes because it promises that the
+  screen and the printed page are the same document. This one makes no such
+  promise - it is never printed - so it is on the app's own palette, in the
+  app's own card shell, and the two of them stop disagreeing about what colour
+  the application is.
+
+  That is not a style preference. The guided flow says "this step fills Feats
+  & ability increases" and the box has to be able to answer in the accent the
+  step card is using; a box on cream cannot, because `--accent` on `--paper`
+  is a different colour relationship from `--accent` on `--panel`. The fusion
+  needed one palette across the card and the sheet, and this is it.
+*/
+.ss {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--panel-shadow);
+  padding: 24px 26px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.ss-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+/* Initials until a picture is dropped in - the roster's pattern rather than a
+   second idea about what an empty portrait looks like. */
+.ss-face {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  flex: none;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--text-faint);
+}
+
+.ss-name {
+  min-width: 0;
+}
+
+/* The name is an input that does not look like one until you reach for it: on
+   a sheet the name is the heading, and a text field with a box round it would
+   make the character's name look like a form field on their own sheet. */
+.ss-name input {
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 27px;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+
+.ss-name input:hover,
+.ss-name input:focus {
+  background: var(--bg-sunken);
+  border-radius: 4px;
+}
+
+.ss-name p {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.ss-name span {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.ss-abilities {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 9px;
+}
+
+.ss-ability {
+  padding: 10px 6px;
+  text-align: center;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+}
+
+/* The two the class actually cares about, marked - so "which of these is this
+   character about" is answerable without reading the numbers. */
+.ss-ability.is-primary {
+  border-color: var(--accent-dim);
+}
+
+.ss-ability span {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.ss-ability.is-primary span {
+  color: var(--accent);
+}
+
+.ss-ability b {
+  display: block;
+  font-size: 27px;
+  font-weight: 400;
+}
+
+.ss-ability em {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-style: normal;
+  color: var(--text-dim);
+}
+
+.ss-stats {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 9px;
+}
+
+.ss-stat {
+  padding: 9px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+}
+
+.ss-stat span {
+  display: block;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.ss-stat b {
+  display: block;
+  margin-top: 3px;
+  font-size: 21px;
+  font-weight: 400;
+}
+
+/* A floor rather than a height, so a build that gains or loses a note does not
+   make the whole row of six jump by a line. */
+.ss-stat em {
+  display: block;
+  min-height: 14px;
+  font-size: 10.5px;
+  font-style: normal;
+  color: var(--text-faint);
+}
+
+.ss-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 30px;
+}
+
+.ss-col {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.ss-box > h3 {
+  margin: 0 0 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/*
+  The box the guided flow is filling, right now.
+
+  `--ring` and nothing else - no border colour change, no fill that competes
+  with the card above it. The step card says which box; this says "that one",
+  and the two are the same gesture in the same colour, which is the entire
+  reason this reading is on the app's palette.
+*/
+.ss-box.is-lit {
+  margin: -8px -10px;
+  padding: 8px 10px;
+  background: var(--ring);
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/*
+  Rows rather than a table.
+
+  The paper reading uses a `<table>` and should: on paper the three columns are
+  a grid you read down. Here the damage line is the widest thing on the sheet
+  and a table column would wrap it in a half-width column, so these are flex
+  rows that keep the numbers on one line and let the name take what is left.
+*/
+.ss-attack,
+.ss-skill {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.ss-attack:last-child,
+.ss-skill:last-child {
+  border-bottom: none;
+}
+
+.ss-attack > span {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+}
+
+.ss-attack > span em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.ss-attack b,
+.ss-skill b {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.ss-skill > span {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+}
+
+/*
+  A filled dot for proficient, a ringed one for expertise.
+
+  This is the paper convention and it needs no key, which is why there is not
+  one. The ring is drawn with two shadows rather than a border so it sits
+  outside the dot without changing its size - a 9px circle that grows to 11px
+  when doubled would make the column of names step in and out.
+*/
+.ss-skill i {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 999px;
+  border: 1px solid var(--text-faint);
+}
+
+.ss-skill i.is-proficient {
+  background: var(--text-dim);
+  border-color: var(--text-dim);
+}
+
+.ss-skill i.is-expert {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--accent);
+}
+
+.ss-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/*
+  §139: the chip that just landed.
+
+  A one-shot tint that fades out, and nothing else moves. The claim the fusion
+  makes is that a choice in the card appears in a box below, and a figure that
+  changes silently in a page of figures is a figure nobody saw change - but a
+  chip that stayed lit would be a second permanent state competing with the
+  lit box above it. So it says "here" once and stops.
+*/
+.ss-chip.is-fresh {
+  animation: just-landed 1.1s ease-out;
+}
+
+.ss-chip {
+  padding: 4px 10px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12.5px;
+}
+
+.ss-slots {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  font-size: 13px;
+}
+
+.ss-slots > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.ss-pips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Spend left to right, the way you tick off a paper sheet - the same gesture
+   as `.cs`'s pips, in this reading's colours. */
+.ss-pips button {
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: none;
+  cursor: pointer;
+}
+
+.ss-pips button.is-full {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.ss-pips em {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-style: normal;
+  color: var(--text-faint);
+}
+
+/*
+  §138's responsive rules, which are the file's own numbers rather than new
+  ones - `.sheet-abilities` above documents 780 for exactly this shape, six
+  cells across that stop being readable long before they stop fitting.
+*/
+@media (max-width: 780px) {
+  .ss-abilities,
+  .ss-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .ss-cols {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
+  }
+}
+
+/*
+  This reading never prints.
+
+  Not an omission - it is the point of there being two. `.cs` is the sheet of
+  record and the print block below it is short precisely because that sheet is
+  already ink on paper. A screen surface forced through a printer would need
+  every token overridden and would still be the abridged reading.
+*/
+@media print {
+  .ss {
+    display: none !important;
+  }
+}
+
+/* ------------------------------------- §139: the dense page, and the foot */
+
+/*
+  The contract, stated where the reader is standing.
+
+  "Two readings of one character, not two modes" is a claim the screen has to
+  make out loud, because every wizard that ever shipped beside a form made the
+  opposite claim silently and left the reader to discover which of the two was
+  authoritative.
+*/
+.flow-contract {
+  margin: 0;
+  max-width: 66ch;
+  font-size: 13.5px;
+  color: var(--text-dim);
+  text-wrap: pretty;
+}
+
+/*
+  A section, as a row.
+
+  §33.4's `.bsec` was a scroll target and nothing else - the page was a stack
+  of panels and the rail said where you were. §139 gave the page one measure,
+  so the section has to carry its own state, and the left edge is where it
+  goes: accent while something in it is unmade, the quiet inner rule once it is
+  not. That is the same signal, in the same colour, as the band's pills at the
+  top of the page - one fact drawn twice rather than two things to keep in
+  step.
+
+  2px rather than 3: the findings in the foot use 3px for severity, and two
+  different meanings on the same edge at the same weight would read as one.
+*/
+.bsec {
+  display: block;
+  /* The room the sticky band needs above it. Without this an anchor jump puts
+     the section's heading underneath the band, which reads as the link having
+     gone one panel too far. */
+  scroll-margin-top: 56px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border-soft);
+}
+
+.bsec.is-waiting {
+  border-left-color: var(--accent);
+}
+
+.bsec-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.bsec-head h2 {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 600;
+}
+
+/*
+  What the section currently holds, before you open anything.
+
+  This is what makes the page a *reading* rather than a table of contents: five
+  rows that named only their sections would tell you nothing you did not
+  already know from the band.
+*/
+.bsec-head p {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.bsec-waiting {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/*
+  The analysis half of the page, and it is not a sixth section.
+
+  §123's five are the things a character is *made of*; nothing in here is one
+  of them. They were the pinned rail, and the rail was right that they belong
+  to every section rather than to one. What §138 took away was the pinning, so
+  they sit at the end of the one measure - which is also the order you use
+  them in: make the choices, then read what they came to.
+*/
+.flow-analysis {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 8px;
+}
+
+/* ------------------------------------------------------------- the foot */
+
+/*
+  Two cards under every reading: what the build hits for, and what is wrong
+  with it. Narrow first, because the damage figure is one number and a
+  sparkline while the review is a list that wants the room.
+*/
+.flow-foot {
+  display: grid;
+  grid-template-columns: 264px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.flow-dpr,
+.flow-review {
+  padding: 12px 14px 11px;
+  border-radius: 10px;
+}
+
+.flow-dpr {
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+/* Sunken rather than raised: the review is a thing you consult, not a thing
+   you act in, and the two cards should not read as a pair of equals. */
+.flow-review {
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-soft);
+}
+
+.flow-dpr > h2,
+.flow-review > h2 {
+  margin: 0 0 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.flow-dpr p {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+}
+
+.flow-dpr b {
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--accent);
+}
+
+.flow-dpr em {
+  font-size: 12px;
+  font-style: normal;
+  color: var(--text-dim);
+}
+
+/*
+  Twenty bars and no axis.
+
+  This is the *shape* of the curve - front-loaded, or does it come good at
+  eleven - and an axis would invite reading values off it, which is what
+  `DamagePanel`'s chart on the dense page is for. The current level is solid
+  and the rest are the accent at 55%, so "where am I on this" is answered
+  without a marker or a label.
+*/
+.flow-spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 38px;
+  margin: 8px 0 6px;
+}
+
+.flow-spark i {
+  flex: 1;
+  border-radius: 1px 1px 0 0;
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.flow-spark i.is-here {
+  background: var(--accent);
+}
+
+.flow-dpr span {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/*
+  A finding, as the way to the section that fixes it.
+
+  A text button rather than a card: a review you cannot act on from where you
+  are reading it is a list of things to remember. The left edge is the
+  severity at 3px, which is the weight the flow's own findings use - and why
+  `.bsec` above takes 2px rather than sharing it.
+*/
+.flow-review-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-left: 3px solid var(--border);
+  background: none;
+  padding: 4px 0 4px 11px;
+  margin-bottom: 6px;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.flow-review-row:last-child {
+  margin-bottom: 0;
+}
+
+.flow-review-row:hover {
+  color: var(--text);
+}
+
+.flow-review-row.is-error {
+  border-left-color: var(--red);
+}
+
+.flow-review-row.is-warning {
+  border-left-color: var(--orange);
+}
+
+.flow-review-row.is-info {
+  border-left-color: var(--blue);
+}
+
+.flow-review-row.is-good {
+  border-left-color: var(--green);
+}
+
+/* The file's own 780, not a new number: the narrow card is a fixed 264px and
+   it is the first thing that stops leaving the review enough room. */
+@media (max-width: 780px) {
+  .flow-foot {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media print {
+  .flow-foot {
+    display: none !important;
+  }
 }

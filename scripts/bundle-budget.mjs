@@ -21,13 +21,40 @@
  * which is the check that catches the failure this file actually exists for.
  *
  * When one fires, the question is *what moved* - not how much to add.
+ *
+ * ## §139: a per-chunk size is a proxy, and it drifted from the thing it stood for
+ *
+ * `index` grew 40.9 kB in one change. Thirty of that was two shared chunks -
+ * `analyze` and `sheet` - being *inlined* into it: both had been emitted
+ * separately because two chunks imported them, one of those importers moved,
+ * and Rollup folded them in. Those bytes were already downloaded on first
+ * paint; they simply stopped being separate files. The real growth was 22 kB.
+ *
+ * So the number moved twice as far as the change did, in a direction that
+ * says nothing about what a visitor pays. That is the same defect §59.5 named
+ * on `data` - an invariant "proxied by a number I keep editing" - and it is
+ * why raising `index` on its own would have made this file weaker rather than
+ * better calibrated: it would have restored the alarm margin and left the
+ * alarm still measuring the wrong thing.
+ *
+ * The thing worth defending on the eager path is **what a first visit
+ * downloads before anything renders**, which is the entry chunk plus every
+ * chunk it statically imports. Vite already writes that set into
+ * `dist/index.html` as the module script and its `modulepreload` links, so it
+ * can be measured as itself rather than inferred from one chunk's size - and
+ * it is immune to re-chunking, because moving a module between two chunks
+ * that are both on that list does not change the total.
+ *
+ * `index`'s own ceiling stays, raised to a real alarm margin. It is no longer
+ * carrying the whole argument.
  */
-import { readdir, stat } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // fileURLToPath, not `.pathname` - see the note in build-sw.mjs.
 const ASSETS = fileURLToPath(new URL('../dist/assets/', import.meta.url));
+const DIST = fileURLToPath(new URL('../dist/', import.meta.url));
 
 /**
  * Budgets in bytes, keyed by the chunk name Vite puts before the hash.
@@ -86,7 +113,14 @@ const BUDGETS = {
   */
   'data': 1_000_000,
   'vendor': 210_000, // React
-  'index': 180_000, // the app itself
+  /*
+    §139: raised from 180 kB, where the app sat at 82% of its ceiling - close
+    enough that ordinary growth would fire it, which is how §59.5's four
+    reactive raises started. 256 kB puts it back at the margin `data` and
+    `TableTab` have, and the first-paint check below is what took over the
+    job this number was doing badly.
+  */
+  'index': 256_000, // the app itself
   /*
     The two that matter, and the only two with a floor.
 
@@ -155,6 +189,59 @@ for (const file of files) {
   } else {
     const range = min ? `${kb(min)}-${kb(max)}` : kb(max);
     console.log(`  ok  ${name.padEnd(18)} ${kb(size).padStart(9)} / ${range}`);
+  }
+}
+
+/*
+  §139. What a first visit downloads before anything renders.
+
+  The entry chunk plus every chunk it statically imports - which is exactly
+  the set Vite writes into `index.html`, as the module script and the
+  `modulepreload` links beside it. Read from there rather than walked out of
+  the bundle, because that file *is* the browser's instruction: whatever is
+  listed is fetched before the app runs, and anything not listed is not.
+
+  A ceiling only. There is no floor to add: a chunk leaving this list is a
+  chunk that became lazy, which is the direction this check wants.
+
+  1.3 MB against ~1.04 MB today. An alarm at the same margin as the rest of
+  this file, and the one number here that corresponds to something a person
+  waiting for the page can feel. Most of it is `data`, which every visitor
+  pays by the deliberate trade argued above.
+*/
+const FIRST_PAINT_MAX = 1_300_000;
+
+const html = await readFile(join(DIST, 'index.html'), 'utf8').catch(() => null);
+if (html === null) {
+  failures.push('no dist/index.html - cannot measure what a first visit downloads');
+} else {
+  /*
+    Both shapes in one pass: `<script type="module" src=...>` is the entry and
+    `<link rel="modulepreload" href=...>` is each chunk it statically imports.
+    Vite writes them with a `./` or a base prefix, so the path is taken from
+    `assets/` onwards rather than trusted whole.
+  */
+  const paths = [...html.matchAll(/(?:src|href)="([^"]*assets\/[^"]+\.js)"/g)].map((m) =>
+    m[1].slice(m[1].indexOf('assets/')),
+  );
+  const unique = [...new Set(paths)];
+  let total = 0;
+  for (const path of unique) {
+    const { size } = await stat(join(DIST, path)).catch(() => ({ size: 0 }));
+    total += size;
+  }
+  const kb = (n) => `${(n / 1024).toFixed(1)} kB`;
+  if (unique.length === 0) {
+    // The regex found nothing, which means the emitted HTML changed shape and
+    // this check is silently measuring zero rather than measuring first paint.
+    failures.push('found no module scripts in dist/index.html - this check has stopped working');
+  } else if (total > FIRST_PAINT_MAX) {
+    failures.push(
+      `first paint: ${kb(total)} across ${unique.length} chunks exceeds its ` +
+        `${kb(FIRST_PAINT_MAX)} ceiling - something static landed in front of every visitor`,
+    );
+  } else {
+    console.log(`  ok  ${'first paint'.padEnd(18)} ${kb(total).padStart(9)} / ${kb(FIRST_PAINT_MAX)}`);
   }
 }
 

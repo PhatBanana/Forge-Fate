@@ -85,6 +85,44 @@ same in code, comments, HISTORY and reviews. Deeper reasoning lives in
 - **Signed** — how this game writes a modifier: `+3`, `-1`, and `+0`
   rather than `0` (`format.ts`, §131). A sheet says "you add nothing"
   out loud.
+- **Reading** — one of the four ways a character is shown (§138):
+  guided, sheet, paper, dense page. Not a destination — the menu is
+  still the only navigation (§35). The tab is derived from the reading,
+  never tracked beside it.
+- **Pending band** — the line above every reading (`PendingBand`, §138):
+  the §123 sections, each with what it is still waiting on and a way to
+  it. What §33.4's rail and §33.5's "Next choices" panel became, once
+  they turned out to be the same list twice.
+- **Waiting choice** — one decision still unanswered (`waitingChoices`,
+  §138): which section owns it, how many of it are outstanding, the box
+  on the sheet it fills, and whether it is a *ranking* or a *form*. The
+  band's five counts are a sum over these, so the two grains cannot
+  disagree.
+- **Step** — one question the guided flow asks (`flowSteps.ts`, §138).
+  The list is derived, never held, which is what makes answering one
+  advance the flow: the list is a step shorter and the same index is the
+  next question.
+- **Ranked pick** — the shape four scorers share (§138): a score, signed
+  reasons, the strongest of them as a headline, and why it cannot be
+  taken. Feats, class options, skills and spells all answer it, which is
+  why one card draws all four.
+- **The two readings of a sheet** (§138) — *paper* (`CharacterSheet`) is
+  ink on cream in both themes, the sheet of record, and the one that
+  prints; *screen* (`ScreenSheet`) is on the app's palette, abridged, and
+  never prints. The ink conceit was always an argument about print, so it
+  stayed with the reading that prints.
+- **Lit box** — the box on the screen reading that the current step names
+  (§138). `--ring` and an inset accent rule, and nothing else. Every
+  ranked step's `target` must be a box that exists there, or the step
+  card is pointing at nothing.
+- **Section row** — one of §123's five on the dense page (§140): what it
+  holds, what it is still waiting on, and the readouts its own edits
+  move, all inside it. What §33.4's rail was keyed to, now that there is
+  no rail.
+- **The foot** — damage per round and the build review, under every
+  reading (`FlowFoot`, §140). A glance, not a panel: the figure and the
+  shape of the curve, with `DamagePanel` on the dense page for when the
+  glance raises a question.
 
 ## The fight, continued
 

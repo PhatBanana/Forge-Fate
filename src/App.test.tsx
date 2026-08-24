@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
 import { encodeBuild } from './share';
@@ -69,15 +69,21 @@ describe('where to start', () => {
     answers are about building, and "show me an example" used to promise the
     damage curve and then drop you on the main menu to go find it.
   */
+  /*
+    §138: the Builder opens on the guided reading, so what says "you are on
+    the Builder" is the sheet under the step card rather than the Identity
+    section's own name field. Same claim, read off the screen that is
+    actually showing.
+  */
   it('hands over a blank sheet when that is what was asked for', async () => {
     render(<App />);
     await answerRuleset();
     await userEvent.click(screen.getByRole('button', { name: /start blank/i }));
 
     // Level 1, unnamed, and nothing in hand - already on the Builder.
-    const name = screen.getByLabelText(/^name$/i) as HTMLInputElement;
+    const name = screen.getByLabelText('Character name') as HTMLInputElement;
     expect(name.value).toBe('');
-    expect(screen.getByText('At a glance').closest('.panel')).toHaveTextContent(/LEVEL\s*1/i);
+    expect(document.querySelector('.ss-name p')!.textContent).toMatch(/1/);
   });
 
   it('keeps the example, names it, and lands on it (§77)', async () => {
@@ -85,7 +91,9 @@ describe('where to start', () => {
     await answerRuleset();
     await userEvent.click(screen.getByRole('button', { name: /show me an example/i }));
 
-    expect((screen.getByLabelText(/^name$/i) as HTMLInputElement).value).toBe('Example Fighter');
+    expect((screen.getByLabelText('Character name') as HTMLInputElement).value).toBe(
+      'Example Fighter',
+    );
   });
 
   it('asks neither question of someone who has been here before', () => {
@@ -226,7 +234,8 @@ describe('hub and spoke', () => {
 
     expect(screen.queryByRole('tab')).not.toBeInTheDocument();
     // The bar names the screen instead, so you still know where you are.
-    expect(screen.getByText('Builder')).toBeInTheDocument();
+    // §138: and which of the four readings, since two of them are the sheet.
+    expect(screen.getByText('Builder · guided')).toBeInTheDocument();
   });
 
   it('goes home through the wordmark chip, from any desk screen', async () => {
@@ -264,14 +273,72 @@ describe('hub and spoke', () => {
     expect(screen.getByRole('group', { name: /colour theme/i })).toBeInTheDocument();
   });
 
+  /*
+    §138: the two one-way doors became one switcher, so the trip this test
+    guards is now made by picking a reading rather than by pressing a button
+    that goes somewhere. What it guards is unchanged: Builder to sheet and
+    back without the menu in between.
+  */
   it('flips between the Builder and the sheet without a trip through the menu', async () => {
     await toMenu();
     await userEvent.click(screen.getByRole('button', { name: /build a character/i }));
-    await userEvent.click(screen.getByRole('button', { name: /character sheet →/i }));
-    expect(await screen.findByText(/saving throws/i)).toBeInTheDocument();
+    const views = () => screen.getByRole('group', { name: /how to read this character/i });
 
-    await userEvent.click(screen.getByRole('button', { name: /edit in builder/i }));
-    expect(screen.getByLabelText(/^name$/i)).toBeInTheDocument();
+    await userEvent.click(within(views()).getByRole('button', { name: 'Sheet' }));
+    // §138: Sheet is the screen reading. Saving throws are on Paper, which is
+    // the sheet of record; what this asks is only that the trip happened.
+    expect(await screen.findByText(/what you see here is what prints|reading for a screen/i))
+      .toBeInTheDocument();
+
+    await userEvent.click(within(views()).getByRole('button', { name: 'Guided' }));
+    // §138: the guided reading is the step card on the sheet, so what proves
+    // the trip back is the card - the sheet alone is on both screens now.
+    expect(screen.getByText(/^Step \d+ of \d+$/)).toBeInTheDocument();
+  });
+
+  /*
+    The switcher says where you are as well as where you could go - a
+    segmented control that never showed its own state would be four buttons
+    in a rounded box.
+  */
+  it('marks the reading that is showing, and moves the mark with it', async () => {
+    await toMenu();
+    await userEvent.click(screen.getByRole('button', { name: /build a character/i }));
+    const views = () => screen.getByRole('group', { name: /how to read this character/i });
+
+    expect(within(views()).getByRole('button', { name: 'Guided' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    await userEvent.click(within(views()).getByRole('button', { name: 'Paper' }));
+    expect(screen.getByText('Character sheet · paper')).toBeInTheDocument();
+    expect(within(views()).getByRole('button', { name: 'Paper' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(within(views()).getByRole('button', { name: 'Guided' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
+
+  /*
+    §138: arriving by any other route gives you the screen's first reading.
+    Leaving Paper showing under a Builder heading is the one way the view and
+    the tab can disagree, and the menu is the route that would have done it.
+  */
+  it('snaps back to a screen’s first reading when you arrive some other way', async () => {
+    await toMenu();
+    await userEvent.click(screen.getByRole('button', { name: /build a character/i }));
+    const views = () => screen.getByRole('group', { name: /how to read this character/i });
+
+    await userEvent.click(within(views()).getByRole('button', { name: 'Paper' }));
+    expect(screen.getByText('Character sheet · paper')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /forge\s*&\s*fate/i }));
+    await userEvent.click(screen.getByRole('button', { name: /build a character/i }));
+    expect(screen.getByText('Builder · guided')).toBeInTheDocument();
   });
 });
 
