@@ -8631,3 +8631,117 @@ from the other side.
 **Gates.** `tsc -b`, oxlint clean, first paint 1039.4 kB against 1269.5
 kB, and the suite green with twelve new tests across the page, the foot
 and the tint.
+
+## 141. The DM asks the table
+
+The last piece of §138's handoff, and the only one that is not a screen
+change. "Who has the highest Perception" is the commonest thing said at a
+table that this app had no answer for: six people leaf through six sheets,
+read out six numbers, and the DM does the comparing out loud.
+
+**It travels one way, and that is the design rather than a shortcut.** The
+DM's screen names a skill; every seated phone lights that row on its own
+sheet and says whether to raise a hand. Nothing comes back over the wire.
+
+I argued for a round trip when scoping this - the DM needs to know who has
+answered, so send the rolls back - and the handoff's design is better for
+a reason I had missed. The answer is a hand going up in the room. Sending
+it over the wire would put a roll button on the seat, and the seat screen's
+own docstring says it "can not move a token, roll an attack, or end a turn,
+which is exactly the §92 authority rule enforced by having no button for
+any of it". One-way keeps that rule intact instead of carving an exception
+into it, and needs no results channel, no roll button, and no new data:
+the comparison wants the party's modifiers, and §96's table roster already
+carries them.
+
+**Truth, not an operation.** §92 splits these and the difference decides
+one case: a phone that blipped while the DM was asking. As an operation it
+would be dropped at the dead spot (§95's rule, which is right for plans),
+leaving that player on a blank sheet while the table waits on the one
+person who does not know they were asked. So the host holds the current
+call, `announce('call')` re-says it on every rejoin, and a `hello` is
+answered with four messages rather than three.
+
+**The comparison is the part that can be quietly wrong.** A verdict reading
+"raise your hand" for the second-best character looks exactly like a
+correct one. So `checkCall.ts` is a module with twelve tests and no
+rendering, and two of them are the cases that would have shipped wrong:
+ties raise - two characters on +5 should both put a hand up, because the
+DM asked who is best and they equally are, and a tie broken silently by
+roster order is a lie told by a sort - and the speaker is filtered out of
+the comparison **by roster id, not by name**, because two players calling
+their fighter Bram is a real thing that happens and matching on the name
+would drop the other Bram and hand this one an unearned hand-raise.
+
+**A called skill is on the list whether or not it earned a place.** The
+screen reading keeps the eight skills you are best at (§138), and the whole
+point of the DM asking is that somebody might be short - so a Perception
+the character has no proficiency in is exactly the row they need, and it is
+appended rather than left out.
+
+`called-flash` goes in with the thing that fires it, which is the rule the
+§138 comment set when it deleted the keyframe for having no feature behind
+it. It washes the row three times and settles holding `--ring`, because a
+player who looked up a second late would otherwise have missed the entire
+answer. The `← called` mark carries it for everybody the animation never
+reaches: printed sheets, and reduced motion.
+
+**Where the DM presses it.** Beside `GroupSaves`, which is the other panel
+that puts a question to the whole party - and not folded into it, because a
+save resolves damage and belongs to the fight while a check is a question.
+That panel turned out to live in the **Areas** drawer rather than Prep,
+where I said it was when scoping; the adjacency argument was about the
+panel and holds either way, and the drawer's hint now says so.
+
+**Gates.** 2592 tests / 130 files, `tsc -b`, oxlint, build in budget.
+
+## 142. The seat gets the sheet it promised
+
+§141 shipped a check-call that a player could not see, and this is the
+part of it that was missing.
+
+`roleOf` makes the session a **seat only on the Seat tab** - every other
+screen is `'off'`, deliberately, so a tab editing a character never has
+broadcasts land on a half-typed name (§103). But the call renders on the
+*sheet* readings, and the seat had no sheet: a join panel, a chair picker,
+a plan composer and a play card. So the call reached the one screen that
+could not show it, and the one screen that could show it was not
+listening. It worked only by accident - be on the seat when the DM asks,
+then navigate to the sheet.
+
+Every §141 test passed throughout, because each exercised one layer on its
+own: the comparison with no screen, the wire with no screen, the sheet
+with the answer handed straight to it. Not one of them went through the
+screen a player is actually holding. That is §116's lesson arriving from a
+new direction - every piece correct, the composition untested - and the
+fix is a test that renders the seat and looks for the lit row.
+
+**The seat's own subtitle already promised this**: "A player's view: your
+sheet, the fight as it stands, and your next move." There was no sheet. A
+player at a table looks things up - what a skill adds, which spells are
+left, what a class feature does - and every one of those was a tab away
+from the screen whose whole job is being the hand they are holding.
+
+`ScreenSheet` goes **below** the play card, because hit points are what
+you touch and the sheet is what you read: most-used first. Both name hit
+points, which is the one thing this duplicates - and a play tracker and a
+sheet both showing hit points is what every sheet in this app already
+does, so it is accepted rather than special-cased away with a prop that
+would have one caller. Two existing assertions moved from `getByText` to
+`getAllByText` for it, each saying why.
+
+**No `onBuildChange` on a seat**, and that is the interesting constraint.
+At a relayed table the seat reads §96's quarantined *table* roster - the
+host's copy of the character - so a rename there would live until the next
+broadcast and then vanish. The prop is optional now, and without it the
+name reads rather than types: the honest presentation of a sheet somebody
+else holds the master of.
+
+**The seat answers the call itself.** §141 resolved it in `App` and passed
+the answer down; that worked for the builder's own sheet and not for this
+one, because the roster to compare against differs - the table's copy at a
+relayed table, this device's own on one browser - and `App` would have had
+to reach for the seated character's derivation to do it. The seat holds
+both halves already, so it takes the question and answers it.
+
+**Gates.** 2597 tests / 130 files, `tsc -b`, oxlint, build in budget.

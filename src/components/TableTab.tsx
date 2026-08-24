@@ -103,8 +103,10 @@ import { ForecastPanel } from './ForecastPanel';
 import { EncounterLibrary } from './EncounterLibrary';
 import { TablePanel } from './TablePanel';
 import { GroupSaves } from './GroupSaves';
+import { AskTheTable } from './AskTheTable';
 import { FallenPanel } from './FallenPanel';
 import type { SaveCall } from './GroupSaves';
+import type { CheckCall } from '../checkCall';
 import { applyHitPoints, combatantName, hitPointsOf } from '../hitPoints';
 import {
   conditionsOf as factConditionsOf,
@@ -314,6 +316,8 @@ export function TableTab({
   relay,
   onRelayChange,
   seats = [],
+  call = null,
+  onCall,
   say,
   aside,
 }: {
@@ -370,6 +374,10 @@ export function TableTab({
   onRelayChange?: (relay: RelayConfig | null) => void;
   /** §96: who sat where, for the lobby under the room code. */
   seats?: Seat[];
+  /** §141: the skill this screen is asking the table for, if any. */
+  call?: CheckCall;
+  /** Ask, or put the question away. Absent where there is no wire. */
+  onCall?: (call: CheckCall) => void;
   /**
    * §83: the battle is the screen where this matters most - almost every
    * control is in a drawer covering the board it acts on, so the result of a
@@ -3633,6 +3641,11 @@ export function TableTab({
 
   /* §108: the call is GroupSaves' own state; the fight math stays here,
      taking the call as an argument rather than reading a closure. */
+  /* §141: beside the saves because that is the other panel that asks the
+     whole party something - and not folded into it, because a save
+     resolves damage and a check is a question. */
+  const askPanel = onCall ? <AskTheTable call={call} onCall={onCall} /> : null;
+
   const savesPanel = (
     <GroupSaves
       canRoll={encounter.combatants.length > 0}
@@ -6062,7 +6075,7 @@ export function TableTab({
   const drawers = [
     { id: 'party', label: 'Fighters', hint: 'The party, the bestiary, and who joins the fight', content: <>{partyPanel}{monstersPanel}</> },
     { id: 'field', label: 'Field', hint: 'The ground, the dungeon, fog and the camera', content: fieldPanel },
-    { id: 'areas', label: 'Areas', hint: 'Spells on the ground, and the saves they call for', content: <>{zonePanel}{savesPanel}</> },
+    { id: 'areas', label: 'Areas', hint: 'Spells on the ground, the saves they call for, and what to ask the table', content: <>{zonePanel}{savesPanel}{askPanel}</> },
     { id: 'order', label: 'Order', hint: 'Initiative, hit points, conditions', content: fightPanel },
     /* §80: hints are visible text in the open drawer now, so each is worded
        to not echo a panel title it sits above. */

@@ -303,6 +303,12 @@ phone built for itself. Open, each sized:
   §92's rule is that a plan can never do what a click could not — there
   is no one click that casts. The slot rides the note; the DM runs it
   with the pips beside the plan.
+- `[x]` **The DM check-call** — §141, the last piece of §138's design
+  handoff and the only one that touched the wire rather than a screen.
+  The DM names a skill; every seated phone lights that row and says
+  whether to raise a hand. One way on purpose: the answer is a hand in
+  the room, which keeps §92's authority rule whole instead of carving a
+  roll button into the seat.
 - `[x]` **A relay to point at** — deployed 2026-08-20, and verified: the
   worker answers 426 to a plain request, which is a websocket room saying
   hello. `wss://forge-fate-relay.phatbanana.workers.dev`, pinned in

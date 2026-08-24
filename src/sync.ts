@@ -3,6 +3,7 @@ import { updatePlay } from './storage';
 import type { PlayState } from './play';
 import { queueIntent, withdrawIntent } from './seats';
 import type { Intent, Seat } from './seats';
+import type { CheckCall } from './checkCall';
 
 /**
  * §94: the wire between the table and its seats.
@@ -56,6 +57,13 @@ export type TableMessage =
   | { kind: 'sit'; seat: Seat }
   /** §96: host → seats - who is sitting where, for the lobby. */
   | { kind: 'seats'; seats: Seat[] }
+  /**
+   * §141: host → seats - the DM asked the table for a skill. One way: the
+   * answer is a hand going up in the room, not a message coming back, which
+   * is §92's rule read properly rather than an exception to it. `call: null`
+   * puts the question away.
+   */
+  | { kind: 'call'; call: CheckCall }
   /** Seat → host: just joined; answer with state, plans and seats. */
   | { kind: 'hello' };
 
@@ -144,6 +152,9 @@ export function hostApply(
     case 'state':
     case 'plans':
     case 'seats':
+    /* §141: the host is the one that calls, so a call reaching it came
+       from somewhere else and is not its truth to take. */
+    case 'call':
     case 'hello':
       return {};
   }
@@ -164,6 +175,9 @@ export function seatApply(
     case 'intent':
     case 'play':
     case 'sit':
+    /* §141: a call changes none of the three stores. It is answered in the
+       room, so the session hands it straight to the screen. */
+    case 'call':
     case 'hello':
       return {};
   }
@@ -363,6 +377,13 @@ export function isTableMessage(value: unknown): value is TableMessage {
     }
     case 'play':
       return typeof m.rosterId === 'string' && typeof m.play === 'object' && m.play !== null;
+    case 'call': {
+      // §141: null is the whole "nothing is being asked" state, so it is a
+      // valid call rather than a missing one.
+      if (m.call === null) return true;
+      const call = m.call as Record<string, unknown> | null;
+      return typeof call === 'object' && call !== null && typeof call.skillId === 'string';
+    }
     case 'sit': {
       const seat = m.seat as Record<string, unknown> | null;
       return typeof seat === 'object' && seat !== null && typeof seat.rosterId === 'string';
@@ -484,6 +505,8 @@ export interface SessionWorld {
   seats(): Seat[];
   seatId(): string | null;
   tableRoster(): Roster | null;
+  /** §141: what the DM is asking the table for, if anything. */
+  call(): CheckCall;
 }
 
 /** What the session tells the caller. `home` carries §96's quarantine
@@ -494,6 +517,8 @@ export interface SessionEvents {
   onRoster(roster: Roster, home: 'own' | 'table'): void;
   onPlans(plans: Intent[]): void;
   onSeats(seats: Seat[]): void;
+  /** §141: the DM asked for a skill, or put the question away. */
+  onCall(call: CheckCall): void;
   onStatus?(up: boolean): void;
 }
 
@@ -507,7 +532,7 @@ export interface TableSession {
   say(message: TableMessage): void;
   /** The host's truth changed; a non-host announcing is a no-op, which
       is the protocol rule kept where the protocol lives. */
-  announce(kind: 'state' | 'plans' | 'seats'): void;
+  announce(kind: 'state' | 'plans' | 'seats' | 'call'): void;
   close(): void;
 }
 
@@ -534,6 +559,10 @@ export function tableSession(
     if (role === 'host') {
       announce('state');
       announce('plans');
+      /* §141: an outstanding call is truth, not an operation. A phone that
+         blipped while the DM was asking otherwise sits on a blank sheet
+         while the table waits on it, with no way to know it was asked. */
+      announce('call');
     } else {
       line?.send({ kind: 'hello' });
       const seatId = world.seatId();
@@ -550,11 +579,12 @@ export function tableSession(
         : broadcastWire();
   if (!line) return null;
 
-  const announce = (kind: 'state' | 'plans' | 'seats') => {
+  const announce = (kind: 'state' | 'plans' | 'seats' | 'call') => {
     if (role !== 'host') return;
     if (kind === 'state') line.send({ kind: 'state', roster: slimRoster(world.roster()) });
     if (kind === 'plans') line.send({ kind: 'plans', plans: world.plans() });
     if (kind === 'seats') line.send({ kind: 'seats', seats: world.seats() });
+    if (kind === 'call') line.send({ kind: 'call', call: world.call() });
   };
 
   const off = line.onMessage((message) => {
@@ -564,10 +594,12 @@ export function tableSession(
       if (applied.plans) events.onPlans(applied.plans);
       if (applied.seats) events.onSeats(applied.seats);
       if (message.kind === 'hello') {
-        // The newcomer's answer: the whole truth, in three messages.
+        // The newcomer's answer: the whole truth, in four messages. §141's
+        // call is among them - a phone that joins mid-question is asked it.
         line.send({ kind: 'state', roster: slimRoster(world.roster()) });
         line.send({ kind: 'plans', plans: world.plans() });
         line.send({ kind: 'seats', seats: world.seats() });
+        line.send({ kind: 'call', call: world.call() });
       }
     } else if (role === 'seat') {
       const applied = seatApply(message);
@@ -583,6 +615,9 @@ export function tableSession(
       }
       if (applied.plans) events.onPlans(applied.plans);
       if (applied.seats) events.onSeats(applied.seats);
+      /* §141: straight through. A call changes no store, so it never
+         reaches `seatApply` - the screen is the thing that answers it. */
+      if (message.kind === 'call') events.onCall(message.call);
     }
   });
 

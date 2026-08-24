@@ -4,6 +4,8 @@ import { ABILITIES, ABILITY_NAMES } from '../types';
 import type { Build, CharacterDetails, ClassId } from '../types';
 import { CASTING_TIME_LABELS, SPELLS_BY_ID } from '../data/spells';
 import { sourceForSpell } from '../engine/spellcasting';
+import { verdict } from '../checkCall';
+import type { Called } from '../checkCall';
 import { RARITY_LABELS } from '../data/magicItems';
 import { formatWeight } from '../data/gear';
 import { describePurse } from '../engine/inventory';
@@ -119,16 +121,22 @@ const TURN_SLOTS: { slot: TurnSlot; label: string; hint: string }[] = [
 function Box({
   label,
   className = '',
+  note,
   children,
 }: {
   label: string;
   className?: string;
+  /** §141: a word beside the label - the DM's call, and nothing else yet. */
+  note?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section className={`cs-box ${className}`}>
       <div className="cs-box-body">{children}</div>
-      <h3 className="cs-label">{label}</h3>
+      <h3 className="cs-label">
+        {label}
+        {note}
+      </h3>
     </section>
   );
 }
@@ -255,11 +263,14 @@ function Prose({
 export function CharacterSheet({
   ctx,
   play,
+  called,
   onPlayChange,
   onBuildChange,
 }: {
   ctx: BuildContext;
   play: PlayState;
+  /** §141: the skill the DM asked for, answered against the party. */
+  called?: Called | null;
   onPlayChange: (play: PlayState) => void;
   onBuildChange: (build: Build) => void;
 }) {
@@ -584,10 +595,23 @@ export function CharacterSheet({
                 </ul>
               </Box>
 
-              <Box label="Skills" className="cs-marks">
+              <Box
+                label="Skills"
+                className="cs-marks"
+                note={
+                  called && (
+                    <em className={`ss-called ${called.raise ? 'is-raise' : ''}`}>
+                      {verdict(called)}
+                    </em>
+                  )
+                }
+              >
                 <ul className="cs-list">
                   {profs.skills.map((skill) => (
-                    <li key={skill.skill}>
+                    <li
+                      key={skill.skill}
+                      className={called?.skillId === skill.skill ? 'is-called' : ''}
+                    >
                       <span
                         className={`dot ${skill.expertise ? 'double' : skill.proficient ? 'on' : skill.halfProficiency ? 'half' : ''}`}
                       />
@@ -601,6 +625,7 @@ export function CharacterSheet({
                       </span>
                       <span className="name">
                         {skill.name} <em>{ABILITY_NAMES[skill.ability].slice(0, 3)}</em>
+                        {called?.skillId === skill.skill && <u aria-hidden="true">← called</u>}
                       </span>
                     </li>
                   ))}

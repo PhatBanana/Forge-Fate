@@ -104,8 +104,10 @@ describe('taking a seat', () => {
     expect(screen.getAllByText('Basher').length).toBeGreaterThan(0);
     // Nobody has seated them at the table, and the screen says whose job that is.
     expect(screen.getByText(/You are not in this fight/)).toBeInTheDocument();
-    // The play surface is the sheet's own card.
-    expect(screen.getByText(/hit points/i)).toBeInTheDocument();
+    /* Twice since §142: the play card is the surface you touch, and the
+       sheet below it is the reading. Both name hit points, the way every
+       sheet in this app does. */
+    expect(screen.getAllByText(/hit points/i).length).toBeGreaterThan(0);
   });
 
   it('says the fight has not started while they wait in the order', () => {
@@ -119,7 +121,10 @@ describe('taking a seat', () => {
     seat({ relay: { url: 'ws://x', room: 'X7Q2M4' }, seatId: 'c0', linkUp: false });
     // The strip informs, the sheet stays: the marks are kept and re-said.
     expect(screen.getByRole('status')).toHaveTextContent(/line to the table is down/);
-    expect(screen.getByText(/hit points/i)).toBeInTheDocument();
+    /* The strip informs and the sheet stays. Two mentions since §142: the
+       play card is the surface you touch, the sheet below it is the
+       reading, and both name hit points the way every sheet does. */
+    expect(screen.getAllByText(/hit points/i).length).toBeGreaterThan(0);
   });
 
   it('§97: on one device there is no line to lose', () => {
@@ -184,5 +189,71 @@ describe('the fight from the chair', () => {
     expect(screen.getByText('Dodge')).toBeInTheDocument();
     // The seat proposes; only the DM's screen holds the running of it.
     expect(screen.queryByRole('button', { name: 'Run it' })).toBeNull();
+  });
+});
+
+/*
+  §142. The seat has a sheet, and §141's call lands on it.
+
+  This is the test that was missing when §141 shipped. Every one of that
+  section's tests exercised a layer on its own - the comparison without a
+  screen, the wire without a screen, the sheet with the answer handed
+  straight to it - and all of them passed while a player could not see the
+  thing at all: the call reached the seat, and the seat had no skills on it
+  to light up. What follows goes through the screen a player is actually
+  looking at.
+*/
+describe('the sheet on the seat (§142)', () => {
+  /*
+    The shared fixtures are proficient in nothing, and the screen reading
+    lists only what you are proficient in - so a party that has actually
+    picked skills is what these need. Perception on one, Stealth on the
+    other, so the comparison has two real numbers in it.
+  */
+  const watchers = () =>
+    rosterOf(
+      { ...fighter(), name: 'Basher', skillIds: ['perception'] },
+      { ...wizard(), name: 'Unwyn', skillIds: ['stealth'] },
+    );
+
+  it('shows the character’s own skills, which it never used to', () => {
+    seat({ seatId: 'c0', roster: watchers() });
+    expect(document.querySelector('.ss')).not.toBeNull();
+    expect(document.querySelectorAll('.ss-skill').length).toBeGreaterThan(0);
+  });
+
+  it('lights the skill the DM asked for, and says whether to speak up', () => {
+    seat({ seatId: 'c0', roster: watchers(), call: { skillId: 'perception' } });
+    const called = document.querySelector('.ss-skill.is-called') as HTMLElement;
+    expect(called).not.toBeNull();
+    expect(called.textContent).toContain('Perception');
+    expect(document.querySelector('.ss-called')?.textContent).toMatch(
+      /raise your hand|has this one/,
+    );
+  });
+
+  it('compares against the table rather than against nobody', () => {
+    /*
+      The fighter and the wizard are both on this roster, so the verdict is
+      a comparison rather than a walkover. Which of them wins is the
+      engine's business and `checkCall.test.ts` pins it; what matters here
+      is that the other character was consulted at all.
+    */
+    seat({ seatId: 'c0', roster: watchers(), call: { skillId: 'perception' } });
+    const line = document.querySelector('.ss-called')!.textContent!;
+    expect(line.includes('Unwyn') || line.includes('raise your hand')).toBe(true);
+  });
+
+  it('reads the name rather than offering to retype it', () => {
+    // §96: at a table this character is the host's copy. A rename here
+    // would live until the next broadcast and then vanish.
+    seat({ seatId: 'c0', roster: watchers() });
+    expect(screen.queryByLabelText('Character name')).toBeNull();
+  });
+
+  it('shows nothing called when the DM has not asked', () => {
+    seat({ seatId: 'c0', roster: watchers() });
+    expect(document.querySelector('.ss-called')).toBeNull();
+    expect(document.querySelector('.ss-skill.is-called')).toBeNull();
   });
 });

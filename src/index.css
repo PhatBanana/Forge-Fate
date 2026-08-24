@@ -8760,14 +8760,26 @@ input.pcard-amount {
   `prefers-reduced-motion` block at the top of this file already covers it,
   since it matches every animation by selector rather than by name.
 
-  Two others were written and deleted before they shipped. `called-flash` is
-  for the skill row the DM asks about, and belongs to the check-call, which
-  arrives over the wire from the DM's screen rather than from anything on
-  this one. `overlay-in` was for a menu overlay this redesign turned out not
-  to need: §35's menu is the title screen, not a panel that slides over the
-  work. Each goes in with the thing that fires it, because a keyframe waiting
-  for a feature is dead CSS that reads as a feature.
+  `called-flash` arrives here in §141 with the thing that fires it, which is
+  the rule this comment set: a keyframe waiting for a feature is dead CSS
+  that reads as a feature. It washes the skill row the DM asked about three
+  times and then leaves it holding `--ring`, so the answer stays readable
+  after the flash has finished saying "look here".
+
+  `overlay-in` is still absent, and still deliberately: it was for a menu
+  overlay this redesign turned out not to need, since §35's menu is the
+  title screen rather than a panel that slides over the work.
 */
+
+@keyframes called-flash {
+  0%,
+  100% {
+    background: transparent;
+  }
+  50% {
+    background: var(--ring);
+  }
+}
 
 @keyframes just-landed {
   from {
@@ -9655,6 +9667,53 @@ input.pcard-amount {
 .ss-attack:last-child,
 .ss-skill:last-child {
   border-bottom: none;
+}
+
+/*
+  §141: the row the DM asked about.
+
+  It flashes three times and settles holding the ring, rather than flashing
+  and going quiet - a player who looked up a second late would otherwise
+  have missed the whole answer. The `← called` mark carries it for anyone
+  the animation never reached, which is every reader of a printed sheet and
+  everybody with reduced motion on.
+*/
+.ss-skill.is-called,
+.cs-marks li.is-called {
+  animation: called-flash 0.55s ease-in-out 3;
+  background: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.ss-skill.is-called u,
+.cs-marks li.is-called u {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--accent);
+  margin-left: 6px;
+}
+
+/*
+  The verdict, beside the block's own heading. Right-aligned so it reads as
+  an answer to the heading rather than as part of it, and dim unless it is
+  this player's moment - six phones all shouting in the accent colour is
+  six phones saying nothing.
+*/
+.ss-called {
+  float: right;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-style: normal;
+  color: var(--text-faint);
+}
+
+.ss-called.is-raise {
+  color: var(--accent);
 }
 
 .ss-attack > span {

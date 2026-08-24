@@ -8,6 +8,7 @@ import type { BuildContext } from '../engine/character';
 import type { PlayState } from '../play';
 import { CharacterSheet } from './CharacterSheet';
 import { ScreenSheet } from './ScreenSheet';
+import type { Called } from '../checkCall';
 
 /**
  * The sheet, in whichever of its two readings is showing.
@@ -40,6 +41,7 @@ import { ScreenSheet } from './ScreenSheet';
 export function SheetTab({
   ctx,
   view,
+  called,
   play,
   onPlayChange,
   onBuildChange,
@@ -47,6 +49,8 @@ export function SheetTab({
 }: {
   ctx: BuildContext;
   view: 'sheet' | 'paper';
+  /** §141: what the DM asked for, answered against the party. */
+  called?: Called | null;
   play: PlayState;
   onPlayChange: (play: PlayState) => void;
   onBuildChange: (build: Build) => void;
@@ -77,6 +81,7 @@ export function SheetTab({
         <CharacterSheet
           ctx={ctx}
           play={play}
+          called={called}
           onPlayChange={onPlayChange}
           onBuildChange={onBuildChange}
         />
@@ -84,6 +89,7 @@ export function SheetTab({
         <ScreenSheet
           ctx={ctx}
           play={play}
+          called={called}
           onPlayChange={onPlayChange}
           onBuildChange={onBuildChange}
         />

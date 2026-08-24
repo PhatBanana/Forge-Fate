@@ -9,6 +9,7 @@ import type { PlayState } from '../play';
 import type { Build } from '../types';
 import { buildOf, fighter, warlockSorcerer, wizard } from '../test/factories';
 import { waitingChoices } from './sections';
+import type { Called } from '../checkCall';
 
 /**
  * §138. The screen reading of a character.
@@ -19,7 +20,7 @@ import { waitingChoices } from './sections';
  * guided flow can point at its boxes, and every figure on it is derived so a
  * choice applied above lands here in the same render.
  */
-function setup(build: Build, highlight?: string) {
+function setup(build: Build, highlight?: string, called?: Called | null) {
   const onBuildChange = vi.fn();
   const onPlayChange = vi.fn();
   let play: PlayState = emptyPlay();
@@ -28,6 +29,7 @@ function setup(build: Build, highlight?: string) {
     ctx: deriveBuild(build),
     play,
     highlight,
+    called,
     onPlayChange,
     onBuildChange,
   });
@@ -199,5 +201,64 @@ describe('the chip that just landed', () => {
     const fresh = chips().filter((c) => c.className.includes('is-fresh'));
     expect(fresh).toHaveLength(1);
     expect(fresh[0].textContent).not.toMatch(/alert/i);
+  });
+});
+
+/*
+  §141. The DM's question, on the sheet that answers it.
+
+  The comparison itself is `checkCall.test.ts`'s business; these pin the half
+  that only exists on screen - that the called row is findable even when the
+  abridgement would have dropped it, and that the verdict says which of two
+  things it is.
+*/
+describe('the DM’s check-call', () => {
+  const perception = (mine: number, best: { name: string; modifier: number } | null): Called => ({
+    skillId: 'perception',
+    name: 'Perception',
+    mine,
+    best,
+    raise: !best || mine >= best.modifier,
+  });
+
+  const row = (name: string) =>
+    [...sheet().querySelectorAll('.ss-skill')].find((el) => el.textContent?.includes(name));
+
+  it('shows nothing at all when nothing is being asked', () => {
+    setup(fighter(5));
+    expect(sheet().querySelector('.ss-called')).toBeNull();
+    expect(sheet().querySelector('.ss-skill.is-called')).toBeNull();
+  });
+
+  it('marks the called row and says to raise a hand', () => {
+    setup(fighter(5), undefined, perception(12, { name: 'Bram', modifier: 4 }));
+    const called = sheet().querySelector('.ss-skill.is-called') as HTMLElement;
+    expect(called).not.toBeNull();
+    expect(called.textContent).toContain('Perception');
+    expect(called.textContent).toContain('called');
+    expect(sheet().querySelector('.ss-called')?.textContent).toBe('+12 · raise your hand');
+    expect(sheet().querySelector('.ss-called')?.className).toContain('is-raise');
+  });
+
+  it('names whoever has it instead, and does not read as this player’s moment', () => {
+    setup(fighter(5), undefined, perception(0, { name: 'Bram', modifier: 9 }));
+    expect(sheet().querySelector('.ss-called')?.textContent).toBe('+0 · Bram has this one');
+    expect(sheet().querySelector('.ss-called')?.className).not.toContain('is-raise');
+  });
+
+  it('puts the called skill on an abridged list that had dropped it', () => {
+    /*
+      The reading keeps the eight skills this character is best at, and the
+      whole point of the DM asking is that somebody might be short. A
+      Fighter with no Perception proficiency has no row for it until asked.
+    */
+    const plain = fighter(5);
+    setup(plain);
+    expect(row('Perception')).toBeUndefined();
+
+    cleanup();
+    setup(plain, undefined, perception(1, null));
+    expect(row('Perception')).toBeDefined();
+    expect(sheet().querySelector('.ss-skill.is-called')?.textContent).toContain('Perception');
   });
 });

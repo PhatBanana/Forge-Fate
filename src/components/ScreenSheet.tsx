@@ -8,6 +8,8 @@ import { featById } from '../data/feats';
 import { abilityMod } from '../engine/character';
 import type { BuildContext } from '../engine/character';
 import { resourcesOf, sheetOf } from '../sheet';
+import { verdict } from '../checkCall';
+import type { Called } from '../checkCall';
 import {
   restorePact,
   restoreResource,
@@ -57,6 +59,7 @@ export function ScreenSheet({
   ctx,
   play,
   highlight,
+  called,
   onPlayChange,
   onBuildChange,
 }: {
@@ -68,8 +71,17 @@ export function ScreenSheet({
    * box says "this one". Absent when nothing is being asked.
    */
   highlight?: string;
+  /** §141: the skill the DM asked for, answered against the party. */
+  called?: Called | null;
   onPlayChange: (play: PlayState) => void;
-  onBuildChange: (build: Build) => void;
+  /**
+   * §142: absent on a seat. At a relayed table the character is the host's
+   * copy of truth in §96's quarantined table roster, so a rename here would
+   * live until the next broadcast and then vanish. Without this the name is
+   * read rather than typed - which is the honest reading of a sheet somebody
+   * else is holding the master of.
+   */
+  onBuildChange?: (build: Build) => void;
 }) {
   const { build, proficiencies: profs } = ctx;
   const sheet = sheetOf(ctx, play);
@@ -85,10 +97,21 @@ export function ScreenSheet({
     ones that survive are those you are proficient in, best first, and the
     rest are on the paper reading - which is the sheet of record and says so.
   */
-  const skills = [...profs.skills]
-    .filter((line) => line.proficient || line.expertise)
-    .sort((a, b) => b.modifier - a.modifier || a.name.localeCompare(b.name))
-    .slice(0, 8);
+  const skills = (() => {
+    const shown = [...profs.skills]
+      .filter((line) => line.proficient || line.expertise)
+      .sort((a, b) => b.modifier - a.modifier || a.name.localeCompare(b.name))
+      .slice(0, 8);
+    /*
+      §141: a called skill is on the list whether or not it earned a place.
+      The abridgement keeps the eight you are best at, and the whole point
+      of the DM asking is that somebody might be short - a Perception the
+      character has no proficiency in is exactly the row they need to read.
+    */
+    if (!called || shown.some((line) => line.skill === called.skillId)) return shown;
+    const row = profs.skills.find((line) => line.skill === called.skillId);
+    return row ? [...shown, row] : shown;
+  })();
 
   const feats = [...ctx.featIds]
     .map((id) => featById(id, build.ruleset)?.name ?? id)
@@ -187,12 +210,16 @@ export function ScreenSheet({
             .toUpperCase()}
         </div>
         <div className="ss-name">
-          <input
-            value={build.name}
-            placeholder="Unnamed"
-            aria-label="Character name"
-            onChange={(e) => onBuildChange({ ...build, name: e.target.value })}
-          />
+          {onBuildChange ? (
+            <input
+              value={build.name}
+              placeholder="Unnamed"
+              aria-label="Character name"
+              onChange={(e) => onBuildChange({ ...build, name: e.target.value })}
+            />
+          ) : (
+            <b>{build.name || 'Unnamed'}</b>
+          )}
           <p>{classLine}</p>
           <span>
             Level {ctx.totalLevel} · {build.ruleset === '2024' ? '2024 rules' : '2014 rules'}
@@ -249,10 +276,26 @@ export function ScreenSheet({
           </section>
 
           <section className={lit('Skills')}>
-            <h3>Skills</h3>
+            {/*
+              §141: the verdict, not the number. The number is on the row two
+              lines below and a heading that repeats it says nothing; what a
+              player needs in the second after the DM asks is whether this is
+              their moment, and whose it is otherwise.
+            */}
+            <h3>
+              Skills
+              {called && (
+                <em className={`ss-called ${called.raise ? 'is-raise' : ''}`}>
+                  {verdict(called)}
+                </em>
+              )}
+            </h3>
             {skills.length ? (
               skills.map((line) => (
-                <div className="ss-skill" key={line.skill}>
+                <div
+                  className={`ss-skill ${called?.skillId === line.skill ? 'is-called' : ''}`}
+                  key={line.skill}
+                >
                   {/*
                     A filled dot for proficient and a ringed one for expertise.
                     This is the paper convention and it needs no key, which is
@@ -261,6 +304,7 @@ export function ScreenSheet({
                   <i className={line.expertise ? 'is-expert' : 'is-proficient'} aria-hidden="true" />
                   <span>{line.name}</span>
                   <b>{signed(line.modifier)}</b>
+                  {called?.skillId === line.skill && <u aria-hidden="true">← called</u>}
                 </div>
               ))
             ) : (

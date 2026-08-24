@@ -19,6 +19,7 @@ import { fighter, rosterOf, wizard } from './test/factories';
 import { hpNow } from './play';
 import { deriveBuild } from './engine/character';
 import type { Intent } from './seats';
+import type { CheckCall } from './checkCall';
 
 /**
  * §94. The protocol, without a browser in sight: the host applies
@@ -332,8 +333,9 @@ describe('the relay wire through a dead spot (§97)', () => {
         seats: () => [chair],
         seatId: () => 'c0',
         tableRoster: () => null,
+        call: () => null,
       },
-      { onRoster: () => {}, onPlans: () => {}, onSeats: () => {} },
+      { onRoster: () => {}, onPlans: () => {}, onSeats: () => {}, onCall: () => {} },
     )!;
     session.setRole('seat');
     const socket = FakeSocket.instances[0];
@@ -348,7 +350,11 @@ describe('the relay wire through a dead spot (§97)', () => {
     const second = FakeSocket.instances[1];
     second.open();
     const kinds = saidBy(second).map((m) => m.kind);
-    expect(kinds).toEqual(['state', 'plans']);
+    /* §141 added the call to this list, deliberately: an outstanding
+       question is truth rather than an operation, so a phone that blipped
+       while the DM was asking is asked again rather than left blank while
+       the table waits on it. */
+    expect(kinds).toEqual(['state', 'plans', 'call']);
     session.close();
   });
 
@@ -379,6 +385,7 @@ describe('the table session (§103)', () => {
     seats: () => [],
     seatId: () => null,
     tableRoster: () => null,
+    call: () => null,
     ...over,
   });
 
@@ -387,16 +394,93 @@ describe('the table session (§103)', () => {
       rosters: { roster: Roster; home: 'own' | 'table' }[];
       plans: unknown[];
       seats: unknown[];
-    } = { rosters: [], plans: [], seats: [] };
+      calls: CheckCall[];
+    } = { rosters: [], plans: [], seats: [], calls: [] };
     const events: SessionEvents = {
       onRoster: (roster, home) => got.rosters.push({ roster, home }),
       onPlans: (plans) => got.plans.push(plans),
       onSeats: (seats) => got.seats.push(seats),
+      onCall: (call) => got.calls.push(call),
     };
     return { got, events };
   };
 
   const room = { url: 'wss://relay.example', room: 'ABCDEF' };
+
+  /*
+    §141. The DM's question, and the two rules that govern it: it travels
+    host → seat only, and nothing comes back. A seat that could call would
+    be a seat dictating what the table is doing, which is the §92 rule this
+    whole session exists to keep.
+  */
+  describe('the check-call (§141)', () => {
+    it('carries the DM’s question to a seat', () => {
+      const [hostWire, seatWire] = pairedWires();
+      let asked: CheckCall = null;
+      const host = tableSession(
+        null,
+        worldOf({ call: () => asked }),
+        recorder().events,
+        hostWire,
+      )!;
+      host.setRole('host');
+      const seat = recorder();
+      const seatSession = tableSession(room, worldOf(), seat.events, seatWire)!;
+      seatSession.setRole('seat');
+
+      asked = { skillId: 'perception' };
+      host.announce('call');
+      expect(seat.got.calls).toEqual([{ skillId: 'perception' }]);
+
+      // And putting the question away is the same message, said with null.
+      asked = null;
+      host.announce('call');
+      expect(seat.got.calls).toEqual([{ skillId: 'perception' }, null]);
+      host.close();
+      seatSession.close();
+    });
+
+    it('is not a seat’s to make', () => {
+      const [hostWire, seatWire] = pairedWires();
+      const hostGot = recorder();
+      const host = tableSession(null, worldOf(), hostGot.events, hostWire)!;
+      host.setRole('host');
+      const seatSession = tableSession(
+        room,
+        worldOf({ call: () => ({ skillId: 'stealth' }) }),
+        recorder().events,
+        seatWire,
+      )!;
+      seatSession.setRole('seat');
+
+      // A seat announcing is a no-op, the way it is for every other truth.
+      seatSession.announce('call');
+      expect(hostGot.got.calls).toEqual([]);
+      host.close();
+      seatSession.close();
+    });
+
+    it('answers a newcomer’s hello with the question already outstanding', () => {
+      const [hostWire, seatWire] = pairedWires();
+      const host = tableSession(
+        null,
+        worldOf({ call: () => ({ skillId: 'perception' }) }),
+        recorder().events,
+        hostWire,
+      )!;
+      host.setRole('host');
+      const seat = recorder();
+      const seatSession = tableSession(room, worldOf(), seat.events, seatWire)!;
+      seatSession.setRole('seat');
+
+      // Joining mid-question: the phone is asked it rather than sitting
+      // blank while the table waits on the one person who reconnected.
+      seatWire.send({ kind: 'hello' });
+      expect(seat.got.calls).toEqual([{ skillId: 'perception' }]);
+      host.close();
+      seatSession.close();
+    });
+  });
 
   it('answers a hello with the whole truth, slim, landing in the table home', () => {
     const [hostWire, seatWire] = pairedWires();

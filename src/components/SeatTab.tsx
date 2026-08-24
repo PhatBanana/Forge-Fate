@@ -2,6 +2,9 @@ import { useMemo, useState } from 'react';
 import { Panel } from './shared';
 import { PlayCard } from './PlayCard';
 import { PlanComposer } from './PlanComposer';
+import { ScreenSheet } from './ScreenSheet';
+import { called } from '../checkCall';
+import type { CheckCall } from '../checkCall';
 import { deriveBuild } from '../engine/character';
 import { currentCombatant, isRunning, sortCombatants } from '../encounter';
 import type { Combatant, MonsterCombatant } from '../encounter';
@@ -46,6 +49,7 @@ export function SeatTab({
   seatId,
   onSeatChange,
   linkUp = true,
+  call = null,
   say,
 }: {
   roster: Roster;
@@ -66,6 +70,10 @@ export function SeatTab({
   /** §96: the table this device is at, and the hand that joins or leaves. */
   relay?: RelayConfig | null;
   onRelayChange?: (relay: RelayConfig | null) => void;
+  /** §141: the skill the DM asked the table for. Answered here rather
+      than upstream, because this screen holds both halves - the character
+      and the roster to compare it against. */
+  call?: CheckCall;
   /** The roster entry this seat plays; null shows the picker. */
   seatId: string | null;
   onSeatChange: (id: string | null) => void;
@@ -298,6 +306,30 @@ export function SeatTab({
       <PlayCard
         ctx={ctx}
         play={entry.play}
+        onPlayChange={(next) => onPlay(entry.id, next)}
+      />
+
+      {/*
+        §142: the sheet itself, which this screen promised in its own
+        subtitle and did not have. A player at a table looks things up -
+        what a skill adds, which spells are left, what a class feature
+        does - and every one of those was a tab away on the screen whose
+        whole job is being the hand they are holding.
+
+        Below the play card on purpose: hit points are what you touch, the
+        sheet is what you read. Most-used first.
+
+        It is also where the DM's check-call lands (§141), which is what
+        made this a defect rather than a gap - the call reached the seat
+        and had nothing to light up.
+
+        No `onBuildChange`: at a relayed table this is the host's copy of
+        the character (§96), so the name reads rather than types.
+      */}
+      <ScreenSheet
+        ctx={ctx}
+        play={entry.play}
+        called={called(call, ctx, seatId, roster)}
         onPlayChange={(next) => onPlay(entry.id, next)}
       />
 

@@ -32,6 +32,8 @@ import type { Intent, Seat } from './seats';
 import { claimSeat, queueIntent, withdrawIntent } from './seats';
 import { aRelay, rememberRelayUrl, tableSession } from './sync';
 import type { SessionRole, TableSession } from './sync';
+import { called } from './checkCall';
+import type { CheckCall } from './checkCall';
 import { read } from './persist';
 import { aString, useStored } from './storedState';
 import type { Toast } from './toast';
@@ -410,6 +412,17 @@ export default function App() {
   plansRef.current = plans;
   const seatsRef = useRef(seats);
   seatsRef.current = seats;
+  /*
+    §141: what the DM is asking the table for. Ephemeral on purpose, like
+    the plan queue - a question outlives nothing but the moment it is
+    answered, and a call restored from disk on a Tuesday would be a
+    question nobody remembers being asked. It is truth on the *wire*
+    though: the host re-says it after a reconnect, so a phone that blipped
+    mid-question does not sit blank while the table waits on it.
+  */
+  const [call, setCall] = useState<CheckCall>(null);
+  const callRef = useRef(call);
+  callRef.current = call;
   const seatIdRef = useRef(seatId);
   seatIdRef.current = seatId;
   /* §97: whether the line to the table is up. Always true on the
@@ -442,12 +455,14 @@ export default function App() {
         seats: () => seatsRef.current,
         seatId: () => seatIdRef.current,
         tableRoster: () => tableRosterRef.current,
+        call: () => callRef.current,
       },
       {
         onRoster: (incoming, home) =>
           home === 'table' ? setTableRoster(incoming) : setRoster(incoming),
         onPlans: setPlans,
         onSeats: setSeats,
+        onCall: setCall,
         onStatus: setLinkUp,
       },
     );
@@ -476,6 +491,9 @@ export default function App() {
   useEffect(() => {
     sessionRef.current?.announce('seats');
   }, [tab, seats]);
+  useEffect(() => {
+    sessionRef.current?.announce('call');
+  }, [tab, call]);
   /*
     Monsters you made, kept in their own store rather than on the roster.
 
@@ -1114,6 +1132,14 @@ export default function App() {
         {tab === 'sheet' && (
           <SheetTab
             ctx={ctx}
+            /*
+              §141: the DM's question, already answered against the party.
+              Resolved here rather than on the sheet because the comparison
+              wants the whole table - which over a relay is §96's table
+              roster and on one browser is this device's own - and a sheet
+              has no business knowing which of those it is looking at.
+            */
+            called={called(call, ctx, roster.activeId, tableRoster ?? roster)}
             /* §138: `VIEW_TAB` guarantees only these two reach the sheet. */
             view={view === 'paper' ? 'paper' : 'sheet'}
             play={activePlay(roster)}
@@ -1159,6 +1185,8 @@ export default function App() {
             relay={relay}
             onRelayChange={setRelay}
             seats={seats}
+            call={call}
+            onCall={setCall}
             aside={<ThemeToggle choice={themeChoice} onChange={chooseTheme} />}
           />
         )}
@@ -1230,6 +1258,10 @@ export default function App() {
             seatId={seatId}
             onSeatChange={setSeatId}
             linkUp={linkUp}
+            /* §141: the question itself. The seat answers it, because the
+               seat is the one holding both halves - this character, and the
+               roster it reads, which at a relayed table is the table's. */
+            call={call}
             say={say}
           />
         )}

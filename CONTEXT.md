@@ -9,7 +9,8 @@ same in code, comments, HISTORY and reviews. Deeper reasoning lives in
 - **Host** — the role the battle screen plays on the wire: applies
   operations, broadcasts truth, answers hellos. One host, ever.
 - **Seat** — a player's view of the table (§93), phone-sized, and the role
-  it plays on the wire: proposes, never writes.
+  it plays on the wire: proposes, never writes. Carries their sheet as
+  well as their play card since §142, which is where a check-call lands.
 - **Chair** — a seat claim: which character a player took, name attached
   (§96). An honor system; rejoining is re-sitting.
 - **Plan / intent** — what a player will do when their turn comes (§92).
@@ -51,6 +52,11 @@ same in code, comments, HISTORY and reviews. Deeper reasoning lives in
 - **Board cursor** — a square being pointed at rather than something
   held (§85). Not a tool: Escape unwinds it after whatever is in hand
   and before the drawer.
+- **Check-call** — the DM asking the table for a skill (§141): "who has
+  the highest Perception". Travels host → seats only; the answer is a
+  hand going up in the room, never a message coming back. Truth rather
+  than an operation, so a phone that reconnects mid-question is asked it
+  again.
 
 ## The fight
 
