@@ -387,3 +387,43 @@ describe('the narrow gate (§86)', () => {
     expect(gate()).not.toBeInTheDocument();
   });
 });
+
+/*
+  §144. Leaving a chair, through the app rather than through a layer.
+
+  The defect this pins was invisible to every layer test: `releaseSeat`
+  existed, was tested, and nothing called it - so "Leave the seat" forgot
+  the chair on the phone and left the player sitting in the DM's lobby for
+  the rest of the session. §142 taught the lesson twice already: a feature
+  is not wired until something goes through the screen.
+*/
+describe('leaving a seat (§144)', () => {
+  const seatIn = async (user: ReturnType<typeof userEvent.setup>) => {
+    localStorage.setItem(RULESET_KEY, '2014');
+    render(<App />);
+    // The title screen is the only navigation (§35).
+    await user.click(screen.getByRole('button', { name: /take a seat/i }));
+  };
+
+  it('offers the chair back once the seat is left', async () => {
+    const user = userEvent.setup();
+    await seatIn(user);
+
+    // Sit in the first chair on offer.
+    // The seat screen is code-split, so it arrives a tick after the click.
+    const sit = await screen.findByRole('button', { name: /^Sit as / });
+    await user.click(sit);
+
+    await user.click(screen.getByRole('button', { name: /leave the seat/i }));
+
+    /*
+      The chair must read as free, not merely be offered again. The picker
+      comes back either way - it is shown whenever this device holds no
+      seat - so asserting on the button proves nothing. What distinguishes
+      released from forgotten is the "· taken" marker beside the name, and
+      that is drawn from the seat list the whole table shares.
+    */
+    expect(await screen.findByRole('button', { name: /^Sit as / })).toBeInTheDocument();
+    expect(screen.queryByText(/· taken/)).toBeNull();
+  });
+});

@@ -18,7 +18,7 @@ import type { Roster } from './storage';
 import { fighter, rosterOf, wizard } from './test/factories';
 import { hpNow } from './play';
 import { deriveBuild } from './engine/character';
-import type { Intent } from './seats';
+import type { Intent, Seat } from './seats';
 import type { CheckCall } from './checkCall';
 
 /**
@@ -408,6 +408,68 @@ describe('the table session (§103)', () => {
   };
 
   const room = { url: 'wss://relay.example', room: 'ABCDEF' };
+
+  /*
+    §144. Leaving a chair, which had no way to travel.
+
+    `sit` could only ever *replace* a chair - the host filters by roster id
+    and appends - so a player who simply left stayed in the lobby for the
+    rest of the session. These pin the counterpart, and the pocket rule
+    that stops a reconnect undoing it.
+  */
+  describe('leaving a seat (§144)', () => {
+    it('empties the chair at the table, not just on the phone', () => {
+      const chair = { id: 's1', rosterId: 'c0', playerName: 'Alex', claimedAt: 1 };
+      let seats: Seat[] = [chair];
+      const [hostWire, seatWire] = pairedWires();
+      const host = tableSession(
+        null,
+        worldOf({ seats: () => seats }),
+        { ...recorder().events, onSeats: (next) => (seats = next) },
+        hostWire,
+      )!;
+      host.setRole('host');
+      const seatSession = tableSession(room, worldOf(), recorder().events, seatWire)!;
+      seatSession.setRole('seat');
+
+      seatSession.say({ kind: 'leave', rosterId: 'c0' });
+      expect(seats).toEqual([]);
+      host.close();
+      seatSession.close();
+    });
+
+    it('leaves the other chairs alone', () => {
+      const mine = { id: 's1', rosterId: 'c0', claimedAt: 1 };
+      const theirs = { id: 's2', rosterId: 'c1', claimedAt: 2 };
+      const applied = hostApply({ kind: 'leave', rosterId: 'c0' }, rosterOf(fighter()), [], [
+        mine,
+        theirs,
+      ]);
+      expect(applied.seats).toEqual([theirs]);
+    });
+
+    it('beats a chair still sitting in the dead-spot pocket', () => {
+      /*
+        §97 pockets a `sit` when the line is down and re-says it on the
+        reconnect. A player who sat, lost the line and then left would
+        otherwise be put straight back into the chair they had just given
+        up - by their own phone.
+      */
+      const chair = { id: 's1', rosterId: 'c0', claimedAt: 1 };
+      let pocket = noteUnsaid(nothingUnsaid(), { kind: 'sit', seat: chair });
+      expect(resay(pocket).map((m) => m.kind)).toEqual(['sit']);
+
+      pocket = noteUnsaid(pocket, { kind: 'leave', rosterId: 'c0' });
+      expect(resay(pocket)).toEqual([{ kind: 'leave', rosterId: 'c0' }]);
+    });
+
+    it('and sitting again beats a pocketed leave, for the same reason', () => {
+      const chair = { id: 's1', rosterId: 'c0', claimedAt: 1 };
+      let pocket = noteUnsaid(nothingUnsaid(), { kind: 'leave', rosterId: 'c0' });
+      pocket = noteUnsaid(pocket, { kind: 'sit', seat: chair });
+      expect(resay(pocket)).toEqual([{ kind: 'sit', seat: chair }]);
+    });
+  });
 
   /*
     §141. The DM's question, and the two rules that govern it: it travels

@@ -1,7 +1,7 @@
 import type { Roster } from './storage';
 import { updatePlay } from './storage';
 import type { PlayState } from './play';
-import { queueIntent, withdrawIntent } from './seats';
+import { queueIntent, releaseSeat, withdrawIntent } from './seats';
 import type { Intent, Seat } from './seats';
 import type { CheckCall } from './checkCall';
 
@@ -55,6 +55,14 @@ export type TableMessage =
    * worth having is everyone *seeing* who sat where.
    */
   | { kind: 'sit'; seat: Seat }
+  /**
+   * §144: seat → host - this player left their chair.
+   *
+   * The counterpart `sit` never had. Without it a chair could only ever be
+   * *replaced*, by the same player sitting somewhere else, so a player who
+   * simply left stayed in the DM's lobby for the rest of the session.
+   */
+  | { kind: 'leave'; rosterId: string }
   /** §96: host → seats - who is sitting where, for the lobby. */
   | { kind: 'seats'; seats: Seat[] }
   /**
@@ -155,6 +163,9 @@ export function hostApply(
       return {
         seats: [...seats.filter((s) => s.rosterId !== message.seat.rosterId), message.seat],
       };
+    // §144: and the chair empties when they go.
+    case 'leave':
+      return { seats: releaseSeat(seats, message.rosterId) };
     // `state`, `plans` and `seats` are the host's own words: hearing them
     // back (a second host, a §95 relay echo) must never overwrite the
     // truth source.
@@ -187,6 +198,8 @@ export function seatApply(
     case 'intent':
     case 'play':
     case 'sit':
+    /* §144: another seat leaving is the host's to apply and broadcast. */
+    case 'leave':
     /* §141: a call changes none of the three stores. It is answered in the
        room, so the session hands it straight to the screen. */
     case 'call':
@@ -313,6 +326,10 @@ export function mergePortraits(incoming: Roster, known: Roster): Roster {
 
 export interface Unsaid {
   sit?: Seat;
+  /** §144: left the chair while the line was down. Mutually exclusive with
+      `sit` - the last thing this device did to its chair is the only one
+      worth re-saying, and re-saying both would seat and unseat in a row. */
+  left?: string;
   play: Record<string, PlayState>;
 }
 
@@ -323,7 +340,12 @@ export const nothingUnsaid = (): Unsaid => ({ play: {} });
 export function noteUnsaid(unsaid: Unsaid, message: TableMessage): Unsaid {
   switch (message.kind) {
     case 'sit':
-      return { ...unsaid, sit: message.seat };
+      return { ...unsaid, sit: message.seat, left: undefined };
+    /* §144: leaving beats a pocketed sit. Without this, a player who sat,
+       lost the line and then left would be re-seated by their own pocket
+       on the reconnect - the chair they had just given up. */
+    case 'leave':
+      return { ...unsaid, sit: undefined, left: message.rosterId };
     case 'play':
       return { ...unsaid, play: { ...unsaid.play, [message.rosterId]: message.play } };
     default:
@@ -336,6 +358,7 @@ export function noteUnsaid(unsaid: Unsaid, message: TableMessage): Unsaid {
 export function resay(unsaid: Unsaid): TableMessage[] {
   return [
     ...(unsaid.sit ? [{ kind: 'sit', seat: unsaid.sit } satisfies TableMessage] : []),
+    ...(unsaid.left ? [{ kind: 'leave', rosterId: unsaid.left } satisfies TableMessage] : []),
     ...Object.entries(unsaid.play).map(
       ([rosterId, play]) => ({ kind: 'play', rosterId, play }) satisfies TableMessage,
     ),
@@ -404,6 +427,8 @@ export function isTableMessage(value: unknown): value is TableMessage {
       const seat = m.seat as Record<string, unknown> | null;
       return typeof seat === 'object' && seat !== null && typeof seat.rosterId === 'string';
     }
+    case 'leave':
+      return typeof m.rosterId === 'string';
     case 'hello':
       return true;
     default:

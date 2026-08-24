@@ -8793,3 +8793,59 @@ nobody is asking any more is a number with no meaning, and leaving it up
 would have the DM reading last round's saves.
 
 **Gates.** 2607 tests / 130 files, `tsc -b`, oxlint, build in budget.
+
+## 144. Leaving a chair, which had nowhere to go
+
+A feature review, asking of every screen and every export whether the app
+can actually reach it. Most of it came back clean: all nine wire message
+kinds are declared, sent and handled; all nine screens render and are
+reachable; of thirty-nine optional handler props exactly one is never
+passed. What it did turn up is a bug.
+
+**`releaseSeat` existed, was tested, and nothing called it.** "Leave the
+seat" ran `setSeatId(null)` and stopped there - the chair was forgotten on
+that phone and nowhere else. Nothing was said up the wire, and nothing
+removed the seat from the list the table shares. A player who left stayed
+in the DM's lobby for the rest of the session, and there was no way to
+empty a chair at all: `sit` could only ever *replace* one, by the same
+player sitting somewhere else.
+
+So `leave` is the counterpart `sit` never had, and it travels the same way
+- seat → host, an operation the host applies and broadcasts.
+
+**It has to beat the dead-spot pocket.** §97 keeps a `sit` when the line is
+down and re-says it on the reconnect, so a player who sat, lost the line
+and then left would have been put straight back into the chair they had
+just given up - by their own phone. `leave` clears the pocketed `sit` and
+takes its place, and sitting again clears a pocketed `leave` for the same
+reason: the last thing a device did to its chair is the only one worth
+re-saying.
+
+**The test took three attempts, and the first two were worthless.**
+
+The first asserted through `SeatTab` alone, which is the §142 mistake
+again - a layer test cannot see whether anything wired the layer up. The
+second went through the whole app but asserted that the chair was
+*offered* again, and passed with the bug still in: the picker returns
+whenever the device holds no seat, so the button says nothing about
+whether the seat was released. What distinguishes released from forgotten
+is the "· taken" marker beside the name, which is drawn from the shared
+seat list. The third asserts that, and goes red when the fix is removed -
+checked by removing it.
+
+**And a note on how nearly this was lost.** Reverting that temporary
+removal with `git checkout src/App.tsx` took the real fix with it, because
+the fix was not committed either. Nothing was lost - it was three lines and
+they were in the transcript - but the lesson is the ordinary one: a
+destructive command aimed at a temporary change hits everything else that
+is uncommitted in the same file.
+
+**Recorded, not fixed.** The same review found dead weight that is not a
+defect and should not be swept up in a bug fix: seven exported functions
+with no reference anywhere, eleven more reachable only from their own
+tests, `ChoiceRow.onRemove` which nothing passes, and `recommendExpertise`
+- a recommender that scores which skills are worth *doubling*, written and
+tested, while the Builder ranks expertise picks with the general skill
+scorer instead. That last one is a product question rather than a bug.
+
+**Gates.** 2612 tests / 130 files, `tsc -b`, oxlint, build in budget.

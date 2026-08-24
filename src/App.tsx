@@ -29,7 +29,7 @@ import { decodeBuild, seatFromLocation, tableFromLocation, tokenFromLocation } f
 import { canRedo, canUndo, forget, historyFor, record, redo, undo } from './undo';
 import { push } from './toast';
 import type { Intent, Seat } from './seats';
-import { claimSeat, queueIntent, withdrawIntent } from './seats';
+import { claimSeat, queueIntent, releaseSeat, withdrawIntent } from './seats';
 import { aRelay, rememberRelayUrl, tableSession } from './sync';
 import type { SessionRole, TableSession } from './sync';
 import { called } from './checkCall';
@@ -1267,7 +1267,19 @@ export default function App() {
             relay={relay}
             onRelayChange={setRelay}
             seatId={seatId}
-            onSeatChange={setSeatId}
+            /*
+              §144: leaving empties the chair, here and at the table. It used
+              to only forget the seat on this device, so the DM's lobby kept
+              showing the player for the rest of the session - a chair could
+              be *replaced* by sitting elsewhere and never simply vacated.
+            */
+            onSeatChange={(next) => {
+              if (next === null && seatId !== null) {
+                sessionRef.current?.say({ kind: 'leave', rosterId: seatId });
+                setSeats(releaseSeat(seats, seatId));
+              }
+              setSeatId(next);
+            }}
             linkUp={linkUp}
             /* §141: the question itself. The seat answers it, because the
                seat is the one holding both halves - this character, and the
