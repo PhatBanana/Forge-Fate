@@ -22,6 +22,11 @@ dist-ssr
 /subclass_*.json
 /subclass_features_new.ts
 
+# Design handoffs imported for a conversation. They are somebody's thinking
+# about a screen, not the screen - once the decisions are in docs/HISTORY.md
+# and the ADRs, the document has said everything it had to say.
+/design_handoff_*/
+
 # Local notes-to-self (the relay wizard records the deployed URL here)
 .env
 
