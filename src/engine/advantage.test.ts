@@ -315,3 +315,39 @@ describe('fighting in the dark', () => {
   });
 });
 
+/*
+  §145. The DMG's optional flanking rule.
+
+  One flag, not two: whether the geometry holds is the map's business and
+  whether the table plays the rule is `houseRules`', and neither is this
+  module's to look up. What it does here is turn that one fact into the
+  advantage the book grants.
+*/
+describe('flanking (§145)', () => {
+  const labels = (e: Exchange) => circumstances(e).map((c) => c.label);
+
+  it('grants advantage when the caller says the table plays it', () => {
+    expect(labels(exchange([], [], { flanking: true }))).toContain('flanking');
+    expect(modeOf(exchange([], [], { flanking: true }))).toBe('advantage');
+  });
+
+  it('grants nothing when the caller leaves it out', () => {
+    // Absent is "no flanking model here" - the same refusal `canSee` makes,
+    // and it must not read as "definitely not flanking".
+    expect(labels(exchange())).not.toContain('flanking');
+    expect(modeOf(exchange())).toBe('normal');
+  });
+
+  it('grants nothing when the table does not play it', () => {
+    expect(labels(exchange([], [], { flanking: false }))).not.toContain('flanking');
+  });
+
+  it('cancels against a disadvantage the way every other boon does', () => {
+    /*
+      Flanking is not special. It is one circumstance among the rest, and
+      what matters is that it cancels rather than that it wins - a flanked
+      target who is also invisible is a straight roll.
+    */
+    expect(modeOf(exchange([], ['invisible'], { flanking: true }))).toBe('normal');
+  });
+});

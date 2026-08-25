@@ -93,6 +93,16 @@ export interface Exchange {
    */
   attackerSeesTarget?: boolean;
   targetSeesAttacker?: boolean;
+  /**
+   * §145: the attacker is flanking, *and* this table plays the optional rule.
+   *
+   * One flag rather than two, because whether the geometry holds and whether
+   * the table uses it are both the caller's business - the map knows where
+   * everyone stands and `houseRules` knows what the table plays, and neither
+   * is this module's to look up. Absent means no flanking model, which is
+   * the same refusal `canSee` and the light pair make.
+   */
+  flanking?: boolean;
 }
 
 const has = (c: Combatant, id: string) => c.conditions.includes(id);
@@ -120,6 +130,13 @@ export function circumstances(exchange: Exchange): Circumstance[] {
     out.push({ label: 'target is prone and within reach', gives: 'advantage' });
   }
   if (has(target, 'restrained')) out.push({ label: 'target is restrained', gives: 'advantage' });
+  /*
+    The DMG's optional flanking rule. It is off by default at this app's
+    tables and the geometry is noticed either way (§145) - what the switch
+    decides is whether the advantage is *taken*, not whether the log says
+    the word.
+  */
+  if (exchange.flanking) out.push({ label: 'flanking', gives: 'advantage' });
   if (has(target, 'blinded')) out.push({ label: 'target cannot see', gives: 'advantage' });
   for (const id of ['paralyzed', 'stunned', 'unconscious', 'petrified']) {
     if (has(target, id)) out.push({ label: `target is ${id}`, gives: 'advantage' });

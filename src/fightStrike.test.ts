@@ -241,3 +241,69 @@ describe('the roster it reads from, which is the one it writes to', () => {
     expect(entry?.drops).toBe(1);
   });
 });
+
+/*
+  §145. The DMG's optional flanking rule, applied rather than only noticed.
+
+  The geometry was already detected and written into the log; what it never
+  did was change the die. These pin both halves, and the half that matters
+  most is the one with the rule *off* - a table that has not opted in must
+  still be told what the rule would have done, which is how a DM decides
+  whether to opt in.
+*/
+describe('flanking', () => {
+  /** The fighter at 3,3 and the wizard at 5,3, with the goblin between. */
+  const pincer = () => {
+    const roster = table();
+    const enc = activeEncounter(roster);
+    const wizard = enc.combatants.filter((c) => c.kind === 'character')[1];
+    return updateEncounter(roster, placeCombatant(enc, wizard.id, { x: 5, y: 3 }));
+  };
+
+  const swing = (rules: StrikeContext['houseRules']) => {
+    const roster = pincer();
+    const v = viewOf(roster);
+    const me = charOf(v, 'c0');
+    const after = strikesInto(
+      v,
+      ctx({ houseRules: rules }),
+      roster,
+      { name: 'Basher', id: me.id },
+      sword(),
+      monsterOf(v),
+      undefined,
+      alwaysHigh,
+    );
+    return activeEncounter(after).log?.[0]?.text ?? '';
+  };
+
+  it('says the word even when the table does not play the rule', () => {
+    const line = swing(DEFAULT_HOUSE_RULES);
+    expect(line).toContain('flanked');
+    // Noticed, not applied: no advantage was taken.
+    expect(line).not.toContain('advantage');
+  });
+
+  it('takes the advantage when the table plays it', () => {
+    const line = swing({ ...DEFAULT_HOUSE_RULES, flanking: true });
+    expect(line).toContain('flanked');
+    expect(line).toContain('advantage');
+  });
+
+  it('says nothing about flanking when nobody is opposite', () => {
+    // The stock table has the wizard at 6,6 - in the fight, not in position.
+    const roster = table();
+    const v = viewOf(roster);
+    const after = strikesInto(
+      v,
+      ctx({ houseRules: { ...DEFAULT_HOUSE_RULES, flanking: true } }),
+      roster,
+      { name: 'Basher', id: charOf(v, 'c0').id },
+      sword(),
+      monsterOf(v),
+      undefined,
+      alwaysHigh,
+    );
+    expect(activeEncounter(after).log?.[0]?.text ?? '').not.toContain('flanked');
+  });
+});

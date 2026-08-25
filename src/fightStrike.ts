@@ -147,6 +147,31 @@ export function strikesInto(
     come from the conditions on both sides plus how far apart they are,
     since prone helps in reach and hinders beyond it.
   */
+  /*
+    §145: whether the attacker is flanking - the geometry only, before any
+    question of whether this table plays the rule. Computed once here
+    because both the odds and the log line want it, and it used to be
+    written out inline in the rulings list where the odds could not see it.
+  */
+  const isFlanking =
+    !!attacker &&
+    !!attackerAt &&
+    !!target.at &&
+    target.kind !== attacker.kind &&
+    flanked(
+      attackerAt,
+      target.at,
+      enc.combatants
+        .filter(
+          (ally) =>
+            ally.kind === attacker.kind &&
+            ally.id !== attacker.id &&
+            ally.at &&
+            hpNowIn(view, updated, ally) > 0,
+        )
+        .map((ally) => ally.at!),
+    );
+
   const odds = oddsFor({
     attacker: {
       conditions: attacker ? conditionsOf(view, attacker) : [],
@@ -178,27 +203,19 @@ export function strikesInto(
       !attackerAt || !target.at
         ? true
         : Math.max(Math.abs(attackerAt.x - target.at.x), Math.abs(attackerAt.y - target.at.y)) <= 1,
+    /*
+      §145: the DMG's optional flanking rule, applied rather than only
+      noticed. The geometry is checked whatever the table plays - the log
+      says "flanked" either way, which is how a DM sees what the rule would
+      have done - and the switch decides whether the advantage is taken.
+    */
+    ...(isFlanking && ctx.houseRules.flanking ? { flanking: true } : {}),
   });
   const oddsNote = describeOdds(odds);
 
   const rulings = [
     cover === 'none' ? '' : `${cover === 'half' ? 'half' : 'three-quarters'} cover +${COVER_AC[cover]}`,
-    attacker && attackerAt && target.at && target.kind !== attacker.kind &&
-    flanked(
-      attackerAt,
-      target.at,
-      enc.combatants
-        .filter(
-          (ally) =>
-            ally.kind === attacker.kind &&
-            ally.id !== attacker.id &&
-            ally.at &&
-            hpNowIn(view, updated, ally) > 0,
-        )
-        .map((ally) => ally.at!),
-    )
-      ? 'flanked'
-      : '',
+    isFlanking ? 'flanked' : '',
     uphill > 0 ? (highGround ? `high ground +${highGround}` : 'high ground') : '',
     targetGround.ac ? `+${targetGround.ac} AC from the ground` : '',
     attackerGround.toHit ? `+${attackerGround.toHit} to hit from the ground` : '',

@@ -33,10 +33,23 @@ export interface HouseRules {
    * and because +2 is what the game this is borrowed from actually gives.
    */
   highGround: boolean;
+  /**
+   * §145: flanking grants advantage on melee attacks.
+   *
+   * The DMG's optional rule rather than an invention, and off by default
+   * because it is optional in the book too - it makes melee swingy and
+   * rewards the side with more bodies, which is a real trade a table should
+   * opt into rather than discover.
+   *
+   * Advantage rather than a bonus, which is why it goes to the odds engine
+   * instead of the to-hit arithmetic the way high ground does.
+   */
+  flanking: boolean;
 }
 
 export const DEFAULT_HOUSE_RULES: HouseRules = {
   highGround: false,
+  flanking: false,
 };
 
 /**
@@ -56,6 +69,11 @@ export const HOUSE_RULE_INFO: {
     label: 'High ground grants +2',
     hint: 'Attacking from a higher square adds 2 to hit. Not a 5e rule — this is the one Baldur’s Gate 3 uses. Off, the log still says who holds it.',
   },
+  {
+    id: 'flanking',
+    label: 'Flanking grants advantage',
+    hint: 'An ally directly opposite you gives advantage on melee attacks. The DMG’s optional rule, off by default because it makes melee swingy and favours whoever brought more bodies. Off, the log still says who is flanked.',
+  },
 ];
 
 const KEY = 'dnd-forge:house-rules:v1';
@@ -67,7 +85,7 @@ export function loadHouseRules(): HouseRules {
     const parsed = JSON.parse(raw) as Partial<HouseRules>;
     // Read field by field rather than spread: a stored file from a later
     // version must not smuggle in a rule this one does not know how to apply.
-    return { highGround: parsed.highGround === true };
+    return { highGround: parsed.highGround === true, flanking: parsed.flanking === true };
   } catch {
     // Corrupt, or storage refused. The book's rules are the safe answer.
     return DEFAULT_HOUSE_RULES;

@@ -8849,3 +8849,49 @@ tested, while the Builder ranks expertise picks with the general skill
 scorer instead. That last one is a product question rather than a bug.
 
 **Gates.** 2612 tests / 130 files, `tsc -b`, oxlint, build in budget.
+
+## 145. Flanking, applied rather than only noticed
+
+The first of three tactics-game borrowings, and the one the codebase had
+already written down. `houseRules.ts` said it in a comment:
+
+    so the next optional rule - flanking is the obvious one, and grants
+    advantage rather than a bonus - is a row here plus its arithmetic
+
+That is exactly what this is. The geometry has been detected since the
+tactics module existed - `flanked()` checks that an ally stands directly
+opposite, the shot chip says "flanked", the log says the word - and
+`engine/tactics.ts` was explicit that it stopped there: *"nothing adds the
+advantage for you."*
+
+Now it can, behind a switch. Off by default, because the DMG makes it
+optional for a reason: flanking makes melee swingy and rewards whichever
+side brought more bodies, which is a trade a table should opt into rather
+than discover.
+
+**One flag at the seam, not two.** `Exchange` gains `flanking?: boolean`,
+meaning "the attacker is flanking *and* this table plays the rule". The
+advantage engine does not look up house rules and does not know where
+anybody is standing - the map knows the geometry, `houseRules` knows the
+table, and the caller is the only place both are in hand. Absent means "no
+flanking model here", the same refusal `canSee` and the light pair already
+make, rather than "definitely not flanking".
+
+**The word is said either way.** With the rule off the log still reads
+"flanked" and the die is straight. That is the point rather than an
+oversight: a DM deciding whether to adopt the rule wants to see what it
+would have done, and high ground already works this way.
+
+**The geometry is computed once now.** It used to be written out inline in
+the rulings list, where the odds engine could not see it - which is
+precisely why the rule could be *named* and never *applied*. Both readers
+take it from one place.
+
+**A test had to change, and the reason is the nicest thing here.** The
+house-rules smuggling guard - a stored file from a later version must not
+turn on a rule this one cannot apply - used `flanking` as its example of a
+future rule. §145 made it a present one, so the fixture now names a rule
+that genuinely does not exist. That the test had to be rewritten is the
+guard working, not a nuisance.
+
+**Gates.** 2619 tests / 130 files, `tsc -b`, oxlint, build in budget.

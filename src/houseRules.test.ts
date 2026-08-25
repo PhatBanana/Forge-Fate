@@ -7,6 +7,7 @@ import {
   loadHouseRules,
   saveHouseRules,
 } from './houseRules';
+import type { HouseRules } from './houseRules';
 
 const KEY = 'dnd-forge:house-rules:v1';
 
@@ -21,7 +22,7 @@ describe('what a table has agreed to', () => {
   });
 
   it('remembers a choice across a reload', () => {
-    saveHouseRules({ highGround: true });
+    saveHouseRules({ highGround: true, flanking: false });
     expect(loadHouseRules().highGround).toBe(true);
   });
 
@@ -31,10 +32,19 @@ describe('what a table has agreed to', () => {
   });
 
   it('reads field by field, so a later version cannot smuggle a rule in', () => {
-    // A file written by a version that knows about flanking must not turn
-    // flanking on in a version that has no idea how to apply it.
-    localStorage.setItem(KEY, JSON.stringify({ highGround: true, flanking: true }));
-    expect(loadHouseRules()).toEqual({ highGround: true });
+    /*
+      A file written by a version that knows about a rule this one does not
+      must not turn that rule on here.
+
+      The example used to be flanking, which §145 then implemented - so the
+      fixture needs a rule that is genuinely unknown, or the test asserts
+      nothing. That it had to be changed is the point rather than a nuisance:
+      the smuggling guard is exactly what makes adding a rule safe.
+    */
+    localStorage.setItem(KEY, JSON.stringify({ highGround: true, cleaveOnKill: true }));
+    const loaded = loadHouseRules() as HouseRules & { cleaveOnKill?: boolean };
+    expect(loaded).toEqual({ highGround: true, flanking: false });
+    expect(loaded.cleaveOnKill).toBeUndefined();
   });
 
   it('treats anything but true as off', () => {
@@ -51,8 +61,8 @@ describe('what a table has agreed to', () => {
 });
 
 describe('what high ground is worth', () => {
-  const on = { highGround: true };
-  const off = { highGround: false };
+  const on = { highGround: true, flanking: false };
+  const off = { highGround: false, flanking: false };
 
   it('is nothing at all while the switch is off', () => {
     expect(highGroundBonus(off, 3)).toBe(0);
