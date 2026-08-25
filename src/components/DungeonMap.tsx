@@ -123,7 +123,16 @@ function perimeterPath(cells: Square[]): string {
  * register the whole map draws in. Each carries a `<title>` so hovering
  * (and a screen reader) says what the mark means.
  */
-function TerrainGlyph({ at, kind }: { at: Square; kind: TerrainKind }) {
+function TerrainGlyph({
+  at,
+  kind,
+  hatch,
+}: {
+  at: Square;
+  kind: TerrainKind;
+  /** §150: the id of this drawing's hatch pattern, for the wall's face. */
+  hatch: string;
+}) {
   const x = at.x * CELL;
   const y = at.y * CELL;
   const cx = x + CELL / 2;
@@ -132,7 +141,26 @@ function TerrainGlyph({ at, kind }: { at: Square; kind: TerrainKind }) {
   const body = (() => {
     switch (kind) {
       case 'wall':
-        return <rect className="dmap-t-wall" x={x} y={y} width={CELL} height={CELL} />;
+        /*
+          §150: a solid rect and a hatch over it, rather than one rect with a
+          patterned fill. Two elements because the fill is the theme's and
+          the hatch is the ink's - a single patterned rect would have had to
+          choose, and hatched masonry is how a plan drawing has said "this is
+          built, and you cannot walk through it" since long before this app.
+        */
+        return (
+          <g>
+            <rect className="dmap-t-wall" x={x} y={y} width={CELL} height={CELL} />
+            <rect
+              className="dmap-t-hatch"
+              x={x}
+              y={y}
+              width={CELL}
+              height={CELL}
+              fill={`url(#${hatch})`}
+            />
+          </g>
+        );
       case 'floor':
         return <rect className="dmap-t-floor" x={x} y={y} width={CELL} height={CELL} />;
       case 'water':
@@ -457,6 +485,17 @@ MapCoreProps & TopDownExtraProps) {
         <pattern id="dmap-grid" width={CELL} height={CELL} patternUnits="userSpaceOnUse">
           <path d={`M ${CELL} 0 L 0 0 0 ${CELL}`} fill="none" className="dmap-grid" />
         </pattern>
+        {/* §150: the wall hatch. Per-drawing id, because two maps can be on
+            one page and an id is a document-wide name. */}
+        <pattern
+          id={`dmap-hatch-${clipId}`}
+          width={3}
+          height={3}
+          patternUnits="userSpaceOnUse"
+          patternTransform="rotate(45)"
+        >
+          <line className="dmap-hatch-line" x1={0} y1={0} x2={0} y2={3} />
+        </pattern>
       </defs>
       <rect width={w} height={h} fill="url(#dmap-grid)" />
 
@@ -582,7 +621,7 @@ MapCoreProps & TopDownExtraProps) {
         {/* Painted terrain, over the rooms and under the tokens: a pillar stands
             on the floor and somebody can stand on the map in front of it. */}
         {Object.entries(terrain).map(([key, kind]) => (
-          <TerrainGlyph key={key} at={squareOf(key)} kind={kind} />
+          <TerrainGlyph key={key} at={squareOf(key)} kind={kind} hatch={`dmap-hatch-${clipId}`} />
         ))}
       </g>
 

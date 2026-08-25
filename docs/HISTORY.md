@@ -9105,3 +9105,72 @@ and nothing else would read as the same picture from across a table, which
 is the same as not having drawn it.
 
 **Gates.** 2684 tests / 133 files, `tsc -b`, oxlint, build in budget.
+
+## 150. Walls that look like walls
+
+The terrain mesh has sampled a texture atlas since §66 - every cap and every
+skirt carries UVs, and the fragment shader is `tex * vColor`. It had only
+ever sampled the white texel. Every surface on the board came out a flat
+palette colour, and the seam for fixing that had been sitting open, unused,
+for eighty sections.
+
+**Greyscale that multiplies, not colour that replaces.** What lives in these
+textures is where the mortar runs and which stones catch the light; what
+lives in the palette is what colour any of it is. Painting coloured tiles
+would have frozen the palette into the art and quietly killed the themes -
+a theme swap still recolours the whole board, and a shaded face is still
+shaded, because none of that moved.
+
+**All levels at or below one**, which is a constraint rather than a taste. A
+texel cannot brighten a surface past the colour the palette already chose,
+so relief is carved *down* from the lit tone and the base sits a little
+under it so a highlight has somewhere to go. The board reads a shade darker
+than the flat colours did, which is what having a surface looks like.
+
+**A wall got its own face.** `side` was one rock texture shared by every
+prism whatever stood above it - fine when the difference between a wall and
+a raised floor was a cap colour, and the reason walls read as coloured
+blocks. The vertical face of a wall is the surface a player is actually
+looking at in this projection, so it is coursed masonry now, staggered, lit
+along the top of each block and shadowed under it. Broken rock and built
+stone are not the same material, and the skirts still get the rock.
+
+**The textures are not packed.** Every other atlas entry is packed on demand
+and re-packed after a reset, which is fine because the thing that wants it
+is looked up by key at the moment it is drawn. The terrain mesh is not like
+that: it is built by the component, once, with UVs baked into a vertex
+buffer, and it outlives any number of atlas generations. UVs that moved when
+the atlas filled would smear the floor with somebody's damage float - green
+in every test, and an hour into a session on the night.
+
+So the six live in a reserved strip along the top at addresses arithmetic
+computes, and the shelf packer takes a `reserved` offset it honours on reset
+as well as at creation. `TERRAIN_UVS` is a constant derived from the same
+`slotOf` the painter uses, which is what lets the component bake UVs without
+a renderer in hand and without caring how many generations it outlives.
+
+**White moved from packed to painted.** `WHITE` in `types.ts` is a
+degenerate UV at the atlas origin and every untextured wash in the app
+samples it; with the packer now starting below the strip, packing white
+would have put it somewhere else. It is painted at (0,0) with the rest of
+the fixed strip instead.
+
+**Every grid tiles.** Column fifteen meets column zero and row fifteen meets
+row zero, because a texture that did not would draw a seam down every square
+edge - the one artefact a player would notice immediately and never stop
+seeing. That is a test rather than a comment now, and it is measured
+against each texture's *own* worst interior step rather than a number
+somebody picked: the claim is that the join is no more of a discontinuity
+than the material already contains, which is what "it tiles" means for art
+like this.
+
+**And the flat map's walls are hatched**, because it is the default view and
+"more detail on the walls" that only existed in the tactical one would be
+detail most tables never saw. A solid rect and a hatch over it rather than
+one rect with a patterned fill - two elements because the fill belongs to
+the theme and the hatch to the ink, and a single patterned rect would have
+had to choose. The pattern is named per drawing: an id is a document-wide
+name, and two maps on one page sharing one would have the second silently
+painting with the first's.
+
+**Gates.** 2700 tests / 134 files, `tsc -b`, oxlint, build in budget.

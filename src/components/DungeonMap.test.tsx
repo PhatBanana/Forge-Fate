@@ -183,3 +183,43 @@ describe('what a monster stands as on the flat map', () => {
     expect(container.querySelector('.dmap-token text')?.textContent).toBe('GB');
   });
 });
+
+/*
+  §150. The walls, on the map that prints.
+
+  The tactical view got coursed masonry it can afford to draw; this one gets
+  the plan drawing's own answer, which is older and cheaper: hatching. What
+  is asserted here is the part that breaks silently - an id is a
+  document-wide name, and two maps on one page sharing one would have the
+  second silently painting with the first's pattern.
+*/
+describe('a wall on the flat map', () => {
+  it('is hatched over its fill, not left a flat block', () => {
+    const { container } = render(
+      <DungeonMap dungeon={dungeon} terrain={{ '1,1': 'wall' }} authoring />,
+    );
+    expect(container.querySelector('.dmap-t-wall')).not.toBeNull();
+    const hatch = container.querySelector('.dmap-t-hatch');
+    expect(hatch).not.toBeNull();
+    expect(hatch!.getAttribute('fill')).toMatch(/^url\(#dmap-hatch-/);
+  });
+
+  it('points at a pattern that is actually in the drawing', () => {
+    const { container } = render(
+      <DungeonMap dungeon={dungeon} terrain={{ '1,1': 'wall' }} authoring />,
+    );
+    const id = container
+      .querySelector('.dmap-t-hatch')!
+      .getAttribute('fill')!
+      .replace(/^url\(#|\)$/g, '');
+    expect(container.querySelector(`#${CSS.escape(id)}`)).not.toBeNull();
+  });
+
+  it('names it per drawing, because an id is a document-wide name', () => {
+    const idOf = (container: HTMLElement) =>
+      container.querySelector('.dmap-t-hatch')!.getAttribute('fill');
+    const first = render(<DungeonMap dungeon={dungeon} terrain={{ '1,1': 'wall' }} authoring />);
+    const second = render(<DungeonMap dungeon={dungeon} terrain={{ '1,1': 'wall' }} authoring />);
+    expect(idOf(first.container)).not.toBe(idOf(second.container));
+  });
+});

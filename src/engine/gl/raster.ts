@@ -5,6 +5,8 @@ import type { Pose } from './pixelart';
 import { BEAST_H, BEAST_W, beastColorOf, beastSprite } from './beastart';
 import type { BeastIndex, BeastPose } from './beastart';
 import type { BeastArt } from '../beasts';
+import { SURFACE_ART, SURFACE_LEVELS, SURFACE_SIZE, slotOf } from './surfaceart';
+import type { SurfaceKind } from './surfaceart';
 
 /**
  * The pixels behind the atlas keys: pawn cards, prop glyphs, markers, text.
@@ -214,6 +216,35 @@ export function paintClassSprite(
     }
   }
   return true;
+}
+
+/**
+ * §150: the six terrain textures, painted into their fixed slots.
+ *
+ * Greyscale, because the shader is `tex * vColor` and the colour is the
+ * palette's job: what these carry is where the mortar runs and which stones
+ * catch the light, so a theme swap still recolours the whole board and a
+ * shaded face is still shaded.
+ *
+ * Painted at atlas creation and again after every reset, at addresses
+ * arithmetic computes - see `surfaceart.ts` for why they cannot be packed
+ * like everything else.
+ */
+export function paintSurfaces(ctx: CanvasRenderingContext2D): void {
+  for (const kind of Object.keys(SURFACE_ART) as SurfaceKind[]) {
+    const slot = slotOf(kind);
+    const rows = SURFACE_ART[kind];
+    const scale = slot.w / SURFACE_SIZE;
+    for (let y = 0; y < SURFACE_SIZE; y++) {
+      for (let x = 0; x < SURFACE_SIZE; x++) {
+        // Opaque, always: the fragment shader cuts out on the texture's own
+        // alpha, and a transparent texel would punch a hole in the floor.
+        const level = Math.round((SURFACE_LEVELS[rows[y][x]] ?? 1) * 255);
+        ctx.fillStyle = `rgb(${level}, ${level}, ${level})`;
+        ctx.fillRect(slot.x + x * scale, slot.y + y * scale, scale, scale);
+      }
+    }
+  }
 }
 
 /**

@@ -8,6 +8,9 @@ import { cellJitter } from './palette';
 import type { Palette } from './palette';
 import { WHITE, finishMesh, newMesh, pushQuad, pushVertex, shade } from './types';
 import type { AtlasRect, Mesh, Rgb } from './types';
+import { uvOf } from './atlas';
+import { ATLAS_SIZE } from './raster';
+import { slotOf } from './surfaceart';
 
 /**
  * The ground, as triangles.
@@ -33,6 +36,12 @@ export interface TerrainUvs {
   water: AtlasRect;
   /** The skirts share one rock-face texture whatever stands above them. */
   side: AtlasRect;
+  /**
+   * §150: except a wall's, which is the surface a player is actually looking
+   * at in this projection. Broken rock and coursed masonry are not the same
+   * material, and drawing them alike is what made walls read as blocks.
+   */
+  wallSide: AtlasRect;
 }
 
 /** Every region as the white texel: flat-colored prisms, fine for tests. */
@@ -42,6 +51,24 @@ export const FLAT_UVS: TerrainUvs = {
   wall: WHITE,
   water: WHITE,
   side: WHITE,
+  wallSide: WHITE,
+};
+
+/**
+ * §150: where the real terrain textures live, as UVs.
+ *
+ * A constant rather than something the renderer hands out, because the
+ * addresses are arithmetic - see `surfaceart.ts`. That is what lets the
+ * *component* bake UVs into a vertex buffer without waiting for a renderer
+ * to exist or caring how many atlas generations it outlives.
+ */
+export const TERRAIN_UVS: TerrainUvs = {
+  ground: uvOf(slotOf('ground'), { width: ATLAS_SIZE, height: ATLAS_SIZE }),
+  floor: uvOf(slotOf('floor'), { width: ATLAS_SIZE, height: ATLAS_SIZE }),
+  wall: uvOf(slotOf('wall'), { width: ATLAS_SIZE, height: ATLAS_SIZE }),
+  water: uvOf(slotOf('water'), { width: ATLAS_SIZE, height: ATLAS_SIZE }),
+  side: uvOf(slotOf('side'), { width: ATLAS_SIZE, height: ATLAS_SIZE }),
+  wallSide: uvOf(slotOf('wallSide'), { width: ATLAS_SIZE, height: ATLAS_SIZE }),
 };
 
 const capColor = (kind: string | undefined, palette: Palette): Rgb => {
@@ -108,15 +135,17 @@ export function buildTerrain(
       are NE (0-1), SE (1-2), SW (2-3), NW (3-0).
     */
     const shades = [palette.neShade, palette.seShade, palette.swShade, palette.nwShade];
+    // §150: a wall's face is masonry; everything else's is broken rock.
+    const face = kind === 'wall' ? uvs.wallSide : uvs.side;
     for (let i = 0; i < 4; i++) {
       const [ax, ay] = corners[i];
       const [bx, by] = corners[(i + 1) % 4];
       const color = shade(base, shades[i] * jitter);
       const bottom = z * ZH + bedrockDrop;
-      const a = pushVertex(mesh, ax, ay, depth, uvs.side.u0, uvs.side.v0, color);
-      const b = pushVertex(mesh, bx, by, depth, uvs.side.u1, uvs.side.v0, color);
-      const c = pushVertex(mesh, bx, by + bottom, depth, uvs.side.u1, uvs.side.v1, color);
-      const d = pushVertex(mesh, ax, ay + bottom, depth, uvs.side.u0, uvs.side.v1, color);
+      const a = pushVertex(mesh, ax, ay, depth, face.u0, face.v0, color);
+      const b = pushVertex(mesh, bx, by, depth, face.u1, face.v0, color);
+      const c = pushVertex(mesh, bx, by + bottom, depth, face.u1, face.v1, color);
+      const d = pushVertex(mesh, ax, ay + bottom, depth, face.u0, face.v1, color);
       pushQuad(mesh, a, b, c, d);
     }
   }

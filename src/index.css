@@ -6578,6 +6578,10 @@ input.pcard-amount {
   the app theme either.
 */
 .dmap-t-wall { fill: #4a4238; }
+/* §150: coursed hatching over the wall's fill, the way a plan drawing has
+   said "built, and you cannot walk through it" since long before this app.
+   Light ink over a dark fill; the pattern's own geometry does the rest. */
+.dmap-hatch-line { stroke: #d9cdb2; stroke-width: 0.8; opacity: 0.35; }
 .dmap-t-floor { fill: #e6ddc8; }
 .dmap-t-water { fill: #b9c9c4; }
 .dmap-t-wave { stroke: #6a8680; stroke-width: 1; }

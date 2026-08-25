@@ -51,9 +51,22 @@ export interface ShelfAtlas {
     filtering when UVs land on a seam. */
 const GUTTER = 1;
 
-export function createShelfAtlas(width: number, height: number): ShelfAtlas {
+export function createShelfAtlas(
+  width: number,
+  height: number,
+  /**
+   * §150: rows at the top the packer may not use.
+   *
+   * The terrain textures live there at fixed addresses, because the terrain
+   * mesh bakes its UVs into a vertex buffer and outlives any number of atlas
+   * generations - UVs that moved when the atlas filled would smear the floor
+   * with somebody's damage float. Everything else is packed and re-packed on
+   * demand and is looked up by key at the moment it is drawn.
+   */
+  reserved = 0,
+): ShelfAtlas {
   let entries = new Map<string, PackedRect>();
-  let shelfY = 0;
+  let shelfY = reserved;
   let shelfH = 0;
   let cursorX = 0;
   let generation = 0;
@@ -88,7 +101,7 @@ export function createShelfAtlas(width: number, height: number): ShelfAtlas {
     },
     reset() {
       entries = new Map();
-      shelfY = 0;
+      shelfY = reserved;
       shelfH = 0;
       cursorX = 0;
       generation += 1;

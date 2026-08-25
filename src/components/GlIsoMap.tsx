@@ -11,7 +11,7 @@ import { canUseWebGl } from '../engine/gl/context';
 import { createRenderer } from '../engine/gl/renderer';
 import type { Renderer } from '../engine/gl/renderer';
 import { DARK, LIGHT } from '../engine/gl/palette';
-import { buildTerrain, depthRange } from '../engine/gl/scene';
+import { TERRAIN_UVS, buildTerrain, depthRange } from '../engine/gl/scene';
 import {
   cursorWash,
   fogWash,
@@ -207,7 +207,10 @@ function GlSurface({
   const ground = useMemo(() => groundCells(dungeon, terrain, known), [dungeon, terrain, known]);
 
   const terrainMesh = useMemo(
-    () => buildTerrain(dungeon, elevation, terrain, proj, palette, known),
+    // §150: the real terrain textures rather than the white texel. The UVs
+    // are a constant because the addresses are arithmetic, which is what
+    // lets this bake them into a vertex buffer without a renderer in hand.
+    () => buildTerrain(dungeon, elevation, terrain, proj, palette, known, TERRAIN_UVS),
     [dungeon, elevation, terrain, proj, palette, known],
   );
 

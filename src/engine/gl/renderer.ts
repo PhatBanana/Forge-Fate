@@ -15,12 +15,14 @@ import {
   paintMarker,
   paintPawn,
   paintShadow,
+  paintSurfaces,
   paintText,
   paintWhite,
 } from './raster';
 import { SPRITE_H, SPRITE_W } from './pixelart';
 import type { Pose } from './pixelart';
 import { BEAST_H, BEAST_W } from './beastart';
+import { RESERVED_HEIGHT } from './surfaceart';
 import type { BeastPose } from './beastart';
 import type { BeastArt } from '../beasts';
 import type { AtlasCanvas } from './raster';
@@ -184,13 +186,23 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer | null {
   };
 
   const atlasTexture = gl.createTexture()!;
-  const atlas: ShelfAtlas = createShelfAtlas(ATLAS_SIZE, ATLAS_SIZE);
+  const atlas: ShelfAtlas = createShelfAtlas(ATLAS_SIZE, ATLAS_SIZE, RESERVED_HEIGHT);
   let atlasDirty = true;
-  // The white texel is entry zero, always - `WHITE` in types.ts points at it.
-  {
-    const rect = atlas.pack('white', 2, 2)!;
-    paintWhite(atlasCanvas.ctx, rect);
-  }
+  /*
+    §150: the fixed strip along the top - the white texel and the six terrain
+    textures - painted rather than packed, and repainted after every reset.
+    The shelf packer is told to start below it, so nothing it packs can land
+    on a texture the terrain mesh is still pointing at.
+
+    White is entry zero, always: `WHITE` in types.ts is a degenerate UV at
+    the atlas origin, and painting it here rather than packing it is what
+    keeps that true now that the packer starts further down.
+  */
+  const paintFixed = () => {
+    paintWhite(atlasCanvas.ctx, { x: 0, y: 0, w: 2, h: 2 });
+    paintSurfaces(atlasCanvas.ctx);
+  };
+  paintFixed();
 
   const sceneTexture = gl.createTexture()!;
   const depthBuffer = gl.createRenderbuffer()!;
@@ -279,8 +291,9 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer | null {
       // Full: start a fresh generation. Live keys re-rasterize on demand,
       // which is exactly one frame of missing floats - invisible in play.
       atlas.reset();
-      const white = atlas.pack('white', 2, 2)!;
-      paintWhite(atlasCanvas.ctx, white);
+      // The fixed strip survives a reset in place, but the canvas under it
+      // does not - a repack could have drawn over the edge of a texture.
+      paintFixed();
       rect = atlas.pack(key, rw, rh);
       if (!rect) return null;
     }

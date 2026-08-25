@@ -79,6 +79,10 @@ same in code, comments, HISTORY and reviews. Deeper reasoning lives in
   type line (`beasts.ts`, §149). With a colour per monster and a scale per
   size, that is every stat block in the book - and all forty-three dragons
   off one body.
+- **Surface** — a greyscale texture the terrain mesh samples, multiplied
+  into the palette colour (`gl/surfaceart.ts`, §150). Lives at a fixed
+  atlas address rather than a packed one, because the mesh bakes its UVs
+  and outlives atlas generations.
 
 - **Fight view** — the read-side of a fight, bundled so a rules module
   learns one thing rather than four: the encounter, the roster, the
