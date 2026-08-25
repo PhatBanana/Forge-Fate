@@ -430,3 +430,62 @@ describe('the ground the caller priced', () => {
     expect(plan.strikes).toEqual([]);
   });
 });
+
+/*
+  §147. A monster that has broken.
+
+  The whole plan inverts: the same measurements read the other way round.
+  What these pin is that it stops attacking - a fleeing creature that still
+  swings on the way past is not fleeing - and that being cornered turns it
+  back, which is what stops morale from turning every fight into a chase.
+*/
+describe('a broken monster', () => {
+  const cornered = { base: 30, dash: 60 };
+
+  it('runs away rather than closing', () => {
+    const me = goblin({ x: 5, y: 5 });
+    const foe = hero('a', 'Thorin', { x: 8, y: 5 });
+    const held = planTurn(setup(me, [foe], [[scimitar]]));
+    const broke = planTurn({ ...setup(me, [foe], [[scimitar]]), fleeing: true });
+
+    // Standing still, the two disagree about which way is better.
+    expect(held.move?.to.x ?? 5).toBeGreaterThanOrEqual(5);
+    expect(broke.move).toBeDefined();
+    expect(broke.move!.to.x).toBeLessThan(5);
+    expect(broke.reason).toMatch(/broken and runs/);
+  });
+
+  it('does not swing on the way out', () => {
+    const me = goblin({ x: 5, y: 5 });
+    const foe = hero('a', 'Thorin', { x: 6, y: 5 });
+    const broke = planTurn({ ...setup(me, [foe], [[scimitar]], cornered), fleeing: true });
+    // A creature that still attacks while running is not running.
+    expect(broke.strikes).toEqual([]);
+    expect(broke.targetId).toBeUndefined();
+  });
+
+  it('turns and fights when there is nowhere better to be', () => {
+    /*
+      No movement left, so every candidate square is the one it stands on.
+      Cornered is what stops morale making a chase of every fight, and it
+      is the DMG's own rule.
+    */
+    const me = goblin({ x: 5, y: 5 });
+    const foe = hero('a', 'Thorin', { x: 6, y: 5 });
+    const stuck = planTurn({
+      ...setup(me, [foe], [[scimitar]], { base: 0, dash: 0 }),
+      fleeing: true,
+    });
+    expect(stuck.move).toBeUndefined();
+    expect(stuck.reason).toMatch(/cornered/);
+  });
+
+  it('takes the Dash, because there is no attack to protect', () => {
+    const me = goblin({ x: 5, y: 5 });
+    const foe = hero('a', 'Thorin', { x: 6, y: 5 });
+    const broke = planTurn({ ...setup(me, [foe], [[scimitar]]), fleeing: true });
+    expect(broke.move).toBeDefined();
+    // Running is exactly the case Rule 3 already allows a Dash for.
+    expect(broke.move!.cost).toBeGreaterThan(0);
+  });
+});

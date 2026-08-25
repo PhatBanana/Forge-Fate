@@ -130,6 +130,14 @@ export interface MonsterCombatant {
    */
   stance?: 'disengage' | 'dodge' | 'ready';
   /**
+   * §147: it has broken and is running.
+   *
+   * Not a stance: a stance is what you did with your action and is cleared
+   * when your turn comes round again, and being routed is neither. It
+   * lasts until the creature is cornered or the fight ends.
+   */
+  broken?: boolean;
+  /**
    * Not yet part of the fight: skipped in the turn order, woken when the
    * party first sees it or when it takes damage - the squad-game pod,
    * translated. Meaningful mostly under fog of war.

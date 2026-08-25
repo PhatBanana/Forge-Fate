@@ -62,6 +62,17 @@ same in code, comments, HISTORY and reviews. Deeper reasoning lives in
 
 ## The fight
 
+- **House rule** — an optional rule a table opts into (`houseRules.ts`):
+  high ground's +2 (§45), flanking's advantage (§145), morale (§147).
+  Each is off by default, and the log says what the rule *would* have
+  done even when it is off.
+- **Readied** — an attack held for whoever comes within reach (§146).
+  The third stance beside Disengage and Dodge, and the SRD's own
+  overwatch. Firing spends the reaction *and* the held action.
+- **Broken** — a monster that failed its morale check and is running
+  (§147). Not a stance: it outlasts the turn, and ends when the creature
+  is cornered.
+
 - **Fight view** — the read-side of a fight, bundled so a rules module
   learns one thing rather than four: the encounter, the roster, the
   monster table and the build derivations (planned, ROADMAP §9).

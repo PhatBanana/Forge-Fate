@@ -53,6 +53,7 @@ import {
 } from '../encounter';
 import {
   damageMonster,
+  setBroken,
   setDormant,
   setHidden,
   setConditionSource,
@@ -1852,6 +1853,8 @@ export function TableTab({
       candidates,
       // Which way the fight is, measured by walking rather than by looking.
       approach: partyApproach ? (at) => partyApproach.cost.get(keyOf(at)) ?? null : undefined,
+      // §147: broken, so the same measurement is read the other way round.
+      fleeing: active.kind === 'monster' && !!active.broken,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [encounter, tool, active, selected, byId, derived, walkPlan, walk, walkBudget, partyApproach]);
@@ -1939,6 +1942,8 @@ export function TableTab({
           priceOf: (at) => mWalk.cost.get(keyOf(at)) ?? null,
           candidates,
           approach: partyApproach ? (at) => partyApproach.cost.get(keyOf(at)) ?? null : undefined,
+          // §147: the wash shows a broken monster running, not charging.
+          fleeing: c.kind === 'monster' && !!c.broken,
         });
 
         const standAt = plan.move?.to ?? c.at;
@@ -2864,6 +2869,56 @@ export function TableTab({
         );
       }
     }
+
+    /*
+      §147: morale, at the top of a hurt monster's turn.
+
+      The DMG's optional rule and off unless a table asks for it. The
+      trigger is the commonest of the book's three - at or below half its
+      hit points - because it is the one the app can see without being
+      told; "no way to harm the opposition" is a judgement and belongs to
+      the DM.
+
+      Rolled here for the same reason the death save above is: this is the
+      moment the rule fires, and it composes into the same write as the
+      turn advance rather than becoming a second one the undo stack has to
+      walk back through separately.
+
+      Only once. A creature that has already broken does not re-roll every
+      turn to see whether it is still frightened - it runs until it is
+      cornered, which `planTurn` decides.
+    */
+    if (
+      houseRules.morale &&
+      began?.kind === 'monster' &&
+      !began.broken &&
+      !began.dormant
+    ) {
+      const hp = hpOf(began);
+      const monster = byId.get(began.monsterId);
+      if (hp && hp.now > 0 && hp.now <= Math.floor(hp.max / 2) && monster) {
+        const bonus = saveBonusFor(began, 'wis') ?? 0;
+        const roll = rollD20(bonus, 'normal', defaultRng);
+        if (roll.total < 10) {
+          updated = updateEncounter(
+            updated,
+            appendLog(
+              setBroken(activeEncounter(updated), began.id, true),
+              `${nameOf(began)} checks morale — ${roll.total} against 10, and breaks.`,
+            ),
+          );
+        } else {
+          updated = updateEncounter(
+            updated,
+            appendLog(
+              activeEncounter(updated),
+              `${nameOf(began)} checks morale — ${roll.total} against 10, and holds.`,
+            ),
+          );
+        }
+      }
+    }
+
     updated = spendSurprise(updated);
 
     // The phase card: a round wrap announces the round, otherwise whoever

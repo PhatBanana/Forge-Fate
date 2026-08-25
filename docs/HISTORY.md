@@ -8943,3 +8943,50 @@ at any table, and the monster tray had the same two stance buttons and
 the same gap.
 
 **Gates.** 2628 tests / 130 files, `tsc -b`, oxlint, build in budget.
+
+## 147. Monsters that break
+
+The third tactics borrowing, and the one that changes how a fight *ends*
+rather than how a round is rolled. Most fights stop being interesting
+several rounds before the last goblin is cornered, and the DMG has a rule
+for exactly that which this app has never had: morale.
+
+**Off by default, like the other two.** A DM who wants monsters to run
+usually wants to make that call themselves, and a monster that runs on a
+die roll takes the call away. The switch is for tables that would rather
+the dice decided.
+
+**One trigger of the book's three.** At or below half its hit points is
+the one the app can *see*. "No way to harm the opposition" is a judgement,
+and surprise is already spent by the time a turn begins - both belong to
+the DM, so neither is guessed at.
+
+**Rolled where the death save is rolled**, at the top of the turn, and
+composed into the same write as the turn advance - so it is one undo step
+rather than two, the same reason §7's death save sits there.
+
+**Once, not every turn.** A creature that has broken does not re-roll each
+round to see whether it is still frightened. It runs until it is cornered,
+and `planTurn` decides that rather than a second saving throw.
+
+**`broken` is not a stance.** A stance is what you did with your action
+and is cleared when your turn comes round again; being routed is neither.
+It sits beside the stance on the combatant and outlasts it.
+
+**Fleeing is the same planner read backwards.** `planTurn` already scores
+every reachable square by how close it leaves you to the party, and
+running wants the furthest rather than the nearest - the same measurement,
+the same walk-based distance, the same rule about squares somebody is
+already standing on. One flag rather than a second planner, and it is
+answered before any routine is scored, because a creature that has broken
+is not choosing between attacks. It is choosing a direction.
+
+**Cornered turns it back**, which is what stops morale making a chase of
+every fight. When no reachable square is further from the party than the
+one it stands on, it turns and fights - the DMG's own rule, and the reason
+this ends fights sooner rather than lengthening them.
+
+**The Dash is allowed**, for exactly the reason Rule 3 already allows it
+when a monster cannot reach anybody: there is no attack to protect.
+
+**Gates.** 2632 tests / 130 files, `tsc -b`, oxlint, build in budget.

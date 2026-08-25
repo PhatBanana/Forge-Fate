@@ -45,11 +45,23 @@ export interface HouseRules {
    * instead of the to-hit arithmetic the way high ground does.
    */
   flanking: boolean;
+  /**
+   * §147: monsters check morale when they are badly hurt, and run if they
+   * fail.
+   *
+   * The DMG's optional rule, and the one that changes how a fight *ends*
+   * rather than how a round is rolled - most fights stop being interesting
+   * several rounds before the last goblin is cornered. Off by default
+   * because a DM who wants this usually wants to make the call themselves,
+   * and a monster that runs on a die roll takes that call away.
+   */
+  morale: boolean;
 }
 
 export const DEFAULT_HOUSE_RULES: HouseRules = {
   highGround: false,
   flanking: false,
+  morale: false,
 };
 
 /**
@@ -74,6 +86,11 @@ export const HOUSE_RULE_INFO: {
     label: 'Flanking grants advantage',
     hint: 'An ally directly opposite you gives advantage on melee attacks. The DMG’s optional rule, off by default because it makes melee swingy and favours whoever brought more bodies. Off, the log still says who is flanked.',
   },
+  {
+    id: 'morale',
+    label: 'Monsters check morale',
+    hint: 'A monster at half hit points or fewer makes a DC 10 Wisdom save when its turn begins; failing, it breaks and runs until it is cornered. The DMG’s optional rule — it ends fights sooner, and takes the call out of your hands.',
+  },
 ];
 
 const KEY = 'dnd-forge:house-rules:v1';
@@ -85,7 +102,11 @@ export function loadHouseRules(): HouseRules {
     const parsed = JSON.parse(raw) as Partial<HouseRules>;
     // Read field by field rather than spread: a stored file from a later
     // version must not smuggle in a rule this one does not know how to apply.
-    return { highGround: parsed.highGround === true, flanking: parsed.flanking === true };
+    return {
+      highGround: parsed.highGround === true,
+      flanking: parsed.flanking === true,
+      morale: parsed.morale === true,
+    };
   } catch {
     // Corrupt, or storage refused. The book's rules are the safe answer.
     return DEFAULT_HOUSE_RULES;

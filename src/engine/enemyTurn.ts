@@ -103,6 +103,16 @@ export interface TurnInput {
    * is what the tests on open ground assume.
    */
   approach?: (at: Square) => number | null;
+  /**
+   * §147: this creature has broken and wants out.
+   *
+   * The whole plan inverts: it stops looking for somebody to hit and looks
+   * for the square furthest from the party it can reach. Everything else -
+   * what the ground costs, who is standing where, whether a Dash is
+   * affordable - is the same question asked the other way round, which is
+   * why this is a flag rather than a second planner.
+   */
+  fleeing?: boolean;
 }
 
 /** Feet between two squares, on the one rule every distance here runs on:
@@ -192,6 +202,44 @@ export function planTurn(input: TurnInput): TurnPlan {
     const cost = priceOf(at);
     if (cost === null || cost > budget.dash) continue;
     spots.push({ at, cost });
+  }
+
+  /*
+    §147: broken, and running. Answered before any routine is scored,
+    because a creature that has broken is not choosing between attacks - it
+    is choosing a direction. The Dash is always allowed: there is no attack
+    to protect, which is the same reason Rule 3 allows it.
+  */
+  if (input.fleeing) {
+    const awayFrom = (at: Square): number =>
+      input.approach
+        ? (input.approach(at) ?? Infinity)
+        : Math.min(...foes.map((f) => feetBetween(at, f.at!)));
+
+    let furthest: { at: Square; cost: number; gap: number } | null = null;
+    for (const spot of spots) {
+      const gap = awayFrom(spot.at);
+      // Infinity means no route from the party at all, which for a fleeing
+      // creature is the best possible square rather than a disqualifying one.
+      if (!furthest || gap > furthest.gap || (gap === furthest.gap && spot.cost < furthest.cost)) {
+        furthest = { at: spot.at, cost: spot.cost, gap };
+      }
+    }
+    const standingGap = awayFrom(here);
+    if (!furthest || furthest.cost === 0 || furthest.gap <= standingGap) {
+      /*
+        Cornered. There is nowhere better to be, so it turns and fights -
+        which is the DMG's own rule and the reason morale makes a fight
+        end sooner rather than makes it a chase: a creature with its back
+        to a wall is a creature that has stopped fleeing.
+      */
+      return { strikes: [], reason: `${self.name} is cornered and turns to fight.` };
+    }
+    return {
+      move: { to: furthest.at, cost: furthest.cost, dash: furthest.cost > budget.base },
+      strikes: [],
+      reason: `${self.name} has broken and runs.`,
+    };
   }
 
   let best: { score: Score; plan: TurnPlan } | null = null;

@@ -217,6 +217,26 @@ export function setMonsterStance(
   };
 }
 
+/**
+ * §147: it broke, or it rallied.
+ *
+ * Its own writer rather than a flag the caller sets, for the reason every
+ * other one here exists: both kinds of combatant carry state and nothing
+ * outside should have to remember which branch of the union it is holding.
+ */
+export function setBroken(
+  encounter: EncounterState,
+  id: string,
+  broken: boolean,
+): EncounterState {
+  return {
+    ...encounter,
+    combatants: encounter.combatants.map((c) =>
+      c.id === id && c.kind === 'monster' ? { ...c, broken: broken || undefined } : c,
+    ),
+  };
+}
+
 /** Wake a monster into the fight, or stand it down. Monsters only - a
     character is always in the fight. */
 export function setDormant(encounter: EncounterState, id: string, dormant: boolean): EncounterState {

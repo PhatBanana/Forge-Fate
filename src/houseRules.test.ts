@@ -22,7 +22,7 @@ describe('what a table has agreed to', () => {
   });
 
   it('remembers a choice across a reload', () => {
-    saveHouseRules({ highGround: true, flanking: false });
+    saveHouseRules({ highGround: true, flanking: false, morale: false });
     expect(loadHouseRules().highGround).toBe(true);
   });
 
@@ -43,7 +43,7 @@ describe('what a table has agreed to', () => {
     */
     localStorage.setItem(KEY, JSON.stringify({ highGround: true, cleaveOnKill: true }));
     const loaded = loadHouseRules() as HouseRules & { cleaveOnKill?: boolean };
-    expect(loaded).toEqual({ highGround: true, flanking: false });
+    expect(loaded).toEqual({ highGround: true, flanking: false, morale: false });
     expect(loaded.cleaveOnKill).toBeUndefined();
   });
 
@@ -61,8 +61,8 @@ describe('what a table has agreed to', () => {
 });
 
 describe('what high ground is worth', () => {
-  const on = { highGround: true, flanking: false };
-  const off = { highGround: false, flanking: false };
+  const on = { highGround: true, flanking: false, morale: false };
+  const off = { highGround: false, flanking: false, morale: false };
 
   it('is nothing at all while the switch is off', () => {
     expect(highGroundBonus(off, 3)).toBe(0);
