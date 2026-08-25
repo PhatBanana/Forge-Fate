@@ -4,6 +4,7 @@ import type { TerrainMap } from '../../terrain';
 import type { Token } from '../../components/DungeonMap';
 import { BASE_H, HH, HW, PAWN_H, PAWN_W, ZH } from '../iso';
 import { CLASS_ART, SPRITE_H, SPRITE_W } from './pixelart';
+import { BEAST_H, BEAST_W } from './beastart';
 import type { IsoProjection } from '../iso';
 import { finishMesh, newMesh, pushQuad, pushVertex } from './types';
 import type { AtlasRect, Mesh, Rgba } from './types';
@@ -110,19 +111,39 @@ export function tokenSprites(
       !token.portrait && token.classId && CLASS_ART[token.classId]
         ? `sprite:${token.classId}:${token.stance ?? 'idle'}`
         : null;
-    const key = sprite ?? `pawn:${token.id}`;
-    // The sprite's grid is 12×18; the card's proportions are the pawn's.
-    const w = sprite ? PAWN_W * 1.1 : PAWN_W;
-    const h = sprite ? (w * SPRITE_H) / SPRITE_W : BASE_H + PAWN_H;
+    /*
+      §149: and the monsters, which the §67 comment above said kept their
+      cards. A monster's art is chosen by *kind* - `beast:{monsterId}` -
+      because five goblins are one silhouette in one colour and should cost
+      one raster. A monster does not sneak, so its three poses are down,
+      fighting and not yet fighting.
+    */
+    const beast = token.beast
+      ? `beast:${token.beast.monsterId}:${token.stance === 'down' ? 'down' : token.stance === 'battle' ? 'battle' : 'idle'}`
+      : null;
+    const key = sprite ?? beast ?? `pawn:${token.id}`;
+    // The sprite's grid is 12×18, the monster's 16×20; the card's
+    // proportions are the pawn's. Size is where the bestiary's own scale
+    // lands: a Gargantuan dragon is the same texture drawn nearly three
+    // times as wide, which is the cheapest thing on the board to read.
+    const w = sprite ? PAWN_W * 1.1 : beast ? PAWN_W * 1.15 * token.beast!.scale : PAWN_W;
+    const h = sprite
+      ? (w * SPRITE_H) / SPRITE_W
+      : beast
+        ? (w * BEAST_H) / BEAST_W
+        : BASE_H + PAWN_H;
 
     // The contact shadow, then the figure. The shadow stands on the ground
     // offset, not the figure's - it walks along under a walk but holds its
     // square under a lunge or a flinch.
+    // §149: the shadow grows with the body. A dragon standing on a
+    // goblin-sized smudge floats; the square it takes up is the point.
+    const foot = Math.max(1, token.beast?.scale ?? 1);
     sprites.push({
       x: gx,
       y: gy + HH * 0.52,
-      w: HW * 1.04,
-      h: HH * 1.04,
+      w: HW * 1.04 * foot,
+      h: HH * 1.04 * foot,
       depth,
       key: 'shadow',
       tint: PLAIN,

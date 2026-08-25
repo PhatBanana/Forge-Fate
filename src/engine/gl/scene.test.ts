@@ -8,6 +8,7 @@ import { fogWash, gloomWash, reachWash, zoneWash } from './overlays';
 import { ARC_SEGMENTS, IMPACT_SEGMENTS, LINE_FLOATS, arcLines, sightLines, trapLines } from './lines';
 import { glyphSprites, tokenSprites, zoneLabels } from './sprites';
 import type { Token } from '../../components/DungeonMap';
+import type { BeastArt } from '../beasts';
 import { VERTEX_FLOATS } from './types';
 
 /**
@@ -372,5 +373,94 @@ describe('the sprites', () => {
     const [label] = zoneLabels([{ label: 'Web', origin: { x: 1, y: 1 } }], proj);
     expect(label.text).toBe('Web');
     expect(label.y).toBe(proj.centreOf({ x: 1, y: 1 }).y - HH * 2);
+  });
+});
+
+/*
+  §149. Monsters stand as themselves in the tactical view.
+
+  §67 gave characters class sprites and left monsters holding a card with
+  their initials on it. These are about the two things that card could
+  never say: what kind of thing it is, and how big.
+*/
+describe('the monster sprites', () => {
+  const proj = projOf(8, 8);
+  const beastOf = (over: Partial<BeastArt> = {}): BeastArt & { monsterId: string } => ({
+    monsterId: 'goblin',
+    family: 'humanoid',
+    primary: [0.35, 0.5, 0.25],
+    secondary: [0.5, 0.32, 0.2],
+    glow: [0.95, 0.8, 0.3],
+    scale: 1,
+    ...over,
+  });
+  const monster = (over: Partial<Token> = {}): Token => ({
+    id: 'm1',
+    label: 'GO',
+    at: { x: 3, y: 3 },
+    kind: 'monster',
+    title: 'Goblin',
+    beast: beastOf(),
+    ...over,
+  });
+
+  it('stands the family’s body up instead of the initials card', () => {
+    const { sprites } = tokenSprites([monster()], proj);
+    expect(sprites.some((s) => s.key === 'beast:goblin:idle')).toBe(true);
+    expect(sprites.some((s) => s.key === 'pawn:m1')).toBe(false);
+  });
+
+  it('keys the art by kind, so five goblins are one raster', () => {
+    const five = [0, 1, 2, 3, 4].map((i) =>
+      monster({ id: `m${i}`, at: { x: i, y: 1 } }),
+    );
+    const keys = tokenSprites(five, proj).sprites
+      .filter((s) => s.key.startsWith('beast:'))
+      .map((s) => s.key);
+    expect(keys.length).toBe(5);
+    expect(new Set(keys).size).toBe(1);
+  });
+
+  it('grows the body with the size line, and the shadow under it', () => {
+    const small = tokenSprites([monster()], proj).sprites;
+    const huge = tokenSprites(
+      [monster({ beast: beastOf({ scale: 2.7 }) })],
+      proj,
+    ).sprites;
+    const body = (all: typeof small) => all.find((s) => s.key.startsWith('beast:'))!;
+    const shadow = (all: typeof small) => all.find((s) => s.key === 'shadow')!;
+    expect(body(huge).w).toBeGreaterThan(body(small).w);
+    expect(body(huge).h).toBeGreaterThan(body(small).h);
+    // A dragon standing on a goblin-sized smudge floats.
+    expect(shadow(huge).w).toBeGreaterThan(shadow(small).w);
+  });
+
+  it('never shrinks the shadow below the square it is standing on', () => {
+    // A Tiny monster still occupies its square, whatever it looks like.
+    const tiny = tokenSprites([monster({ beast: beastOf({ scale: 0.62 }) })], proj).sprites;
+    const plain = tokenSprites([monster({ beast: beastOf({ scale: 1 }) })], proj).sprites;
+    const shadow = (all: typeof tiny) => all.find((s) => s.key === 'shadow')!;
+    expect(shadow(tiny).w).toBe(shadow(plain).w);
+  });
+
+  it('reads the pose off the stance, and does not let a monster sneak', () => {
+    const key = (stance: Token['stance']) =>
+      tokenSprites([monster({ stance })], proj).sprites.find((s) =>
+        s.key.startsWith('beast:'),
+      )!.key;
+    expect(key('battle')).toBe('beast:goblin:battle');
+    expect(key('down')).toBe('beast:goblin:down');
+    // There is no sneaking body: a hidden monster stands as it was.
+    expect(key('sneak')).toBe('beast:goblin:idle');
+  });
+
+  it('leaves a character’s class sprite in front of it', () => {
+    // A monster with a classId would be a bug, but the order the renderer
+    // asks in is what stops one silently winning.
+    const both = tokenSprites(
+      [monster({ classId: 'fighter', beast: beastOf() })],
+      proj,
+    ).sprites;
+    expect(both.some((s) => s.key === 'sprite:fighter:idle')).toBe(true);
   });
 });

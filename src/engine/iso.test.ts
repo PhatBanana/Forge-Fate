@@ -204,3 +204,34 @@ describe('the raw vertex formulas', () => {
     expect(vx(1, 3)).toBe(-2 * HW);
   });
 });
+
+/*
+  §148. The fog decides what exists, not how brightly it is drawn.
+
+  A wash cannot hide anything in an isometric projection: a wall is a
+  standing prism and its cap sticks up over whatever is painted on the floor
+  beside it. So the filter lives here, where all three iso callers agree on
+  what the ground is.
+*/
+describe('ground the party has not explored', () => {
+  it('is not ground at all when an explored set is given', () => {
+    const cells = groundCells(arena(4, 4), {}, new Set(['1,1', '2,1']));
+    expect(cells.map((c) => `${c.x},${c.y}`).sort()).toEqual(['1,1', '2,1']);
+  });
+
+  it('is the whole map when none is - the editor and the printed page', () => {
+    expect(groundCells(arena(4, 4), {}).length).toBe(16);
+  });
+
+  it('drops painted terrain outside it too, wall included', () => {
+    // The case the wash could never answer: a wall two rooms away, standing
+    // up out of the dark because terrain was added to the ground set after
+    // the rooms were.
+    const cells = groundCells(arena(4, 4), { '3,3': 'wall' }, new Set(['0,0']));
+    expect(cells.map((c) => `${c.x},${c.y}`)).toEqual(['0,0']);
+  });
+
+  it('admits nothing when nothing has been seen', () => {
+    expect(groundCells(arena(4, 4), {}, new Set())).toEqual([]);
+  });
+});

@@ -5228,14 +5228,22 @@ dl.detail-list {
   cursor: crosshair;
 }
 
-.dmap-token circle {
-  fill: var(--paper);
+/*
+  §149: `.pawn` rather than `circle`, because a monster is its family's
+  shape now and a character is still a disc. Every state rule below moved
+  with it - a selector left saying `circle` would have quietly stopped
+  applying to two thirds of the board.
+*/
+.dmap-token .pawn {
+  /* The monster's own colour when it has one; the page's when it does not. */
+  fill: var(--pawn, var(--paper));
   stroke: var(--ink);
   stroke-width: 1.5;
 }
 
 .dmap-token text {
-  fill: var(--ink);
+  /* Initials have to be readable on a black pudding and on bone alike. */
+  fill: var(--pawn-ink, var(--ink));
   font-family: var(--mono);
   font-size: 8px;
   font-weight: 700;
@@ -5245,16 +5253,16 @@ dl.detail-list {
 
 /* The party is filled, monsters are outlined - the one distinction a DM needs
    at speed, and it survives being printed in black and white. */
-.dmap-token.character circle {
+.dmap-token.character .pawn {
   fill: #c9b78e;
 }
 
-.dmap-token.is-up circle {
+.dmap-token.is-up .pawn {
   stroke: var(--ink-accent);
   stroke-width: 2.5;
 }
 
-.dmap-token.is-down circle {
+.dmap-token.is-down .pawn {
   fill: var(--paper);
   stroke-dasharray: 2 2;
 }
@@ -6949,7 +6957,7 @@ input.pcard-amount {
   100% { transform: scale(0.85); }
 }
 
-.dmap-token.is-down > circle {
+.dmap-token.is-down > .pawn {
   animation: token-down 0.5s ease-out 1;
 }
 

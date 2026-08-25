@@ -8990,3 +8990,118 @@ this ends fights sooner rather than lengthening them.
 when a monster cannot reach anybody: there is no attack to protect.
 
 **Gates.** 2632 tests / 130 files, `tsc -b`, oxlint, build in budget.
+
+## 148. A room nobody has entered is not on the map
+
+Fog of war was a wash, and a wash at nine-tenths opacity still shows the
+tenth. The outline of a room the party had never been near, its number, its
+doors and the corridor joining it were all faintly but plainly readable
+through the dark - which is not atmosphere. It is the map answering a
+question the party has not earned: how big is this place, and where does it
+go.
+
+**Removed rather than dimmed.** Every projection now *omits* what the party
+has not explored instead of tinting over it. That is not a stronger version
+of the same fix; it is the only fix available in two of the three views. A
+wall in an isometric projection is a standing prism whose cap paints above
+the floor beside it, so no amount of wash on a tile top could ever have
+hidden the room behind it. The bug looked like a flat-map problem and was
+not.
+
+**One seam per projection, not one filter per layer.** The iso views share
+`groundCells`, which is the single place all three iso callers agree on what
+the ground *is*; the explored set became a parameter there and both
+renderers and the GL scene builder were fixed by the same line. The flat map
+took a clip path over the dungeon's fabric - corridors, rooms, doors, traps,
+terrain and height in one group - so a layer added later inherits the
+honesty for free. Six separate `.filter(explored)` calls would have been six
+chances to forget the seventh.
+
+**The DM's own tools stay outside the clip.** Sight lines, zones, the ruler
+and the reach wash are the DM measuring, not the party seeing, and a
+measurement that stopped at the fog would be a worse lie than the one this
+section fixes.
+
+**Omitting the set means "draw everything"**, which is the editor, the
+printed page and every table not running fog - so nothing changed for the
+dungeon workshop, where seeing the whole map is the entire point.
+
+**One path, not a rect per square.** Adjacent rects in a single SVG path
+fill as one region, so there is no hairline seam where two explored squares
+meet. An empty clip is legal and says exactly the right thing: before
+anybody has been anywhere, there is no map.
+
+**Gates.** 2684 tests / 133 files, `tsc -b`, oxlint, build in budget.
+
+## 149. Every monster in the book gets a face
+
+§67 gave the seventeen classes pixel-art sprites and said, in as many
+words, that monsters keep their cards. They had been carrying their initials
+in a disc ever since. This is the other half, and it is a different problem:
+a class varies by *prop* - same body, different tool - but a goblin and an
+owlbear are not one silhouette holding different things.
+
+The bestiary is 334 stat blocks and nobody is drawing 334 monsters. So the
+same trick as §67 with different axes:
+
+    fifteen bodies  x  a colour per monster  x  a scale per size
+
+**The dragons are the proof this is the bestiary's own structure** rather
+than a convenience. A dragon's id is `{age}-{colour}-dragon` or
+`{colour}-dragon-wyrmling`, so the colour falls out of the string and the
+age falls out of the size line. Ten colours and four ages give all
+forty-three dragons off one body, and nothing anywhere is a list of
+forty-three dragons.
+
+**The type line already is a statement about shape.** That is what "ooze"
+means. Two exceptions earn a conditional: a *swarm of Tiny beasts* is a
+cloud however the type reads, and a winged serpent filed under celestial is
+a dragon to anyone looking at the table.
+
+**Three tones from one colour.** `D` and `L` are not authored - they are the
+monster's own primary, shaded and lit, computed at raster time. Author the
+form once and every recolour keeps its shading for free, instead of ten
+hand-shaded dragons that drift apart the first time the body is edited.
+
+**Keyed by kind, not by combatant.** Five goblins on the board are one atlas
+entry and one raster. `pawnArt` is keyed by combatant because a card carries
+a name and two goblins have different names; `beastArt` is keyed by monster
+id because a *look* has no name.
+
+**Size is the cheapest thing on the board to read**, and it was free. An
+ogre that is physically bigger than the goblins around it says more at a
+glance than any amount of detail in the sprite, and Large and up overflow
+their square on purpose - a creature that takes four squares should look
+like it does. The contact shadow grows with the body, because a dragon
+standing on a goblin-sized smudge floats.
+
+**The flat map stays a plan drawing.** It is the default view, so art that
+lived only in the tactical one would be art most tables never saw - but a
+plan drawing that turned into a cartoon would cost more than it gained. It
+gets the simple version: a family outline from `{sides, turn, star}`, the
+monster's own colour, the size line, and the initials still on top, because
+two goblins are two goblins. An ooze is a circle, because an ooze has no
+corners.
+
+**Two colours of ink.** A goblin's green and a skeleton's bone are both
+legal fills, and initials in the map's own dark ink vanish on one of them.
+Rec. 601 luma picks between the page's ink and the page's paper - the
+question is only which of two, and the answer has to be the same on every
+device.
+
+**`.pawn` rather than `circle` in the stylesheet.** Every state rule - the
+active stroke, the dashed outline at nought hit points, the hit animation -
+moved with it. A selector left saying `circle` would have quietly stopped
+applying to two thirds of the board.
+
+**Nothing new is stored.** The art is derived from the stat block a table
+already has, so a homebrew monster with a type line and a size gets a body
+for free, and no save file grew a field.
+
+**The rage poses are checked for changing the outline**, not just the
+colours - and that check caught three families whose battle overlay only
+repainted pixels that were already ink. A monster that brightened its eyes
+and nothing else would read as the same picture from across a table, which
+is the same as not having drawn it.
+
+**Gates.** 2684 tests / 133 files, `tsc -b`, oxlint, build in budget.

@@ -2,6 +2,9 @@ import type { PackedRect } from './atlas';
 import type { Palette } from './palette';
 import { CLASS_ART, SPRITE_H, SPRITE_W, colorOf, spriteFor } from './pixelart';
 import type { Pose } from './pixelart';
+import { BEAST_H, BEAST_W, beastColorOf, beastSprite } from './beastart';
+import type { BeastIndex, BeastPose } from './beastart';
+import type { BeastArt } from '../beasts';
 
 /**
  * The pixels behind the atlas keys: pawn cards, prop glyphs, markers, text.
@@ -211,6 +214,35 @@ export function paintClassSprite(
     }
   }
   return true;
+}
+
+/**
+ * A monster sprite (§149): the family's body in the monster's own colours.
+ *
+ * The same integer-scale rule as the class sprites and for the same reason,
+ * but the art is chosen along two axes instead of one - which body, and
+ * painted in what. Ten dragon colours reach this function as ten different
+ * `art` arguments and one grid.
+ */
+export function paintBeastSprite(
+  ctx: CanvasRenderingContext2D,
+  rect: PackedRect,
+  art: BeastArt,
+  pose: BeastPose,
+): void {
+  const rows = beastSprite(art.family, pose);
+  ctx.clearRect(rect.x, rect.y, rect.w, rect.h);
+  const scale = Math.max(1, Math.floor(Math.min(rect.w / BEAST_W, rect.h / BEAST_H)));
+  const ox = rect.x + Math.floor((rect.w - BEAST_W * scale) / 2);
+  const oy = rect.y + Math.floor((rect.h - BEAST_H * scale) / 2);
+  for (let y = 0; y < BEAST_H; y++) {
+    for (let x = 0; x < BEAST_W; x++) {
+      const color = beastColorOf(rows[y][x] as BeastIndex, art);
+      if (!color) continue;
+      ctx.fillStyle = `rgb(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)})`;
+      ctx.fillRect(ox + x * scale, oy + y * scale, scale, scale);
+    }
+  }
 }
 
 /** How tall each kind of text stands, in drawing units. */

@@ -239,8 +239,23 @@ export function isoProjection(
  * Which cells are ground at all. The same rule the top-down map draws by:
  * rooms, corridors and painted floor on a generated map; every square on a
  * blank one. Painted terrain is ground too - a wall stands somewhere.
+ *
+ * §148: `known` is the fog's explored set, and passing it is what makes an
+ * unexplored room *absent* rather than merely dimmed. A wash cannot hide
+ * anything in these projections - a wall is a standing prism whose cap
+ * sticks up over whatever is painted on the floor beside it - so the only
+ * honest fix is that the geometry is never built. This is the one place all
+ * three iso callers agree on what exists, which is why the filter belongs
+ * here rather than in each of them.
+ *
+ * Omitted means "draw the whole map": the editor, the printed page, and
+ * every table not running fog.
  */
-export function groundCells(dungeon: Dungeon, terrain: TerrainMap): Square[] {
+export function groundCells(
+  dungeon: Dungeon,
+  terrain: TerrainMap,
+  known?: ReadonlySet<string>,
+): Square[] {
   const cells = new Map<string, Square>();
   if (dungeon.rooms.length === 0) {
     for (let y = 0; y < dungeon.height; y++) {
@@ -261,6 +276,9 @@ export function groundCells(dungeon: Dungeon, terrain: TerrainMap): Square[] {
         cells.set(key, s);
       }
     }
+  }
+  if (known) {
+    for (const key of [...cells.keys()]) if (!known.has(key)) cells.delete(key);
   }
   return [...cells.values()];
 }

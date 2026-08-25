@@ -69,6 +69,8 @@ export function buildTerrain(
   terrain: TerrainMap,
   proj: IsoProjection,
   palette: Palette,
+  /** §148: the fog's explored set. Unexplored ground is never built. */
+  known?: ReadonlySet<string>,
   uvs: TerrainUvs = FLAT_UVS,
 ): Mesh {
   const mesh = newMesh();
@@ -77,7 +79,7 @@ export function buildTerrain(
   // so a pit reads as a hole in something solid rather than a floating tile.
   const bedrockDrop = Math.abs(minZ) * ZH + LIP;
 
-  for (const at of groundCells(dungeon, terrain)) {
+  for (const at of groundCells(dungeon, terrain, known)) {
     const kind = terrain[keyOf(at)];
     const z = proj.drawZ(at);
     const corners = proj.faceCorners(at, z);

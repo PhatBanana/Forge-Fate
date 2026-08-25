@@ -9,6 +9,7 @@ import {
   PPU,
   createAtlasCanvas,
   measureText,
+  paintBeastSprite,
   paintClassSprite,
   paintGlyph,
   paintMarker,
@@ -19,6 +20,9 @@ import {
 } from './raster';
 import { SPRITE_H, SPRITE_W } from './pixelart';
 import type { Pose } from './pixelart';
+import { BEAST_H, BEAST_W } from './beastart';
+import type { BeastPose } from './beastart';
+import type { BeastArt } from '../beasts';
 import type { AtlasCanvas } from './raster';
 import {
   BLIT_FRAGMENT,
@@ -94,6 +98,15 @@ export interface SceneUpdate {
   palette?: Palette;
   /** What each pawn's card shows, for rasterization on first sight. */
   pawnArt?: Map<string, { label: string; kind: 'character' | 'monster'; portrait?: string }>;
+  /**
+   * §149: what each *kind* of monster looks like, keyed by monster id.
+   *
+   * Keyed by kind rather than by combatant, which is the whole economy of
+   * the thing: five goblins on the board are one entry here and one raster
+   * in the atlas. `pawnArt` above is keyed by combatant because a card
+   * carries a name, and two goblins have different names.
+   */
+  beastArt?: Map<string, BeastArt>;
 }
 
 interface MeshBuffers {
@@ -236,6 +249,7 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer | null {
   const portraits = new Map<string, HTMLImageElement>();
   let currentPalette: Palette | null = null;
   let pawnArt: SceneUpdate['pawnArt'] = new Map();
+  let beastArt: SceneUpdate['beastArt'] = new Map();
 
   /**
    * The rect for a key, rasterizing on first sight. Null when the atlas is
@@ -253,7 +267,13 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer | null {
     */
     const [rw, rh] = key.startsWith('sprite:')
       ? [SPRITE_W * PPU, SPRITE_H * PPU]
-      : [Math.ceil(w * PPU), Math.ceil(h * PPU)];
+      : key.startsWith('beast:')
+        // §149: rasterized at the grid's own size whatever the placement
+        // measures, for the same reason - and *not* at the token's scale.
+        // A Gargantuan dragon is the same texture drawn bigger, so an
+        // ancient dragon and a wyrmling share one atlas entry.
+        ? [BEAST_W * PPU, BEAST_H * PPU]
+        : [Math.ceil(w * PPU), Math.ceil(h * PPU)];
     let rect = atlas.pack(key, rw, rh);
     if (!rect) {
       // Full: start a fresh generation. Live keys re-rasterize on demand,
@@ -277,6 +297,11 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer | null {
     else if (key.startsWith('sprite:')) {
       const [, classId, pose] = key.split(':');
       paintClassSprite(ctx, rect, classId, pose as Pose);
+    } else if (key.startsWith('beast:')) {
+      // beast:{monsterId}:{pose} - the kind, not the combatant.
+      const cut = key.lastIndexOf(':');
+      const art = beastArt?.get(key.slice(6, cut));
+      if (art) paintBeastSprite(ctx, rect, art, key.slice(cut + 1) as BeastPose);
     } else if (key.startsWith('glyph:')) paintGlyph(ctx, rect, key.slice(6), palette);
     else if (key.startsWith('marker:')) paintMarker(ctx, rect, key.slice(7), palette);
     else if (key.startsWith('pawn:')) {
@@ -327,6 +352,7 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer | null {
 
   const update = (next: SceneUpdate) => {
     if (next.palette) currentPalette = next.palette;
+    if (next.beastArt) beastArt = next.beastArt;
     if (next.pawnArt) {
       pawnArt = next.pawnArt;
       for (const [id, art] of next.pawnArt) {

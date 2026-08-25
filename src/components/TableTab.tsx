@@ -6,6 +6,7 @@ import type { Ruleset } from '../types';
 import { formatCr, legendaryCost, monsterSummary, parseUsage, searchMonsters } from '../data/monsters';
 import { isCustom, mergeBestiary } from '../bestiary';
 import { useMonsters } from './useMonsters';
+import { beastArtOf } from '../engine/beasts';
 import { TERRAIN_BY_KIND, elevationAt, keyOf } from '../terrain';
 import { lineOfSight, walkable } from '../engine/sight';
 import { routeTo, walkMap } from '../engine/path';
@@ -3026,6 +3027,17 @@ export function TableTab({
         classId:
           c.kind === 'character'
             ? derived.get(c.rosterId)?.ctx.primary.klass.id
+            : undefined,
+        /*
+          §149: and the monsters, which §67 left carrying initials. The
+          stat block already says everything the art needs - `type` is a
+          statement about shape, `size` is how much of the square it fills,
+          and the id is what colours it - so nothing new is stored anywhere
+          and a homebrew monster with a type line gets a body for free.
+        */
+        beast:
+          c.kind === 'monster' && byId.get(c.monsterId)
+            ? { monsterId: c.monsterId, ...beastArtOf(byId.get(c.monsterId)!) }
             : undefined,
         lunge: lunges[c.id],
         walk: walks[c.id],

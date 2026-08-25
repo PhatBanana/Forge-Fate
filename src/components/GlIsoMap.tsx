@@ -30,6 +30,7 @@ import { motionFor, pruneAnims } from '../engine/gl/motion';
 import type { TokenAnim } from '../engine/gl/motion';
 import { useReducedMotion } from './useReducedMotion';
 import { groundCells } from '../engine/iso';
+import type { BeastArt } from '../engine/beasts';
 
 /**
  * The tactical view, rendered the way a PlayStation would have (§66).
@@ -196,11 +197,18 @@ function GlSurface({
   }, [contextEra, onDead]);
 
   // ------------------------------------------------------------ the scene
-  const ground = useMemo(() => groundCells(dungeon, terrain), [dungeon, terrain]);
+  /*
+    §148: what the party has explored is what the map is made of. Passing
+    the explored set here rather than washing over the result is the only
+    way an unseen room can actually be absent - a wall is a standing prism
+    and no amount of tint on the floor hides its cap.
+  */
+  const known = fog?.explored;
+  const ground = useMemo(() => groundCells(dungeon, terrain, known), [dungeon, terrain, known]);
 
   const terrainMesh = useMemo(
-    () => buildTerrain(dungeon, elevation, terrain, proj, palette),
-    [dungeon, elevation, terrain, proj, palette],
+    () => buildTerrain(dungeon, elevation, terrain, proj, palette, known),
+    [dungeon, elevation, terrain, proj, palette, known],
   );
 
   const pawnArt = useMemo(() => {
@@ -214,6 +222,19 @@ function GlSurface({
         kind: token.kind,
         ...(token.portrait ? { portrait: token.portrait } : {}),
       });
+    }
+    return art;
+  }, [tokens]);
+
+  /*
+    §149: what each *kind* of monster looks like. Keyed by monster id rather
+    than by combatant, which is where the economy is - five goblins are one
+    entry and one raster, however many of them are on the board.
+  */
+  const beastArt = useMemo(() => {
+    const art = new Map<string, BeastArt>();
+    for (const token of tokens) {
+      if (token.beast) art.set(token.beast.monsterId, token.beast);
     }
     return art;
   }, [tokens]);
@@ -304,6 +325,7 @@ function GlSurface({
       zoneTexts: zoneLabels(zones, proj),
       noteText: noteText(note, noteAt, view, proj),
       pawnArt,
+      beastArt,
     });
     r.render(view);
 

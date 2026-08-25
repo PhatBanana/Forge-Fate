@@ -100,3 +100,36 @@ describe('which renderer answers', () => {
     expect(built.destroy).toHaveBeenCalledTimes(1);
   });
 });
+
+/*
+  §148. Through FFT's lens the fog has to remove geometry, not tint it.
+
+  These run the SVG fallback, which is the real IsoMap - and the real
+  question, because a wall in this projection is a standing prism whose cap
+  paints above the floor beside it. No wash on a tile top could ever have
+  hidden the room behind it.
+*/
+describe('what the party has not explored is not built', () => {
+  const seen = { visible: new Set(['1,1']), explored: new Set(['1,1', '2,1']) };
+
+  it('draws the tiles the party has seen and no others', () => {
+    const { container } = render(<GlIsoMap dungeon={dungeon} fog={seen} />);
+    const tops = [...container.querySelectorAll('.iso-top')].map((el) =>
+      el.getAttribute('data-at'),
+    );
+    expect(tops.sort()).toEqual(['1,1', '2,1']);
+  });
+
+  it('still draws the whole map when no fog is running', () => {
+    const { container } = render(<GlIsoMap dungeon={dungeon} />);
+    // A 6x5 blank arena is thirty squares of ground.
+    expect(container.querySelectorAll('.iso-top').length).toBe(30);
+  });
+
+  it('does not stand a wall up in the dark two rooms away', () => {
+    const { container } = render(
+      <GlIsoMap dungeon={dungeon} terrain={{ '4,4': 'wall' }} fog={seen} />,
+    );
+    expect(container.querySelector('.iso-top[data-at="4,4"]')).toBeNull();
+  });
+});

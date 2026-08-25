@@ -149,7 +149,11 @@ export function IsoMap({
   // Back to front in the rotated frame: farther cells first, so nearer
   // tiles and their skirts paint over them whichever way the camera faces.
   const depth = proj.depthOf;
-  const ground = groundCells(dungeon, terrain).sort((a, b) => depth(a) - depth(b));
+  // §148: unexplored ground is not built, in this projection either - the
+  // fog wash below only has to dim what the party has already seen.
+  const ground = groundCells(dungeon, terrain, fog?.explored ?? undefined).sort(
+    (a, b) => depth(a) - depth(b),
+  );
 
   // How far below ground level the map's deepest pit goes - skirts on flat
   // ground drop past it so a pit reads as a hole in something solid.

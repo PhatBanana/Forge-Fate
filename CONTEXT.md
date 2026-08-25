@@ -72,6 +72,13 @@ same in code, comments, HISTORY and reviews. Deeper reasoning lives in
 - **Broken** — a monster that failed its morale check and is running
   (§147). Not a stance: it outlasts the turn, and ends when the creature
   is cornered.
+- **Explored** — the squares the party has seen. What is not explored is
+  not *drawn* (§148), in any projection: a wash cannot hide a wall that
+  stands up out of the tile beside it.
+- **Family** — which of fifteen bodies a monster stands as, read off its
+  type line (`beasts.ts`, §149). With a colour per monster and a scale per
+  size, that is every stat block in the book - and all forty-three dragons
+  off one body.
 
 - **Fight view** — the read-side of a fight, bundled so a rules module
   learns one thing rather than four: the encounter, the roster, the

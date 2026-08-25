@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useId, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { corridorSquares } from '../engine/dungeon';
 import type { Square } from '../encounter';
@@ -9,6 +9,7 @@ import type { MapCoreProps, TopDownExtraProps } from './mapContract';
 import { useMapCamera } from './useMapCamera';
 import { squareOf } from '../terrain';
 import type { TerrainKind } from '../terrain';
+import type { BeastArt, BeastFamily } from '../engine/beasts';
 
 /**
  * A dungeon, drawn.
@@ -66,6 +67,16 @@ export interface Token {
    */
   classId?: string;
   stance?: 'idle' | 'battle' | 'sneak' | 'down';
+  /**
+   * §149: what kind of monster this is, and what it looks like. Monsters
+   * only - a character has a class sprite and a face.
+   *
+   * `monsterId` rather than the combatant's own id because it is the *kind*
+   * that has a look: five goblins are one silhouette in one colour, and the
+   * tactical view rasterizes them once. Both maps read this; they part
+   * company on how much of it they use.
+   */
+  beast?: BeastArt & { monsterId: string };
   /**
    * §68: bumped when this token attacks, with where the swing went - the GL
    * view lunges the sprite toward it. The SVG views ignore it, the same way
@@ -170,6 +181,64 @@ function TerrainGlyph({ at, kind }: { at: Square; kind: TerrainKind }) {
   );
 }
 
+/**
+ * §149: the pawn a monster stands as on the flat map.
+ *
+ * The top-down map is a plan drawing - ink, glyphs, no icons - and it stays
+ * one. What it gains is what a plan drawing can carry without becoming a
+ * cartoon: a shape per family, the monster's own colour, and a footprint
+ * that grows with the size line. A goblin and an owlbear are a hexagon and
+ * a triangle in two different greens at two different sizes, which is
+ * everything a DM needs at a glance and nothing that argues with the page.
+ *
+ * The full silhouettes live in the tactical view, where there is room for
+ * them. Here, `{sides, turn, star}` is enough to give fifteen families
+ * fifteen readable outlines, and an ooze is a circle because an ooze has no
+ * corners.
+ */
+const PAWN_SHAPE: Record<BeastFamily, { sides: number; turn: number; star?: boolean }> = {
+  humanoid: { sides: 6, turn: 0 },
+  giant: { sides: 6, turn: 30 },
+  beast: { sides: 3, turn: 0 },
+  monstrosity: { sides: 3, turn: 180 },
+  dragon: { sides: 5, turn: 0 },
+  fiend: { sides: 5, turn: 180 },
+  celestial: { sides: 8, turn: 0, star: true },
+  fey: { sides: 5, turn: 0, star: true },
+  undead: { sides: 4, turn: 45 },
+  construct: { sides: 4, turn: 0 },
+  elemental: { sides: 3, turn: 90, star: true },
+  plant: { sides: 6, turn: 0, star: true },
+  ooze: { sides: 0, turn: 0 },
+  swarm: { sides: 8, turn: 0 },
+  aberration: { sides: 6, turn: 15, star: true },
+};
+
+/** One pawn's outline, as SVG points. A star alternates two radii. */
+function pawnPoints(family: BeastFamily, radius: number): string {
+  const { sides, turn, star } = PAWN_SHAPE[family];
+  const count = star ? sides * 2 : sides;
+  const points: string[] = [];
+  for (let i = 0; i < count; i++) {
+    // Start at the top: a shape that points sideways reads as a mistake.
+    const angle = ((i / count) * 360 + turn - 90) * (Math.PI / 180);
+    const r = star && i % 2 === 1 ? radius * 0.5 : radius;
+    points.push(`${(Math.cos(angle) * r).toFixed(2)},${(Math.sin(angle) * r).toFixed(2)}`);
+  }
+  return points.join(' ');
+}
+
+/**
+ * Ink that can be read on the pawn it sits on.
+ *
+ * A goblin's green and a skeleton's bone are both legal colours here, and
+ * initials in the map's own dark ink vanish on one of them. Rec. 601 luma
+ * rather than anything cleverer: the question is only which of two inks,
+ * and the answer has to be the same on every device.
+ */
+const inkOn = ([r, g, b]: readonly [number, number, number]): string =>
+  0.299 * r + 0.587 * g + 0.114 * b > 0.55 ? 'var(--ink)' : 'var(--paper)';
+
 export function DungeonMap({
   dungeon,
   tokens = [],
@@ -269,6 +338,34 @@ MapCoreProps & TopDownExtraProps) {
     }
   }
 
+  /*
+    §148: what the party has explored, as one clipping shape.
+
+    Fog used to be a wash, and a wash at nine-tenths opacity still shows the
+    tenth: the outline of a room nobody had entered, its number, its doors.
+    That is not atmosphere, it is the map answering a question the party has
+    not earned - "how big is this place, and where does it go".
+
+    Clipping rather than filtering each layer is what makes it stay fixed.
+    The fabric under this clip is corridors, rooms, doors, traps, terrain and
+    height, and anything drawn there later inherits the honesty for free -
+    whereas six separate `.filter(explored)` calls are six chances to forget
+    the seventh. The DM's tools on top (sight lines, zones, the ruler, the
+    reach wash) are deliberately outside it: those are the DM's own sight,
+    not the party's.
+
+    One path rather than a rect per square, and one path with a subpath per
+    square rather than many: adjacent rects in a single path fill as one
+    region, so there is no hairline seam where two squares meet.
+  */
+  const clipId = useId();
+  const known = fog
+    ? [...fog.explored]
+        .map((key) => squareOf(key))
+        .map((at) => `M ${at.x * CELL} ${at.y * CELL} h ${CELL} v ${CELL} h ${-CELL} Z`)
+        .join(' ')
+    : null;
+
   return (
     <svg
       ref={svg}
@@ -363,119 +460,131 @@ MapCoreProps & TopDownExtraProps) {
       </defs>
       <rect width={w} height={h} fill="url(#dmap-grid)" />
 
-      {/* Corridors under the rooms, so a room's wall draws over the join. */}
-      {[...floor.values()].map((square) => (
-        <rect
-          key={`${square.x},${square.y}`}
-          className="dmap-floor"
-          x={square.x * CELL}
-          y={square.y * CELL}
-          width={CELL}
-          height={CELL}
-        />
-      ))}
+      {known !== null && (
+        <defs>
+          <clipPath id={`dmap-known-${clipId}`}>
+            {/* Empty is legal and means exactly what it says: the party has
+                seen nothing, so nothing of the dungeon is drawn. */}
+            <path d={known} />
+          </clipPath>
+        </defs>
+      )}
 
-      {dungeon.rooms.map((room) => (
-        <g key={room.id}>
+      <g clipPath={known !== null ? `url(#dmap-known-${clipId})` : undefined}>
+        {/* Corridors under the rooms, so a room's wall draws over the join. */}
+        {[...floor.values()].map((square) => (
           <rect
-            className={`dmap-room ${room.hidden ? 'is-hidden' : ''}`}
-            x={room.x * CELL}
-            y={room.y * CELL}
-            width={room.w * CELL}
-            height={room.h * CELL}
+            key={`${square.x},${square.y}`}
+            className="dmap-floor"
+            x={square.x * CELL}
+            y={square.y * CELL}
+            width={CELL}
+            height={CELL}
           />
-          {/* The number a DM says out loud, so it has to survive printing at
-              whatever size the page ends up. */}
-          <text
-            className="dmap-number"
-            x={(room.x + room.w / 2) * CELL}
-            y={(room.y + room.h / 2) * CELL}
-            textAnchor="middle"
-            dominantBaseline="central"
-          >
-            {room.id}
-          </text>
-        </g>
-      ))}
+        ))}
 
-      {dungeon.doors.map((door) => (
-        <g key={`${door.x},${door.y}`}>
-          <rect
-            className={`dmap-door ${door.locked ? 'is-locked' : ''}`}
-            x={door.x * CELL + CELL * 0.2}
-            y={door.y * CELL + CELL * 0.2}
-            width={CELL * 0.6}
-            height={CELL * 0.6}
-          />
-          {/* §81: the bar across a locked door. A shape rather than only a
-              colour, for the same reason the turn marker is a bar - a map
-              that says "locked" in a hue alone says it to some people. */}
-          {door.locked && (
-            <line
-              className="dmap-bar"
-              x1={door.x * CELL + CELL * 0.1}
-              y1={(door.y + 0.5) * CELL}
-              x2={door.x * CELL + CELL * 0.9}
-              y2={(door.y + 0.5) * CELL}
+        {dungeon.rooms.map((room) => (
+          <g key={room.id}>
+            <rect
+              className={`dmap-room ${room.hidden ? 'is-hidden' : ''}`}
+              x={room.x * CELL}
+              y={room.y * CELL}
+              width={room.w * CELL}
+              height={room.h * CELL}
             />
-          )}
-          {door.locked && <title>Locked door</title>}
-        </g>
-      ))}
+            {/* The number a DM says out loud, so it has to survive printing at
+                whatever size the page ends up. */}
+            <text
+              className="dmap-number"
+              x={(room.x + room.w / 2) * CELL}
+              y={(room.y + room.h / 2) * CELL}
+              textAnchor="middle"
+              dominantBaseline="central"
+            >
+              {room.id}
+            </text>
+          </g>
+        ))}
 
-      {/*
-        §81: traps. In the editor every one is marked, because that is where
-        they are placed; at the table only the sprung ones, because a trap
-        the party can see on the shared board is not a trap.
-      */}
-      {dungeon.traps
-        .filter((trap) => authoring || sprung.includes(`${trap.x},${trap.y}`))
-        .map((trap) => {
-          const cx = (trap.x + 0.5) * CELL;
-          const cy = (trap.y + 0.5) * CELL;
-          const armed = !sprung.includes(`${trap.x},${trap.y}`);
+        {dungeon.doors.map((door) => (
+          <g key={`${door.x},${door.y}`}>
+            <rect
+              className={`dmap-door ${door.locked ? 'is-locked' : ''}`}
+              x={door.x * CELL + CELL * 0.2}
+              y={door.y * CELL + CELL * 0.2}
+              width={CELL * 0.6}
+              height={CELL * 0.6}
+            />
+            {/* §81: the bar across a locked door. A shape rather than only a
+                colour, for the same reason the turn marker is a bar - a map
+                that says "locked" in a hue alone says it to some people. */}
+            {door.locked && (
+              <line
+                className="dmap-bar"
+                x1={door.x * CELL + CELL * 0.1}
+                y1={(door.y + 0.5) * CELL}
+                x2={door.x * CELL + CELL * 0.9}
+                y2={(door.y + 0.5) * CELL}
+              />
+            )}
+            {door.locked && <title>Locked door</title>}
+          </g>
+        ))}
+
+        {/*
+          §81: traps. In the editor every one is marked, because that is where
+          they are placed; at the table only the sprung ones, because a trap
+          the party can see on the shared board is not a trap.
+        */}
+        {dungeon.traps
+          .filter((trap) => authoring || sprung.includes(`${trap.x},${trap.y}`))
+          .map((trap) => {
+            const cx = (trap.x + 0.5) * CELL;
+            const cy = (trap.y + 0.5) * CELL;
+            const armed = !sprung.includes(`${trap.x},${trap.y}`);
+            return (
+              <g key={`t${trap.x},${trap.y}`} className={`dmap-trap ${armed ? '' : 'is-sprung'}`}>
+                <circle cx={cx} cy={cy} r={CELL * 0.32} />
+                <line x1={cx - CELL * 0.18} y1={cy - CELL * 0.18} x2={cx + CELL * 0.18} y2={cy + CELL * 0.18} />
+                <line x1={cx + CELL * 0.18} y1={cy - CELL * 0.18} x2={cx - CELL * 0.18} y2={cy + CELL * 0.18} />
+                <title>
+                  {armed ? 'Trap' : 'Sprung trap'}
+                  {trap.note ? ` — ${trap.note}` : ''}
+                </title>
+              </g>
+            );
+          })}
+
+        {/*
+          Height first, terrain over it, tokens over both. Elevation is a wash on
+          the square - darker the deeper, lighter the higher - with the level
+          written in the corner, because a wash alone cannot say whether +2 is
+          higher than +1 without a legend nobody will read.
+        */}
+        {Object.entries(elevation).map(([key, level]) => {
+          const at = squareOf(key);
           return (
-            <g key={`t${trap.x},${trap.y}`} className={`dmap-trap ${armed ? '' : 'is-sprung'}`}>
-              <circle cx={cx} cy={cy} r={CELL * 0.32} />
-              <line x1={cx - CELL * 0.18} y1={cy - CELL * 0.18} x2={cx + CELL * 0.18} y2={cy + CELL * 0.18} />
-              <line x1={cx + CELL * 0.18} y1={cy - CELL * 0.18} x2={cx - CELL * 0.18} y2={cy + CELL * 0.18} />
-              <title>
-                {armed ? 'Trap' : 'Sprung trap'}
-                {trap.note ? ` — ${trap.note}` : ''}
-              </title>
+            <g key={`z${key}`} className={level > 0 ? 'dmap-z-up' : 'dmap-z-down'}>
+              <rect
+                x={at.x * CELL}
+                y={at.y * CELL}
+                width={CELL}
+                height={CELL}
+                opacity={Math.min(0.55, 0.18 + Math.abs(level) * 0.12)}
+              />
+              <text x={at.x * CELL + 1.5} y={at.y * CELL + 5} className="dmap-z-label">
+                {level > 0 ? `+${level}` : level}
+              </text>
             </g>
           );
         })}
 
-      {/*
-        Height first, terrain over it, tokens over both. Elevation is a wash on
-        the square - darker the deeper, lighter the higher - with the level
-        written in the corner, because a wash alone cannot say whether +2 is
-        higher than +1 without a legend nobody will read.
-      */}
-      {Object.entries(elevation).map(([key, level]) => {
-        const at = squareOf(key);
-        return (
-          <g key={`z${key}`} className={level > 0 ? 'dmap-z-up' : 'dmap-z-down'}>
-            <rect
-              x={at.x * CELL}
-              y={at.y * CELL}
-              width={CELL}
-              height={CELL}
-              opacity={Math.min(0.55, 0.18 + Math.abs(level) * 0.12)}
-            />
-            <text x={at.x * CELL + 1.5} y={at.y * CELL + 5} className="dmap-z-label">
-              {level > 0 ? `+${level}` : level}
-            </text>
-          </g>
-        );
-      })}
-
-      {/* Painted terrain, over the rooms and under the tokens: a pillar stands
-          on the floor and somebody can stand on the map in front of it. */}
-      {Object.entries(terrain).map(([key, kind]) => (
-        <TerrainGlyph key={key} at={squareOf(key)} kind={kind} />
-      ))}
+        {/* Painted terrain, over the rooms and under the tokens: a pillar stands
+            on the floor and somebody can stand on the map in front of it. */}
+        {Object.entries(terrain).map(([key, kind]) => (
+          <TerrainGlyph key={key} at={squareOf(key)} kind={kind} />
+        ))}
+      </g>
 
       {/* Where the selected combatant can still get to, washed under
           everything that acts. The wash is also the mis-click guard: for a
@@ -591,6 +700,17 @@ MapCoreProps & TopDownExtraProps) {
              tile and then ask where the token actually went. */
           data-at={`${token.at.x},${token.at.y}`}
           transform={`translate(${(token.at.x + 0.5) * CELL}, ${(token.at.y + 0.5) * CELL})`}
+          /* Custom properties rather than an inline fill: `is-down` and
+             `is-up` still have to be able to override the colour, and an
+             inline attribute would outrank every one of them. */
+          style={
+            token.beast
+              ? ({
+                  '--pawn': `rgb(${token.beast.primary.map((c) => Math.round(c * 255)).join(' ')})`,
+                  '--pawn-ink': inkOn(token.beast.primary),
+                } as CSSProperties)
+              : undefined
+          }
           onPointerDown={(e) => {
             dragging.current = token.id;
             dragTravelled.current = false;
@@ -604,7 +724,20 @@ MapCoreProps & TopDownExtraProps) {
           onDoubleClick={() => onTokenOpen?.(token.id)}
         >
           <title>{token.title}</title>
-          <circle r={CELL * 0.42} />
+          {/*
+            §149: a monster stands as its family's shape in its own colour,
+            at its own size. A character keeps the disc - the party is the
+            thing on this map that should not need decoding.
+          */}
+          {token.beast ? (
+            <polygon
+              className="pawn"
+              data-family={token.beast.family}
+              points={pawnPoints(token.beast.family, CELL * 0.42 * token.beast.scale)}
+            />
+          ) : (
+            <circle className="pawn" r={CELL * 0.42} />
+          )}
           <text textAnchor="middle" dominantBaseline="central">
             {token.label}
           </text>
