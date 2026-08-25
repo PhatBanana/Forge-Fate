@@ -152,7 +152,7 @@ export function skillBonusFor(
  * wrote anything down, which made Disengage an action spent on a rule
  * nothing enforced.
  */
-export const stanceOf = (view: FightView, c: Combatant): 'disengage' | 'dodge' | undefined =>
+export const stanceOf = (view: FightView, c: Combatant): 'disengage' | 'dodge' | 'ready' | undefined =>
   c.kind === 'monster' ? c.stance : playOf(view, c.rosterId)?.turn.stance;
 
 /** Whether their one reaction is already gone. */

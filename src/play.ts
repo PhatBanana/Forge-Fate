@@ -58,7 +58,7 @@ export interface TurnState {
    * everything else - `newTurn` clears it, and that is exactly right, since
    * dodging protects you until *your* next turn begins.
    */
-  stance?: 'disengage' | 'dodge';
+  stance?: 'disengage' | 'dodge' | 'ready';
   /**
    * Spells cast this turn, and whether one of them took the bonus action.
    *
@@ -320,7 +320,7 @@ export function awardXp(play: PlayState, amount: number): PlayState {
  * because the two facts come from different places: the tray knows a pip went,
  * this knows what it bought.
  */
-export function setStance(play: PlayState, stance: 'disengage' | 'dodge'): PlayState {
+export function setStance(play: PlayState, stance: 'disengage' | 'dodge' | 'ready'): PlayState {
   return { ...play, turn: { ...play.turn, stance } };
 }
 

@@ -75,7 +75,7 @@ export function MonsterCommandMenu({
    * before §28: both are rules the app now enforces, so both have to be
    * recorded rather than narrated.
    */
-  onStance?: (stance: 'disengage' | 'dodge') => void;
+  onStance?: (stance: 'disengage' | 'dodge' | 'ready') => void;
 }) {
   const [sub, setSub] = useState<null | 'attack' | 'abilities'>(null);
 
@@ -175,6 +175,14 @@ export function MonsterCommandMenu({
               'Dodge',
               () => onStance('dodge'),
               'Attacks against it have disadvantage until its next turn',
+            )}
+          {/* §146: monsters hold a swing too - an ogre by a door is the
+              commonest readied attack at any table. */}
+          {onStance &&
+            item(
+              'Ready',
+              () => onStance('ready'),
+              'Hold an attack for the first enemy who comes within its reach',
             )}
           {onLog && item('Help', () => onLog('takes the Help action.'), 'An ally gets advantage')}
         </div>

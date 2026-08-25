@@ -414,7 +414,7 @@ export function CommandMenu({
     sentence logged. Both were narrated only until §28, so Disengage was an
     entire action bought against a rule nothing enforced.
   */
-  const stance = (kind: 'disengage' | 'dodge', name: string) => {
+  const stance = (kind: 'disengage' | 'dodge' | 'ready', name: string) => {
     onAct({
       play: setStance(setTurnSlot(play, slotKey, true), kind),
       log: `takes the ${name} action.`,
@@ -569,7 +569,19 @@ export function CommandMenu({
                 'Attacks against you have disadvantage until your next turn',
               )}
             {slot === 'action' && item('Help', () => generic('Help'), 'An ally gets advantage')}
-            {slot === 'action' && item('Ready', () => generic('Ready'), 'Hold the action for a trigger — the reaction spends when it fires')}
+            {/*
+              §146: a stance rather than a log line. Ready has offered "the
+              reaction spends when it fires" since the menu existed, and
+              nothing could fire it - `generic` wrote the sentence and
+              recorded nothing. It holds a swing for whoever comes within
+              reach now, which is the trigger the app can actually see.
+            */}
+            {slot === 'action' &&
+              item(
+                'Ready',
+                () => stance('ready', 'Ready'),
+                'Hold an attack for the first enemy who comes within your reach',
+              )}
             {slot === 'bonus' &&
               item('Just spend it', () => generic('Bonus'), 'Mark the bonus action used, for anything the menu does not know')}
           </div>

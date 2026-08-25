@@ -1,5 +1,5 @@
 import { appendLog, recordDamage } from './encounter';
-import { damageMonster, setDormant, setHidden, spendMonsterReaction } from './monsterInstance';
+import { damageMonster, setDormant, setHidden, setMonsterStance, spendMonsterReaction } from './monsterInstance';
 import type { Combatant, Square } from './encounter';
 import { activeEncounter, updateEncounter, updatePlay } from './storage';
 import type { Roster } from './storage';
@@ -427,6 +427,28 @@ export function opportunitySwing(
   }
   const melee = strikesForCharacter(c).filter(isMelee);
   return melee.length ? [melee[0]] : [];
+}
+
+/**
+ * §146: put the readied action down, composed rather than written.
+ *
+ * A readied attack costs two things when it fires - the reaction, which
+ * `spendReactionOf` takes, and the readied action itself, which is this.
+ * Separate because they are separate: an opportunity attack spends only
+ * the first, and a creature whose readied swing has gone is not holding
+ * one any more even though its reaction is spent for the same reason.
+ */
+export function clearReadyOf(target: Roster, c: Combatant): Roster {
+  if (c.kind === 'monster') {
+    return updateEncounter(target, setMonsterStance(activeEncounter(target), c.id, undefined));
+  }
+  const entry = target.entries.find((e) => e.id === c.rosterId);
+  return entry
+    ? updatePlay(target, entry.id, {
+        ...entry.play,
+        turn: { ...entry.play.turn, stance: undefined },
+      })
+    : target;
 }
 
 /** Spend the reaction, composed onto the given roster rather than

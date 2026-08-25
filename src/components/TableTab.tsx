@@ -151,6 +151,7 @@ import {
 import type { FightEvent } from '../fightEvents';
 import {
   allStrikesFor as strikeAllFor,
+  clearReadyOf,
   opportunitySwing as strikeOpportunity,
   spendReactionOf as strikeSpendReaction,
   strikesInto as strikeInto,
@@ -182,7 +183,7 @@ import { InitiativeStrip } from './InitiativeStrip';
 import { MonsterCommandMenu } from './MonsterTray';
 import type { Strike } from './MonsterTray';
 import { routineOptions, routineReach } from '../engine/strikes';
-import { meleeReach, provokedBy } from '../engine/reactions';
+import { meleeReach, provokedBy, readiedFor } from '../engine/reactions';
 import { expectedDamage, planTurn } from '../engine/enemyTurn';
 import { threatened } from '../engine/foresight';
 import {
@@ -1184,6 +1185,61 @@ export function TableTab({
       if (!zoneReaches(zone, sideOf(self.kind))) continue;
       next = biteZone(next, self.id, zone, 'walks into');
     }
+    /*
+      §146: and whoever was waiting for them.
+
+      A readied attack is the mirror of an opportunity one and fires at the
+      other end of the step - as the mover *arrives* within reach rather
+      than as it leaves. So it resolves here, after the body has moved and
+      the ground has bitten, where an opportunity attack resolves before
+      the step because that is when its own rule fires.
+
+      Firing costs two things: the reaction, and the readied action itself.
+      A creature whose held swing has gone is not holding one any more.
+    */
+    const arrived = activeEncounter(next).combatants.find((c) => c.id === self.id);
+    if (arrived && (hpOf(arrived)?.now ?? 0) > 0) {
+      for (const taker of readiedFor(
+        { id: self.id, at: self.at, disengaged: false },
+        to,
+        activeEncounter(next)
+          .combatants.filter((c) => c.kind !== self.kind)
+          .map((c) => ({
+            id: c.id,
+            conditions: conditionsOf(c),
+            reactionSpent: reactionSpentOf(c),
+            at: c.at,
+            hp: hpOf(c)?.now ?? 0,
+            reach: meleeReach(allStrikesFor(c)),
+            readied: stanceOf(c) === 'ready',
+          })),
+        // The same sight rule opportunity attacks use: you cannot hold a
+        // swing for somebody you never see coming.
+        (watcherId) => {
+          if (self.hidden !== undefined) return false;
+          const watcher = activeEncounter(next).combatants.find((c) => c.id === watcherId);
+          return !!watcher?.at && lineOfSight(sightContext, watcher.at, to).visible;
+        },
+      )) {
+        const waiting = activeEncounter(next).combatants.find((c) => c.id === taker.id);
+        const mover = activeEncounter(next).combatants.find((c) => c.id === self.id);
+        if (!waiting || !mover || (hpOf(mover)?.now ?? 0) <= 0) continue;
+        const strikes = opportunitySwing(waiting);
+        if (!strikes.length) continue;
+        next = updateEncounter(
+          next,
+          appendLog(
+            activeEncounter(next),
+            `${nameOf(self)} steps into ${nameOf(waiting)}'s reach — the readied attack fires.`,
+          ),
+        );
+        noteLunge(waiting.id, to);
+        next = strikesInto(next, { name: nameOf(waiting), id: waiting.id }, strikes, mover);
+        next = spendReactionOf(next, waiting);
+        next = clearReadyOf(next, waiting);
+      }
+    }
+
     // §69: the walk is committed - the GL view marches the sprite down the
     // route it actually took, and drags the held body along in a flat glide.
     noteWalk(self.id, route);

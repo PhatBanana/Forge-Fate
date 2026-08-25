@@ -8,6 +8,7 @@ import {
   meleeReach,
   opportunityStrike,
   provokedBy,
+  readiedFor,
   type Reactor,
 } from './reactions';
 
@@ -150,5 +151,65 @@ describe('melee reach', () => {
         { label: 'bow', toHit: 5, damage: [], range: { ranged: { normal: 80, long: 320 } } },
       ]),
     ).toBe(10);
+  });
+});
+
+/*
+  §146. The Ready action, which the app promised and never fired.
+
+  The mirror of `provokedBy`: that one asks who the mover is *leaving*,
+  this asks whose reach it is *entering*. The cases that matter are the
+  ones where the two differ, so most of these are the opposite of a test
+  a few lines above.
+*/
+describe('a readied attack', () => {
+  const waiting = (over: Partial<Reactor> = {}): Reactor => reactor({ readied: true, ...over });
+
+  it('fires when somebody walks into reach', () => {
+    const mover = { id: 'thief', at: { x: 9, y: 5 } };
+    expect(readiedFor(mover, { x: 6, y: 5 }, [waiting()]).map((r) => r.id)).toEqual(['guard']);
+  });
+
+  it('does not fire for somebody already standing in reach', () => {
+    // Stepping around inside a reach is not entering it. This is the exact
+    // opposite of the opportunity rule, which cares about leaving.
+    const mover = { id: 'thief', at: { x: 6, y: 5 } };
+    expect(readiedFor(mover, { x: 5, y: 6 }, [waiting()])).toEqual([]);
+  });
+
+  it('does not fire for somebody who stays out of reach', () => {
+    const mover = { id: 'thief', at: { x: 20, y: 5 } };
+    expect(readiedFor(mover, { x: 15, y: 5 }, [waiting()])).toEqual([]);
+  });
+
+  it('does not fire for a creature that readied nothing', () => {
+    const mover = { id: 'thief', at: { x: 9, y: 5 } };
+    expect(readiedFor(mover, { x: 6, y: 5 }, [reactor()])).toEqual([]);
+  });
+
+  it('does not fire twice - a spent reaction is a spent reaction', () => {
+    const mover = { id: 'thief', at: { x: 9, y: 5 } };
+    expect(readiedFor(mover, { x: 6, y: 5 }, [waiting({ reactionSpent: true })])).toEqual([]);
+  });
+
+  it('does not fire from a creature that cannot react', () => {
+    const mover = { id: 'thief', at: { x: 9, y: 5 } };
+    expect(readiedFor(mover, { x: 6, y: 5 }, [waiting({ conditions: ['stunned'] })])).toEqual([]);
+    expect(readiedFor(mover, { x: 6, y: 5 }, [waiting({ hp: 0 })])).toEqual([]);
+  });
+
+  it('is not turned off by Disengage', () => {
+    /*
+      The one part of the opportunity rule that does *not* carry over.
+      Disengage buys safe passage out of a reach; it does not make you
+      invisible to somebody standing there waiting for you.
+    */
+    const mover = { id: 'thief', at: { x: 9, y: 5 }, disengaged: true };
+    expect(readiedFor(mover, { x: 6, y: 5 }, [waiting()]).map((r) => r.id)).toEqual(['guard']);
+  });
+
+  it('does not fire for somebody it cannot see', () => {
+    const mover = { id: 'thief', at: { x: 9, y: 5 } };
+    expect(readiedFor(mover, { x: 6, y: 5 }, [waiting()], () => false)).toEqual([]);
   });
 });

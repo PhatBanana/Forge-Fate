@@ -8895,3 +8895,51 @@ that genuinely does not exist. That the test had to be rewritten is the
 guard working, not a nuisance.
 
 **Gates.** 2619 tests / 130 files, `tsc -b`, oxlint, build in budget.
+
+## 146. The Ready action, fired rather than narrated
+
+X-COM's overwatch is in the SRD already. "You can hold your action and
+take your reaction when a trigger occurs" is the Ready action, and this
+app has offered the button since the command menu existed — with a hint
+reading *"the reaction spends when it fires"* and nothing anywhere that
+could fire it. `generic('Ready')` wrote a sentence into the log and
+recorded nothing at all. An entire action, bought against a rule the app
+did not enforce, which is the same complaint §28 made about Disengage.
+
+**A stance, not a new store.** Ready is the third value of the `stance`
+field that already holds Disengage and Dodge — an action you took that
+persists until your next turn, cleared at turn start in both stores by
+code that already existed. That is the whole state change.
+
+**`readiedFor` is the mirror of `provokedBy`.** One asks who the mover is
+*leaving*; the other asks whose reach it is *entering*. The rest of the
+rule is the same four parts, and the tests are mostly the opposite of the
+test above them — a step *inside* a reach fires nothing, where for an
+opportunity attack a step inside is exactly the case that provokes.
+
+**One part deliberately does not carry over.** Disengage turns opportunity
+attacks off and does *not* turn this off. It buys safe passage out of a
+reach; it does not make you invisible to somebody standing there waiting
+for you.
+
+**The trigger is fixed rather than free text.** "An enemy comes within my
+reach" is what the app can see. A trigger typed as a sentence is a trigger
+only a DM can adjudicate, which is what the button already was — and
+naming one specific trigger is the difference between a rule and a note.
+
+**It fires at the other end of the step.** An opportunity attack resolves
+*before* the move, because "right before the creature leaves your reach"
+is when its rule fires. A readied attack resolves after, as the mover
+arrives. Both compose onto the same write, so a walk past a guard and into
+an ogre is still one undo step.
+
+**Firing costs two things**: the reaction, and the readied action. A
+creature whose held swing has gone is not holding one any more, so
+`clearReadyOf` sits beside `spendReactionOf` rather than inside it —
+an opportunity attack spends only the first.
+
+Monsters can Ready too. An ogre by a door is the commonest readied attack
+at any table, and the monster tray had the same two stance buttons and
+the same gap.
+
+**Gates.** 2628 tests / 130 files, `tsc -b`, oxlint, build in budget.

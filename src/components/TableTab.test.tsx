@@ -3165,6 +3165,69 @@ describe('the ground bites back', () => {
     ).toBe(true);
   });
 
+  /*
+    §146. The Ready action, fired rather than narrated.
+
+    The mirror of the opportunity attack below: that one triggers as a
+    mover leaves a reach, this as one arrives in it. Written through the
+    screen because the engine half passing proves only that the arithmetic
+    is right - §141 shipped a feature whose every layer was green and which
+    no player could see.
+  */
+  it('fires the readied attack when a walk enters an enemy’s reach', async () => {
+    const user = userEvent.setup();
+    const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });
+    await bestiaryReady();
+    const name = view.roster.entries[0].build.name;
+    await open(user, 'Party');
+    await user.click(screen.getByRole('button', { name }));
+    await open(user, 'Bestiary');
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
+    const entry = [...document.querySelectorAll('.mon-list li')].find(
+      (li) => li.querySelector('b')?.textContent === 'Goblin',
+    ) as HTMLElement;
+    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await open(user, 'Field');
+    await user.click(screen.getByRole('button', { name: /put everyone on the map/i }));
+
+    // The goblin waits at the far end of the room.
+    boxMap();
+    await user.click(
+      within(rowFor('Goblin')).getByRole('button', { name: /show goblin in the rail/i }),
+    );
+    fireEvent.pointerDown(mapEl(), { clientX: (7 + 0.5) * 10, clientY: (5 + 0.5) * 10 });
+
+    // It goes first, and holds its attack.
+    await open(user, 'Order');
+    fireEvent.change(
+      within(rowFor('Goblin')).getByLabelText(/goblin initiative/i),
+      { target: { value: '30' } },
+    );
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+    const rail = document.querySelector('.rail-monster .cmd-menu') as HTMLElement;
+    await user.click(within(rail).getByRole('button', { name: /^Ready/ }));
+    await user.click(screen.getByRole('button', { name: /end turn/i }));
+
+    // Now the fighter walks into its reach.
+    await user.click(
+      within(document.querySelector('.pcard .cmd-menu') as HTMLElement).getByRole('button', {
+        name: /^Move/,
+      }),
+    );
+    fireEvent.pointerDown(mapEl(), { clientX: (6 + 0.5) * 10, clientY: (5 + 0.5) * 10 });
+
+    expect(
+      view.encounter.log!.some((l) => /readied attack fires/.test(l.text)),
+    ).toBe(true);
+    // The swing follows, and both the reaction and the held action are gone.
+    expect(view.encounter.log!.some((l) => /Goblin — Scimitar \d+ vs AC/.test(l.text))).toBe(true);
+    const goblin = view.encounter.combatants.find(
+      (c): c is Extract<typeof c, { kind: 'monster' }> => c.kind === 'monster',
+    )!;
+    expect(goblin.reactionSpent).toBe(true);
+    expect(goblin.stance).toBeUndefined();
+  });
+
   it('takes the opportunity attack when a walk leaves an enemy’s reach', async () => {
     const user = userEvent.setup();
     const view = setup({ ...party(), encounter: { ...emptyEncounter(), mapRooms: 0 } });

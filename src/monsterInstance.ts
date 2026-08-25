@@ -207,7 +207,7 @@ export function spendMonsterReaction(
 export function setMonsterStance(
   encounter: EncounterState,
   id: string,
-  stance: 'disengage' | 'dodge' | undefined,
+  stance: 'disengage' | 'dodge' | 'ready' | undefined,
 ): EncounterState {
   return {
     ...encounter,

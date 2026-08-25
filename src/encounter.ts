@@ -128,7 +128,7 @@ export interface MonsterCombatant {
    * the same reset. Monsters take the same actions characters do, and the
    * monster tray has offered Disengage since §13.1 while nothing read it.
    */
-  stance?: 'disengage' | 'dodge';
+  stance?: 'disengage' | 'dodge' | 'ready';
   /**
    * Not yet part of the fight: skipped in the turn order, woken when the
    * party first sees it or when it takes damage - the squad-game pod,

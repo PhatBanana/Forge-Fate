@@ -64,6 +64,13 @@ export interface Reactor {
    * does not get an opportunity attack at eighty feet.
    */
   reach: number;
+  /**
+   * §146: holding an attack for whoever comes within reach - the Ready
+   * action. Absent on every caller that only asks about opportunity
+   * attacks, which is why it is optional rather than a fourth stance
+   * argument threaded through `provokedBy` as well.
+   */
+  readied?: boolean;
 }
 
 /** The creature walking away, and what it did about it. */
@@ -110,6 +117,43 @@ export function provokedBy(
     if (!c.at || c.id === mover.id) return false;
     if (feetBetween(c.at, mover.at) > c.reach) return false;
     if (feetBetween(c.at, to) <= c.reach) return false;
+    if (!mayReact(c)) return false;
+    return canSee ? canSee(c.id, mover.id) : true;
+  });
+}
+
+/**
+ * §146: everyone whose readied attack fires as `mover` steps into `to`.
+ *
+ * The Ready action is the SRD's own overwatch: "you can hold your action
+ * and take your reaction when a trigger occurs." The app has offered the
+ * button since the command menu existed and it wrote a log line and
+ * nothing else - the reaction it promised would spend "when it fires" had
+ * nothing that could fire it.
+ *
+ * The mirror image of `provokedBy`, and deliberately so. That one asks who
+ * the mover is *leaving*; this asks whose reach it is *entering*. The rest
+ * of the rule is the same four parts, minus Disengage - which buys safe
+ * passage out of a reach, not immunity to somebody waiting for you.
+ *
+ * The trigger is fixed at "an enemy comes within my reach" rather than
+ * being free text. A trigger the app cannot read is a trigger it cannot
+ * fire, and the alternative - the DM adjudicating a sentence - is what the
+ * button already was.
+ */
+export function readiedFor(
+  mover: Mover,
+  to: Square,
+  candidates: Reactor[],
+  canSee?: (watcherId: string, moverId: string) => boolean,
+): Reactor[] {
+  return candidates.filter((c) => {
+    if (!c.at || c.id === mover.id) return false;
+    if (!c.readied) return false;
+    // Entering, not merely being near: a step inside the reach it already
+    // stood in has not triggered anything.
+    if (feetBetween(c.at, mover.at) <= c.reach) return false;
+    if (feetBetween(c.at, to) > c.reach) return false;
     if (!mayReact(c)) return false;
     return canSee ? canSee(c.id, mover.id) : true;
   });
