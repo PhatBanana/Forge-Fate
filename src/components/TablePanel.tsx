@@ -3,7 +3,7 @@ import { Panel } from './shared';
 import { QrSvg } from './QrSvg';
 import { newRoomCode } from '../sync';
 import type { RelayConfig } from '../sync';
-import { seatUrl } from '../share';
+import { seatUrl, tableUrl } from '../share';
 import type { Seat } from '../seats';
 
 /**
@@ -65,8 +65,15 @@ export function TablePanel({
             {/* §96: the Jackbox screen - a code big enough to read across
                 the table. Phones join with it from Take a seat; the links
                 below still carry everything for the ones far away. */}
-            <div className="room-code" aria-label="Room code">
-              {relay.room}
+            {/* §151: and beside it, the same door as a QR - the bare-seat
+                invitation, so one scan lands any phone on the picker and
+                the whole party joins off one screen. Always showing: at a
+                physical table this is the front door, not an option. */}
+            <div className="room-join">
+              <div className="room-code" aria-label="Room code">
+                {relay.room}
+              </div>
+              <QrSvg text={tableUrl(relay)} label="QR code to join the table" />
             </div>
             {seats.length > 0 && (
               <p className="hint" style={{ marginTop: 0 }}>
@@ -81,8 +88,8 @@ export function TablePanel({
               </p>
             )}
             <p className="hint" style={{ marginTop: 0 }}>
-              Players join with the code from Take a seat, or by link — it carries
-              the seat, the room and the relay in one.
+              Players scan the QR or type the code into Take a seat, then pick
+              their chair. The links below carry a named seat for anyone far away.
             </p>
             {entries.map((entry) => {
               const name = entry.name;

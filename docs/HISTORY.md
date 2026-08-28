@@ -9174,3 +9174,39 @@ name, and two maps on one page sharing one would have the second silently
 painting with the first's.
 
 **Gates.** 2700 tests / 134 files, `tsc -b`, oxlint, build in budget.
+
+## 151. The QR beside the room code
+
+"Add the QR code next to the room code." Both halves already existed - §96's
+room code set like a title card, §101's hand-rolled QR encoder drawing seat
+invitations behind per-character toggles - but the front door was still
+typed. At a physical table the DM's screen faces the party; the code should
+be scannable from where each player sits, not just readable.
+
+**One QR, no name on it.** The per-seat QRs each carry `seat=<id>` - scan
+the wrong one and you are holding somebody else's character. The QR beside
+the room code encodes the *unnamed* invitation instead: `tableUrl` in
+share.ts, which is `seatUrl('')` - the bare-seat form §93 has parsed since
+before tables existed. Everyone scans the same screen; each phone lands on
+the picker, already at this room and relay, and chooses its own chair. The
+honor-system lobby (§96) does the rest.
+
+**Always showing, never a toggle.** The seat QRs hide behind buttons because
+ten of them at once is a wall of noise and each is one player's business.
+This one is the party's front door, so it stands beside the code whenever
+the table is open - a `.room-join` row holding both, the QR sized at 132px
+to be caught by a camera from a seat away, white-on-dark whatever the theme
+because §101 already settled that a camera is not a theme's audience.
+
+**`data-encodes` on the drawing.** The SVG now says in the open what its
+modules say. It hides nothing - the same link sits in a copy box on the
+same panel - and it lets a test scan the code the way a phone would: read
+the attribute, go where it points. The probe does exactly that: the DM
+opens a table, a phone context navigates to what the QR encodes, and lands
+on the picker naming this room with the chairs open. The panel also grew
+its first test file on the way - TablePanel.test.tsx, covering the door,
+the QR's cargo, and the named links.
+
+**Gates.** 2705 tests / 135 files, `tsc -b`, oxlint, build in budget; probe
+green both themes, DM screen and scanned phone; §92-§96 multiplayer net
+re-run clean.

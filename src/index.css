@@ -8740,6 +8740,23 @@ input.pcard-amount {
   color: var(--accent);
 }
 
+/* §151: the code and its QR are one door, read two ways across the same
+   physical table - shouted or scanned. The QR sits at the code's side,
+   sized to be caught by a phone camera from a seat away. */
+.room-join {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.room-join .qr {
+  width: 132px;
+  height: 132px;
+  flex: none;
+}
+
 .seat-code {
   width: 130px;
   font-family: var(--mono);

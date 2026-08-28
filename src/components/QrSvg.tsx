@@ -41,6 +41,10 @@ export function QrSvg({ text, label }: { text: string; label: string }) {
       role="img"
       aria-label={label}
       shapeRendering="crispEdges"
+      /* §151: what the modules say, in the open. The link is on screen in a
+         copy box anyway (§95), so this hides nothing - and it lets a test
+         "scan" the code the way a phone would, by going where it points. */
+      data-encodes={text}
     >
       <rect width={path.size} height={path.size} fill="#fff" />
       <path d={path.d} fill="#000" />

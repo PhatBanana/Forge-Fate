@@ -168,3 +168,12 @@ export function seatUrl(rosterId: string, relay: RelayConfig): string {
   });
   return `${base}#${query.toString()}`;
 }
+
+/**
+ * §151: the invitation with no name on it - the bare `seat` opens the
+ * picker (§93), so one QR beside the room code seats the whole party:
+ * everyone scans the same screen and each picks their own chair.
+ */
+export function tableUrl(relay: RelayConfig): string {
+  return seatUrl('', relay);
+}

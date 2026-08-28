@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Build } from './types';
 import { emptyBuild } from './engine/character';
-import { decodeBuild, encodeBuild, seatFromLocation, shareUrl, tableFromLocation, tokenFromLocation } from './share';
+import { decodeBuild, encodeBuild, seatFromLocation, shareUrl, tableFromLocation, tableUrl, tokenFromLocation } from './share';
 
 function loaded(): Build {
   return {
@@ -197,5 +197,15 @@ describe('the table fragment (§95)', () => {
     expect(tableFromLocation('#seat=c0&table=X7Q2M4')).toBeNull();
     expect(tableFromLocation('#seat=c0&relay=ws%3A%2F%2Fx')).toBeNull();
     expect(tableFromLocation('#builder')).toBeNull();
+  });
+
+  it('§151: the unnamed invitation lands on the picker, room and relay intact', () => {
+    // The QR beside the room code carries this: one link for the whole
+    // party, each phone choosing its own chair on arrival.
+    const relay = { url: 'ws://localhost:4390', room: 'X7Q2M4' };
+    const link = tableUrl(relay);
+    const hash = link.slice(link.indexOf('#'));
+    expect(seatFromLocation(hash)).toBe('');
+    expect(tableFromLocation(hash)).toEqual(relay);
   });
 });
