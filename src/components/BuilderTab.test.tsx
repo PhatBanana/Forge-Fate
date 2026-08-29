@@ -1207,12 +1207,33 @@ describe('the guided flow', () => {
     inventing the scores too. The step says so and carries the way through
     rather than being a dead end in the middle of a flow.
   */
+  it('§156: offers the subclass as a step the moment the class owes one', async () => {
+    // A 2014 Cleric chooses at level 1, and the factory build never picked.
+    const undecided = buildOf({ classes: [{ classId: 'cleric', level: 1 }] });
+    const view = setup(undecided, 'flow');
+    await userEvent.click(screen.getByRole('button', { name: /your calling/i }));
+    expect(within(card()).getByText('Your calling')).toBeInTheDocument();
+    // Offered, not ranked: every option stands with the book's own pitch.
+    const apply = within(card()).getAllByRole('button', { name: 'Apply' });
+    expect(apply.length).toBeGreaterThan(0);
+    await userEvent.click(apply[0]);
+    expect(view.build.classes[0].subclassId).toBeTruthy();
+    // Answered, the step leaves the walk.
+    expect(screen.queryByRole('button', { name: /your calling/i })).toBeNull();
+  });
+
   it('§155: asks for a name near the end, and the christening closes the step', async () => {
     const unnamed = buildOf({ ...fighter(5), name: '' });
     const view = setup(unnamed, 'flow');
     // The pip is there, late in the walk - naming comes after the choices.
     await userEvent.click(screen.getByRole('button', { name: /what are you called/i }));
     expect(within(card()).getByText('What are you called?')).toBeInTheDocument();
+    // §157: the dice button fills the draft, never the sheet.
+    await userEvent.click(within(card()).getByRole('button', { name: /suggest one/i }));
+    const field = within(card()).getByLabelText('Character name') as HTMLInputElement;
+    expect(field.value.length).toBeGreaterThan(2);
+    expect(view.onChange).not.toHaveBeenCalled();
+    await userEvent.clear(field);
     // Typed locally, committed on the button - a step that vanished on the
     // first keystroke would yank the card mid-word.
     await userEvent.type(within(card()).getByLabelText('Character name'), 'Thistle');
@@ -1245,10 +1266,48 @@ describe('the guided flow', () => {
     expect(within(card()).getByText(/Basher is ready/)).toBeInTheDocument();
     // The confirm screen's summary, and the two doors out.
     expect(card().querySelector('.flow-done-line')!.textContent).toMatch(/AC \d+ · \d+ hit points/);
+    // §157: the face, or the empty frame inviting one - the same Portrait
+    // the sheet prints, upload buttons and all.
+    expect(card().querySelector('.cs-portrait')).not.toBeNull();
+    // §158: the story fields are acknowledged where the character is born.
+    expect(within(card()).getByText(/personality, ideals, bonds and flaws/)).toBeInTheDocument();
     await userEvent.click(within(card()).getByRole('button', { name: 'Read the sheet' }));
     expect(view.onFinished).toHaveBeenCalledWith('sheet');
     await userEvent.click(within(card()).getByRole('button', { name: 'To the table →' }));
     expect(view.onFinished).toHaveBeenCalledWith('table');
+  });
+
+  it('§158: the loadout step carries the class kit for a fresh 1st level', async () => {
+    const fresh = buildOf({
+      classes: [{ classId: 'fighter', level: 1 }],
+      weapons: { magicBonus: {} },
+      defenses: defaultDefenses(),
+    });
+    setup(fresh, 'flow');
+    await userEvent.click(
+      screen.getByRole('button', { name: /what you wear and what you hold/i }),
+    );
+    // The kit is in the card, one click from equipped; the dense-page door
+    // stays below it for everyone the kit does not cover.
+    expect(within(card()).getByText('Starting equipment')).toBeInTheDocument();
+    expect(within(card()).getByRole('button', { name: 'Take this kit' })).toBeInTheDocument();
+    expect(
+      within(card()).getByRole('button', { name: /answer it under equipment/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('§158: Surprise me rolls a rated pairing through the same hand a pick uses', async () => {
+    const untouched = buildOf({
+      backgroundId: undefined,
+      baseScores: { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 },
+      weapons: { magicBonus: {} },
+      defenses: defaultDefenses(),
+    });
+    const view = setup(untouched, 'flow');
+    await userEvent.click(screen.getByRole('button', { name: /surprise me/i }));
+    await vi.waitFor(() =>
+      expect(view.onPairing).toHaveBeenCalledWith(expect.any(String), expect.any(String)),
+    );
   });
 
   it('says plainly when a step is a form rather than a ranking', () => {

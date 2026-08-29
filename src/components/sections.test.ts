@@ -47,6 +47,21 @@ describe('what each section is still waiting on', () => {
     expect(openChoicesBySection(deriveBuild(spent)).abilities).toBe(0);
   });
 
+  it('§156: asks for the subclass the moment it is due, and not before', () => {
+    // A 2014 Cleric chooses at level 1; a Fighter waits until 3.
+    const cleric = deriveBuild(buildOf({ classes: [{ classId: 'cleric', level: 1 }] }));
+    expect(waitingChoices(cleric).some((c) => c.id === 'subclass:cleric')).toBe(true);
+    const early = deriveBuild(buildOf({ classes: [{ classId: 'fighter', level: 2 }] }));
+    expect(waitingChoices(early).some((c) => c.id === 'subclass:fighter')).toBe(false);
+    const due = deriveBuild(buildOf({ classes: [{ classId: 'fighter', level: 3 }] }));
+    expect(waitingChoices(due).some((c) => c.id === 'subclass:fighter')).toBe(true);
+    // And never once one is chosen.
+    const chosen = deriveBuild(
+      buildOf({ classes: [{ classId: 'fighter', level: 3, subclassId: 'champion' }] }),
+    );
+    expect(waitingChoices(chosen).some((c) => c.id.startsWith('subclass:'))).toBe(false);
+  });
+
   it('§155: asks for a name, last, and only while there is none', () => {
     const waiting = waitingChoices(deriveBuild({ ...blank(), name: '' }));
     expect(waiting[waiting.length - 1]?.id).toBe('name');

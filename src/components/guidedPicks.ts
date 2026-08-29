@@ -1,3 +1,4 @@
+import { subclassName, subclassesFor } from '../data/classes';
 import { SKILLS } from '../data/skills';
 import type { SkillId } from '../data/skills';
 import { SOURCE_LABELS } from '../data/sources';
@@ -122,6 +123,36 @@ export function rankedStepFor(
             : build.featAsiChoices,
         };
       },
+    };
+  }
+
+  // ------------------------------------------------- the subclass, when due
+  if (choice.id.startsWith('subclass:')) {
+    const classId = choice.id.slice('subclass:'.length);
+    const slice = ctx.slices.find((s) => s.klass.id === classId);
+    if (!slice) return null;
+    /*
+      §156: offered, not ranked - `score: null` is the contract for exactly
+      this. No engine scores subclasses, and inventing numbers would be
+      inventing the opinion; what the data does carry is a curated note per
+      subclass, which rides as the headline so the list still argues.
+    */
+    return {
+      foot: 'A subclass shapes every level after this one. The note is its pitch; the sheet below shows what it changes.',
+      picks: subclassesFor(slice.klass, build.ruleset).map((s) => ({
+        id: s.id,
+        name: subclassName(s, build.ruleset),
+        source: SOURCE_LABELS[s.source],
+        score: null,
+        headline: s.note,
+        reasons: [],
+      })),
+      apply: (id) => ({
+        ...build,
+        classes: build.classes.map((entry) =>
+          entry.classId === classId ? { ...entry, subclassId: id } : entry,
+        ),
+      }),
     };
   }
 

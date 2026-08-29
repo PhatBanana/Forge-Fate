@@ -17,6 +17,8 @@ import { ScreenSheet } from './ScreenSheet';
 import type { Section } from './sections';
 import { LEVEL_CAP, abilityMod, racialAsi } from '../engine/character';
 import { RUN_UP_FEET, describeJump, jumpDistances, movementFor } from '../engine/movement';
+import { suggestName } from '../engine/names';
+import { Portrait } from './Portrait';
 import { ARMOR, ARMOR_CATEGORY_LABEL } from '../data/armor';
 import { armorProficiencies, isProficientWith, weaponProficiencies } from '../engine/defense';
 import { damageDice, isLight, isTwoHanded, weaponsFor } from '../data/weapons';
@@ -435,6 +437,14 @@ export function BuilderTab({
           */}
           {step?.kind === 'done' && (
             <div className="flow-done">
+              {/* §157: the face, where the character is announced. The same
+                  Portrait the sheet prints - a photo of nobody yet is an
+                  empty frame with the buttons to fill it, which is exactly
+                  the invitation a curtain call should make. */}
+              <Portrait
+                details={build.details}
+                onChange={(partial) => patch({ details: { ...build.details, ...partial } })}
+              />
               <p className="flow-done-line">
                 {ctx.race.name} ·{' '}
                 {ctx.slices
@@ -449,6 +459,13 @@ export function BuilderTab({
                   carry notes.
                 </p>
               )}
+              {/* §158: the story, acknowledged where the character is born.
+                  The boxes have existed and printed all along; the flow
+                  finally says so instead of leaving them orphaned. */}
+              <p className="muted">
+                Their story — personality, ideals, bonds and flaws — has its boxes on the
+                sheet, blank until you fill them.
+              </p>
               <span className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                 <button
                   type="button"
@@ -489,6 +506,18 @@ export function BuilderTab({
               >
                 Name them
               </button>
+              {/* §157: the dice button every creator keeps by the name
+                  field. It fills the draft, never the sheet - re-roll until
+                  one lands, or type over it. Flavoured by lineage,
+                  generated rather than listed. */}
+              <button
+                type="button"
+                className="btn btn-sm"
+                title="Suggest a name in this lineage's sound — re-roll as often as you like"
+                onClick={() => setNameDraft(suggestName(build.raceId, defaultRng))}
+              >
+                🎲 Suggest one
+              </button>
             </div>
           )}
 
@@ -521,10 +550,40 @@ export function BuilderTab({
                   }}
                 >
                   Answer it under {SECTION_LABEL.identity} →
+                </button>{' '}
+                {/* §158: the dice button every creator opens with. A random
+                    class, one of its best-rated lineages, scores and gear in
+                    tow - and every choice stays yours to redo. The ratings
+                    engine loads on click, staying off first paint (§154). */}
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  title="A random class with one of its best-rated lineages — everything stays editable"
+                  onClick={async () => {
+                    const { bestRacesFor } = await import('../engine/raceMatrix');
+                    const classes = classesFor(build.ruleset);
+                    const klass = classes[Math.floor(Math.random() * classes.length)];
+                    const top = bestRacesFor(klass.id, 5, build.ruleset);
+                    const cell = top[Math.floor(Math.random() * top.length)];
+                    if (cell) onPairing(cell.originId, klass.id);
+                  }}
+                >
+                  🎲 Surprise me
                 </button>
               </p>
             </div>
           ) : null}
+
+          {/*
+            §158: the class kit, inside the step that asks about it. The
+            panel already limits itself to a fresh 1st-level single class -
+            exactly who is standing at this step - and renders nothing for
+            anyone else, leaving the dense-page door below as their answer.
+            The biggest remaining detour becomes a beat.
+          */}
+          {step?.kind === 'choice' && step.choice.id === 'loadout' && (
+            <StartingEquipmentPanel build={build} patch={patch} />
+          )}
 
           {step?.kind === 'choice' &&
             step.choice.id !== 'who' &&

@@ -1,4 +1,5 @@
 import { BACKGROUNDS_BY_ID } from '../data/backgrounds';
+import { subclassLevelFor } from '../data/classes';
 import { masterySlots } from '../engine/attacks';
 import { optionGroups } from '../engine/classOptions';
 import { pointsSpent } from '../engine/pointBuy';
@@ -125,6 +126,27 @@ export function waitingChoices(ctx: BuildContext): WaitingChoice[] {
     'the identity band',
     'form',
   );
+  /*
+    §156: the subclass, the moment it is due. This was the one decision the
+    flow never asked: a Fighter 3 with no archetype walked every step, the
+    band said all answered, and the curtain call fired - having skipped the
+    biggest choice of the level. One entry per class that owes one, because
+    a multiclass character can owe two.
+  */
+  for (const slice of ctx.slices) {
+    const due = slice.entry.level >= subclassLevelFor(slice.klass, build.ruleset);
+    add(
+      `subclass:${slice.klass.id}`,
+      'identity',
+      due && !slice.entry.subclassId ? 1 : 0,
+      ctx.slices.length > 1 ? `Your calling — ${slice.klass.name}` : 'Your calling',
+      // A ranked step must name a box the sheet below can light, and the
+      // box a subclass actually fills is its features - the identity band
+      // gets the name, but the features are what arrive.
+      'Class features & options',
+      'ranked',
+    );
+  }
   add(
     'background',
     'identity',

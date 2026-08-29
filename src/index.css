@@ -9192,13 +9192,26 @@ input.pcard-amount {
   padding: 8px 10px;
 }
 
+/* §157: the face beside the announcement - the summary and doors flow to
+   the right of the frame, the way a sheet's banner sits. */
 .flow-done {
   display: grid;
-  gap: 10px;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 10px 16px;
   padding: 16px 15px;
   background: var(--bg-raised);
   border: 1px solid var(--accent);
   border-radius: 9px;
+}
+
+.flow-done .cs-portrait {
+  grid-row: span 3;
+}
+
+.flow-done > p,
+.flow-done > span {
+  grid-column: 2;
 }
 
 .flow-done-line {

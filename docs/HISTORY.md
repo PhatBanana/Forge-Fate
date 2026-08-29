@@ -9369,3 +9369,71 @@ the flow's definitive probe now: Start blank → Who you are → every choice
 answered (ranked steps by their top pick, forms on the dense page, the
 naming in the card) → the curtain call by name → the sheet door, both
 themes. run75 and run154 re-run clean.
+
+## 156. Your calling
+
+The audit behind §152 asked whether the flow makes sense; this batch closes
+what it found. First the genuine hole: **the subclass was never asked.** No
+waiting choice, no badge, no review finding - a Fighter 3 with no archetype
+walked every step, the band said all answered, and §155's curtain call
+pronounced them ready, having skipped the biggest decision of the level.
+
+Now a step, "Your calling", per class that owes one - a multiclass
+character can owe two - appearing the moment the class level reaches its
+subclass level (1 for a 2014 Cleric, 3 for everyone in 2024) and standing
+between Who you are and the background, because that is where the question
+lives. **Offered, not ranked**: no engine scores subclasses and inventing
+numbers would be inventing the opinion, so every option stands at
+`score: null` with the data's own curated note as its headline - the list
+still argues, it just does not pretend to arithmetic. Its target box is
+Class features & options, which the ScreenSheet contract test enforced
+before any human read the card: a ranked step must name a box the sheet
+can light, and the features are what a calling actually delivers.
+
+## 157. A face and a name to offer
+
+The two halves of the identity ritual games spend most of their creator on.
+
+**The face, where the character is announced.** The portrait system had
+existed since §24.4 - uploads, the sheet, the battle map - and nothing in
+the flow ever offered it, so §155's curtain call announced a name over an
+initials monogram. The same `Portrait` the sheet prints now sits on the
+done card: a face beside the announcement, or an empty frame with the
+upload buttons in it, which is exactly the invitation a curtain call
+should make.
+
+**The dice by the name field.** `engine/names.ts` composes names from
+syllables, flavoured by lineage - a dwarf and an elf do not sound alike,
+and a homebrew species falls through to a broad family rather than a
+crash. Generated, not listed: nothing in it is anyone's published name
+table. The button fills the draft, never the sheet - re-roll until one
+lands, or type over it - and the probe kept what it was offered: the
+walk's cleric shipped as "Roays".
+
+## 158. The kit, the dice, and the story
+
+Three smaller finishes from the same audit.
+
+**The class kit moved into the loadout step.** `StartingEquipmentPanel`
+already limits itself to a fresh 1st-level single class - exactly who is
+standing at that step - so it now renders inside the card, one click from
+equipped, with the dense-page door still below it for everyone else. The
+biggest remaining detour became a beat.
+
+**Surprise me.** The dice button every creator opens with, on the who
+card: a random class, one of its top-five-rated lineages, scores and gear
+in tow through the same `loadPairing` hand a deliberate pick uses. The
+ratings engine loads on click, staying off first paint (§154's rule,
+kept). The fastest road to a table-ready character, and every choice
+stays editable.
+
+**The story, acknowledged.** Personality, ideals, bonds and flaws have
+had boxes since the details landed, and printed on the paper sheet, and
+no part of the flow ever said so. The curtain call now does, in one line.
+
+**Gates for the batch.** 2735 tests / 136 files (11 new), tsc, oxlint,
+build in budget. run158 walks a blank sheet to the curtain call as a 2014
+Cleric - the class whose calling is due at level 1 - taking the suggested
+name, past the kit in the loadout step and Surprise me on the who card,
+to a done card with a face frame and the story line, both themes. run154
+and run155 re-run clean.
