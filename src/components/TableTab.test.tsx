@@ -5592,6 +5592,63 @@ describe('queued plans (§92)', () => {
     await user.click(screen.getAllByRole('button', { name: 'Show Ünwyn in the rail' })[0]);
     expect(screen.queryByText(/Queued:/)).toBeNull();
   });
+
+  it('§153: Run it on a Ready plan spends the pip, sets the stance and logs the trigger', async () => {
+    const user = userEvent.setup();
+    const view = setup(armed());
+    await seatBoth(user, view);
+    setInit('Ünwyn', 20);
+    setInit('Basher', 10);
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+
+    await user.click(screen.getAllByRole('button', { name: 'Show Basher in the rail' })[0]);
+    await user.selectOptions(screen.getByLabelText('What they plan to do'), 'ready');
+    await user.type(
+      screen.getByLabelText('In their own words'),
+      'when it rounds the corner',
+    );
+    await user.click(screen.getByRole('button', { name: 'Queue it' }));
+
+    await user.click(screen.getByRole('button', { name: /end turn/i }));
+    expect(document.querySelector('.turn-plan')?.textContent).toMatch(/Ready/);
+    await user.click(screen.getByRole('button', { name: 'Run it' }));
+
+    // One composed write: the action spent, the stance set, the trigger said.
+    expect(logOf(view)).toMatch(/Basher readies — when it rounds the corner/);
+    const basher = view.roster.entries.find((e) => e.build.name === 'Basher')!;
+    expect(basher.play.turn.action).toBe(true);
+    expect(basher.play.turn.stance).toBe('ready');
+    expect(document.querySelector('.turn-plan')).toBeNull();
+  });
+
+  it('§153: a grapple plan names its mark and holds a Run it of its own', async () => {
+    const user = userEvent.setup();
+    const view = setup(armed());
+    await bestiaryReady();
+    await seatBoth(user, view);
+    await open(user, 'Bestiary');
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
+    const entry = [...document.querySelectorAll('.mon-list li')].find(
+      (li) => li.querySelector('b')?.textContent === 'Goblin',
+    ) as HTMLElement;
+    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    setInit('Ünwyn', 20);
+    setInit('Basher', 10);
+    setInit('Goblin', 1);
+    await user.click(screen.getByRole('button', { name: /start the fight/i }));
+
+    await user.click(screen.getAllByRole('button', { name: 'Show Basher in the rail' })[0]);
+    await user.selectOptions(screen.getByLabelText('What they plan to do'), 'grapple');
+    await user.selectOptions(screen.getByLabelText('Who they plan to grab'), goblinOf(view).id);
+    await user.click(screen.getByRole('button', { name: 'Queue it' }));
+    expect(screen.getByText(/Queued: Grapple Goblin/)).toBeInTheDocument();
+
+    // At Basher's turn the cockpit reads it back with its own Run it - the
+    // contest itself is §114's, proven where it lives.
+    await user.click(screen.getByRole('button', { name: /end turn/i }));
+    expect(document.querySelector('.turn-plan')?.textContent).toMatch(/Grapple Goblin/);
+    expect(screen.getByRole('button', { name: 'Run it' })).toBeEnabled();
+  });
 });
 
 /*

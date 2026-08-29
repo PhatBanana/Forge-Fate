@@ -68,6 +68,21 @@ describe('intents', () => {
     expect(
       describeIntent(plan({ kind: 'cast', spellId: 'fireball', spellName: 'Fireball', targetId: 'm1' }), 'Goblin A'),
     ).toBe('Cast Fireball at Goblin A');
+    // §153: the grabs name their target, Ready carries its trigger, and an
+    // item is named from the pack.
+    expect(describeIntent(plan({ kind: 'grapple', targetId: 'm1' }), 'Goblin A')).toBe(
+      'Grapple Goblin A',
+    );
+    expect(describeIntent(plan({ kind: 'shove', targetId: 'm1' }), 'Goblin A')).toBe(
+      'Shove Goblin A',
+    );
+    expect(describeIntent(plan({ kind: 'ready', note: 'when it rounds the corner' }))).toBe(
+      'Ready — “when it rounds the corner”',
+    );
+    expect(describeIntent(plan({ kind: 'item', itemName: 'Potion of Healing' }))).toBe(
+      'Use Potion of Healing',
+    );
+    expect(describeIntent(plan({ kind: 'item' }))).toBe('Use an item');
     expect(
       describeIntent(plan({ kind: 'cast', spellId: 'shield', spellName: 'Shield', note: 'third-level slot' })),
     ).toBe('Cast Shield — “third-level slot”');

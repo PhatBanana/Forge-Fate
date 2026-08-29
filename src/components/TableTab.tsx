@@ -161,7 +161,7 @@ import {
 import type { StrikeContext } from '../fightStrike';
 import { PlanComposer } from './PlanComposer';
 import { forecast } from '../engine/forecast';
-import { concentrationDc, damage, dash,   hpNow, moveBy,  awardXp, longRest, newTurn,  setTurnSlot, shortRest, startOfEncounter, tickConditions,   applyDeathSaveRoll } from '../play';
+import { concentrationDc, damage, dash,   hpNow, moveBy,  awardXp, longRest, newTurn,  setStance, setTurnSlot, shortRest, startOfEncounter, tickConditions,   applyDeathSaveRoll } from '../play';
 import { defaultRng, expectedTotal, parseNotation, rollD20 } from '../engine/dice';
 import { CONDITIONS, CONDITIONS_BY_ID, conditionTextFor } from '../data/conditions';
 import { hitChance } from '../engine/dpr';
@@ -5385,6 +5385,17 @@ export function TableTab({
         ? encounter.combatants.find((c) => c.id === plan.targetId)
         : undefined;
       const swingable = plan.kind === 'attack' && maySwingAt(target);
+      /*
+        §153: the grabs run too. `resolveGrab`'s engine half owns the reach,
+        the size rule and the refusals - a Run it out of reach logs the same
+        polite no a mis-click does, spending nothing - so the button only
+        asks for a live target. A shove runs as the push; the trip stays a
+        tool choice, because "which way" is the DM's ruling.
+      */
+      const grabbable =
+        (plan.kind === 'grapple' || plan.kind === 'shove') &&
+        !!target &&
+        (target.kind === 'monster' ? target.hp > 0 : true);
       return (
         <div className="plan-block is-up">
           <b>The plan</b>
@@ -5406,6 +5417,61 @@ export function TableTab({
                   resolveStrikes({ name: nameOf(active!), id: active!.id }, strikes, target, {
                     spendAction: true,
                   });
+                  setPlans(withdrawIntent(plans, selected.id));
+                }}
+              >
+                Run it
+              </button>
+            )}
+            {(plan.kind === 'grapple' || plan.kind === 'shove') && (
+              <button
+                className="btn btn-sm btn-primary"
+                disabled={!grabbable}
+                title={
+                  grabbable
+                    ? 'Roll the contest exactly as the grab tool would'
+                    : 'No target standing for it'
+                }
+                onClick={() => {
+                  if (!target) return;
+                  const { roster: next, events } = grappleResolve(
+                    fight,
+                    roster,
+                    selected.id,
+                    target.id,
+                    plan.kind === 'grapple' ? 'grapple' : 'push',
+                    sightContext,
+                  );
+                  playFightEvents(events);
+                  onChange(next);
+                  setPlans(withdrawIntent(plans, selected.id));
+                }}
+              >
+                Run it
+              </button>
+            )}
+            {plan.kind === 'ready' && (
+              <button
+                className="btn btn-sm btn-primary"
+                title="Take the Ready action: the pip is spent, the stance is set, the trigger is the note"
+                onClick={() => {
+                  const entry = roster.entries.find((e) => e.id === selected.rosterId);
+                  if (!entry) return;
+                  // One composed write, like every command: the stance, the
+                  // spent action and the log line together.
+                  let updated = updatePlay(
+                    roster,
+                    entry.id,
+                    setStance(setTurnSlot(entry.play, 'action', true), 'ready'),
+                  );
+                  updated = updateEncounter(
+                    updated,
+                    appendLog(
+                      activeEncounter(updated),
+                      `${nameOf(selected)} readies — ${plan.note?.trim() || 'trigger at the table'}.`,
+                    ),
+                  );
+                  onChange(updated);
                   setPlans(withdrawIntent(plans, selected.id));
                 }}
               >
@@ -5456,6 +5522,8 @@ export function TableTab({
         combatantId={selected.id}
         targets={targets.map((t) => ({ id: t.id, label: nameOf(t) }))}
         castable={castable}
+        /* §153: the same pack the seat sees, for the tablet passed across. */
+        carried={(derived.get(selected.rosterId)?.ctx.inventory.lines ?? []).map((l) => l.label)}
         plan={plan}
         onQueue={(intent) => {
           setPlans(queueIntent(plans, intent));

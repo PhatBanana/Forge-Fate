@@ -1,7 +1,7 @@
 import type { Roster } from './storage';
 import { updatePlay } from './storage';
 import type { PlayState } from './play';
-import { queueIntent, releaseSeat, withdrawIntent } from './seats';
+import { INTENT_KINDS, queueIntent, releaseSeat, withdrawIntent } from './seats';
 import type { Intent, Seat } from './seats';
 import type { CheckCall } from './checkCall';
 
@@ -385,9 +385,10 @@ export function resay(unsaid: Unsaid): TableMessage[] {
 
 const MAX_FRAME = 1_000_000;
 
-const INTENT_KINDS = new Set([
-  'attack', 'cast', 'move', 'dash', 'dodge', 'disengage', 'help', 'hide', 'other',
-]);
+/* §153: from the type's own module, because a hand-copied list here dropped
+   the first kind added after it was written - queued on the phone, refused
+   in transit, invisible to the DM. */
+const INTENT_KIND_SET = new Set<string>(INTENT_KINDS);
 
 export function isTableMessage(value: unknown): value is TableMessage {
   if (typeof value !== 'object' || value === null) return false;
@@ -409,7 +410,7 @@ export function isTableMessage(value: unknown): value is TableMessage {
         typeof intent === 'object' &&
         intent !== null &&
         typeof intent.combatantId === 'string' &&
-        INTENT_KINDS.has(intent.kind as string)
+        INTENT_KIND_SET.has(intent.kind as string)
       );
     }
     case 'play':

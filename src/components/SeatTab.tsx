@@ -298,6 +298,8 @@ export function SeatTab({
             combatantId={me.id}
             targets={targets.map((t) => ({ id: t.id, label: t.label }))}
             castable={ctx.spellcasting.castable}
+            /* §153: the pack, by label, so "use an item" names a real thing. */
+            carried={ctx.inventory.lines.map((l) => l.label)}
             plan={plan}
             onQueue={(intent) => {
               onQueue(intent);

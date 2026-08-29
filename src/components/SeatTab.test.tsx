@@ -4,7 +4,8 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SeatTab } from './SeatTab';
 import { fighter, rosterOf, wizard } from '../test/factories';
-import { addCharacter, emptyEncounter, nextTurn } from '../encounter';
+import { addCharacter, addMonster, emptyEncounter, nextTurn } from '../encounter';
+import { fixtureMonster } from '../test/fight';
 import { activeEncounter, updateEncounter } from '../storage';
 import type { Roster } from '../storage';
 import type { Intent, Seat } from '../seats';
@@ -159,6 +160,43 @@ describe('the fight from the chair', () => {
 
     expect(props.onQueue).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'cast', spellId: 'fireball', spellName: 'Fireball' }),
+    );
+  });
+
+  it('§153: grapples by name, readies with a trigger, and uses a thing from the pack', async () => {
+    const user = userEvent.setup();
+    const roster = rosterOf(fighter(), wizard());
+    let enc = emptyEncounter();
+    enc = addCharacter(enc, 'c0', { initiative: 20 });
+    enc = addCharacter(enc, 'c1', { initiative: 10 });
+    enc = addMonster(enc, fixtureMonster('goblin'), { rng: () => 0.5 });
+    enc = nextTurn(enc).encounter;
+    const withMonster = updateEncounter(roster, enc);
+    const goblinId = activeEncounter(withMonster).combatants.find(
+      (c) => c.kind === 'monster',
+    )!.id;
+    const props = seat({ roster: withMonster, seatId: 'c1' });
+
+    // A grab names its target the way an attack does.
+    await user.selectOptions(screen.getByLabelText('What you plan to do'), 'grapple');
+    await user.selectOptions(screen.getByLabelText('Who you plan to grab'), goblinId);
+    await user.click(screen.getByRole('button', { name: 'Queue it' }));
+    expect(props.onQueue).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'grapple', targetId: goblinId }),
+    );
+
+    // Ready asks for its trigger - the note IS the action.
+    await user.selectOptions(screen.getByLabelText('What you plan to do'), 'ready');
+    expect(screen.getByPlaceholderText(/the trigger/)).toBeInTheDocument();
+
+    // The pack is real: the picker lists what the sheet actually carries.
+    await user.selectOptions(screen.getByLabelText('What you plan to do'), 'item');
+    const pack = screen.getByLabelText('What you plan to use');
+    const first = within(pack).getAllByRole('option')[1] as HTMLOptionElement;
+    await user.selectOptions(pack, first.value);
+    await user.click(screen.getByRole('button', { name: 'Queue it' }));
+    expect(props.onQueue).toHaveBeenLastCalledWith(
+      expect.objectContaining({ kind: 'item', itemName: first.value }),
     );
   });
 

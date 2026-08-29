@@ -59,7 +59,42 @@ export type IntentKind =
   | 'disengage'
   | 'help'
   | 'hide'
+  /*
+    §153: the seat speaks more of the menu. Grapple and shove name a target
+    the way an attack does, and the DM can run them - §114's contest is a
+    click away. Ready carries its trigger in the note, because "when it
+    rounds the corner" is the whole of what a Ready action is. `item` names
+    something actually carried, so "I drink the potion" stops arriving as
+    free text the DM squints at.
+  */
+  | 'grapple'
+  | 'shove'
+  | 'ready'
+  | 'item'
   | 'other';
+
+/**
+ * §153: every kind, as a value the wire can check against. `sync.ts` kept
+ * its own hand-copied list, and the first new kind since it was written
+ * sailed off a phone and died at the boundary - queued locally, validated
+ * away in transit, never seen by the DM. One list, exported from where the
+ * type lives, and `satisfies` makes forgetting a kind a compile error.
+ */
+export const INTENT_KINDS = [
+  'attack',
+  'cast',
+  'move',
+  'dash',
+  'dodge',
+  'disengage',
+  'help',
+  'hide',
+  'grapple',
+  'shove',
+  'ready',
+  'item',
+  'other',
+] as const satisfies readonly IntentKind[];
 
 export interface Intent {
   id: string;
@@ -77,6 +112,9 @@ export interface Intent {
    */
   spellId?: string;
   spellName?: string;
+  /** §153: which carried thing, when the plan uses one - picked from the
+      character's own inventory, the way a spell is picked from the list. */
+  itemName?: string;
   /** The player's own words - the half of every plan no enum holds. */
   note?: string;
   at: number;
@@ -125,6 +163,14 @@ export function describeIntent(
         return 'Help';
       case 'hide':
         return 'Hide';
+      case 'grapple':
+        return `Grapple${targetName ? ` ${targetName}` : ''}`;
+      case 'shove':
+        return `Shove${targetName ? ` ${targetName}` : ''}`;
+      case 'ready':
+        return 'Ready';
+      case 'item':
+        return `Use ${intent.itemName ?? 'an item'}`;
       case 'other':
         return intent.note?.trim() ? '' : 'Something else';
     }

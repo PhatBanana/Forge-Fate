@@ -29,16 +29,22 @@ const VOICE = {
   seat: {
     kind: 'What you plan to do',
     attackTarget: 'Who you plan to attack',
+    grabTarget: 'Who you plan to grab',
     spell: 'What you plan to cast',
+    item: 'What you plan to use',
     note: 'In your own words',
     placeholder: 'in your own words',
+    trigger: 'the trigger — “when it rounds the corner”',
   },
   cockpit: {
     kind: 'What they plan to do',
     attackTarget: 'Who they plan to attack',
+    grabTarget: 'Who they plan to grab',
     spell: 'What they plan to cast',
+    item: 'What they plan to use',
     note: 'In their own words',
     placeholder: 'in their own words',
+    trigger: 'the trigger — “when it rounds the corner”',
   },
 } as const;
 
@@ -48,6 +54,7 @@ export function PlanComposer({
   combatantId,
   targets,
   castable,
+  carried = [],
   plan,
   onQueue,
   onWithdraw,
@@ -61,6 +68,9 @@ export function PlanComposer({
   targets: { id: string; label: string }[];
   /** What this character can cast - the caller's own derivation. */
   castable: Spell[];
+  /** §153: what this character carries, by label - the caller's own
+      inventory lines, so "use an item" names a real thing in the pack. */
+  carried?: string[];
   /** The plan already queued for this combatant, read back with Withdraw. */
   plan?: Intent;
   onQueue: (intent: Omit<Intent, 'id' | 'at'>) => void;
@@ -70,7 +80,11 @@ export function PlanComposer({
   const [kind, setKind] = useState<IntentKind>('attack');
   const [target, setTarget] = useState('');
   const [spell, setSpell] = useState('');
+  const [item, setItem] = useState('');
   const [note, setNote] = useState('');
+
+  /** §153: the kinds that point at somebody - one picker, three verbs. */
+  const takesTarget = kind === 'attack' || kind === 'grapple' || kind === 'shove';
 
   return (
     <div className="plan-block">
@@ -96,17 +110,24 @@ export function PlanComposer({
           <option value="attack">Attack</option>
           {/* §98: only a caster is offered the word. */}
           {castable.length > 0 && <option value="cast">Cast a spell</option>}
+          {/* §153: the grabs, which the DM can run (§114), and Ready, whose
+              trigger rides the note. An item only when there is a pack to
+              reach into. */}
+          <option value="grapple">Grapple</option>
+          <option value="shove">Shove</option>
           <option value="move">Move</option>
           <option value="dash">Dash</option>
           <option value="dodge">Dodge</option>
           <option value="disengage">Disengage</option>
+          <option value="ready">Ready</option>
           <option value="help">Help</option>
           <option value="hide">Hide</option>
+          {carried.length > 0 && <option value="item">Use an item</option>}
           <option value="other">Something else</option>
         </select>
-        {kind === 'attack' && (
+        {takesTarget && (
           <select
-            aria-label={voice.attackTarget}
+            aria-label={kind === 'attack' ? voice.attackTarget : voice.grabTarget}
             value={target}
             onChange={(e) => setTarget(e.target.value)}
           >
@@ -114,6 +135,20 @@ export function PlanComposer({
             {targets.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.label}
+              </option>
+            ))}
+          </select>
+        )}
+        {kind === 'item' && (
+          <select
+            aria-label={voice.item}
+            value={item}
+            onChange={(e) => setItem(e.target.value)}
+          >
+            <option value="">— pick from the pack —</option>
+            {carried.map((label) => (
+              <option key={label} value={label}>
+                {label}
               </option>
             ))}
           </select>
@@ -155,20 +190,24 @@ export function PlanComposer({
         <input
           type="text"
           aria-label={voice.note}
-          placeholder={voice.placeholder}
+          /* §153: a Ready action IS its trigger, so the note asks for one. */
+          placeholder={kind === 'ready' ? voice.trigger : voice.placeholder}
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
         <button
           className="btn btn-sm btn-primary"
-          disabled={(kind === 'attack' && !target) || (kind === 'cast' && !spell)}
+          disabled={
+            (takesTarget && !target) || (kind === 'cast' && !spell) || (kind === 'item' && !item)
+          }
           onClick={() => {
             const chosen = kind === 'cast' ? castable.find((s) => s.id === spell) : undefined;
             onQueue({
               combatantId,
               kind,
-              ...((kind === 'attack' || kind === 'cast') && target ? { targetId: target } : {}),
+              ...((takesTarget || kind === 'cast') && target ? { targetId: target } : {}),
               ...(chosen ? { spellId: chosen.id, spellName: chosen.name } : {}),
+              ...(kind === 'item' && item ? { itemName: item } : {}),
               ...(note.trim() ? { note: note.trim() } : {}),
             });
             setNote('');

@@ -185,6 +185,18 @@ describe('the unsaid pocket (§97)', () => {
       isTableMessage({ kind: 'intent', op: 'queue', intent: { combatantId: 'x', kind: 'cast' } }),
     ).toBe(true);
     expect(isTableMessage({ kind: 'intent', op: 'withdraw', combatantId: 'x' })).toBe(true);
+    /*
+      §153: every intent kind the type declares, not a hand-kept subset.
+      The guard's own copy of this list silently dropped the first new
+      kinds ever added - queued on the phone, refused in transit, invisible
+      to the DM - which is why it now derives from `INTENT_KINDS`.
+    */
+    for (const kind of ['grapple', 'shove', 'ready', 'item']) {
+      expect(
+        isTableMessage({ kind: 'intent', op: 'queue', intent: { combatantId: 'x', kind } }),
+        kind,
+      ).toBe(true);
+    }
     // And none of a stranger's.
     expect(isTableMessage(null)).toBe(false);
     expect(isTableMessage('hello')).toBe(false);
