@@ -1123,6 +1123,9 @@ export default function App() {
           /* §154: the flow's first card loads pairings with the same hand
              the old separate screen used. */
           onPairing={loadPairing}
+          /* §155: the done step's doors - the finished sheet, or the table
+             the character was built for. */
+          onFinished={(dest) => (dest === 'sheet' ? showView('sheet') : setTab('table'))}
         />
       )}
       <Suspense fallback={<TabLoading />}>

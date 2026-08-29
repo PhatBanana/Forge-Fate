@@ -9335,3 +9335,37 @@ replaced "edit in Builder").
 **Gates.** 2724 tests / 135 files, tsc, oxlint, build in budget; run154
 walks Start blank → Who you are → load a pairing → the flow moves on,
 both themes; §92-§96 wire probes and run75 re-run clean.
+
+## 155. A name and a curtain call
+
+Asked whether the Builder's flow makes sense next to the creators players
+already know - Elder Scrolls, Cyberpunk, Baldur's Gate - the honest answer
+was: the decision arc matches them and in places beats them, but the games
+nail two emotional beats this flow lacked. You could finish a whole
+character called nothing, and the flow ended on "What is wrong with this
+build" - an audit where every game puts a confirmation. Mechanically right,
+emotionally a cold ending.
+
+**The naming, asked last on purpose.** A new waiting choice, open while
+`build.name` is blank, pushed to the end of the walk: by then the player
+knows who they built, and a name chosen after the choices is a christening
+where one chosen before them is a placeholder. The card is one field set
+like a small ceremony - typed locally and committed on the button, because
+the step list is derived and a controlled input writing the build per
+keystroke would close the step on the first letter and yank the card
+mid-word.
+
+**The curtain call.** A `done` step that exists only when nothing is
+waiting - it cannot lie, and since the name is itself a waiting choice,
+the card always has a name to announce: "Sir Probe is ready · fills a
+chair at the table." Under it, the confirm-screen summary (species, class
+and level, AC, hit points), a plain note when the review holds findings -
+notes do not stop a christening, but they are said - and two doors:
+Read the sheet, and To the table. The review stays one step back as the
+last check; the done step is the birth after it.
+
+**Gates.** 2727 tests / 135 files, tsc, oxlint, build in budget. run155 is
+the flow's definitive probe now: Start blank → Who you are → every choice
+answered (ranked steps by their top pick, forms on the dense page, the
+naming in the card) → the curtain call by name → the sheet door, both
+themes. run75 and run154 re-run clean.

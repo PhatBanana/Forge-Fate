@@ -16,7 +16,14 @@ export type GuidedStep =
   | ({ kind: 'choice'; id: string; title: string; target: string; blurb: string } & {
       choice: WaitingChoice;
     })
-  | { kind: 'review'; id: 'review'; title: string; target: string; blurb: string };
+  | { kind: 'review'; id: 'review'; title: string; target: string; blurb: string }
+  /*
+    §155: the curtain call. Every game's character creator ends on a
+    confirmation - "this is who you are, begin" - and this flow ended on an
+    audit. The done step only exists once nothing is waiting, so it cannot
+    lie; the review stays one step back, still the last *check*.
+  */
+  | { kind: 'done'; id: 'done'; title: string; target: string; blurb: string };
 
 /**
  * The steps, from the character as it stands.
@@ -27,6 +34,8 @@ export type GuidedStep =
 export function guidedStepsFor(
   waiting: WaitingChoice[],
   levelUp: LevelUpSummary | null,
+  /** §155: the character's name, for the done step's title. */
+  name = '',
 ): GuidedStep[] {
   const steps: GuidedStep[] = [];
   if (levelUp) {
@@ -60,6 +69,22 @@ export function guidedStepsFor(
     blurb:
       'Mistakes, not unfinished business. The band above already told you what is unchosen; these are the things that will not fix themselves.',
   });
+  /*
+    §155: only when nothing is waiting - the `name` step is one of the
+    waiting choices, so by the time this card exists the character has a
+    name to be announced by.
+  */
+  if (waiting.length === 0) {
+    steps.push({
+      kind: 'done',
+      id: 'done',
+      title: name.trim() ? `${name.trim()} is ready` : 'Ready',
+      // Rendered as "fills a chair at the table", which is the truth.
+      target: 'a chair at the table',
+      blurb:
+        'Every choice is made. The sheet below is the whole of them; the review one step back is the last check.',
+    });
+  }
   return steps;
 }
 

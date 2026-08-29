@@ -233,6 +233,22 @@ export function waitingChoices(ctx: BuildContext): WaitingChoice[] {
     'ranked',
   );
 
+  /*
+    §155: the name, asked last on purpose. Every game's creator makes naming
+    a ritual - Elder Scrolls asks in-fiction, Baldur's Gate ends on it - and
+    this flow could finish a whole character called nothing. Last rather than
+    first because by now the player knows who they built; a name chosen
+    before the choices is a placeholder, one chosen after them is a christening.
+  */
+  add(
+    'name',
+    'identity',
+    build.name.trim() ? 0 : 1,
+    'What are you called?',
+    'the identity band',
+    'form',
+  );
+
   return out;
 }
 

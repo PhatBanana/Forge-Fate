@@ -9172,6 +9172,41 @@ input.pcard-amount {
   gap: 10px;
 }
 
+/* §155: the naming - one field set like a small ceremony, and the curtain
+   call under the announced name. */
+.flow-name {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 14px 15px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.flow-name input {
+  flex: 1;
+  min-width: 220px;
+  font-size: 18px;
+  padding: 8px 10px;
+}
+
+.flow-done {
+  display: grid;
+  gap: 10px;
+  padding: 16px 15px;
+  background: var(--bg-raised);
+  border: 1px solid var(--accent);
+  border-radius: 9px;
+}
+
+.flow-done-line {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
 .flow-who > p {
   display: flex;
   align-items: center;

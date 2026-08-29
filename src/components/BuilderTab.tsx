@@ -114,6 +114,7 @@ export function BuilderTab({
   onChange,
   onPlayChange,
   onPairing,
+  onFinished,
 }: {
   build: Build;
   ctx: BuildContext;
@@ -145,6 +146,11 @@ export function BuilderTab({
     used), passed down so the flow's first card can offer it.
   */
   onPairing: (raceId: string, classId: ClassId) => void;
+  /*
+    §155: the done step's doors - read the finished sheet, or carry the
+    character to the table. Navigation is App's, so the destinations go up.
+  */
+  onFinished: (dest: 'sheet' | 'table') => void;
 }) {
   const patch = (partial: Partial<Build>) => onChange({ ...build, ...partial });
 
@@ -239,7 +245,15 @@ export function BuilderTab({
   const openChoices = openChoicesBySection(ctx);
   /* §138: the same facts at the grain the flow asks them at. Derived rather
      than held - see `stepIx` above for why that is what advances the flow. */
-  const steps = guidedStepsFor(waitingChoices(ctx), levelUp);
+  const steps = guidedStepsFor(waitingChoices(ctx), levelUp, build.name);
+
+  /*
+    §155: the name step's scratch. Local rather than bound to the build,
+    because a controlled input writing `build.name` per keystroke would
+    close the step on the first letter - the list is derived, so the card
+    would jump mid-word. Typed here, christened on the button.
+  */
+  const [nameDraft, setNameDraft] = useState('');
   // Counted from the badges rather than from the findings, so the sentence in
   // the review and the numbers in the nav cannot disagree.
   const stillOpen = Object.values(openChoices).reduce((sum, n) => sum + n, 0);
@@ -414,6 +428,71 @@ export function BuilderTab({
           {step?.kind === 'review' && <ReviewFindings findings={problems} />}
 
           {/*
+            §155: the curtain call. A summary a game's confirm screen would
+            show, and two doors - the sheet to read, the table to play at.
+            The review stays one step back: notes do not stop a christening,
+            but they are said rather than hidden.
+          */}
+          {step?.kind === 'done' && (
+            <div className="flow-done">
+              <p className="flow-done-line">
+                {ctx.race.name} ·{' '}
+                {ctx.slices
+                  .map((slice) => `${slice.klass.name} ${slice.entry.level}`)
+                  .join(' / ')}{' '}
+                · AC {ctx.ac.total} · {ctx.hp.total} hit points
+              </p>
+              {problems.length > 0 && (
+                <p className="muted">
+                  The review one step back holds {problems.length}{' '}
+                  {problems.length === 1 ? 'note' : 'notes'} — a ready character can still
+                  carry notes.
+                </p>
+              )}
+              <span className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-primary"
+                  onClick={() => onFinished('sheet')}
+                >
+                  Read the sheet
+                </button>
+                <button type="button" className="btn btn-sm" onClick={() => onFinished('table')}>
+                  To the table →
+                </button>
+              </span>
+            </div>
+          )}
+
+          {/*
+            §155: the naming, as a beat rather than a field. Committed on the
+            button, not per keystroke - the step list is derived, and a step
+            that vanished on the first letter would yank the card mid-word.
+          */}
+          {step?.kind === 'choice' && step.choice.id === 'name' && (
+            <div className="flow-name">
+              <input
+                type="text"
+                aria-label="Character name"
+                placeholder="the name the table will call them"
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && nameDraft.trim()) patch({ name: nameDraft.trim() });
+                }}
+              />
+              <button
+                type="button"
+                className="btn btn-sm btn-primary"
+                disabled={!nameDraft.trim()}
+                onClick={() => patch({ name: nameDraft.trim() })}
+              >
+                Name them
+              </button>
+            </div>
+          )}
+
+          {/*
             §154: the first question, in full. The species × class explorer
             was a separate screen you had to know to visit; on an untouched
             sheet it IS the opening step. Loading a pairing brings its own
@@ -449,6 +528,7 @@ export function BuilderTab({
 
           {step?.kind === 'choice' &&
             step.choice.id !== 'who' &&
+            step.choice.id !== 'name' &&
             (ranked ? (
               <div className="flow-opts">
                 {ranked.picks.map((pick, index) => {

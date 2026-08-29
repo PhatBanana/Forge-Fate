@@ -47,6 +47,14 @@ describe('what each section is still waiting on', () => {
     expect(openChoicesBySection(deriveBuild(spent)).abilities).toBe(0);
   });
 
+  it('§155: asks for a name, last, and only while there is none', () => {
+    const waiting = waitingChoices(deriveBuild({ ...blank(), name: '' }));
+    expect(waiting[waiting.length - 1]?.id).toBe('name');
+    expect(
+      waitingChoices(deriveBuild({ ...blank(), name: 'Thistle' })).some((c) => c.id === 'name'),
+    ).toBe(false);
+  });
+
   it('§154: asks who you are first, and stops asking once the sheet is touched', () => {
     // The species × class question opens the flow - it was a separate
     // screen, and a first question that lives somewhere else is not first.

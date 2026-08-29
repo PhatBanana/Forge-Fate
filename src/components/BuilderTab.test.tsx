@@ -7,6 +7,7 @@ import { deriveBuild } from '../engine/character';
 import type { Build } from '../types';
 import { buildOf, fighter, warlockSorcerer } from '../test/factories';
 import { defaultDefenses } from '../engine/defense';
+import { waitingChoices } from './sections';
 import { emptyPlay } from '../play';
 
 /**
@@ -31,6 +32,7 @@ function setup(build: Build, view: 'flow' | 'page' = 'page') {
   const onChange = vi.fn();
   const onPlayChange = vi.fn();
   const onPairing = vi.fn();
+  const onFinished = vi.fn();
   let current = build;
 
   const props = () => ({
@@ -42,6 +44,7 @@ function setup(build: Build, view: 'flow' | 'page' = 'page') {
     onChange,
     onPlayChange,
     onPairing,
+    onFinished,
   });
   const rendered = render(<BuilderTab {...props()} />);
   onChange.mockImplementation((next: Build) => {
@@ -52,6 +55,7 @@ function setup(build: Build, view: 'flow' | 'page' = 'page') {
   return {
     onChange,
     onPairing,
+    onFinished,
     get build() {
       return current;
     },
@@ -1203,6 +1207,50 @@ describe('the guided flow', () => {
     inventing the scores too. The step says so and carries the way through
     rather than being a dead end in the middle of a flow.
   */
+  it('§155: asks for a name near the end, and the christening closes the step', async () => {
+    const unnamed = buildOf({ ...fighter(5), name: '' });
+    const view = setup(unnamed, 'flow');
+    // The pip is there, late in the walk - naming comes after the choices.
+    await userEvent.click(screen.getByRole('button', { name: /what are you called/i }));
+    expect(within(card()).getByText('What are you called?')).toBeInTheDocument();
+    // Typed locally, committed on the button - a step that vanished on the
+    // first keystroke would yank the card mid-word.
+    await userEvent.type(within(card()).getByLabelText('Character name'), 'Thistle');
+    expect(view.onChange).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Name them' }));
+    expect(view.build.name).toBe('Thistle');
+    // The step is answered and gone from the walk.
+    expect(screen.queryByRole('button', { name: /what are you called/i })).toBeNull();
+  });
+
+  it('§155: ends on the curtain call once nothing is waiting, doors and all', async () => {
+    // A fighter with every choice made: background, skills, style, language,
+    // the level-4 slot, and the loadout the factory already carries.
+    const finished = buildOf({
+      ...fighter(5),
+      backgroundId: 'soldier',
+      // Not Athletics/Intimidation - the soldier background grants those,
+      // and a duplicated pick leaves the class's own picks open.
+      skillIds: ['perception', 'survival'],
+      classOptionIds: ['defense'],
+      languages: ['Dwarvish'],
+      asiPicks: [['str', 'con']],
+    });
+    // The fixture must actually be finished, or the card honestly refuses
+    // to exist - assert that first so a data drift fails loudly here.
+    expect(waitingChoices(deriveBuild(finished))).toEqual([]);
+
+    const view = setup(finished, 'flow');
+    await userEvent.click(screen.getByRole('button', { name: /is ready/i }));
+    expect(within(card()).getByText(/Basher is ready/)).toBeInTheDocument();
+    // The confirm screen's summary, and the two doors out.
+    expect(card().querySelector('.flow-done-line')!.textContent).toMatch(/AC \d+ · \d+ hit points/);
+    await userEvent.click(within(card()).getByRole('button', { name: 'Read the sheet' }));
+    expect(view.onFinished).toHaveBeenCalledWith('sheet');
+    await userEvent.click(within(card()).getByRole('button', { name: 'To the table →' }));
+    expect(view.onFinished).toHaveBeenCalledWith('table');
+  });
+
   it('says plainly when a step is a form rather than a ranking', () => {
     // Scores spent, so §154's opening step is answered and the first thing
     // waiting is the background - a form step.
