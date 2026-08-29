@@ -289,8 +289,19 @@ function weaponDiceAverage(
 ): number {
   const { count, die } = parseDice(dice);
   if (count === 0) return 0;
-  const heavyEnough = weapon.properties.includes('two-handed') || !!weapon.versatileDie;
-  if (greatWeaponFighting && heavyEnough) return count * averageWithReroll(die);
+  /*
+    §152: the style is for "a melee weapon that you are wielding with two
+    hands" - both words load-bearing. A longbow is two-handed and not melee;
+    a longsword beside a shield is melee and in one hand. The versatile half
+    is read off the dice actually being rolled: the attack line only carries
+    the bigger die when the grip is two-handed, so `die === versatileDie`
+    *is* the grip.
+  */
+  const twoHandedMelee =
+    weapon.melee &&
+    (weapon.properties.includes('two-handed') ||
+      (!!weapon.versatileDie && die === weapon.versatileDie));
+  if (greatWeaponFighting && twoHandedMelee) return count * averageWithReroll(die);
   return averageDice(count, die);
 }
 
@@ -366,9 +377,16 @@ function smiteDice(slices: ClassSlice[]): number {
     .filter((s) => s.klass.id === 'paladin')
     .reduce((n, s) => n + s.entry.level, 0);
   if (paladin < 2) return 0;
-  // Slot level roughly tracks half the Paladin's level, capped at 5th.
-  const slot = Math.min(5, Math.max(1, Math.floor(paladin / 2)));
-  return 1 + slot; // 2d8 at 1st, one more die per level above
+  /*
+    §152: a half caster's highest slot tracks a *quarter* of their level -
+    2nd slots at Paladin 5, 3rd at 9, 4th at 13, 5th at 17 - and Smite adds
+    one die per slot level above 1st **to a maximum of 5d8**. This used to
+    read half the level as the slot and skip the cap, which had a Paladin 9
+    smiting at 5d8 (real: 4d8) and a Paladin 10 at 6d8, past what any slot
+    can buy.
+  */
+  const slot = Math.min(5, Math.ceil(paladin / 4));
+  return 1 + Math.min(4, slot); // 2d8 at 1st, one more die per level above, capped at 5d8
 }
 
 // ------------------------------------------------------------------ the model

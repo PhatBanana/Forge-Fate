@@ -387,6 +387,29 @@ describe('the attack line', () => {
     expect(withStyle(hold('longsword', 'dagger'))).toBe(3); // second weapon, no style
   });
 
+  it('§152: Duelling keeps the one-handed grip, so the versatile die stays down', () => {
+    // Duelling requires wielding in one hand; taking the d10 *and* the +2
+    // was modelling a grip that satisfies neither rule. The style wins
+    // because +2 flat beats the die step (worth 1 on average).
+    const [main] = attacks({ classOptionIds: ['dueling'] });
+    expect(main.damage.dice).toBe('1d8');
+    expect(main.damage.bonus).toBe(5);
+  });
+
+  it('§152: notes Great Weapon Fighting only on a two-handed melee grip', () => {
+    const note = (weapons: Build['weapons'], shield = false) =>
+      attacks({
+        weapons,
+        classOptionIds: ['great-weapon-fighting'],
+        ...(shield ? { defenses: { ...emptyBuild().defenses, shield: true } } : {}),
+      })[0].notes.join(' ');
+    expect(note(hold('greatsword'))).toContain('reroll 1s and 2s');
+    expect(note(hold('longsword'))).toContain('reroll 1s and 2s'); // versatile, both hands free
+    // "A melee weapon that you are wielding with two hands" - both words.
+    expect(note(hold('longbow'))).not.toContain('reroll'); // two-handed, not melee
+    expect(note(hold('longsword'), true)).not.toContain('reroll'); // one hand, shield in the other
+  });
+
   it('gives the off-hand attack no ability modifier without Two-Weapon Fighting', () => {
     const both = attacks({ weapons: hold('shortsword', 'shortsword') });
     expect(both).toHaveLength(2);

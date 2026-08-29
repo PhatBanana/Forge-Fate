@@ -103,6 +103,53 @@ export function shoveContest(
   };
 }
 
+// ---------------------------------------------------------------- 2024 saves
+
+/**
+ * §152: 2024 replaced the contest. A grapple or shove there is an Unarmed
+ * Strike option: no roll from the attacker at all - the target makes a
+ * Strength **or** Dexterity saving throw (its choice, so its better) against
+ * a DC of 8 + the attacker's Strength modifier + their Proficiency Bonus.
+ * The same DC is what an escape attempt is measured against later, which is
+ * why it is its own function rather than three inline additions.
+ */
+export function grabDc(strMod: number, proficiency: number): number {
+  return 8 + strMod + proficiency;
+}
+
+/** How the target's save against a 2024 grab came out. */
+export interface GrabSave {
+  dc: number;
+  roll: number;
+  /** Which save they chose to make - the better of the two, like a contest's defender. */
+  used: 'STR save' | 'DEX save';
+  /** Whether the *save* succeeded - the grab lands when this is false. */
+  success: boolean;
+}
+
+/**
+ * The target's saving throw against a 2024 grapple or shove.
+ *
+ * Meeting the DC succeeds, as every save does - unlike the 2014 contest,
+ * where a tie kept things as they were. Two mechanics, two tie rules, both
+ * printed.
+ */
+export function saveAgainstGrab(
+  dc: number,
+  targetStrSave: number,
+  targetDexSave: number,
+  rng: Rng,
+): GrabSave {
+  const useDex = targetDexSave > targetStrSave;
+  const roll = rollD20(useDex ? targetDexSave : targetStrSave, 'normal', rng).total;
+  return {
+    dc,
+    roll,
+    used: useDex ? 'DEX save' : 'STR save',
+    success: roll >= dc,
+  };
+}
+
 /**
  * The square five feet directly away from the shover.
  *

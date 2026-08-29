@@ -6,14 +6,22 @@ import type { Roster } from './storage';
 import { moveBy, setPlayConditionSource, setTurnSlot, toggleCondition } from './play';
 import { defaultRng, rollD20 } from './engine/dice';
 import type { Rng } from './engine/dice';
-import { GRAPPLED, canGrapple, escapeContest } from './engine/grapple';
+import { GRAPPLED, canGrapple, escapeCheck, escapeContest } from './engine/grapple';
 import type { GrabMode } from './engine/grapple';
-import { canShove, fallDamage, fallFeet, pushedTo, shoveContest } from './engine/shove';
+import {
+  canShove,
+  fallDamage,
+  fallFeet,
+  grabDc,
+  pushedTo,
+  saveAgainstGrab,
+  shoveContest,
+} from './engine/shove';
 import { walkable } from './engine/sight';
 import type { SightContext } from './engine/sight';
 import { elevationAt } from './terrain';
 import { combatantName } from './hitPoints';
-import { grapplerOf, heldBy, sizeOf, skillBonusFor } from './fightFacts';
+import { grapplerOf, heldBy, rulesetOf, saveBonusFor, sizeOf, skillBonusFor } from './fightFacts';
 import { monsterMod } from './data/monsters';
 import type { FightView } from './fightFacts';
 import { movementLeftFor, speedOf, standUpCostFor } from './fightMovement';
@@ -82,6 +90,22 @@ function setHeld(roster: Roster, id: string, byWhom: string | undefined): Roster
 
 const holdOn = (roster: Roster, id: string, byWhom: string): Roster =>
   setHeld(roster, id, byWhom);
+
+/**
+ * §152: the 2024 grab DC - 8 + the grabber's Strength modifier + their
+ * Proficiency Bonus, from whichever side owns the numbers. A stat block
+ * without a printed proficiency bonus reads +2, the floor every creature
+ * has.
+ */
+function grabDcFor(view: FightView, c: Combatant): number {
+  if (c.kind === 'monster') {
+    const monster = view.monsterById(c.monsterId);
+    if (!monster) return grabDc(0, 2);
+    return grabDc(monsterMod(monster.scores.str), monster.proficiencyBonus ?? 2);
+  }
+  const ctx = view.buildOf(c.rosterId);
+  return ctx ? grabDc(ctx.mods.str, ctx.proficiency) : grabDc(0, 2);
+}
 
 /** Let go: the condition off and the source cleared, so nothing is left
     pointing at a grappler who is no longer holding anybody. */
@@ -156,15 +180,37 @@ export function resolveGrab(
     );
   }
 
-  const contest = shoveContest(
-    skillBonusFor(view, shover, 'athletics', 'str'),
-    skillBonusFor(view, target, 'athletics', 'str'),
-    skillBonusFor(view, target, 'acrobatics', 'dex'),
-    rng,
-  );
-  const roll = `Athletics ${contest.shoverRoll} vs ${contest.targetUsed} ${contest.targetRoll}`;
+  /*
+    §152: which mechanic resolves the try is the attacker's edition - the
+    same per-combatant answer exhaustion reads, because it is their Unarmed
+    Strike option (2024) or their contest (2014) being taken. 2014 rolls
+    Athletics against the defender's better skill; 2024 rolls nothing and
+    the target saves against a DC.
+  */
+  let success: boolean;
+  let roll: string;
+  if (rulesetOf(view, shover) === '2024') {
+    const dc = grabDcFor(view, shover);
+    const save = saveAgainstGrab(
+      dc,
+      saveBonusFor(view, target, 'str') ?? 0,
+      saveBonusFor(view, target, 'dex') ?? 0,
+      rng,
+    );
+    success = !save.success;
+    roll = `${save.used} ${save.roll} vs DC ${dc}`;
+  } else {
+    const contest = shoveContest(
+      skillBonusFor(view, shover, 'athletics', 'str'),
+      skillBonusFor(view, target, 'athletics', 'str'),
+      skillBonusFor(view, target, 'acrobatics', 'dex'),
+      rng,
+    );
+    success = contest.success;
+    roll = `Athletics ${contest.shoverRoll} vs ${contest.targetUsed} ${contest.targetRoll}`;
+  }
 
-  if (!contest.success) {
+  if (!success) {
     return finish(
       appendLog(
         encounter,
@@ -264,19 +310,40 @@ export function escapeGrapple(
 ): Roster {
   const grappler = grapplerOf(view, c);
   if (!grappler) return roster;
-  const out = escapeContest(
-    skillBonusFor(view, c, 'athletics', 'str'),
-    skillBonusFor(view, c, 'acrobatics', 'dex'),
-    skillBonusFor(view, grappler, 'athletics', 'str'),
-    rng,
-  );
-  const roll = `${out.escapeeUsed} ${out.escapeeRoll} vs Athletics ${out.grapplerRoll}`;
-  let updated = out.success ? letGo(roster, c.id) : roster;
+  /*
+    §152: the escape is measured the way the hold was made - the grappler's
+    edition set the mechanic going in, so it sets the way out. 2024 is a
+    check against the grapple DC, nobody re-rolls the grip; 2014 is a fresh
+    contest with ties to the grappler.
+  */
+  let success: boolean;
+  let roll: string;
+  if (rulesetOf(view, grappler) === '2024') {
+    const dc = grabDcFor(view, grappler);
+    const out = escapeCheck(
+      dc,
+      skillBonusFor(view, c, 'athletics', 'str'),
+      skillBonusFor(view, c, 'acrobatics', 'dex'),
+      rng,
+    );
+    success = out.success;
+    roll = `${out.escapeeUsed} ${out.roll} vs DC ${dc}`;
+  } else {
+    const out = escapeContest(
+      skillBonusFor(view, c, 'athletics', 'str'),
+      skillBonusFor(view, c, 'acrobatics', 'dex'),
+      skillBonusFor(view, grappler, 'athletics', 'str'),
+      rng,
+    );
+    success = out.success;
+    roll = `${out.escapeeUsed} ${out.escapeeRoll} vs Athletics ${out.grapplerRoll}`;
+  }
+  let updated = success ? letGo(roster, c.id) : roster;
   updated = updateEncounter(
     updated,
     appendLog(
       activeEncounter(updated),
-      out.success
+      success
         ? `${combatantName(c, roster)} breaks out of ${combatantName(grappler, roster)}'s grip — ${roll}.`
         : `${combatantName(c, roster)} struggles against ${combatantName(grappler, roster)} — ${roll}: still held.`,
     ),

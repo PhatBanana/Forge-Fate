@@ -354,9 +354,16 @@ function oneAttack(weapon: Weapon, hand: 'main' | 'off', input: AttackInput): At
   }
 
   // --- damage ----------------------------------------------------------------
-  // Versatile only pays out when the other hand is free.
+  // Versatile only pays out when the other hand is free - and §152: not when
+  // the Duelling style is in play, because Duelling requires wielding in one
+  // hand and its +2 beats the die step (a d8 to a d10 is worth 1). Taking
+  // both at once was modelling a grip that satisfies neither rule.
   const twoHandedGrip =
-    !!weapon.versatileDie && hand === 'main' && !input.loadouts.offHand && !input.loadouts.shield;
+    !!weapon.versatileDie &&
+    hand === 'main' &&
+    !input.loadouts.offHand &&
+    !input.loadouts.shield &&
+    !options.has('dueling');
   // Shillelagh sets the die to a d8 outright. A quarterstaff held in two hands
   // is already there, so it changes nothing but the ability; a club goes from
   // a d4, which is most of the point.
@@ -392,7 +399,14 @@ function oneAttack(weapon: Weapon, hand: 'main' | 'off', input: AttackInput): At
     bonus += 2;
     damageLines.push({ label: 'Thrown Weapon Fighting style', value: 2 });
   }
-  if (options.has('great-weapon-fighting') && (isTwoHanded(weapon) || weapon.versatileDie)) {
+  // §152: "a melee weapon that you are wielding with two hands" - so not a
+  // longbow (two-handed, not melee), and not a versatile weapon gripped in
+  // one hand. The damage model reads the same grip off the die.
+  if (
+    options.has('great-weapon-fighting') &&
+    weapon.melee &&
+    (isTwoHanded(weapon) || twoHandedGrip)
+  ) {
     notes.push('Great Weapon Fighting: reroll 1s and 2s on the damage dice.');
   }
 

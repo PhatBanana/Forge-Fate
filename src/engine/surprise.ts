@@ -29,11 +29,17 @@
  *
  * ## What being surprised costs
  *
- * "You can't move or take an action on your first turn of the combat, and
- * you can't take a reaction until that turn ends." Not a lost turn - the
- * turn happens, and everything in it is spent before it starts. That is how
- * the battle screen applies it, because the app already models a spent
- * action economy and a spent one is exactly what this is.
+ * The one thing the editions disagree about, so the cost lives with the
+ * battle screen and this module only answers *who* is caught.
+ *
+ * **2014**: "You can't move or take an action on your first turn of the
+ * combat, and you can't take a reaction until that turn ends." Not a lost
+ * turn - the turn happens, and everything in it is spent before it starts,
+ * which the app models as a spent action economy.
+ *
+ * **2024** (§152): the lost turn is gone. Being surprised is disadvantage
+ * on your initiative roll, and nothing else - you act late, but you act.
+ * The battle screen branches per combatant, the way exhaustion does.
  *
  * ## What this refuses to decide
  *

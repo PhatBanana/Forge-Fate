@@ -268,9 +268,13 @@ describe('spells known and prepared', () => {
     expect(cast(build({ classes: [{ classId: 'sorcerer', level: 20 }] })).spellsKnown).toBe(15);
   });
 
-  it('prepares off half a level for a half caster', () => {
+  it('prepares off half a level for a half caster, rounded down', () => {
     // Paladin 10 with CHA 16 (+3) prepares 3 + 5 = 8.
     expect(cast(build({ classes: [{ classId: 'paladin', level: 10, subclassId: 'devotion' }] })).spellsPrepared).toBe(8);
+    // §152: "half your paladin level, rounded down" - a Paladin 9 prepares
+    // 3 + 4 = 7, not 8. The slot table's own rounding goes the other way,
+    // which is exactly why this one has to be written down.
+    expect(cast(build({ classes: [{ classId: 'paladin', level: 9, subclassId: 'devotion' }] })).spellsPrepared).toBe(7);
   });
 
   it('counts cantrips off the class table', () => {
@@ -324,6 +328,27 @@ describe('which spells a character can draw from', () => {
   it('says nothing when every spell is legal', () => {
     const b = build({ classes: [{ classId: 'wizard', level: 5 }], spellIds: ['fireball'] });
     expect(reconcileSpells(b, cast(b)).changes).toEqual([]);
+  });
+
+  it('§152: caps each list at what that class alone could learn', () => {
+    // The multiclass rule: "you determine what spells you know and can
+    // prepare for each class individually, as if you were a single-classed
+    // member of that class". A Wizard 1 / Cleric 9 has 5th-level slots and
+    // may put Cleric spells in them - but the spellbook still tops out at
+    // 1st, because a Wizard 1's does.
+    const multi = cast(
+      build({
+        classes: [
+          { classId: 'wizard', level: 1 },
+          { classId: 'cleric', level: 9 },
+        ],
+      }),
+    );
+    expect(multi.highestLevel).toBe(5); // the shared pool is real
+    const ids = multi.available.map((s) => s.id);
+    expect(ids).toContain('mass-cure-wounds'); // Cleric 5th, within the Cleric's own table
+    expect(ids).toContain('magic-missile'); // Wizard 1st
+    expect(ids).not.toContain('fireball'); // Wizard 3rd - a Wizard 1 cannot learn it
   });
 });
 

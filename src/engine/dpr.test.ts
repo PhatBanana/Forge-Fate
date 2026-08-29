@@ -195,6 +195,49 @@ describe('damage per round, end to end', () => {
     expect(paladin.lines.some((l) => l.label.includes('Divine Smite'))).toBe(true);
   });
 
+  it("§152: smite reads the half caster's real slots, and stops at 5d8", () => {
+    const smiteLabel = (level: number) =>
+      dprOf({
+        classes: [{ classId: 'paladin', level }],
+        weapons: { mainHandId: 'longsword', magicBonus: {} },
+      }).lines.find((l) => l.label.includes('Divine Smite'))!.label;
+    expect(smiteLabel(5)).toContain('3d8'); // 2nd-level slots at Paladin 5
+    expect(smiteLabel(9)).toContain('4d8'); // 3rd at 9 - not the half-the-level read
+    expect(smiteLabel(13)).toContain('5d8'); // 4th at 13, which is already the cap
+    expect(smiteLabel(20)).toContain('5d8'); // bigger slots buy nothing past it
+  });
+
+  it('§152: Great Weapon Fighting rerolls only a two-handed melee grip', () => {
+    // The style reads "a melee weapon that you are wielding with two hands".
+    // Compared at one AC; the reroll is worth about 0.67 a die on a d6.
+    const sustainedAt15 = (weapons: Build['weapons'], shield = false) =>
+      dprOf({
+        classes: [{ classId: 'fighter', level: 5 }],
+        classOptionIds: ['great-weapon-fighting'],
+        weapons,
+        ...(shield ? { defenses: { ...emptyBuild().defenses, shield: true } } : {}),
+      }).curve.find((c) => c.ac === 15)!.sustained;
+    const plainAt15 = (weapons: Build['weapons'], shield = false) =>
+      dprOf({
+        classes: [{ classId: 'fighter', level: 5 }],
+        weapons,
+        ...(shield ? { defenses: { ...emptyBuild().defenses, shield: true } } : {}),
+      }).curve.find((c) => c.ac === 15)!.sustained;
+
+    // A greatsword gains from the style.
+    expect(sustainedAt15({ mainHandId: 'greatsword', magicBonus: {} })).toBeGreaterThan(
+      plainAt15({ mainHandId: 'greatsword', magicBonus: {} }),
+    );
+    // A longbow is two-handed and not melee: no reroll.
+    expect(sustainedAt15({ mainHandId: 'longbow', magicBonus: {} })).toBe(
+      plainAt15({ mainHandId: 'longbow', magicBonus: {} }),
+    );
+    // A longsword beside a shield is melee and in one hand: no reroll.
+    expect(sustainedAt15({ mainHandId: 'longsword', magicBonus: {} }, true)).toBe(
+      plainAt15({ mainHandId: 'longsword', magicBonus: {} }, true),
+    );
+  });
+
   it('reads a caster with no weapon as casting, not as doing nothing', () => {
     const noSpells = dprOf({
       classes: [{ classId: 'wizard', level: 5 }],

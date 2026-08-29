@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canGrapple, dragSpeed, escapeContest, grappleEnds, END_REASON } from './grapple';
+import { canGrapple, dragSpeed, escapeCheck, escapeContest, grappleEnds, END_REASON } from './grapple';
 import { speedUnderConditions } from './advantage';
 import type { Rng } from './dice';
 
@@ -46,6 +46,16 @@ describe('escaping', () => {
     const out = escapeContest(3, 0, 3, rolls(12, 12));
     expect(out.escapeeRoll).toBe(out.grapplerRoll);
     expect(out.success).toBe(false);
+  });
+
+  it('§152: escapes a 2024 hold against the DC, with nobody re-rolling the grip', () => {
+    // Athletics +1, Acrobatics +4 - the better one wriggles, and meeting
+    // the DC is enough, unlike the contest's tie-to-the-grappler.
+    const out = escapeCheck(14, 1, 4, rolls(10));
+    expect(out.escapeeUsed).toBe('Acrobatics');
+    expect(out.roll).toBe(14);
+    expect(out.success).toBe(true);
+    expect(escapeCheck(15, 1, 4, rolls(10)).success).toBe(false);
   });
 });
 

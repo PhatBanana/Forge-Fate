@@ -202,6 +202,27 @@ describe('turn order', () => {
     expect(encounter.combatants.find((c) => c.kind === 'character')!.initiative).toBe(18);
   });
 
+  it('§152: rolls a surprised monster at disadvantage under 2024, and straight under 2014', () => {
+    // 2024's whole cost of surprise is this one roll. Two faces queued: a
+    // disadvantaged roll takes the worse, a straight roll never sees the second.
+    const faces = (...values: number[]) => {
+      let i = 0;
+      return () => (values[i++ % values.length] - 1) / 20;
+    };
+    const encounter = addMonster(emptyEncounter(), goblin(), { rng: always(1) });
+    const table = new Map([[goblin().id, goblin()]]);
+    const caught = {
+      ...encounter,
+      combatants: encounter.combatants.map((c) => ({ ...c, surprised: true })),
+    };
+
+    const straight = rollMonsterInitiative(caught, table, faces(17, 3), '2014');
+    expect(straight.combatants[0].initiative).toBe(19); // 17 + 2, second face unread
+
+    const late = rollMonsterInitiative(caught, table, faces(17, 3), '2024');
+    expect(late.combatants[0].initiative).toBe(5); // worse of 17 and 3, +2
+  });
+
   it('counts rounds and wraps at the bottom of the order', () => {
     let encounter = addCharacter(emptyEncounter(), 'grog', { initiative: 18 });
     encounter = addCharacter(encounter, 'lyra', { initiative: 12 });

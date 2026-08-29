@@ -269,3 +269,52 @@ describe('letting go', () => {
     expect(sourcesOf(v, charOf(v, 'c1'))[GRAPPLED]).toBeUndefined();
   });
 });
+
+describe('the 2024 grab, which is a save rather than a contest (§152)', () => {
+  /** The fighter played under 2024, so their grab is the Unarmed Strike
+      option: no roll from them - the wizard saves against a DC. */
+  const table2024 = () => {
+    const roster = rosterOf({ ...fighter(), ruleset: '2024' as const }, wizard());
+    let enc = addCharacter(emptyEncounter(), 'c0', { initiative: 20 });
+    enc = addCharacter(enc, 'c1', { initiative: 10 });
+    const [a, b] = enc.combatants.filter((c) => c.kind === 'character');
+    enc = placeCombatant(enc, a.id, { x: 3, y: 3 });
+    enc = placeCombatant(enc, b.id, { x: 4, y: 3 });
+    return updateEncounter(roster, enc);
+  };
+
+  it('lands when the save fails, and the log names the DC', () => {
+    const roster = table2024();
+    const v = viewOf(roster);
+    // One roll only - the target's save - and it reads a 1.
+    const out = resolveGrab(v, roster, charOf(v, 'c0').id, charOf(v, 'c1').id, 'grapple', sight, () => 0);
+    const line = activeEncounter(out.roster).log?.[0]?.text ?? '';
+    // STR 15 is +2, proficiency +3: DC 13. The wizard's DEX is the better save.
+    expect(line).toMatch(/DEX save \d+ vs DC 13/);
+    const after = viewOf(out.roster);
+    expect(conditionsOf(after, charOf(after, 'c1'))).toContain(GRAPPLED);
+  });
+
+  it('misses when the save meets the DC - the target rolls, not the grabber', () => {
+    const roster = table2024();
+    const v = viewOf(roster);
+    // The one die reads high, and under 2024 that die belongs to the *target*.
+    const out = resolveGrab(v, roster, charOf(v, 'c0').id, charOf(v, 'c1').id, 'grapple', sight, shoverWins);
+    expect(activeEncounter(out.roster).log?.[0]?.text).toMatch(/twist away/);
+    const after = viewOf(out.roster);
+    expect(conditionsOf(after, charOf(after, 'c1'))).not.toContain(GRAPPLED);
+    // The try still costs the attack, landed or not.
+    expect(out.roster.entries[0].play.turn.action).toBe(true);
+  });
+
+  it('escapes against the same DC, with nobody re-rolling the grip', () => {
+    let roster = table2024();
+    let v = viewOf(roster);
+    roster = resolveGrab(v, roster, charOf(v, 'c0').id, charOf(v, 'c1').id, 'grapple', sight, () => 0).roster;
+    v = viewOf(roster);
+    const freed = escapeGrapple(v, roster, charOf(v, 'c1'), shoverWins);
+    expect(activeEncounter(freed).log?.[0]?.text).toMatch(/breaks out .*vs DC 13/);
+    const after = viewOf(freed);
+    expect(conditionsOf(after, charOf(after, 'c1'))).not.toContain(GRAPPLED);
+  });
+});

@@ -595,6 +595,13 @@ export function rollMonsterInitiative(
   encounter: EncounterState,
   monsters: Map<string, Monster>,
   rng: Rng = defaultRng,
+  /**
+   * §152: the table's edition, because 2024's surprise rule lands here and
+   * nowhere else - a surprised creature rolls initiative at disadvantage
+   * and then takes its (late) turn in full. A monster reads the table's
+   * edition, the ruling §60 already made for exhaustion.
+   */
+  ruleset: '2014' | '2024' = '2014',
 ): EncounterState {
   return {
     ...encounter,
@@ -602,7 +609,8 @@ export function rollMonsterInitiative(
       if (c.kind !== 'monster') return c;
       const monster = monsters.get(c.monsterId);
       const modifier = monster ? initiativeMod(monster) : 0;
-      return { ...c, initiative: rollD20(modifier, 'normal', rng).total };
+      const mode = c.surprised && ruleset === '2024' ? 'disadvantage' : 'normal';
+      return { ...c, initiative: rollD20(modifier, mode, rng).total };
     }),
   };
 }

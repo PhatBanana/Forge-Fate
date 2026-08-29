@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canShove, fallDamage, fallFeet, pushedTo, shoveContest } from './shove';
+import { canShove, fallDamage, fallFeet, grabDc, pushedTo, saveAgainstGrab, shoveContest } from './shove';
 import type { Rng } from './dice';
 
 /** A d20 sequence, so a contest can be pinned instead of hoped at. */
@@ -61,6 +61,32 @@ describe('the contest', () => {
 
   it('prefers Athletics when the two are equal', () => {
     expect(shoveContest(0, 3, 3, rolls(10, 10)).targetUsed).toBe('Athletics');
+  });
+});
+
+describe('the 2024 save (§152)', () => {
+  it('computes the DC as 8 + Strength + proficiency', () => {
+    expect(grabDc(3, 2)).toBe(13);
+    expect(grabDc(-1, 4)).toBe(11);
+  });
+
+  it('has the target save with its better ability, and says which', () => {
+    const nimble = saveAgainstGrab(13, 0, 5, rolls(10));
+    expect(nimble.used).toBe('DEX save');
+    expect(nimble.roll).toBe(15);
+    expect(nimble.success).toBe(true);
+
+    const burly = saveAgainstGrab(13, 5, 0, rolls(10));
+    expect(burly.used).toBe('STR save');
+  });
+
+  it('succeeds on meeting the DC - a save, not a contest', () => {
+    // The 2014 contest gave ties to the defender staying put; a save that
+    // *meets* its DC succeeds. Two mechanics, two tie rules, both printed.
+    const exact = saveAgainstGrab(13, 3, 0, rolls(10));
+    expect(exact.roll).toBe(13);
+    expect(exact.success).toBe(true);
+    expect(saveAgainstGrab(13, 2, 0, rolls(10)).success).toBe(false);
   });
 });
 

@@ -62,8 +62,13 @@ export function speedOf(view: FightView, c: Combatant): number {
     action and the bonus are spent when the turn begins; the movement is
     refused here, because this is the one function the walk, the wash and
     the ruler all price themselves from.
+
+    §152: 2014 only. 2024 rewrote surprise as disadvantage on the
+    initiative roll and nothing else - a surprised 2024 creature moves and
+    acts normally once its (late) turn comes. Asked per combatant, the way
+    exhaustion is.
   */
-  if (c.surprised) return 0;
+  if (c.surprised && rulesetOf(view, c) === '2014') return 0;
   /*
     Nought, if any of the six conditions that say so is on them. Grappled
     and restrained say "speed 0" outright; stunned, paralysed, petrified

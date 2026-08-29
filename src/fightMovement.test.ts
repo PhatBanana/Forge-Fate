@@ -51,6 +51,15 @@ describe('speed, and everything that takes it away', () => {
     expect(speedOf(v, ambushed)).toBe(0);
   });
 
+  it('§152: a surprised 2024 creature keeps its feet - the cost moved to initiative', () => {
+    const roster = rosterOf({ ...fighter(), ruleset: '2024' as const }, wizard());
+    let enc = addCharacter(emptyEncounter(), 'c0', { initiative: 20 });
+    enc = addCharacter(enc, 'c1', { initiative: 10 });
+    const v = viewOf(updateEncounter(roster, enc));
+    const ambushed = { ...charOf(v, 'c0'), surprised: true };
+    expect(speedOf(v, ambushed)).toBeGreaterThan(0);
+  });
+
   it('is nought under any of the six conditions that say so', () => {
     let roster = table();
     const play = roster.entries[0].play;

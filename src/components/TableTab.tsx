@@ -2728,13 +2728,32 @@ export function TableTab({
       );
       if (caught.size) {
         encNow = [...caught].reduce((enc, id) => setSurprised(enc, id, true), encNow);
-        encNow = appendLog(
-          encNow,
-          `Surprised: ${encNow.combatants
-            .filter((c) => caught.has(c.id))
+        /*
+          §152: what being caught *costs* is the editions' one real
+          disagreement here. 2014 spends the first turn; 2024 rewrote it as
+          disadvantage on the initiative roll and nothing else. Detection is
+          shared, the bill is split - and said per edition, because a mixed
+          table hears both.
+        */
+        const caughtOf = (edition: string) =>
+          encNow.combatants
+            .filter((c) => caught.has(c.id) && rulesetOf(c) === edition)
             .map((c) => nameOf(c))
-            .join(', ')} — no action, no movement, and no reaction until that turn ends.`,
-        );
+            .join(', ');
+        const names2014 = caughtOf('2014');
+        const names2024 = caughtOf('2024');
+        if (names2014) {
+          encNow = appendLog(
+            encNow,
+            `Surprised: ${names2014} — no action, no movement, and no reaction until that turn ends.`,
+          );
+        }
+        if (names2024) {
+          encNow = appendLog(
+            encNow,
+            `Surprised: ${names2024} — disadvantage on their initiative roll (2024). Re-roll theirs if it was rolled before the ambush was seen.`,
+          );
+        }
       }
     }
 
@@ -2797,7 +2816,9 @@ export function TableTab({
       folded into the branch above: the refresh would undo it.
     */
     const spendSurprise = (r: Roster): Roster => {
-      if (!began?.surprised) return r;
+      // §152: only 2014 spends the turn. A surprised 2024 creature already
+      // paid at initiative, and its flag clears above with nothing owed.
+      if (!began?.surprised || rulesetOf(began) !== '2014') return r;
       let out = r;
       if (began.kind === 'character') {
         const entry = out.entries.find((e) => e.id === began.rosterId);
@@ -3151,7 +3172,7 @@ export function TableTab({
   }, [delveDeploying]);
 
   const rollAll = () =>
-    setEncounter(rollMonsterInitiative(encounter, byId, defaultRng));
+    setEncounter(rollMonsterInitiative(encounter, byId, defaultRng, ruleset));
 
   /** A character's initiative, rolled here for a table that wants that. */
   const rollFor = (combatant: Combatant) => {
@@ -3159,8 +3180,12 @@ export function TableTab({
       combatant.kind === 'character'
         ? derived.get(combatant.rosterId)?.ctx.mods.dex ?? 0
         : 0;
+    // §152: 2024's whole cost of being surprised lands here - disadvantage
+    // on this one roll. The DM's checkbox in the order is what arms it.
+    const mode =
+      combatant.surprised && rulesetOf(combatant) === '2024' ? 'disadvantage' : 'normal';
     setEncounter(
-      setInitiative(encounter, combatant.id, rollD20(mod, 'normal', defaultRng).total),
+      setInitiative(encounter, combatant.id, rollD20(mod, mode, defaultRng).total),
     );
   };
 

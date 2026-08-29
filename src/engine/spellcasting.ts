@@ -216,8 +216,16 @@ function knownAndPrepared(
     } else if (PREPARERS.includes(id)) {
       const ability = slice.subclass?.castingAbility ?? slice.klass.castingAbility;
       if (!ability) continue;
-      // Half casters prepare off half their level, rounded up.
-      const effective = castingType === 'half' ? Math.ceil(level / 2) : level;
+      /*
+        §152: half casters prepare off half their level **rounded down** -
+        "your Charisma modifier + half your paladin level, rounded down", and
+        the Artificer's sentence matches. This rounded up for a long time,
+        which handed every odd-levelled Paladin and Artificer one prepared
+        spell they never had. The rounding here is not the slot table's:
+        `soleCasterLevel` genuinely rounds up, because that is what reproduces
+        the printed slot progression - two different numbers, each printed.
+      */
+      const effective = castingType === 'half' ? Math.floor(level / 2) : level;
       prepared += Math.max(1, mods[ability] + effective);
       anyPrepared = true;
     } else {
@@ -312,17 +320,56 @@ export function grantedSpells(slices: ClassSlice[], ruleset: Ruleset): Spell[] {
   return out;
 }
 
+/**
+ * The highest spell level one class can pick spells of, on its own.
+ *
+ * §152: this is the multiclass rule the app was skipping - "you determine
+ * what spells you know and can prepare for each class individually, as if
+ * you were a single-classed member of that class". The shared slot pool says
+ * what you can *cast*; each class's own table says what you can *learn*. A
+ * Wizard 1 / Cleric 9 has 5th-level slots and may put Cleric spells in them,
+ * but their spellbook still tops out at 1st - the combined pool must not
+ * open every list to its own ceiling.
+ */
+function ownListCeiling(slice: ClassSlice, ruleset: Ruleset): number {
+  const castingType = slice.subclass?.castingType ?? slice.klass.castingType;
+  if (castingType === 'none') return 0;
+  if (castingType === 'pact') return pactSlotsFor(slice.entry.level)?.level ?? 0;
+  const level = soleCasterLevel(
+    castingType,
+    slice.entry.level,
+    ruleset,
+    slice.klass.castsFromLevel1,
+  );
+  return slotsForCasterLevel(level).reduce(
+    (highest, count, i) => (count > 0 ? i + 1 : highest),
+    0,
+  );
+}
+
 /** Every spell this character can draw from, across all their casting classes. */
-export function availableSpells(slices: ClassSlice[], highestLevel: number): Spell[] {
-  const classIds = new Set<ClassId>();
+export function availableSpells(slices: ClassSlice[], ruleset: Ruleset): Spell[] {
+  // Per list, not per character: the ceiling a spell is picked under belongs
+  // to the class whose list it is on, and two classes sharing a list keep
+  // the better of their two ceilings.
+  const ceilings = new Map<ClassId, number>();
   for (const slice of slices) {
     const castingType = slice.subclass?.castingType ?? slice.klass.castingType;
-    if (castingType !== 'none') classIds.add(slice.klass.drawsSpellsFrom ?? slice.klass.id);
+    if (castingType === 'none') continue;
+    const listId = slice.klass.drawsSpellsFrom ?? slice.klass.id;
+    // A ceiling of 0 still lists the class: cantrips arrive before slots do
+    // for a 2014 half caster, and level 0 is under every ceiling.
+    ceilings.set(
+      listId,
+      Math.max(ceilings.get(listId) ?? 0, ownListCeiling(slice, ruleset)),
+    );
   }
 
-  return SPELLS.filter(
-    (spell) =>
-      spell.level <= highestLevel && spell.classes.some((id) => classIds.has(id)),
+  return SPELLS.filter((spell) =>
+    spell.classes.some((id) => {
+      const ceiling = ceilings.get(id);
+      return ceiling !== undefined && spell.level <= ceiling;
+    }),
   );
 }
 
@@ -359,7 +406,7 @@ export function computeSpellcasting(input: SpellcastingInput): SpellcastingResul
   );
 
   const { known, prepared: preparedCount, cantrips } = knownAndPrepared(slices, mods, build.ruleset);
-  const available = availableSpells(slices, Math.max(slots.highestLevel, 0));
+  const available = availableSpells(slices, build.ruleset);
   const availableIds = new Set(available.map((s) => s.id));
 
   const chosen = build.spellIds.map(spellById).filter(Boolean) as Spell[];

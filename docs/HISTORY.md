@@ -9210,3 +9210,62 @@ the QR's cargo, and the named links.
 **Gates.** 2705 tests / 135 files, `tsc -b`, oxlint, build in budget; probe
 green both themes, DM screen and scanned phone; §92-§96 multiplayer net
 re-run clean.
+
+## 152. Seven numbers the book disagrees with
+
+A rules audit of the engine, asked for and acted on: read the core maths
+end to end against the SRD and fix what disagrees. Most of it held -
+slots, HP, AC, proficiency, movement, exhaustion all match the printed
+rules, edge cases included. Seven things did not, and none of the seven
+was covered by a test, which is its own lesson: all 2705 tests were green
+around every one of them.
+
+**Half casters prepared one spell too many.** "Half your paladin level,
+rounded down" - and the Artificer's sentence matches - but the code
+rounded up, so every odd-levelled Paladin and Artificer over-prepared by
+one. The trap is that the *slot* table genuinely rounds up
+(`soleCasterLevel`), so the wrong rounding looked like consistency.
+
+**Divine Smite outran its own slots.** The nova model read a Paladin's
+highest slot as half their level: a Paladin 9 smote at 5d8 (real: 4d8)
+and a Paladin 10 at 6d8 - past the 5d8 cap the rule states outright. A
+half caster's ceiling tracks a quarter of their level, and the cap is now
+written where the dice are.
+
+**Great Weapon Fighting rerolled a longbow.** The style reads "a melee
+weapon that you are wielding with two hands", and the check read
+"two-handed or versatile" - so a longbow qualified and so did a longsword
+carried beside a shield. Both halves fixed in both places (the attack
+line's note and the damage model), with the versatile grip read off the
+die actually being rolled.
+
+**Duelling stacked with the two-handed grip.** A lone longsword was
+modelled at d10 *and* +2, a grip that satisfies neither rule. The style
+wins - +2 flat beats the die step - so Duelling now keeps the weapon in
+one hand.
+
+**The multiclass spell ceiling was shared.** One combined "highest slot"
+opened every list: a Wizard 1 / Cleric 9 was offered 5th-level Wizard
+spells. The rule is per class - "as if you were a single-classed member
+of that class" - so each list now carries its own ceiling from its own
+table, and the shared pool stays what it always was: where the spells are
+cast, not where they are learned.
+
+**2024 surprise was 2014's.** The lost first turn is a 2014 rule; 2024
+rewrote surprise as disadvantage on the initiative roll and nothing else.
+Now branched per combatant the way exhaustion is (§60): the ambush sweep
+logs each edition its own bill, the initiative rollers (per-row and
+roll-all) take the disadvantage when the flag is up, and a surprised 2024
+creature keeps its feet and its turn.
+
+**2024 grapples were contests.** 2024 made grapple and shove an Unarmed
+Strike option: the attacker rolls nothing, the target saves - STR or DEX,
+its choice - against 8 + STR + proficiency, and escapes against the same
+DC. `grabDc`, `saveAgainstGrab` and `escapeCheck` sit beside the 2014
+contest functions, and the fight resolves by the attacker's edition, the
+hold's way out by the edition that made it. Ties split too, and both
+splits are printed: a save that meets its DC succeeds, a contest that
+ties stands still.
+
+**Gates.** 2719 tests / 135 files (14 new pinning each fix), `tsc -b`,
+oxlint, build in budget; battle probes §89, §90, §96 re-run clean.

@@ -114,6 +114,43 @@ export function escapeContest(
   };
 }
 
+/** How a 2024 escape attempt came out - a check against a DC, not a contest. */
+export interface EscapeCheck {
+  dc: number;
+  roll: number;
+  escapeeUsed: 'Athletics' | 'Acrobatics';
+  /** Meeting the DC gets free, as any check against a DC does. */
+  success: boolean;
+}
+
+/**
+ * §152: the 2024 escape. The grappled condition there ends on a successful
+ * Strength (Athletics) or Dexterity (Acrobatics) check against the grapple
+ * DC - the same 8 + Strength + Proficiency the hold was made at (`grabDc`) -
+ * rather than 2014's fresh contest. The grappler does not roll: their grip
+ * is a number, and meeting it is enough, where the 2014 contest gave ties
+ * to the grappler.
+ */
+export function escapeCheck(
+  dc: number,
+  escapeeAthletics: number,
+  escapeeAcrobatics: number,
+  rng: Rng,
+): EscapeCheck {
+  const useAcrobatics = escapeeAcrobatics > escapeeAthletics;
+  const roll = rollD20(
+    useAcrobatics ? escapeeAcrobatics : escapeeAthletics,
+    'normal',
+    rng,
+  ).total;
+  return {
+    dc,
+    roll,
+    escapeeUsed: useAcrobatics ? 'Acrobatics' : 'Athletics',
+    success: roll >= dc,
+  };
+}
+
 /**
  * The conditions that end a grapple by ending the grappler.
  *
