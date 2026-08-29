@@ -1,6 +1,6 @@
 import { useRovingTabs } from './useRovingTabs';
 import { signed } from '../format';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ABILITIES, ABILITY_NAMES, RULESETS, RULESET_LABELS } from '../types';
 import type { Ability, Build, ClassEntry, ClassId, Loadout, Ruleset, WeaponStyle } from '../types';
@@ -28,6 +28,15 @@ import type { SkillId } from '../data/skills';
 import type { Line } from '../engine/defense';
 import type { BuildContext } from '../engine/character';
 import type { PlayState } from '../play';
+
+/*
+  §154: the species × class explorer, now the flow's first card. Lazy for the
+  same reason App kept it lazy as a tab - the ratings engine and its verdicts
+  belong to the moment someone is choosing, not to first paint.
+*/
+const RacesTab = lazy(async () => ({
+  default: (await import('./RacesTab')).RacesTab,
+}));
 import {
   POINT_BUY_BUDGET,
   POINT_BUY_MAX,
@@ -104,6 +113,7 @@ export function BuilderTab({
   play,
   onChange,
   onPlayChange,
+  onPairing,
 }: {
   build: Build;
   ctx: BuildContext;
@@ -129,6 +139,12 @@ export function BuilderTab({
   play: PlayState;
   onChange: (build: Build) => void;
   onPlayChange: (play: PlayState) => void;
+  /*
+    §154: load a species × class pairing - scores, weapons and armor reset
+    around it. Owned by App (it is the same hand the old separate screen
+    used), passed down so the flow's first card can offer it.
+  */
+  onPairing: (raceId: string, classId: ClassId) => void;
 }) {
   const patch = (partial: Partial<Build>) => onChange({ ...build, ...partial });
 
@@ -397,7 +413,42 @@ export function BuilderTab({
 
           {step?.kind === 'review' && <ReviewFindings findings={problems} />}
 
+          {/*
+            §154: the first question, in full. The species × class explorer
+            was a separate screen you had to know to visit; on an untouched
+            sheet it IS the opening step. Loading a pairing brings its own
+            point-buy, which is what closes this step and the abilities one -
+            the flow advances because the sheet moved, §138's own rule. The
+            dense page's own selects still answer it by hand.
+          */}
+          {step?.kind === 'choice' && step.choice.id === 'who' ? (
+            <div className="flow-who">
+              <Suspense fallback={<p className="muted">Loading the ratings…</p>}>
+                <RacesTab
+                  raceId={build.raceId}
+                  classId={ctx.primary.klass.id}
+                  ruleset={build.ruleset}
+                  onPick={onPairing}
+                />
+              </Suspense>
+              <p className="muted">
+                Or set species and class yourself:{' '}
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() => {
+                    setSection('identity');
+                    onView('page');
+                  }}
+                >
+                  Answer it under {SECTION_LABEL.identity} →
+                </button>
+              </p>
+            </div>
+          ) : null}
+
           {step?.kind === 'choice' &&
+            step.choice.id !== 'who' &&
             (ranked ? (
               <div className="flow-opts">
                 {ranked.picks.map((pick, index) => {

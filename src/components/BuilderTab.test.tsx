@@ -6,6 +6,7 @@ import { BuilderTab } from './BuilderTab';
 import { deriveBuild } from '../engine/character';
 import type { Build } from '../types';
 import { buildOf, fighter, warlockSorcerer } from '../test/factories';
+import { defaultDefenses } from '../engine/defense';
 import { emptyPlay } from '../play';
 
 /**
@@ -29,6 +30,7 @@ import { emptyPlay } from '../play';
 function setup(build: Build, view: 'flow' | 'page' = 'page') {
   const onChange = vi.fn();
   const onPlayChange = vi.fn();
+  const onPairing = vi.fn();
   let current = build;
 
   const props = () => ({
@@ -39,6 +41,7 @@ function setup(build: Build, view: 'flow' | 'page' = 'page') {
     play: emptyPlay(),
     onChange,
     onPlayChange,
+    onPairing,
   });
   const rendered = render(<BuilderTab {...props()} />);
   onChange.mockImplementation((next: Build) => {
@@ -48,6 +51,7 @@ function setup(build: Build, view: 'flow' | 'page' = 'page') {
 
   return {
     onChange,
+    onPairing,
     get build() {
       return current;
     },
@@ -1029,6 +1033,32 @@ describe('the guided flow', () => {
     expect(card().querySelector('.flow-step-target')!.textContent).toMatch(/^fills /);
   });
 
+  it('§154: an untouched sheet opens on who you are, with the pairings in the card', async () => {
+    const untouched = buildOf({
+      backgroundId: undefined,
+      baseScores: { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 },
+      weapons: { magicBonus: {} },
+      defenses: defaultDefenses(),
+    });
+    const view = setup(untouched, 'flow');
+    // The first question is first - not a separate screen you had to know
+    // to visit before building.
+    expect(within(card()).getByText('Who you are')).toBeInTheDocument();
+    // The explorer arrives (lazily) inside the step card, ranked and loadable.
+    // The reasons live behind each suggestion's summary, so open the top one.
+    const top = await screen.findAllByText(/^1$/);
+    await userEvent.click(top[0].closest('summary')!);
+    const load = await screen.findAllByRole('button', {
+      name: 'Load this pairing into the builder',
+    });
+    await userEvent.click(load[0]);
+    expect(view.onPairing).toHaveBeenCalledWith(expect.any(String), expect.any(String));
+    // The way out by hand is still offered: the dense page's own selects.
+    expect(
+      within(card()).getByRole('button', { name: /Answer it under Identity/ }),
+    ).toBeInTheDocument();
+  });
+
   it('runs on the sheet rather than beside it', () => {
     setup(fighter(5), 'flow');
     /* §138: the screen reading, not the paper one - the step card is on the
@@ -1174,11 +1204,12 @@ describe('the guided flow', () => {
     rather than being a dead end in the middle of a flow.
   */
   it('says plainly when a step is a form rather than a ranking', () => {
+    // Scores spent, so §154's opening step is answered and the first thing
+    // waiting is the background - a form step.
     setup(
       buildOf({
         ...fighter(1),
         backgroundId: undefined,
-        baseScores: { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 },
       }),
       'flow',
     );

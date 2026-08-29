@@ -9269,3 +9269,69 @@ ties stands still.
 
 **Gates.** 2719 tests / 135 files (14 new pinning each fix), `tsc -b`,
 oxlint, build in budget; battle probes §89, §90, §96 re-run clean.
+
+## 153. The seat speaks more of the menu
+
+"More player options for their sheets on their phones." The seat's plan
+vocabulary grew four words, each one chosen because the app already knows
+how to run it: **Grapple** and **Shove** name a target the way an attack
+does, **Ready** carries its trigger in the note - the placeholder asks for
+one, because a Ready action IS its trigger - and **Use an item** picks
+from the character's own inventory lines, so "I drink the potion" stops
+arriving as free text. The composer is §105's shared module, so the
+cockpit's pass-the-tablet block grew the same words for free.
+
+**And the cockpit can run three of them.** Run it stopped being
+attack-only: a grapple or shove plan runs through §114's `resolveGrab` -
+the same reach rules, refusals and one-write composition the grab tool
+uses - and a Ready plan spends the pip, sets the stance and logs the
+trigger in one write. An item plan keeps Done/Decline: what a potion does
+is the table's business.
+
+**The probe caught the bug the tests could not.** Every unit test passed
+with the plan still silently dead: `sync.ts`'s boundary guard kept its own
+hand-copied list of intent kinds, so the first new kinds since it was
+written were queued on the phone, validated away in transit, and never
+seen by the DM. The list now lives beside the type (`INTENT_KINDS`,
+`satisfies` making omission a compile error) and the guard derives from
+it. The lesson is §46's again, in protocol form: two copies of one fact,
+and the copy you forgot is load-bearing.
+
+**Gates.** Suite green, tsc, oxlint, build in budget; run153 proves the
+round trip over the real relay both themes - phone queues a Ready with its
+trigger, the DM's cockpit runs it, the log says why the fighter is waiting.
+
+## 154. The first question moved into the flow
+
+"Merge the class × species into the main character builder - it should be
+the first step in making a new character instead of having it split into
+2 parts." It was: the pairings screen was its own tab behind a gbar door,
+and the Builder's guided flow opened on the background of a character
+whose species and class it had never asked about.
+
+**Now the flow opens on Who you are.** A new first waiting choice, open
+exactly while the sheet is untouched - the same all-eights
+no-false-positive rule the abilities step uses - and its card holds the
+whole explorer: ranked lineages per class, classes per lineage, the full
+matrix, backgrounds under 2024. Loading a pairing calls the same hand the
+old screen did (scores, weapons and armor arrive with it), which is what
+closes the step: the flow advances because the sheet moved, §138's own
+rule. The dense page's selects still answer it by hand, and the card says
+so.
+
+**The timing answers the old objection.** The lazy-load note had it right:
+`loadPairing` resets scores and equipment, so it belonged on a screen you
+visit *before* building. An untouched sheet is exactly that screen. The
+step only exists while there is nothing to wipe - so the merge costs
+nothing the separation was protecting.
+
+**The separate tab is gone** - union member, labels, gbar door and back
+button - and the explorer lazy-loads inside the Builder instead, keeping
+the ratings engine off first paint. run75's superseded door assertions
+were brought up to date (along with two others that had drifted sections
+ago: the bar outgrew eight buttons on purpose, and §138's switcher
+replaced "edit in Builder").
+
+**Gates.** 2724 tests / 135 files, tsc, oxlint, build in budget; run154
+walks Start blank → Who you are → load a pairing → the flow moves on,
+both themes; §92-§96 wire probes and run75 re-run clean.

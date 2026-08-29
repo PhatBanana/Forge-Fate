@@ -107,6 +107,24 @@ export function waitingChoices(ctx: BuildContext): WaitingChoice[] {
   };
 
   // ---------------------------------------------------------- identity
+  /*
+    §154: the first question, asked first. Species × class was a separate
+    screen you had to know to visit before building; now it is the opening
+    step of the flow. Open exactly while the sheet is untouched - the same
+    no-false-positive rule the abilities step uses, because nobody assigns
+    all eights on purpose - which is also the only time loading a pairing
+    (which resets scores and equipment) has nothing to wipe. Answering it
+    either way closes it: a pairing brings its own point-buy, and setting
+    the six numbers by hand says you have moved on.
+  */
+  add(
+    'who',
+    'identity',
+    pointsSpent(build.baseScores) === 0 ? 1 : 0,
+    'Who you are',
+    'the identity band',
+    'form',
+  );
   add(
     'background',
     'identity',

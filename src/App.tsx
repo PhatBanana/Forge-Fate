@@ -78,15 +78,13 @@ const SheetTab = lazy(async () => ({ default: (await import('./components/SheetT
   feats rank themselves in the panel where you take them, through the same
   `recommendFeats` and the same card.
 
-  The matrix is the one piece that could not move, and not for want of room.
-  Picking a pairing calls `loadPairing`, which resets ability scores, defenses,
-  feats, improvements and weapons - so it belongs on a screen you visit *before*
-  building, not inlined into the page where you are editing the build it would
-  wipe.
+  The matrix held out longest. Picking a pairing calls `loadPairing`, which
+  resets ability scores, defenses, feats, improvements and weapons - so it
+  belonged on a screen you visit *before* building. §154 found the honest
+  home for that condition: the guided flow's first step, which only shows
+  while the sheet is untouched - the one moment there is nothing to wipe.
+  The Builder lazy-loads the explorer itself; no tab remains.
 */
-const RacesTab = lazy(async () => ({
-  default: (await import('./components/RacesTab')).RacesTab,
-}));
 const CharactersTab = lazy(async () => ({
   default: (await import('./components/CharactersTab')).CharactersTab,
 }));
@@ -140,7 +138,6 @@ type Tab =
   | 'title'
   | 'builder'
   | 'sheet'
-  | 'pairings'
   | 'characters'
   | 'dungeons'
   | 'campaign'
@@ -163,7 +160,6 @@ const TAB_LABELS: Record<Tab, string> = {
   title: 'Menu',
   builder: 'Builder',
   sheet: 'Character sheet',
-  pairings: 'Species × Class',
   characters: 'Characters',
   dungeons: 'Dungeons',
   campaign: 'Campaign',
@@ -1023,20 +1019,8 @@ export default function App() {
                 ))}
               </span>
             )}
-            {tab === 'pairings' && (
-              <button className="btn btn-sm" onClick={() => setTab('builder')}>
-                Back to the Builder
-              </button>
-            )}
             {tab === 'builder' && (
               <>
-                <button
-                  className="btn btn-sm"
-                  title="Every species × class pairing rated - the reference this screen decides against"
-                  onClick={() => setTab('pairings')}
-                >
-                  Species × Class
-                </button>
                 <button
                   className="btn btn-sm"
                   onClick={stepBack}
@@ -1136,6 +1120,9 @@ export default function App() {
           play={activePlay(roster)}
           onChange={setBuild}
           onPlayChange={(next) => setRoster((current) => updatePlay(current, current.activeId, next))}
+          /* §154: the flow's first card loads pairings with the same hand
+             the old separate screen used. */
+          onPairing={loadPairing}
         />
       )}
       <Suspense fallback={<TabLoading />}>
@@ -1168,14 +1155,6 @@ export default function App() {
               showView('page');
               window.location.hash = `section-${section}`;
             }}
-          />
-        )}
-        {tab === 'pairings' && (
-          <RacesTab
-            raceId={build.raceId}
-            classId={ctx.primary.klass.id}
-            ruleset={build.ruleset}
-            onPick={loadPairing}
           />
         )}
         {tab === 'table' && (

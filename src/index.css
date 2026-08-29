@@ -9164,6 +9164,21 @@ input.pcard-amount {
   text-wrap: pretty;
 }
 
+/* §154: the species × class explorer, as the flow's first card. Its panels
+   stack the way the flow's own blocks do, and the way out by hand sits
+   under them on the same footing as any form step's door. */
+.flow-who {
+  display: grid;
+  gap: 10px;
+}
+
+.flow-who > p {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+
 /* ------------------------------------------------------ the ranked option */
 
 .flow-opts {

@@ -38,30 +38,26 @@ for (const theme of ['dark', 'light']) {
   await page.locator('.gbar-home').first().click();
   await page.waitForTimeout(500);
 
-  // The example lands on the hub; it no longer lists Species × Class -
-  // the Builder's gbar door carries it now.
+  // The example lands on the hub; it no longer lists Species × Class.
+  // (§154 retired the separate screen entirely - the pairings are the
+  // guided flow's first step now, which run154 proves - so this probe's
+  // old gbar-door assertions are superseded and only the hub check stands.)
   const hub = await page.locator('.title-menu').innerText();
   say(!/Species × Class/.test(hub), `${theme}: the hub menu no longer lists Species × Class`);
   await page.getByRole('button', { name: /build a character/i }).first().click();
   await page.waitForTimeout(800);
-  await page.getByRole('button', { name: 'Species × Class' }).first().click();
-  await page.waitForTimeout(900);
-  say(
-    /species × class/i.test(await page.locator('.gbar-screen').first().innerText()),
-    `${theme}: the Builder's gbar door opens the pairings screen`,
-  );
-  await page.getByRole('button', { name: /back to the builder/i }).first().click();
-  await page.waitForTimeout(600);
   say(
     (await page.getByRole('button', { name: /^Battle →$/ }).count()) > 0,
-    `${theme}: and its door leads back to the Builder`,
+    `${theme}: the Builder stands where the door used to lead`,
   );
 
   // Into the battle: the bar is eight buttons, whole at full width.
   await page.getByRole('button', { name: /^Battle →$/ }).first().click();
   await page.waitForTimeout(1200);
   const barButtons = page.locator('.btl-bar .btl-cmd');
-  say((await barButtons.count()) === 8, `${theme}: the bar is eight buttons (was ten)`);
+  // §75 trimmed it to eight; later sections grew it again on purpose (Undo,
+  // Redo). The §75 claim that survives is the shape, not the count.
+  say((await barButtons.count()) >= 8, `${theme}: the bar holds the battle's commands`);
   // innerText reports the CSS text-transform, so compare case-blind.
   const labels = (await barButtons.allInnerTexts()).map((l) => l.trim().toLowerCase());
   say(
@@ -123,12 +119,14 @@ for (const theme of ['dark', 'light']) {
     `${theme}: Order is initiative and conditions, not saves`,
   );
 
-  // Character: the bar's one exit to the loaded character's sheet.
+  // Character: the bar's one exit to the loaded character's sheet. §138
+  // replaced "edit in Builder" with the reading switcher, which is the same
+  // door with a state readout.
   await page.getByRole('button', { name: /^Character$/ }).first().click();
   await page.waitForTimeout(900);
   say(
-    (await page.getByRole('button', { name: /edit in builder/i }).count()) > 0,
-    `${theme}: Character lands on the sheet, whose door reaches the Builder`,
+    (await page.locator('.gbar-views').count()) > 0,
+    `${theme}: Character lands on the sheet, whose switcher reaches the Builder`,
   );
 
   const body = await page.evaluate(() => document.body.innerText);

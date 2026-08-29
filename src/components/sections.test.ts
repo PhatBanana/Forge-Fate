@@ -47,6 +47,17 @@ describe('what each section is still waiting on', () => {
     expect(openChoicesBySection(deriveBuild(spent)).abilities).toBe(0);
   });
 
+  it('§154: asks who you are first, and stops asking once the sheet is touched', () => {
+    // The species × class question opens the flow - it was a separate
+    // screen, and a first question that lives somewhere else is not first.
+    const waiting = waitingChoices(deriveBuild(blank()));
+    expect(waiting[0]?.id).toBe('who');
+    // Spending any of the budget says you have moved on; the step closes on
+    // the same no-false-positive rule the abilities one uses.
+    const spent = { ...blank(), baseScores: { str: 15, dex: 14, con: 14, int: 10, wis: 10, cha: 8 } };
+    expect(waitingChoices(deriveBuild(spent)).some((c) => c.id === 'who')).toBe(false);
+  });
+
   it('stops counting equipment once anything is held or worn', () => {
     const bare = openChoicesBySection(deriveBuild(blank())).equipment;
     expect(bare).toBeGreaterThan(0);
