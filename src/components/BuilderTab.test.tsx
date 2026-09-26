@@ -8,6 +8,7 @@ import type { Build } from '../types';
 import { buildOf, fighter, warlockSorcerer } from '../test/factories';
 import { defaultDefenses } from '../engine/defense';
 import { waitingChoices } from './sections';
+import { recommendExpertise, recommendSkills } from '../engine/skillValue';
 import { emptyPlay } from '../play';
 
 /**
@@ -1220,6 +1221,29 @@ describe('the guided flow', () => {
     expect(view.build.classes[0].subclassId).toBeTruthy();
     // Answered, the step leaves the walk.
     expect(screen.queryByRole('button', { name: /your calling/i })).toBeNull();
+  });
+
+  it('§159: ranks expertise with the engine written for doubling', async () => {
+    // A Rogue 1 owes two expertise picks over the skills it already has.
+    // Chosen so the two rankers disagree - otherwise this passes against
+    // the old wiring and proves nothing.
+    const rogue = buildOf({
+      classes: [{ classId: 'rogue', level: 1 }],
+      baseScores: { str: 8, dex: 14, con: 12, int: 17, wis: 10, cha: 10 },
+      skillIds: ['perception', 'investigation', 'stealth', 'arcana'],
+    });
+    const ctx = deriveBuild(rogue);
+    const top = recommendExpertise(ctx)[0];
+    const proficient = new Set(
+      ctx.proficiencies.skills.filter((line) => line.proficient).map((line) => line.skill),
+    );
+    const oldTop = recommendSkills(ctx).find((s) => proficient.has(s.skill))!;
+    expect(top.name).not.toBe(oldTop.name);
+
+    setup(rogue, 'flow');
+    await userEvent.click(screen.getByRole('button', { name: /expertise/i }));
+    // The card leads with what the doubling engine leads with.
+    expect(options()[0].textContent).toContain(top.name);
   });
 
   it('§155: asks for a name near the end, and the christening closes the step', async () => {

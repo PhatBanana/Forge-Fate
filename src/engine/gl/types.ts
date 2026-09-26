@@ -29,9 +29,6 @@ export interface AtlasRect {
  */
 export const VERTEX_FLOATS = 9;
 
-/** A filled quad's worth of indices: two triangles, one shared diagonal. */
-export const QUAD_INDICES = 6;
-
 /** The full-white texel every untextured wash samples. */
 export const WHITE: AtlasRect = { u0: 0, v0: 0, u1: 0, v1: 0 };
 

@@ -960,6 +960,28 @@ describe('the battle screen', () => {
     expect(document.querySelector('.btl-cockpit .mc')).toBeTruthy();
     expect(within(cockpit()).getByText(/Nimble Escape/)).toBeInTheDocument();
   });
+
+  it('§159: takes a pencil note on a monster, and the turn order carries it', async () => {
+    // The field and its setter existed with nothing reading or writing them.
+    const user = userEvent.setup();
+    const view = setup(party());
+    await bestiaryReady();
+
+    await open(user, 'Bestiary');
+    await user.type(screen.getByLabelText(/search the bestiary/i), 'goblin');
+    const entry = [...document.querySelectorAll('.mon-list li')].find(
+      (li) => li.querySelector('b')?.textContent === 'Goblin',
+    ) as HTMLElement;
+    await user.click(within(entry).getByRole('button', { name: 'Add' }));
+    await user.click(within(rowFor('Goblin')).getByRole('button', { name: /show goblin in the rail/i }));
+
+    await user.type(within(cockpit()).getByLabelText('Note on Goblin'), 'holds the key');
+    // It rides on the combatant, so it saves and undoes with the fight...
+    const goblin = view.encounter.combatants.find((c) => c.kind === 'monster')!;
+    expect(goblin.kind === 'monster' && goblin.note).toBe('holds the key');
+    // ...and the strip says it without the goblin being selected.
+    expect(document.querySelector('.strip-notes')?.textContent).toMatch(/✎ holds the key/);
+  });
 });
 
 /**

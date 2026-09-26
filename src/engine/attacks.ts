@@ -1,8 +1,7 @@
-import type { Ability, Build, Loadout, Ruleset, WeaponStyle } from '../types';
+import type { Ability, Build, Loadout, WeaponStyle } from '../types';
 import { MASTERY_LABELS, MASTERY_SUMMARIES, damageDice, isTwoHanded, weaponById, weaponsFor } from '../data/weapons';
 import type { MasteryProperty, Weapon, WeaponCategory } from '../data/weapons';
 import type { Line } from './defense';
-import { hasFeatureTag } from './features';
 import type { HeldFeature } from './features';
 
 /**
@@ -164,37 +163,6 @@ export function weaponForProfile(
     default:
       return { mainHandId: style === 'dex-melee' ? 'rapier' : 'longsword' };
   }
-}
-
-/** Weapons a class is proficient with, best first, for equipping a fresh build. */
-export function bestWeaponFor(
-  style: WeaponStyle,
-  proficient: (w: Weapon) => boolean,
-  ruleset: Ruleset = '2014',
-): string | undefined {
-  const wants = (weapon: Weapon): boolean => {
-    if (style === 'dex-ranged') return !weapon.melee && !weapon.properties.includes('loading');
-    if (style === 'dex-melee') return weapon.melee && weapon.properties.includes('finesse');
-    if (style === 'str-melee') return weapon.melee && !weapon.properties.includes('finesse');
-    return false;
-  };
-  const candidates = weaponsFor(ruleset).filter((w) => wants(w) && proficient(w));
-  if (!candidates.length) return undefined;
-  // Best average damage wins, which is a good enough proxy for "best weapon".
-  return candidates.reduce((a, b) => (average(b) > average(a) ? b : a)).id;
-}
-
-function average(weapon: Weapon): number {
-  return weapon.damage.count * ((weapon.damage.die + 1) / 2);
-}
-
-/** Whether this build has a Monk's Martial Arts, for the unarmed default. */
-export function fightsUnarmed(features: HeldFeature[], build: Build): boolean {
-  return (
-    features.some((f) => f.name === 'Martial Arts') ||
-    build.classOptionIds.includes('unarmed-fighting') ||
-    hasFeatureTag(features, 'unarmored-defense')
-  );
 }
 
 // ------------------------------------------------------------------ attacks

@@ -191,10 +191,6 @@ export function isLight(weapon: Weapon): boolean {
   return weapon.properties.includes('light');
 }
 
-export function hasProperty(weapon: Weapon, property: WeaponProperty): boolean {
-  return weapon.properties.includes(property);
-}
-
 /** "1d8", "2d6" - and "—" for the net, which deals none. */
 export function damageDice(weapon: Weapon, twoHanded = false): string {
   if (weapon.damage.count === 0) return '—';
@@ -202,14 +198,3 @@ export function damageDice(weapon: Weapon, twoHanded = false): string {
   return `${weapon.damage.count}d${die}`;
 }
 
-export const PROPERTY_LABELS: Record<WeaponProperty, string> = {
-  ammunition: 'Ammunition',
-  finesse: 'Finesse',
-  heavy: 'Heavy',
-  light: 'Light',
-  loading: 'Loading',
-  reach: 'Reach',
-  thrown: 'Thrown',
-  'two-handed': 'Two-handed',
-  versatile: 'Versatile',
-};

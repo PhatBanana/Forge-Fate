@@ -24,7 +24,7 @@ import { armorProficiencies, isProficientWith, weaponProficiencies } from '../en
 import { damageDice, isLight, isTwoHanded, weaponsFor } from '../data/weapons';
 import { masterySlots, recommendMasteries } from '../engine/attacks';
 import { legalPicks, reconcileSkillPicks } from '../engine/proficiency';
-import { fillSkillPicks, recommendSkills } from '../engine/skillValue';
+import { fillSkillPicks, recommendExpertise, recommendSkills } from '../engine/skillValue';
 import { skillName } from '../data/skills';
 import type { SkillId } from '../data/skills';
 import type { Line } from '../engine/defense';
@@ -2011,6 +2011,16 @@ function ProficienciesPanel({
   const legal = legalPicks({ build, race: ctx.race, slices: ctx.slices, featIds: ctx.featIds });
 
   const ranked = new Map(recommendSkills(ctx).map((s, i) => [s.skill, { rank: i, ...s }]));
+  /*
+    §159: the doubling has its own ranker - worth most where you already roll
+    well - which was written and never called, so the 2× buttons stood with
+    no guidance at all. Its top picks, while any expertise is still open.
+  */
+  const doubleThese = new Map(
+    (p.openExpertisePicks > 0 ? recommendExpertise(ctx, Math.max(2, p.openExpertisePicks)) : []).map(
+      (s) => [s.skill, s],
+    ),
+  );
 
   const togglePick = (skill: SkillId) => {
     const picked = build.skillIds.includes(skill);
@@ -2106,6 +2116,11 @@ function ProficienciesPanel({
                     {line.expertise && <span className="tag">expertise</span>}
                     {line.halfProficiency && <span className="tag">half</span>}
                     {recommended && <span className="tag rec">recommended</span>}
+                    {doubleThese.has(line.skill) && !line.expertise && (
+                      <span className="tag rec" title={doubleThese.get(line.skill)!.headline}>
+                        double this
+                      </span>
+                    )}
                   </label>
                   <span className="skill-mod">
                     {line.modifier >= 0 ? '+' : ''}

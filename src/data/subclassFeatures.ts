@@ -1041,8 +1041,3 @@ export const SUBCLASS_FEATURES_2024: Record<string, ClassFeature[]> = {
     f(14, 'Overchannel', 'Maximum damage on a spell of level 5 or lower, at a rising cost in necrotic damage.'),
   ],
 };
-
-/** Every subclass id with a feature list, for coverage checks. */
-export function subclassFeatureIds(): string[] {
-  return Object.keys(SUBCLASS_FEATURES);
-}

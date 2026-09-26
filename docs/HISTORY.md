@@ -9437,3 +9437,43 @@ Cleric - the class whose calling is due at level 1 - taking the suggested
 name, past the kit in the loadout step and Surprise me on the who card,
 to a done card with a face frame and the story line, both themes. run154
 and run155 re-run clean.
+
+## 159. Wiring the loose ends
+
+A review for anything not fully wired up found three half-built features
+and a drawer of dead code. The multiplayer protocol, the house rules and
+the character details all checked out whole: every message kind has a
+sender and a handler, every rule toggle has a reader, every story field
+has an editor.
+
+**Monster notes had a setter and nothing else.** Combatants carried a
+`note` field and `setMonsterNote` wrote it, and no screen did either. The
+cockpit now has a note line under a selected monster's per-turn facts -
+"wounded, fleeing", "holds the key" - and the initiative strip carries it
+with a ✎, so the DM reads it without selecting anything. It rides on the
+combatant, so it saves, undoes and leaves with the fight.
+
+**Expertise was ranked by the wrong engine.** `recommendExpertise` was
+written for doubling - it favours skills you already roll well - and
+nothing called it. The guided flow and the Builder ranked expertise with
+`recommendSkills`, which answers "which skill should I become proficient
+in", a different question. The flow's expertise step now uses the
+doubling engine, and the Builder's 2× buttons gained a "double this" tag
+on its top picks where before they had no guidance at all. The test was
+made to discriminate: its fixture is a Rogue the two rankers disagree on,
+it asserts the disagreement, and it fails against the old wiring.
+
+**The ready card's table door did not seat anybody.** §155's card says
+the character "fills a chair at the table", and the door only switched
+screens. It now adds them to the active fight at initiative 0 for the
+player to roll; joining is idempotent, so pressing it twice is safe.
+
+**Dead code removed**: `bestWeaponFor` and `fightsUnarmed`,
+`hasProperty` and `PROPERTY_LABELS`, `subclassFeatureIds`, `paletteFor`,
+`sameTerrainInputs` with the interface only it used, and `QUAD_INDICES` -
+none called anywhere, tests included.
+
+**Gates.** 2737 tests / 136 files, tsc, oxlint, build in budget. run159
+walks a blank sheet to the ready card and through the table door to a
+battle screen with the character in the turn order, both themes; run155
+and run158 re-run clean.

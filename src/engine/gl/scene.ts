@@ -159,22 +159,6 @@ export function buildTerrain(
  */
 export const depthRange = (proj: IsoProjection): number => proj.gw + proj.gh;
 
-/** Convenience the component uses to decide when terrain must rebuild. */
-export interface TerrainInputs {
-  dungeonSeed: string;
-  elevation: ElevationMap;
-  terrain: TerrainMap;
-  orientation: number;
-  theme: string;
-}
-
-export const sameTerrainInputs = (a: TerrainInputs, b: TerrainInputs): boolean =>
-  a.dungeonSeed === b.dungeonSeed &&
-  a.elevation === b.elevation &&
-  a.terrain === b.terrain &&
-  a.orientation === b.orientation &&
-  a.theme === b.theme;
-
 /** Re-exported so the renderer can size its draw call without re-deriving. */
 export { groundCells } from '../iso';
 export type { Square };

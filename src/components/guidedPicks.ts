@@ -7,7 +7,7 @@ import type { BuildContext } from '../engine/character';
 import { optionGroups, reconcileClassOptions } from '../engine/classOptions';
 import { legalPicks } from '../engine/proficiency';
 import { describeSuggestion, recommendFeats, recommendNext } from '../engine/recommend';
-import { recommendSkills } from '../engine/skillValue';
+import { recommendExpertise, recommendSkills } from '../engine/skillValue';
 import { describeSpell, recommendSpells, scoreSpell } from '../engine/spellRecommend';
 import type { Build } from '../types';
 import type { RankedPick } from './flowSteps';
@@ -246,9 +246,17 @@ export function rankedStepFor(
       A skill you already have is the commonest refusal there is, and the one
       most worth saying out loud: without it you look for Perception, do not
       find it, and never learn that it is already yours.
+
+      §159: expertise is ranked by its own engine. `recommendSkills` answers
+      "which skill should I become proficient in"; doubling is a different
+      question - worth most on a skill you already roll well - and
+      `recommendExpertise` was written for exactly it, then never called.
     */
+    const takeable = expertise
+      ? recommendExpertise(ctx).filter((s) => legal.has(s.skill))
+      : ranked.filter((s) => legal.has(s.skill) && !has.includes(s.skill));
     const offered = withRefusals(
-      ranked.filter((s) => legal.has(s.skill) && !has.includes(s.skill)),
+      takeable,
       ranked.filter((s) => has.includes(s.skill)),
     );
     return {

@@ -128,9 +128,6 @@ export const DARK: Palette = {
   paper: [0.14, 0.13, 0.11],
 };
 
-export const paletteFor = (theme: 'light' | 'dark'): Palette =>
-  theme === 'dark' ? DARK : LIGHT;
-
 /**
  * The deterministic per-cell brightness jitter that sells "low-poly".
  *

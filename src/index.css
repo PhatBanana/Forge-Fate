@@ -4641,6 +4641,13 @@ dl.detail-list {
   panel competing with them. Both palettes get the accent from a token, so
   the stripe stays legible when the theme flips.
 */
+/* §159: the DM's pencil note on a monster - a full-width line under its
+   per-turn facts, quiet until something is written in it. */
+.monster-note {
+  width: 100%;
+  margin: 0 0 10px;
+}
+
 .rail-plan {
   margin: 8px 0;
   padding: 6px 0 6px 8px;

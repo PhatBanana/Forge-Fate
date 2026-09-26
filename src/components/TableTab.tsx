@@ -67,6 +67,7 @@ import {
   spendMonsterMovement,
   spendMonsterReaction,
   setMonsterStance,
+  setMonsterNote,
   spendMonsterUse,
   tickMonsterConditions,
 } from '../monsterInstance';
@@ -5688,6 +5689,24 @@ export function TableTab({
       )}
 
       {/*
+        §159: the DM's pencil note on this one monster - "wounded, fleeing
+        to the door", "the one holding the key". The field and its setter
+        existed for a long time with nothing that read or wrote them. It
+        rides on the combatant, so it saves with the fight, undoes with the
+        fight, and is gone when the monster is.
+      */}
+      {selected.kind === 'monster' && (
+        <input
+          type="text"
+          className="detail monster-note"
+          aria-label={`Note on ${nameOf(selected)}`}
+          placeholder="a note on this one — wounded, fleeing, holds the key…"
+          value={selected.note ?? ''}
+          onChange={(e) => setEncounter(setMonsterNote(encounter, selected.id, e.target.value))}
+        />
+      )}
+
+      {/*
         The turn it would take, if it were driving itself.
 
         Above the command menu rather than instead of it: this is a proposal,
@@ -6224,6 +6243,8 @@ export function TableTab({
     if (entry?.play.concentratingOn) notes.push(`conc: ${entry.play.concentratingOn}`);
     if (c.kind === 'monster' && c.dormant) notes.unshift('dormant');
     if (c.hidden !== undefined) notes.unshift(`hidden ${c.hidden}`);
+    // §159: the DM's own words lead - they are why the note was written.
+    if (c.kind === 'monster' && c.note?.trim()) notes.unshift(`✎ ${c.note.trim()}`);
     return {
       id: c.id,
       name: nameOf(c),

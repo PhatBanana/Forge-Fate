@@ -20,6 +20,7 @@ import {
   loadRoster,
   saveRoster,
   updateActive,
+  updateEncounter,
   updatePlay,
 } from './storage';
 import type { Roster } from './storage';
@@ -52,7 +53,7 @@ import { TitleScreen } from './components/TitleScreen';
 import type { TitleGroup } from './components/TitleScreen';
 import { activeCampaign, loadCampaigns } from './campaign';
 import { loadDungeons } from './dungeons';
-import { isRunning } from './encounter';
+import { addCharacter as joinFight, isRunning } from './encounter';
 import { Panel } from './components/shared';
 
 /*
@@ -1125,7 +1126,23 @@ export default function App() {
           onPairing={loadPairing}
           /* §155: the done step's doors - the finished sheet, or the table
              the character was built for. */
-          onFinished={(dest) => (dest === 'sheet' ? showView('sheet') : setTab('table'))}
+          onFinished={(dest) => {
+            if (dest === 'sheet') {
+              showView('sheet');
+              return;
+            }
+            /* §159: the card promised a chair at the table, so the door
+               seats them - into the active fight, at initiative 0 for the
+               player to roll. Joining twice is a no-op, so pressing it
+               again is safe. */
+            setRoster((current) =>
+              updateEncounter(
+                current,
+                joinFight(activeEncounter(current), current.activeId, { dex: ctx.mods.dex }),
+              ),
+            );
+            setTab('table');
+          }}
         />
       )}
       <Suspense fallback={<TabLoading />}>
