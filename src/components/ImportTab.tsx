@@ -8,7 +8,8 @@ import {
   parseCharacterId,
 } from '../import/dndbeyond';
 import { Panel } from './shared';
-import { exportAll, importAll, parseBackup } from '../persist';
+import { importAll, parseBackup } from '../persist';
+import { backupAge, downloadBackup } from '../backup';
 import type { Backup } from '../persist';
 
 export function ImportTab({
@@ -288,14 +289,13 @@ function BackupPanel() {
   const [problem, setProblem] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
+  /* §161: when the last one was made, so a stale backup is visible here
+     and not only in the reminder. Re-read after a download. */
+  const [age, setAge] = useState(() => backupAge());
+
   const download = async () => {
-    const backup = await exportAll();
-    const blob = new Blob([JSON.stringify(backup)], { type: 'application/json' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `forge-fate-backup-${backup.savedAt.slice(0, 10)}.json`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    await downloadBackup();
+    setAge(backupAge());
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };
@@ -315,6 +315,9 @@ function BackupPanel() {
       <button className="btn btn-primary" onClick={() => void download()}>
         {saved ? 'Backup downloaded' : 'Download a full backup'}
       </button>
+      <p className="muted" style={{ margin: '8px 0 0' }}>
+        {age ? `Last backup on this device: ${age}.` : 'No backup made on this device yet.'}
+      </p>
       <label className="field" style={{ marginTop: 12 }}>
         <span>Restore from a backup file</span>
         <input

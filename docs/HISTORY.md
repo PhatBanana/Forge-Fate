@@ -9525,3 +9525,28 @@ run160 makes real IndexedDB refuse every write and sees the toast; sees
 the browser asked exactly once; and downloads a full backup, wipes
 IndexedDB and localStorage, restores, and finds the party back in storage
 and on the hub - both themes. run96, run153 and run159 re-run clean.
+
+## 161. A reminder the backup needs
+
+§160 made a full backup possible, and a backup nobody downloads protects
+nothing. `backup.ts` keeps three timestamps on the device - the last backup,
+when it first held work worth keeping, and when it last reminded - and at
+open, with two weeks of real work and no backup, a toast says so with a
+"Back up now" button that is the backup. Gentle on purpose: nothing for the
+first fortnight, and a reminder snoozes the next for three days, so it can
+never become a toast every visit. Only a backup resets the clock. The
+Import / Export panel now says when the last backup on this device was.
+
+**The probe found a bug older than this section.** The reminder fired - its
+snooze was written - and nothing appeared. The hub and the first-run setup
+screen rendered without the toast host, so any toast raised there was lost,
+and most sessions open on the hub. That included §160's save-failure
+warning, whose probe passed only because its failure happened to fire
+inside the Builder. Both first screens carry the host now, and run161 also
+makes IndexedDB refuse the boot-time write and sees the warning on the
+setup screen itself.
+
+**Gates.** 2755 tests / 137 files (8 new), tsc, oxlint, build in budget.
+run161, both themes: a fresh party is not reminded; fifteen days on it is;
+the toast's button downloads the backup; the next open is quiet and the
+panel reads "today". run155 and run160 re-run clean.

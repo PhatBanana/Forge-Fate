@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flush, onSaveTrouble, saveTrouble } from './persist';
 import type { SaveTrouble } from './persist';
+import { backupDueNow, downloadBackup } from './backup';
 import { originalsShown, setOriginalsShown } from './originals';
 import { RULESETS, RULESET_LABELS } from './types';
 import type { Build, ClassId, Ruleset } from './types';
@@ -573,6 +574,22 @@ export default function App() {
     return onSaveTrouble(tell);
   }, [say]);
 
+  /*
+    §161: the backup reminder, asked once when the app opens. Two weeks of
+    real work with no backup, and it says so with the button right there;
+    showing it snoozes the next for three days (see backup.ts). Read from
+    the roster as it stood at open - a reminder that fired mid-edit would
+    be about the wrong moment.
+  */
+  const openingRoster = useRef(roster);
+  useEffect(() => {
+    if (!backupDueNow(!isPristine(openingRoster.current))) return;
+    say('No backup of your characters in two weeks - a browser that clears its storage takes them all.', {
+      label: 'Back up now',
+      onAct: () => void downloadBackup(),
+    });
+  }, [say]);
+
   // Undo lives in memory, not in the saved roster: a deep stack across several
   // characters would multiply the roster on disk many times over, to keep
   // forever what only a session ever needs. See `undo.ts`.
@@ -858,6 +875,10 @@ export default function App() {
           )}
           </div>
         </div>
+      {/* §161: toasts raised on the first screens used to vanish - only the
+          main layout rendered this, so a save failure or a backup reminder
+          raised at open was lost on whichever screen opened. */}
+      <ToastHost toasts={toasts} onChange={setToasts} />
       </div>
     );
   }
@@ -959,6 +980,10 @@ export default function App() {
             </>
           }
         />
+      {/* §161: toasts raised on the first screens used to vanish - only the
+          main layout rendered this, so a save failure or a backup reminder
+          raised at open was lost on whichever screen opened. */}
+      <ToastHost toasts={toasts} onChange={setToasts} />
       </div>
     );
   }
