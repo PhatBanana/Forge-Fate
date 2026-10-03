@@ -4,6 +4,8 @@ import type { PlayState } from './play';
 import { INTENT_KINDS, queueIntent, releaseSeat, withdrawIntent } from './seats';
 import type { Intent, Seat } from './seats';
 import type { CheckCall } from './checkCall';
+import { applySeatRoll, isSeatRoll } from './seatRolls';
+import type { SeatRoll } from './seatRolls';
 
 /**
  * §94: the wire between the table and its seats.
@@ -81,6 +83,12 @@ export type TableMessage =
    * the room instead.
    */
   | { kind: 'answer'; rosterId: string; total: number }
+  /**
+   * §162: seat → host - something this player rolled on their phone. Said,
+   * not done: the host writes it into the fight's log, and before the fight
+   * starts takes an initiative roll into the order (see seatRolls.ts).
+   */
+  | { kind: 'roll'; roll: SeatRoll }
   /** Seat → host: just joined; answer with state, plans and seats. */
   | { kind: 'hello' };
 
@@ -158,6 +166,10 @@ export function hostApply(
       // The one slice a seat owns. Everything else about the roster stays
       // the host's; a seat cannot rename a character over this wire.
       return { roster: updatePlay(roster, message.rosterId, message.play) };
+    /* §162: a roll is a line in the fight's log - and, before the fight
+       starts, an initiative in the order. */
+    case 'roll':
+      return { roster: applySeatRoll(roster, message.roll) };
     case 'sit':
       // One chair per character, §92's rule: sitting again is rejoining.
       return {
@@ -205,6 +217,9 @@ export function seatApply(
     case 'call':
     /* §143: another seat's answer is not this seat's business. */
     case 'answer':
+    /* §162: nor its roll - the host writes it into the log, and the log
+       arrives with the state. */
+    case 'roll':
     case 'hello':
       return {};
   }
@@ -417,6 +432,8 @@ export function isTableMessage(value: unknown): value is TableMessage {
       return typeof m.rosterId === 'string' && typeof m.play === 'object' && m.play !== null;
     case 'answer':
       return typeof m.rosterId === 'string' && typeof m.total === 'number';
+    case 'roll':
+      return isSeatRoll(m.roll);
     case 'call': {
       // §141: null is the whole "nothing is being asked" state, so it is a
       // valid call rather than a missing one.

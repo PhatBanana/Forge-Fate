@@ -1340,6 +1340,10 @@ export default function App() {
               sessionRef.current?.say({ kind: 'answer', rosterId, total });
               setAnswers((was) => ({ ...was, [rosterId]: total }));
             }}
+            /* §162: a roll is said, never applied here too - the host writes
+               it into the log, and on one browser the tabs share a roster,
+               so applying it locally as well would log every roll twice. */
+            onRoll={(roll) => sessionRef.current?.say({ kind: 'roll', roll })}
             say={say}
           />
         )}

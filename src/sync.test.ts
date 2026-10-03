@@ -191,6 +191,11 @@ describe('the unsaid pocket (§97)', () => {
       kinds ever added - queued on the phone, refused in transit, invisible
       to the DM - which is why it now derives from `INTENT_KINDS`.
     */
+    // §162: a roll crosses only when it is one.
+    expect(
+      isTableMessage({ kind: 'roll', roll: { rosterId: 'c0', label: 'Stealth', total: 15, detail: 'd20: 11 +4 = 15' } }),
+    ).toBe(true);
+    expect(isTableMessage({ kind: 'roll', roll: { rosterId: 'c0', label: 'Stealth' } })).toBe(false);
     for (const kind of ['grapple', 'shove', 'ready', 'item']) {
       expect(
         isTableMessage({ kind: 'intent', op: 'queue', intent: { combatantId: 'x', kind } }),
@@ -695,5 +700,19 @@ describe('the table session (§103)', () => {
     aSession.setRole('host');
     aSession.announce('state');
     expect(b.got.rosters).toHaveLength(0); // off is off - the Builder tab rule
+  });
+});
+
+describe('§162: a roll from the phone', () => {
+  it('lands in the host’s fight log, and the seat ignores it', () => {
+    const roster = rosterOf(fighter());
+    const id = roster.entries[0].id;
+    const message: TableMessage = {
+      kind: 'roll',
+      roll: { rosterId: id, label: 'Perception', total: 18, detail: 'd20: 16 +2 = 18' },
+    };
+    const applied = hostApply(message, roster, []);
+    expect(JSON.stringify(applied.roster)).toContain('rolls Perception: 18');
+    expect(seatApply(message)).toEqual({});
   });
 });

@@ -317,7 +317,9 @@ describe('rolling a called save (§143)', () => {
       call: { ask: 'skill', skillId: 'perception' },
       onAnswer: vi.fn(),
     });
-    expect(screen.queryByRole('button', { name: /^Roll/ })).toBeNull();
+    // §162: scoped to the called-save prompt - the dice panel always has a
+    // Roll button of its own, and this is about the *call*.
+    expect(document.querySelector('.seat-save button')).toBeNull();
   });
 
   it('offers one for a save, and sends the total back', async () => {
@@ -329,7 +331,7 @@ describe('rolling a called save (§143)', () => {
       call: { ask: 'save', ability: 'dex', dc: 15 },
       onAnswer,
     });
-    await user.click(screen.getByRole('button', { name: /^Roll/ }));
+    await user.click(within(document.querySelector('.seat-save') as HTMLElement).getByRole('button', { name: /^Roll/ }));
 
     expect(onAnswer).toHaveBeenCalledTimes(1);
     const [rosterId, total] = onAnswer.mock.calls[0];
@@ -347,10 +349,10 @@ describe('rolling a called save (§143)', () => {
       call: { ask: 'save', ability: 'dex', dc: 15 },
       onAnswer,
     });
-    await user.click(screen.getByRole('button', { name: /^Roll/ }));
+    await user.click(within(document.querySelector('.seat-save') as HTMLElement).getByRole('button', { name: /^Roll/ }));
     // The button becomes the record of what was rolled. Re-rolling a save
     // until it passes is not a feature.
-    expect(screen.queryByRole('button', { name: /^Roll/ })).toBeNull();
+    expect(document.querySelector('.seat-save button')).toBeNull();
     expect(screen.getByText(/You rolled/)).toBeInTheDocument();
     expect(onAnswer).toHaveBeenCalledTimes(1);
   });
@@ -394,5 +396,41 @@ describe('§160: the screen that stays awake', () => {
   it('offers no toggle where the browser cannot keep a screen on', () => {
     seat({ relay: { url: 'ws://x', room: 'X7Q2M4' }, seatId: 'c0' });
     expect(screen.queryByRole('checkbox', { name: /keep this screen awake/i })).toBeNull();
+  });
+});
+
+describe('§162: the dice in the player’s hand', () => {
+  /** In the fight but not started: nobody has rolled initiative yet. */
+  const waiting = (): Roster => {
+    const roster = rosterOf(fighter(), wizard());
+    let enc = addCharacter(emptyEncounter(), 'c0');
+    enc = addCharacter(enc, 'c1');
+    return updateEncounter(roster, enc);
+  };
+
+  it('offers initiative in one tap before the fight, and says the roll up the wire', async () => {
+    const onRoll = vi.fn();
+    seat({ roster: waiting(), seatId: 'c0', onRoll });
+    await userEvent.click(screen.getByRole('button', { name: /roll initiative/i }));
+    expect(onRoll).toHaveBeenCalledWith(
+      expect.objectContaining({ rosterId: 'c0', label: 'Initiative', initiative: true }),
+    );
+    // The result is on the phone at once, whether or not a table listens.
+    expect(document.querySelector('.seat-roll-result')?.textContent).toMatch(/Initiative/);
+  });
+
+  it('rolls anything on the sheet, with advantage where a d20 is involved', async () => {
+    const onRoll = vi.fn();
+    seat({ roster: runningRoster(), seatId: 'c1', onRoll });
+    // The fight is running: no initiative button, the picker instead.
+    expect(screen.queryByRole('button', { name: /roll initiative/i })).toBeNull();
+    await userEvent.selectOptions(screen.getByLabelText('What to roll'), 'skill:arcana');
+    await userEvent.click(screen.getByRole('button', { name: 'Adv' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Roll' }));
+    const sent = onRoll.mock.calls[0][0];
+    expect(sent).toMatchObject({ rosterId: 'c1', label: 'Arcana' });
+    // Two dice under advantage, one kept - the working says so.
+    expect(sent.detail).toMatch(/^d20: \(?\d+\)? \(?\d+\)?/);
+    expect(sent.initiative).toBeUndefined();
   });
 });

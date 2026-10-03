@@ -6500,6 +6500,52 @@ input.pcard-amount {
   text-align: center;
 }
 
+/* §162: the dice on the phone. One row that wraps: what to roll, the
+   advantage switch at a thumb's size (the shared .seg is desktop-small),
+   and the button. The result is set large - it is read across a table. */
+.seat-dice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.seat-dice select {
+  flex: 1 1 200px;
+  min-height: 40px;
+}
+
+.seat-dice .seg {
+  margin-bottom: 0;
+}
+
+.seat-dice .seg button {
+  min-height: 40px;
+  padding: 6px 12px;
+}
+
+.seat-dice > .btn {
+  min-height: 40px;
+  min-width: 72px;
+}
+
+.seat-roll-init {
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: 10px;
+}
+
+.seat-roll-result {
+  margin: 12px 0 0;
+}
+
+.seat-roll-result b {
+  font-family: var(--mono);
+  font-size: 28px;
+  margin-right: 6px;
+  color: var(--accent);
+}
+
 /* §160: the keep-awake toggle, quiet and centred over the leave button. */
 .seat-wake {
   display: block;

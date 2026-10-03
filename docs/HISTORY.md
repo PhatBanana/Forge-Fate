@@ -9550,3 +9550,39 @@ setup screen itself.
 run161, both themes: a fresh party is not reminded; fifteen days on it is;
 the toast's button downloads the backup; the next open is quiet and the
 panel reads "today". run155 and run160 re-run clean.
+
+## 162. The dice in the player's hand
+
+A seated phone could roll exactly one thing - a save the DM called (§143) -
+and the sheet it showed had no dice at all. Every attack and check went
+back to the physical table or the DM's screen, and every initiative was
+typed in by the DM. Now the phone rolls.
+
+**What a player can roll** (`seatRolls.ts`): initiative; every attack's
+to-hit, damage and critical damage (dice doubled, bonus not); all six
+saves; every skill; all six ability checks - one picker grouped the way a
+sheet reads, an advantage switch sized for a thumb, and the result set
+large with its working (`d20: 9 +2 = 11`) so it can be checked across the
+table. Before a fight starts, a character in it with no initiative yet
+gets one tap: "Roll initiative +2".
+
+**Said, not done - §92's rule, the way a called save already followed
+it.** The phone sends a `roll` up the wire; the host writes it into the
+fight's log by name, and every screen sees it with the next state. The one
+roll the host acts on is initiative before the fight starts - the number
+is the player's to roll, and typing it for them was the DM's busywork. A
+late initiative, once the fight is running, is only logged: reordering a
+live fight is the DM's call, not a phone's. The roll is said and never also
+applied on the phone, because on a same-browser table the tabs share one
+roster and it would land in the log twice. The boundary guard admits only a
+well-formed roll - finite total, bounded label and working.
+
+**The called-save tests had to learn the difference.** They looked for any
+button whose name began with "Roll", and the dice panel always has one now;
+they are scoped to the called-save prompt, which is what they always meant.
+
+**Gates.** 2766 tests / 138 files (11 new), tsc, oxlint, build in budget.
+run162, over the real relay, both themes: the phone rolls initiative and
+the DM's order and log take it; the fight starts, the initiative button
+goes, and the phone's attack roll lands in the DM's log by name. The
+§92-§96 multiplayer net and run153 re-run clean.

@@ -17,6 +17,9 @@ import type { Intent, Seat } from '../seats';
 import { keyOf } from '../terrain';
 import type { PlayState } from '../play';
 import { lastRelayUrl } from '../sync';
+import { performRoll, rollOptionsFor } from '../seatRolls';
+import type { RollOption, SeatRoll } from '../seatRolls';
+import type { D20Mode } from '../engine/dice';
 import type { RelayConfig } from '../sync';
 import type { Say } from '../toast';
 import { read, write } from '../persist';
@@ -58,6 +61,7 @@ export function SeatTab({
   linkUp = true,
   call = null,
   onAnswer,
+  onRoll,
   say,
 }: {
   roster: Roster;
@@ -85,6 +89,9 @@ export function SeatTab({
   /** §143: this player's total for a called save, sent back to the DM.
       A proposal, like a plan - the DM reads it and decides. */
   onAnswer?: (rosterId: string, total: number) => void;
+  /** §162: something this player rolled, said up the wire to the host,
+      which writes it into the fight's log. */
+  onRoll?: (roll: SeatRoll) => void;
   /** The roster entry this seat plays; null shows the picker. */
   seatId: string | null;
   onSeatChange: (id: string | null) => void;
@@ -106,6 +113,16 @@ export function SeatTab({
      rather than an invitation to roll again: re-rolling a save until it
      passes is not a feature. */
   const [rolled, setRolled] = useState<number | null>(null);
+  /* §162: the dice panel's choice, its advantage, and the last result -
+     up here with the other hooks, for the same early-return reason. */
+  const [rollId, setRollId] = useState('initiative');
+  const [rollMode, setRollMode] = useState<D20Mode>('normal');
+  const [lastRoll, setLastRoll] = useState<{
+    label: string;
+    total: number;
+    detail: string;
+    natural: 20 | 1 | null;
+  } | null>(null);
   useEffect(() => setRolled(null), [call]);
 
   const entry = roster.entries.find((e) => e.id === seatId);
@@ -338,6 +355,88 @@ export function SeatTab({
           </div>
         )}
       </Panel>
+
+      {/*
+        §162: the dice in the player's hand - initiative, attacks, saves,
+        skills, checks. Rolled here and *said* up the wire: the host writes
+        each into the fight's log for the table, and before the fight starts
+        takes an initiative straight into the order (seatRolls.ts). The
+        result shows here at once, whether or not a table is listening.
+      */}
+      {(() => {
+        const options = rollOptionsFor(ctx);
+        const roll = (option: RollOption | undefined) => {
+          if (!option) return;
+          const result = performRoll(option, option.kind === 'd20' ? rollMode : 'normal', defaultRng);
+          setLastRoll({ label: option.label, ...result });
+          onRoll?.({
+            rosterId: entry.id,
+            label: option.label,
+            total: result.total,
+            detail: result.detail,
+            ...(option.kind === 'd20' && option.initiative ? { initiative: true } : {}),
+          });
+        };
+        const groups = [...new Set(options.map((o) => o.group))];
+        const chosen = options.find((o) => o.id === rollId) ?? options[0];
+        const wantsInitiative = !!me && !running && me.initiative === 0;
+        return (
+          <Panel title="Dice" subtitle="Rolled here, said to the table - the DM's log shows every roll.">
+            {wantsInitiative && (
+              <button
+                className="btn btn-primary seat-roll-init"
+                onClick={() => roll(options.find((o) => o.id === 'initiative'))}
+              >
+                Roll initiative {signed(ctx.mods.dex)}
+              </button>
+            )}
+            <div className="seat-dice">
+              <select
+                aria-label="What to roll"
+                value={chosen.id}
+                onChange={(e) => setRollId(e.target.value)}
+              >
+                {groups.map((group) => (
+                  <optgroup key={group} label={group}>
+                    {options
+                      .filter((o) => o.group === group)
+                      .map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.label} {o.kind === 'd20' ? signed(o.modifier) : o.notation}
+                        </option>
+                      ))}
+                  </optgroup>
+                ))}
+              </select>
+              {chosen.kind === 'd20' && (
+                <span className="seg" role="group" aria-label="Advantage">
+                  {(['disadvantage', 'normal', 'advantage'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      className={rollMode === mode ? 'is-on' : ''}
+                      aria-pressed={rollMode === mode}
+                      onClick={() => setRollMode(mode)}
+                    >
+                      {mode === 'normal' ? 'Straight' : mode === 'advantage' ? 'Adv' : 'Dis'}
+                    </button>
+                  ))}
+                </span>
+              )}
+              <button className="btn btn-primary" onClick={() => roll(chosen)}>
+                Roll
+              </button>
+            </div>
+            {lastRoll && (
+              <p className="seat-roll-result" role="status">
+                <b>{lastRoll.total}</b> {lastRoll.label}
+                {lastRoll.natural === 20 ? ' — natural 20!' : lastRoll.natural === 1 ? ' — natural 1' : ''}
+                <span className="detail"> {lastRoll.detail}</span>
+              </p>
+            )}
+          </Panel>
+        );
+      })()}
 
       {/* The sheet's play surface: their own hit points, slots and
           conditions, written to the same roster the battle reads. */}
