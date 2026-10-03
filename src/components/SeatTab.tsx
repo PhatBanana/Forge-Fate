@@ -19,6 +19,11 @@ import type { PlayState } from '../play';
 import { lastRelayUrl } from '../sync';
 import type { RelayConfig } from '../sync';
 import type { Say } from '../toast';
+import { read, write } from '../persist';
+import { useWakeLock, wakeLockSupported } from './useWakeLock';
+
+/** §160: this device's choice about staying awake at the table. */
+const WAKE_KEY = 'dnd-forge:wake:v1';
 
 /**
  * §93: the player's seat.
@@ -105,6 +110,16 @@ export function SeatTab({
 
   const entry = roster.entries.find((e) => e.id === seatId);
   const ctx = useMemo(() => (entry ? deriveBuild(entry.build) : null), [entry]);
+
+  /*
+    §160: keep the phone awake while seated at a relayed table - a locked
+    phone drops off the relay and wakes to a stale screen every time somebody
+    else takes a turn. On by default, remembered per device, and only offered
+    where the browser can do it. Up here with the other hooks because the
+    seat returns early when nobody is sitting.
+  */
+  const [keepAwake, setKeepAwake] = useState(() => read(WAKE_KEY) !== '0');
+  const awake = useWakeLock(!!entry && !!relay && keepAwake);
 
   /* §97: the truth about the line, where the player can see it. A strip,
      not a lock - the sheet stays usable, because marks made now are kept
@@ -387,6 +402,20 @@ export function SeatTab({
         called={answer}
         onPlayChange={(next) => onPlay(entry.id, next)}
       />
+
+      {relay && wakeLockSupported() && (
+        <label className="hint seat-wake">
+          <input
+            type="checkbox"
+            checked={keepAwake}
+            onChange={(e) => {
+              setKeepAwake(e.target.checked);
+              write(WAKE_KEY, e.target.checked ? '1' : '0');
+            }}
+          />{' '}
+          Keep this screen awake while seated{keepAwake && awake ? ' — on' : ''}
+        </label>
+      )}
 
       <p className="hint seat-leave">
         <button className="btn btn-sm" onClick={() => onSeatChange(null)}>

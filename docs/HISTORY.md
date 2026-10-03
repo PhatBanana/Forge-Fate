@@ -9477,3 +9477,51 @@ none called anywhere, tests included.
 walks a blank sheet to the ready card and through the table door to a
 battle screen with the character in the turn order, both themes; run155
 and run158 re-run clean.
+
+## 160. Keeping what was made
+
+A quality-of-service pass found the app healthy where it is usually weak -
+no sideways scroll or undersized buttons at phone width, a usable first
+screen in about three seconds on throttled 4G, saves flushed on every tab
+hide, offline through the service worker - and four places where a
+player's work could vanish or a phone could drift off the table.
+
+**A refused save is said out loud.** `persist.ts` swallowed every failed
+write: right to keep the session running from the cache, wrong to tell
+nobody. A full quota or a private window looked exactly like saving until
+the reload that proved otherwise. Failures are now reported (`onSaveTrouble`)
+and App says so in a toast, once per kind - "saving failed, storage is
+full, download a backup" or "this browser is keeping nothing" for the
+memory-only fallback. The refused keys stay dirty, so the next write burst
+retries them and freed room lands them.
+
+**The browser is asked to keep the data.** Without `navigator.storage
+.persist()` an origin's storage is best effort: Safari clears it after
+about a week without a visit, Chrome under disk pressure - so a character
+saved on a player's phone (§96) could be gone by the next game night. It is
+asked once, after the first real save rather than at boot, because Firefox
+puts the question to the user and a prompt is only fair once there is
+something to keep.
+
+**A backup of everything.** Export was one character at a time; campaigns,
+custom monsters and saved dungeons had no copy at all. Characters & bestiary
+→ Import / Export now downloads every store in one versioned file and
+restores it. The device's own session - its seat, its room, the table's
+copy of the roster - is left out, because restored onto a new phone it
+would sit it at a table long closed. A restore describes the file before it
+writes, replaces store by store, leaves alone what the file lacks, and
+reloads.
+
+**A seated phone stays awake.** A locked phone drops off the relay; it
+rejoins on its own (§95), but the player unlocks to a stale screen every
+time somebody else takes a turn. While seated at a relayed table the seat
+now holds a screen wake lock - retaken each time the tab returns, since
+browsers drop it on hide - behind a "keep this screen awake" toggle that is
+on by default, remembered per device, and only offered where the browser
+can do it.
+
+**Gates.** 2747 tests / 136 files (10 new), tsc, oxlint, build in budget.
+run160 makes real IndexedDB refuse every write and sees the toast; sees
+the browser asked exactly once; and downloads a full backup, wipes
+IndexedDB and localStorage, restores, and finds the party back in storage
+and on the hub - both themes. run96, run153 and run159 re-run clean.

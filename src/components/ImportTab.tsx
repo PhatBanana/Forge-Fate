@@ -8,6 +8,8 @@ import {
   parseCharacterId,
 } from '../import/dndbeyond';
 import { Panel } from './shared';
+import { exportAll, importAll, parseBackup } from '../persist';
+import type { Backup } from '../persist';
 
 export function ImportTab({
   build,
@@ -189,6 +191,8 @@ export function ImportTab({
             {downloaded ? 'Downloaded' : 'Download this build as JSON'}
           </button>
         </Panel>
+
+        <BackupPanel />
       </div>
 
       <div className="stack">
@@ -263,5 +267,93 @@ export function ImportTab({
         </Panel>
       </div>
     </div>
+  );
+}
+
+/**
+ * §160: everything, in one file.
+ *
+ * The file above holds one character. A browser that clears its storage -
+ * Safari after a week away, Chrome under disk pressure, anybody clearing
+ * site data - takes every character, campaign, custom monster and saved
+ * dungeon with it, and there was no way to keep a copy of any of it but one
+ * character at a time. This is the whole of it, and the way back.
+ *
+ * Restoring replaces store by store and leaves alone what the file lacks,
+ * and it says what is in the file before it writes anything - a restore is
+ * the one button here that can lose work.
+ */
+function BackupPanel() {
+  const [pending, setPending] = useState<Backup | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const download = async () => {
+    const backup = await exportAll();
+    const blob = new Blob([JSON.stringify(backup)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `forge-fate-backup-${backup.savedAt.slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  const choose = async (file: File) => {
+    setProblem(null);
+    const { backup, error } = parseBackup(await file.text());
+    if (!backup) setProblem(error ?? 'That file could not be read.');
+    setPending(backup);
+  };
+
+  return (
+    <Panel
+      title="Back up everything"
+      subtitle="Every character, campaign, custom monster and saved dungeon in one file. Keep one somewhere safe - a browser that clears its storage takes all of it."
+    >
+      <button className="btn btn-primary" onClick={() => void download()}>
+        {saved ? 'Backup downloaded' : 'Download a full backup'}
+      </button>
+      <label className="field" style={{ marginTop: 12 }}>
+        <span>Restore from a backup file</span>
+        <input
+          type="file"
+          accept="application/json,.json"
+          aria-label="Restore from a backup file"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void choose(file);
+            e.target.value = '';
+          }}
+        />
+      </label>
+      {problem && <div className="callout error">{problem}</div>}
+      {pending && (
+        <div className="callout" role="alert">
+          <p style={{ marginTop: 0 }}>
+            This backup was made {new Date(pending.savedAt).toLocaleString()} and holds{' '}
+            {Object.keys(pending.data).length} saved stores. Restoring replaces what is here with
+            what is in the file; anything the file does not hold is left alone.
+          </p>
+          <span className="row" style={{ gap: 8 }}>
+            <button
+              className="btn btn-primary"
+              onClick={async () => {
+                await importAll(pending);
+                // Every store was read once at boot; a reload reads the
+                // restored ones.
+                window.location.reload();
+              }}
+            >
+              Restore and reload
+            </button>
+            <button className="btn" onClick={() => setPending(null)}>
+              Cancel
+            </button>
+          </span>
+        </div>
+      )}
+    </Panel>
   );
 }

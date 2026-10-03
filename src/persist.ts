@@ -45,6 +45,8 @@ export interface PersistAdapter {
    * after boot). IndexedDB cannot, and leaves this undefined.
    */
   readSync?(key: string): string | null;
+  /** §160: set by the memory fallback, which keeps nothing past the session. */
+  kind?: 'memory';
 }
 
 /** Everything this app owns is under one prefix, which is what makes the
@@ -88,6 +90,7 @@ export function webStorageAdapter(storage: Storage): PersistAdapter {
 export function memoryAdapter(): PersistAdapter {
   const map = new Map<string, string>();
   return {
+    kind: 'memory',
     async readAll() {
       return Object.fromEntries(map);
     },
@@ -158,6 +161,62 @@ let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let inFlight: Promise<void> = Promise.resolve();
 
 /**
+ * §160: when the store refuses, somebody has to be told.
+ *
+ * A failed write used to be swallowed whole - the session carried on from
+ * the cache, which was right, and nobody learned that nothing was reaching
+ * the disk, which was not. A full quota or a private window meant an evening
+ * of edits gone on reload with no warning. Now the trouble is recorded and
+ * said to whoever listens (App turns it into a toast), and the keys stay
+ * dirty so the next write burst tries them again - a portrait deleted to
+ * make room is enough for the retry to land.
+ */
+export type SaveTrouble = 'refused' | 'memory-only';
+
+let trouble: SaveTrouble | null = null;
+const troubleListeners = new Set<(kind: SaveTrouble) => void>();
+
+function reportTrouble(kind: SaveTrouble): void {
+  trouble = kind;
+  for (const listener of troubleListeners) listener(kind);
+}
+
+/** What has gone wrong with saving, if anything, this session. */
+export const saveTrouble = (): SaveTrouble | null => trouble;
+
+/** Hear about save trouble as it happens. Returns the unsubscribe. */
+export function onSaveTrouble(listener: (kind: SaveTrouble) => void): () => void {
+  troubleListeners.add(listener);
+  return () => troubleListeners.delete(listener);
+}
+
+/**
+ * §160: ask the browser to keep this origin's data.
+ *
+ * Without it, storage is "best effort": Safari clears a site's data after
+ * about a week without a visit, and Chrome clears under disk pressure - so a
+ * character saved on a player's phone could be gone by the next session.
+ * Asked once, after the first real save rather than at boot, because
+ * Firefox puts the question to the user and a prompt is only fair once
+ * there is something to keep.
+ */
+let durableAsked = false;
+function askForDurableStorage(): void {
+  if (durableAsked) return;
+  durableAsked = true;
+  try {
+    const storage = typeof navigator === 'undefined' ? undefined : navigator.storage;
+    if (!storage?.persist) return;
+    void storage
+      .persisted()
+      .then((already) => (already ? true : storage.persist()))
+      .catch(() => undefined);
+  } catch {
+    // An API that is not there is a browser that does not offer it.
+  }
+}
+
+/**
  * A save per render would be a write per keystroke. The app's stores are
  * written from `useEffect`, so a burst is normal and coalescing it is the
  * difference between one transaction and thirty.
@@ -192,11 +251,16 @@ export function flush(): Promise<void> {
         if (value === undefined) await adapter.remove(key);
         else await adapter.write(key, value);
       }
+      if (keys.some((key) => key !== MIGRATED_KEY)) askForDurableStorage();
     })
     // A store that refuses a write is not a reason to take the app down; the
     // session keeps working from the cache, exactly as the old localStorage
-    // try/catch behaved when the quota was hit.
-    .catch(() => undefined);
+    // try/catch behaved when the quota was hit. §160: but it is a reason to
+    // say so, and to try those keys again with the next burst.
+    .catch(() => {
+      for (const key of keys) dirty.add(key);
+      reportTrouble('refused');
+    });
   return inFlight;
 }
 
@@ -212,6 +276,8 @@ export async function hydrate(preferred?: PersistAdapter): Promise<void> {
     adapter = preferred;
   } else {
     adapter = await pickAdapter();
+    // §160: no store at all - nothing this session makes will outlive it.
+    if (adapter.kind === 'memory') trouble = 'memory-only';
   }
   cache.clear();
   try {
@@ -291,7 +357,7 @@ export function write(key: string, value: string): void {
   if (adapter.readSync) {
     // The synchronous stores are their own cache; write straight through so
     // another tab or a test sees it immediately.
-    void adapter.write(key, value).catch(() => undefined);
+    void adapter.write(key, value).then(askForDurableStorage, () => reportTrouble('refused'));
     return;
   }
   dirty.add(key);
@@ -301,7 +367,7 @@ export function write(key: string, value: string): void {
 export function remove(key: string): void {
   cache.delete(key);
   if (adapter.readSync) {
-    void adapter.remove(key).catch(() => undefined);
+    void adapter.remove(key).catch(() => reportTrouble('refused'));
     return;
   }
   dirty.add(key);
@@ -313,8 +379,100 @@ export function resetForTests(next?: PersistAdapter): void {
   adapter = next ?? memoryAdapter();
   cache.clear();
   dirty.clear();
+  trouble = null;
+  troubleListeners.clear();
+  durableAsked = false;
   if (flushTimer !== null) {
     clearTimeout(flushTimer);
     flushTimer = null;
   }
+}
+
+// ------------------------------------------------------------- §160 backup
+
+/**
+ * Everything worth carrying to another device or keeping against a wiped
+ * browser: every key under the prefix except this device's session - which
+ * seat it sits in, which room it is in, the table's copy of the roster.
+ * Restoring those onto a new phone would sit it in a chair at a table that
+ * closed weeks ago.
+ */
+const SESSION_ONLY = /^dnd-forge:(seat|relay|table-roster):/;
+
+/** The file format, versioned so a future change can refuse an old one. */
+export interface Backup {
+  format: 'forge-fate-backup';
+  version: 1;
+  savedAt: string;
+  data: Record<string, string>;
+}
+
+/** Everything, flushed first so the file holds what the screen shows. */
+export async function exportAll(): Promise<Backup> {
+  await flush();
+  let stored: Record<string, string> = {};
+  try {
+    stored = await adapter.readAll();
+  } catch {
+    // An unreadable store still has the cache, which is what the screen shows.
+  }
+  const data: Record<string, string> = {};
+  for (const source of [stored, Object.fromEntries(cache)]) {
+    for (const [key, value] of Object.entries(source)) {
+      if (key.startsWith(KEY_PREFIX) && !SESSION_ONLY.test(key)) data[key] = value;
+    }
+  }
+  return { format: 'forge-fate-backup', version: 1, savedAt: new Date().toISOString(), data };
+}
+
+/**
+ * Read a backup file back, or say plainly why not. Pure, so the screen can
+ * show what is in a file before anything is overwritten.
+ */
+export function parseBackup(text: string): { backup: Backup | null; error?: string } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { backup: null, error: 'That file is not a backup - it is not even JSON.' };
+  }
+  const b = parsed as Partial<Backup> | null;
+  if (!b || b.format !== 'forge-fate-backup') {
+    return { backup: null, error: 'That file is not a Forge & Fate backup.' };
+  }
+  if (b.version !== 1) {
+    return {
+      backup: null,
+      error: 'That backup was made by a newer version of the app. Update this one and try again.',
+    };
+  }
+  const data = b.data;
+  if (
+    !data ||
+    typeof data !== 'object' ||
+    Object.entries(data).some(
+      ([key, value]) => !key.startsWith(KEY_PREFIX) || typeof value !== 'string',
+    )
+  ) {
+    return { backup: null, error: 'That backup is damaged - its contents are not readable.' };
+  }
+  return { backup: b as Backup };
+}
+
+/**
+ * Write a backup over what is here. Store by store: a key in the file
+ * replaces the same key here, and a key the file lacks is left alone - so a
+ * backup made before any campaigns existed does not wipe today's campaigns.
+ * Session keys are skipped even if a hand-edited file carries them. The
+ * caller reloads afterwards, because every store was read once at boot.
+ */
+export async function importAll(backup: Backup): Promise<number> {
+  let written = 0;
+  for (const [key, value] of Object.entries(backup.data)) {
+    if (!key.startsWith(KEY_PREFIX) || SESSION_ONLY.test(key)) continue;
+    write(key, value);
+    written++;
+  }
+  await flush();
+  return written;
 }

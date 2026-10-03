@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SeatTab } from './SeatTab';
@@ -358,5 +358,41 @@ describe('rolling a called save (§143)', () => {
   it('says nothing about a save when the DM has not asked for one', () => {
     seat({ seatId: 'c0', roster: watchers(), onAnswer: vi.fn() });
     expect(document.querySelector('.seat-save')).toBeNull();
+  });
+});
+
+describe('§160: the screen that stays awake', () => {
+  const fakeWakeLock = () => {
+    const release = vi.fn(async () => undefined);
+    const request = vi.fn(async () => ({ release, addEventListener: vi.fn() }));
+    Object.defineProperty(navigator, 'wakeLock', { value: { request }, configurable: true });
+    return { request, release };
+  };
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'wakeLock');
+    localStorage.clear();
+  });
+
+  it('keeps a seated phone awake at a relayed table, and lets go on request', async () => {
+    const lock = fakeWakeLock();
+    seat({ relay: { url: 'ws://x', room: 'X7Q2M4' }, seatId: 'c0' });
+    await vi.waitFor(() => expect(lock.request).toHaveBeenCalledWith('screen'));
+    const toggle = screen.getByRole('checkbox', { name: /keep this screen awake/i });
+    expect(toggle).toBeChecked();
+
+    await userEvent.click(toggle);
+    await vi.waitFor(() => expect(lock.release).toHaveBeenCalled());
+  });
+
+  it('asks for nothing at the lobby, or with no table at all', () => {
+    const lock = fakeWakeLock();
+    seat({ relay: { url: 'ws://x', room: 'X7Q2M4' }, seatId: null });
+    seat({ relay: null, seatId: 'c0' });
+    expect(lock.request).not.toHaveBeenCalled();
+  });
+
+  it('offers no toggle where the browser cannot keep a screen on', () => {
+    seat({ relay: { url: 'ws://x', room: 'X7Q2M4' }, seatId: 'c0' });
+    expect(screen.queryByRole('checkbox', { name: /keep this screen awake/i })).toBeNull();
   });
 });

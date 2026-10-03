@@ -1,5 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { flush } from './persist';
+import { flush, onSaveTrouble, saveTrouble } from './persist';
+import type { SaveTrouble } from './persist';
 import { originalsShown, setOriginalsShown } from './originals';
 import { RULESETS, RULESET_LABELS } from './types';
 import type { Build, ClassId, Ruleset } from './types';
@@ -548,6 +549,29 @@ export default function App() {
       setToasts((current) => push(current, text, action)),
     [],
   );
+
+  /*
+    §160: a save the store refused is said out loud, once per kind per
+    session. Before this a full quota or a private window looked exactly
+    like saving, right up until the reload that proved otherwise. Trouble
+    recorded before this mounted (the memory-only fallback is decided at
+    boot) is said on mount.
+  */
+  useEffect(() => {
+    const told = new Set<SaveTrouble>();
+    const tell = (kind: SaveTrouble) => {
+      if (told.has(kind)) return;
+      told.add(kind);
+      say(
+        kind === 'memory-only'
+          ? 'This browser is not keeping anything - nothing made here will survive closing the tab. A private window does this; a normal one will save.'
+          : 'Saving failed - the browser refused the write, usually because storage is full. Your work is still here; download a backup now, and remove a portrait or two to make room.',
+      );
+    };
+    const now = saveTrouble();
+    if (now) tell(now);
+    return onSaveTrouble(tell);
+  }, [say]);
 
   // Undo lives in memory, not in the saved roster: a deep stack across several
   // characters would multiply the roster on disk many times over, to keep

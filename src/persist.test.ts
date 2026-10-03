@@ -1,10 +1,15 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   KEY_PREFIX,
+  exportAll,
   flush,
   hydrate,
+  importAll,
   memoryAdapter,
+  onSaveTrouble,
+  parseBackup,
   read,
+  saveTrouble,
   remove,
   resetForTests,
   webStorageAdapter,
@@ -187,5 +192,130 @@ describe('when there is no store at all', () => {
     await hydrate(memoryAdapter());
     write(`${KEY_PREFIX}roster:v1`, 'in memory');
     expect(read(`${KEY_PREFIX}roster:v1`)).toBe('in memory');
+  });
+});
+
+describe('§160: saving that fails says so', () => {
+  const refusing = (): PersistAdapter & { writes: string[]; open: boolean } => {
+    const store = {
+      writes: [] as string[],
+      open: false,
+      async readAll() {
+        return {};
+      },
+      async write(key: string) {
+        if (!store.open) throw new Error('quota');
+        store.writes.push(key);
+      },
+      async remove() {
+        if (!store.open) throw new Error('quota');
+      },
+    };
+    return store;
+  };
+
+  it('reports a refused write instead of swallowing it', async () => {
+    await hydrate(refusing());
+    const heard: string[] = [];
+    onSaveTrouble((kind) => heard.push(kind));
+    write(`${KEY_PREFIX}roster:v1`, 'something');
+    await flush();
+    expect(heard).toEqual(['refused']);
+    expect(saveTrouble()).toBe('refused');
+  });
+
+  it('tries the refused keys again with the next burst, so freed room lands them', async () => {
+    const store = refusing();
+    await hydrate(store);
+    write(`${KEY_PREFIX}roster:v1`, 'kept');
+    await flush();
+    // Room is made (a portrait deleted); the next write burst carries both.
+    store.open = true;
+    write(`${KEY_PREFIX}theme:v1`, 'dark');
+    await flush();
+    expect(store.writes).toContain(`${KEY_PREFIX}roster:v1`);
+  });
+});
+
+describe('§160: asking the browser to keep this', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('asks once, after the first real save rather than at boot', async () => {
+    const persist = vi.fn(async () => true);
+    vi.stubGlobal('navigator', { storage: { persisted: async () => false, persist } });
+    // A returning visitor: the one-time localStorage carry-across is done,
+    // so boot writes nothing of theirs.
+    const { adapter } = asyncAdapter({ [`${KEY_PREFIX}migrated-to-idb`]: 'done' });
+    await hydrate(adapter);
+    expect(persist).not.toHaveBeenCalled();
+
+    write(`${KEY_PREFIX}roster:v1`, 'a character');
+    await flush();
+    await Promise.resolve();
+    expect(persist).toHaveBeenCalledTimes(1);
+
+    write(`${KEY_PREFIX}roster:v1`, 'another edit');
+    await flush();
+    await Promise.resolve();
+    expect(persist).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not ask again where the browser already keeps it', async () => {
+    const persist = vi.fn(async () => true);
+    vi.stubGlobal('navigator', { storage: { persisted: async () => true, persist } });
+    await hydrate(asyncAdapter().adapter);
+    write(`${KEY_PREFIX}roster:v1`, 'a character');
+    await flush();
+    await Promise.resolve();
+    expect(persist).not.toHaveBeenCalled();
+  });
+});
+
+describe('§160: a backup of everything', () => {
+  it('carries every store but this device\'s seat at the table', async () => {
+    await hydrate(asyncAdapter().adapter);
+    write(`${KEY_PREFIX}roster:v1`, 'the party');
+    write(`${KEY_PREFIX}campaigns:v1`, 'the saga');
+    write(`${KEY_PREFIX}seat:v1`, 'c0');
+    write(`${KEY_PREFIX}relay:v1`, 'a room');
+    write(`${KEY_PREFIX}table-roster:v1`, 'the host copy');
+    const backup = await exportAll();
+    expect(backup.data[`${KEY_PREFIX}roster:v1`]).toBe('the party');
+    expect(backup.data[`${KEY_PREFIX}campaigns:v1`]).toBe('the saga');
+    // Restored onto a new phone, these would sit it at a table long closed.
+    expect(backup.data[`${KEY_PREFIX}seat:v1`]).toBeUndefined();
+    expect(backup.data[`${KEY_PREFIX}relay:v1`]).toBeUndefined();
+    expect(backup.data[`${KEY_PREFIX}table-roster:v1`]).toBeUndefined();
+  });
+
+  it('round-trips through the file, replacing store by store', async () => {
+    await hydrate(asyncAdapter().adapter);
+    write(`${KEY_PREFIX}roster:v1`, 'old party');
+    const text = JSON.stringify({
+      format: 'forge-fate-backup',
+      version: 1,
+      savedAt: '2026-10-01T00:00:00Z',
+      data: { [`${KEY_PREFIX}roster:v1`]: 'restored party', [`${KEY_PREFIX}seat:v1`]: 'c9' },
+    });
+    const { backup } = parseBackup(text);
+    expect(backup).not.toBeNull();
+    write(`${KEY_PREFIX}campaigns:v1`, 'made after the backup');
+    expect(await importAll(backup!)).toBe(1);
+    expect(read(`${KEY_PREFIX}roster:v1`)).toBe('restored party');
+    // What the file lacks is left alone, and a hand-edited seat is ignored.
+    expect(read(`${KEY_PREFIX}campaigns:v1`)).toBe('made after the backup');
+    expect(read(`${KEY_PREFIX}seat:v1`)).toBeNull();
+  });
+
+  it('says plainly why a file is not a backup', () => {
+    expect(parseBackup('not json').error).toMatch(/not even JSON/);
+    expect(parseBackup('{"name":"Thistle"}').error).toMatch(/not a Forge & Fate backup/);
+    expect(
+      parseBackup('{"format":"forge-fate-backup","version":9,"savedAt":"x","data":{}}').error,
+    ).toMatch(/newer version/);
+    expect(
+      parseBackup('{"format":"forge-fate-backup","version":1,"savedAt":"x","data":{"evil":"x"}}')
+        .error,
+    ).toMatch(/damaged/);
   });
 });
