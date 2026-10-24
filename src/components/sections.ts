@@ -333,7 +333,8 @@ export function sectionSummary(ctx: BuildContext): Record<Section, string> {
   const held = [build.weapons.mainHandId, build.weapons.offHandId].filter(Boolean);
   const proficient = profs.skills.filter((line) => line.proficient).length;
   const expertise = profs.skills.filter((line) => line.expertise).length;
-  const feats = build.featIds.length + build.originFeatIds.length;
+  const feats =
+    build.featIds.length + build.originFeatIds.length + (build.awardedBoonIds?.length ?? 0);
 
   return {
     identity: [ctx.race.name, classes, background?.name ?? 'no background'].join(' · '),

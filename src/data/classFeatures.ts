@@ -72,6 +72,13 @@ export interface ClassFeature {
    * subclasses hand out and nothing could read until §65.
    */
   move?: MoveGrant;
+  /**
+   * §163: a capstone that raises scores past 20 - the Barbarian's Primal
+   * Champion, the 2024 Monk's Body and Mind. Applied after every ordinary
+   * increase has stopped at 20, to its own ceiling, and never lowers a score
+   * that is already higher.
+   */
+  scoreRaise?: { abilities: Ability[]; amount: number; max: number };
 }
 
 /**
@@ -123,7 +130,8 @@ export const CLASS_FEATURES: Record<ClassId, ClassFeature[]> = {
     { level: 15, name: 'Persistent Rage', summary: 'Rage no longer ends early from not attacking or taking damage.' },
     { level: 17, name: 'Brutal Critical (3 dice)', summary: 'A third extra damage die on a critical hit.', rulesets: ['2014'] },
     { level: 18, name: 'Indomitable Might', summary: 'A Strength check below your Strength score counts as your score.' },
-    { level: 20, name: 'Primal Champion', summary: '+4 Strength and Constitution, to a maximum of 24.' },
+    { level: 20, name: 'Primal Champion', summary: '+4 Strength and Constitution, to a maximum of 24.', rulesets: ['2014'], scoreRaise: { abilities: ['str', 'con'], amount: 4, max: 24 } },
+    { level: 20, name: 'Primal Champion', summary: '+4 Strength and Constitution, to a maximum of 25.', rulesets: ['2024'], scoreRaise: { abilities: ['str', 'con'], amount: 4, max: 25 } },
   ],
 
   bard: [
@@ -219,7 +227,8 @@ export const CLASS_FEATURES: Record<ClassId, ClassFeature[]> = {
     { level: 14, name: 'Diamond Soul', summary: 'Proficiency in every saving throw, and reroll failures for ki.' },
     { level: 15, name: 'Timeless Body', summary: 'You stop ageing and no longer need food.' },
     { level: 18, name: 'Empty Body', summary: 'Invisibility and resistance for ki, and Astral Projection.' },
-    { level: 20, name: 'Perfect Self', summary: 'Regain 4 ki when you roll initiative with none left.' },
+    { level: 20, name: 'Perfect Self', summary: 'Regain 4 ki when you roll initiative with none left.', rulesets: ['2014'] },
+    { level: 20, name: 'Body and Mind', summary: '+4 Dexterity and Wisdom, to a maximum of 25.', rulesets: ['2024'], scoreRaise: { abilities: ['dex', 'wis'], amount: 4, max: 25 } },
   ],
 
   paladin: [

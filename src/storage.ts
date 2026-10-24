@@ -116,6 +116,8 @@ export function hydrateBuild(parsed: unknown): Build | null {
     // Anything saved before the ruleset switch existed was built under 2014.
     ruleset: candidate.ruleset ?? '2014',
     originFeatIds: candidate.originFeatIds ?? [],
+    // §163: absent on everything saved before awarded boons existed.
+    awardedBoonIds: candidate.awardedBoonIds ?? [],
     backgroundAsi: candidate.backgroundAsi ?? { mode: '2+1', picks: [] },
     defenses: { ...defaultDefenses(), ...candidate.defenses },
     // A build saved before weapons existed declared its combat profile

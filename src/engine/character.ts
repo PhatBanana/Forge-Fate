@@ -274,23 +274,61 @@ export function deriveBuild(build: Build): BuildContext {
   const level = Math.max(1, totalLevel(build));
   // Origin feats count for scoring and prerequisites but were never bought with
   // an ability score improvement, so they stay out of the slot accounting.
-  const featIds = new Set([...build.featIds, ...build.originFeatIds]);
+  const awardedBoonIds = build.awardedBoonIds ?? [];
+  const featIds = new Set([...build.featIds, ...build.originFeatIds, ...awardedBoonIds]);
 
   // Scores: base + racial + half-feat +1s + spent ASIs, capped at 20.
   const scores: AbilityScores = { ...build.baseScores };
   const racial = originAsi(build, race);
   for (const ability of ABILITIES) scores[ability] += racial[ability] ?? 0;
 
+  /*
+    §163: three tiers, because the rules give three ceilings.
+
+    Everything ordinary - species, background, half-feats, improvements - stops
+    at 20. Then the Epic Boon taken in the level 19 slot, whose +1 goes to 30.
+    Then a capstone like Body and Mind, +4 to its own 25 (or Primal Champion's
+    24 in 2014). Then any boons the DM awarded after 20th level, again to 30.
+    Each later tier only ever raises a score, so a capstone can never pull back
+    what a boon already put there. Before this every score stopped at 20 and a
+    level 20 Monk read four points low in two abilities.
+  */
+  const raiseTo = (ability: Ability, amount: number, max: number) => {
+    scores[ability] = Math.max(scores[ability], Math.min(max, scores[ability] + amount));
+  };
+  const boonAsis: { featId: string; ability: Ability; amount: number; max: number }[] = [];
   for (const featId of [...build.featIds, ...build.originFeatIds]) {
     const feat = featById(featId, build.ruleset);
     if (!feat?.asi) continue;
     const chosen = build.featAsiChoices[featId] ?? feat.asi.abilities[0];
+    if ((feat.asi.max ?? 20) > 20) {
+      boonAsis.push({ featId, ability: chosen, amount: feat.asi.amount, max: feat.asi.max ?? 20 });
+      continue;
+    }
     scores[chosen] += feat.asi.amount;
   }
   for (const pick of build.asiPicks) {
     for (const ability of pick) scores[ability] += 1;
   }
   for (const ability of ABILITIES) scores[ability] = Math.min(20, scores[ability]);
+
+  for (const boon of boonAsis) raiseTo(boon.ability, boon.amount, boon.max);
+
+  // Resolved here rather than further down, because a capstone moves scores.
+  const features = featuresFor(slices, build.ruleset);
+  for (const feature of features) {
+    if (!feature.scoreRaise) continue;
+    for (const ability of feature.scoreRaise.abilities) {
+      raiseTo(ability, feature.scoreRaise.amount, feature.scoreRaise.max);
+    }
+  }
+
+  for (const featId of awardedBoonIds) {
+    const feat = featById(featId, build.ruleset);
+    if (!feat?.asi) continue;
+    const chosen = build.featAsiChoices[featId] ?? feat.asi.abilities[0];
+    raiseTo(chosen, feat.asi.amount, feat.asi.max ?? 30);
+  }
 
   // Magic items resolve before the modifiers do, because an item that sets a
   // score - a Headband of Intellect, an Amulet of Health - changes every number
@@ -323,7 +361,6 @@ export function deriveBuild(build: Build): BuildContext {
   // The stat that drives attack rolls and save DCs. For a weapon build that is
   // whatever the weapon style uses; for a caster it is the casting ability.
   const subclassIds = new Set(slices.map((s) => s.subclass?.id).filter(Boolean) as string[]);
-  const features = featuresFor(slices, build.ruleset);
   const spellcasting = computeSpellcasting({ build, slices, mods, proficiency, subclassIds });
 
   // The attack style and loadout the feat rules read come from what this

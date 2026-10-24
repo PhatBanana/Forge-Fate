@@ -67,8 +67,15 @@ export interface AsiSuggestion {
 export type Suggestion = FeatSuggestion | AsiSuggestion;
 
 /** Value of raising `ability` from `from` to `to` for this build. */
-export function pointValue(ctx: BuildContext, ability: Ability, from: number, to: number): number {
-  const capped = Math.min(20, to);
+export function pointValue(
+  ctx: BuildContext,
+  ability: Ability,
+  from: number,
+  to: number,
+  ceiling = 20,
+): number {
+  // §163: 20 for an improvement or a half-feat; an Epic Boon passes its 30.
+  const capped = Math.min(ceiling, to);
   const points = capped - from;
   if (points <= 0) return 0;
   const modGain = abilityMod(capped) - abilityMod(from);
@@ -77,7 +84,7 @@ export function pointValue(ctx: BuildContext, ability: Ability, from: number, to
 
   let value = weight * (MOD_SHARE * modGain + PROGRESS_SHARE * points);
   if (modGain > 0) {
-    if (priority === 3 && capped === 20) value += 1;
+    if (priority === 3 && capped === 20 && from < 20) value += 1;
     if (ability === 'con' && ctx.concentrates) value += 1;
   }
   return value;
@@ -177,7 +184,7 @@ export function scoreFeat(feat: Feat, ctx: BuildContext, atLevel?: number): Feat
     let best = -1;
     for (const ability of feat.asi.abilities) {
       const from = ctx.scores[ability];
-      const value = pointValue(ctx, ability, from, from + feat.asi.amount);
+      const value = pointValue(ctx, ability, from, from + feat.asi.amount, feat.asi.max ?? 20);
       if (value > best) {
         best = value;
         asiChoice = ability;
@@ -187,7 +194,7 @@ export function scoreFeat(feat: Feat, ctx: BuildContext, atLevel?: number): Feat
       best *= HALF_FEAT_DISCOUNT;
       score += best;
       const from = ctx.scores[asiChoice];
-      const to = Math.min(20, from + feat.asi.amount);
+      const to = Math.min(feat.asi.max ?? 20, from + feat.asi.amount);
       const crossesStep = abilityMod(to) > abilityMod(from);
       reasons.push({
         text: `Half-feat: put the +1 into ${ABILITY_NAMES[asiChoice]} (${from} → ${to})${

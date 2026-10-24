@@ -539,6 +539,12 @@ export interface FeatPrereq {
 export interface FeatAsi {
   abilities: Ability[];
   amount: number;
+  /**
+   * The ceiling this increase cannot push a score past. Absent means the
+   * ordinary 20; an Epic Boon says 30, which is the one way an increase from
+   * a feat takes a score beyond 20.
+   */
+  max?: number;
 }
 
 /**
@@ -637,6 +643,16 @@ export interface Build {
   baseScores: AbilityScores;
   /** Feats already taken with an ability score improvement slot, in order. */
   featIds: string[];
+  /**
+   * §163: Epic Boons the DM has awarded past 20th level.
+   *
+   * The 2024 rules stop class levels at 20 and hand out further Epic Boons as
+   * rewards, so a "level 25" character is a 20 with five more boons. They cost
+   * no slot, their +1 can go past 20 like the level 19 boon's, and their ability
+   * choice lives in `featAsiChoices` with every other feat's. Optional, and
+   * absent on every character built before it existed.
+   */
+  awardedBoonIds?: string[];
   /**
    * Feats granted by your origin - a 2024 background, the 2024 Human's
    * Versatile trait, Variant Human or Custom Lineage. These cost no slot.

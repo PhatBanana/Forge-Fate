@@ -495,6 +495,9 @@ export function computeHp(
   if (featIds.has('tough')) {
     lines.push({ label: `Tough (+2 × ${totalLevel} levels)`, value: 2 * totalLevel });
   }
+  if (featIds.has('boon-of-fortitude')) {
+    lines.push({ label: 'Boon of Fortitude', value: 40 });
+  }
   if (race.id === 'dwarf-hill') {
     lines.push({ label: `Dwarven Toughness (+1 × ${totalLevel} levels)`, value: totalLevel });
   }

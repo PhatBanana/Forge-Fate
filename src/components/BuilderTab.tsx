@@ -1257,6 +1257,10 @@ export function BuilderTab({
           </div>
 
           <NextPicks ctx={ctx} build={build} onChange={onChange} picker={picker} onPicker={setPicker} />
+
+          {build.ruleset === '2024' && ctx.totalLevel >= 20 && (
+            <AwardedBoons build={build} patch={patch} onAsiPick={featAsiPick} />
+          )}
         </Panel>
 
           <Panel
@@ -1397,6 +1401,92 @@ export function BuilderTab({
  * same fact. Two ways of saying it would be two things to keep in step; this
  * is one fact drawn twice.
  */
+/**
+ * §163: Epic Boons the DM awards after 20th level.
+ *
+ * The 2024 rules stop class levels at 20 and treat further advancement as
+ * boons handed out as rewards, so a "level 25" table is a level 20 character
+ * with extra boons. They cost no improvement slot, which is why they sit here
+ * rather than among the slot picks above, and their +1 can go past 20.
+ */
+function AwardedBoons({
+  build,
+  patch,
+  onAsiPick,
+}: {
+  build: Build;
+  patch: (partial: Partial<Build>) => void;
+  onAsiPick: (featId: string, ability: Ability) => void;
+}) {
+  const awarded = build.awardedBoonIds ?? [];
+  const taken = new Set([...build.featIds, ...awarded]);
+  const available = featsFor(build.ruleset).filter(
+    (feat) => feat.category === 'epic-boon' && !taken.has(feat.id),
+  );
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <h4 style={{ margin: '0 0 4px' }}>Epic Boons awarded past level 20</h4>
+      <p className="muted" style={{ marginBottom: 8 }}>
+        Rewards from your DM, beyond the level 19 boon. They cost no slot, and their +1 can
+        raise a score past 20, up to 30.
+      </p>
+      {awarded.length > 0 && (
+        <div className="chips" style={{ marginBottom: 8 }}>
+          {awarded.map((featId) => {
+            const feat = featById(featId, build.ruleset);
+            if (!feat) return null;
+            return (
+              <span className="chip" key={featId}>
+                {feat.name}
+                {feat.asi && (
+                  <select
+                    value={build.featAsiChoices[featId] ?? feat.asi.abilities[0]}
+                    onChange={(e) => onAsiPick(featId, e.target.value as Ability)}
+                    style={{ width: 'auto', padding: '1px 4px', fontSize: 12 }}
+                    aria-label={`${feat.name} ability increase`}
+                  >
+                    {feat.asi.abilities.map((a) => (
+                      <option key={a} value={a}>
+                        +1 {a.toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <button
+                  onClick={() => patch({ awardedBoonIds: awarded.filter((id) => id !== featId) })}
+                  aria-label={`Remove ${feat.name}`}
+                >
+                  ×
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
+      {available.length > 0 && (
+        <label style={{ display: 'inline-flex', flexDirection: 'column', gap: 4 }}>
+          <span className="muted">Add an awarded boon</span>
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value) patch({ awardedBoonIds: [...awarded, e.target.value] });
+            }}
+            style={{ width: 'auto' }}
+          >
+            <option value="">— choose —</option>
+            {available.map((feat) => (
+              <option key={feat.id} value={feat.id}>
+                {feat.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+    </div>
+  );
+}
+
 function SectionRow({
   id,
   ctx,

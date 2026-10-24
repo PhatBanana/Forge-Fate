@@ -336,8 +336,10 @@ export function applySetAbilities(
     const key = ability as Ability;
     // An Ioun Stone stops at 20, where the ordinary ceiling is 30 - and it
     // stops there rather than being wasted, so a score of 19 still gains 1.
+    // §163: a score already past the item's ceiling (a Monk's 22 after Body
+    // and Mind) keeps it - the item adds nothing rather than taking two away.
     const ceiling = Math.min(30, effects.abilityBonusCap[key] ?? 30);
-    out[key] = Math.min(ceiling, out[key] + (bonus ?? 0));
+    out[key] = Math.max(out[key], Math.min(ceiling, out[key] + (bonus ?? 0)));
   }
   return out;
 }

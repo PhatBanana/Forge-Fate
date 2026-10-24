@@ -192,7 +192,7 @@ export function analyze(ctx: BuildContext): Finding[] {
         ...whenBuilt,
         detail: `${ABILITY_NAMES[ability]} sets your attack rolls and your save DC. Everything else on the sheet is worth less until it reaches at least 16.`,
       });
-    } else if (scores[ability] === 20) {
+    } else if (scores[ability] >= 20) {
       findings.push({
         severity: 'good',
         title: `${ABILITY_NAMES[ability]} is maxed`,
