@@ -9586,3 +9586,36 @@ run162, over the real relay, both themes: the phone rolls initiative and
 the DM's order and log take it; the fight starts, the initiative button
 goes, and the phone's attack roll lands in the DM's log by name. The
 §92-§96 multiplayer net and run153 re-run clean.
+
+## 163. Scores past 20
+
+Every ability score stopped at 20, so a level 20 Monk read four points low
+in Dexterity and Wisdom, and a level 20 Barbarian four low in Strength and
+Constitution. The capstones that say otherwise were text on the feature list
+and nothing else.
+
+**Three ceilings, applied in order.** Species, background, half-feats and
+improvements still stop at 20. Then the Epic Boon in the level 19 slot,
+whose +1 goes to 30 (`FeatAsi.max`). Then a capstone that carries a
+`scoreRaise`: the 2024 Monk's Body and Mind (+4 DEX and WIS, to 25) and
+Primal Champion (+4 STR and CON, to 24 in 2014 and 25 in 2024). Then any
+boons awarded past 20th level. Each tier only raises a score, so a capstone
+never pulls back what a boon put there.
+
+**Awarded boons.** The 2024 rules end class levels at 20 and hand out
+further Epic Boons as rewards, so a "level 25" table is a 20 with more
+boons. `Build.awardedBoonIds` holds them: no slot, their +1 past 20 like the
+level 19 one, their ability choice in `featAsiChoices`. The Builder shows
+them under the feats at level 20 in 2024.
+
+**Boon data.** Boon of Fortitude was missing (+40 hit points). Combat
+Prowess, Skill, the Night Spirit and Spell Recall carried no increase,
+though every 2024 Epic Boon has one. Giving Combat Prowess its +1 moved the
+level 19 pick in two 2024 Fighter plans from Irresistible Offense to Combat
+Prowess; the snapshots were updated for it.
+
+**An Ioun Stone no longer lowers a score.** A +2 to a maximum of 20 used to
+take a 22 down to 20; it now adds nothing to a score already past its
+ceiling.
+
+**Gates.** 2773 tests / 139 files (7 new), tsc, oxlint.

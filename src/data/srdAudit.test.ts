@@ -1085,7 +1085,7 @@ describe('feats and backgrounds against SRD 5.1 and 5.2', () => {
     expect(srdBoons.every((n) => mine.includes(n)), 'every SRD boon is present').toBe(true);
     expect(mine.filter((n) => !srdBoons.includes(n))).toEqual([
       // 2024 PHB, not in the SRD. Labelled, not verified.
-      'Boon of Recovery', 'Boon of Skill', 'Boon of Speed',
+      'Boon of Fortitude', 'Boon of Recovery', 'Boon of Skill', 'Boon of Speed',
     ]);
   });
 
@@ -1117,15 +1117,16 @@ describe('feats and backgrounds against SRD 5.1 and 5.2', () => {
       /*
         Sixteen of the SRD's seventeen 2024 feats are rows here; the
         seventeenth is Ability Score Improvement, which the app models as a
-        slot rather than a feat (see EXPECTED). The other fifty-four of the
-        app's seventy are 2024 PHB content with no licensed source, and stay
-        labelled rather than verified.
+        slot rather than a feat (see EXPECTED). The other fifty-five of the
+        app's seventy-one are 2024 PHB content with no licensed source, and
+        stay labelled rather than verified.
 
         `app: 70` moved from 69 the moment Boon of the Night Spirit was
         added, which is the check doing its job - a coverage figure that
         drifts on its own is the first sign of a table leaving its source.
+        It moved to 71 with Boon of Fortitude (§163).
       */
-      feats: { app: 70, srd: 17, covered: 16 },
+      feats: { app: 71, srd: 17, covered: 16 },
       backgrounds: { app: 16, srd: 4, covered: 4 },
     });
   });

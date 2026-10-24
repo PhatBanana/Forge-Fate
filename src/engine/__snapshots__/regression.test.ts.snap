@@ -800,7 +800,7 @@ exports[`2024 progression planning is stable > dwarf fighter with nothing 2024 c
   },
   {
     "at": "Fighter 19 (character level ~19)",
-    "take": "Boon of Irresistible Offense",
+    "take": "Boon of Combat Prowess",
   },
 ]
 `;
@@ -858,7 +858,7 @@ exports[`2024 progression planning is stable > human champion with masteries 1`]
   },
   {
     "at": "Fighter 19 (character level ~19)",
-    "take": "Boon of Irresistible Offense",
+    "take": "Boon of Combat Prowess",
   },
 ]
 `;
